@@ -1,0 +1,147 @@
+{
+  "identity": {
+    "name": "E1",
+    "role": "Creative Designer",
+    "mission": "Fusion of Spotify sleekness and Cathedral grandeur. Dark mode only. Emotion-first design.",
+    "principles": [
+      "Fusion over Imitation: Mix Spotify UI with Cathedral aesthetics.",
+      "Emotion First: Reverent yet modern.",
+      "Content is King: Media-forward layouts.",
+      "Zoom In: Bold focus on album art and user avatars.",
+      "Negative Space: Generous padding (2-3x standard)."
+    ]
+  },
+  "typography": {
+    "headings": {
+      "family": "Figtree, sans-serif",
+      "weights": ["600", "700", "800"],
+      "usage": "All section titles, card headers, and hero text."
+    },
+    "body": {
+      "family": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "Data tables, descriptions, form inputs."
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage": "IDs, technical data, code snippets."
+    }
+  },
+  "colors": {
+    "theme": "dark",
+    "palette": {
+      "background": {
+        "default": "#09090b",
+        "paper": "#18181b",
+        "subtle": "#27272a"
+      },
+      "primary": {
+        "main": "#8b5cf6",
+        "light": "#a78bfa",
+        "dark": "#7c3aed",
+        "foreground": "#ffffff"
+      },
+      "secondary": {
+        "main": "#10b981",
+        "light": "#34d399",
+        "dark": "#059669",
+        "foreground": "#ffffff"
+      },
+      "text": {
+        "primary": "#ffffff",
+        "secondary": "#a1a1aa",
+        "muted": "#71717a"
+      },
+      "border": {
+        "default": "#27272a",
+        "active": "#3f3f46"
+      },
+      "status": {
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "info": "#3b82f6"
+      }
+    }
+  },
+  "layout": {
+    "grid": {
+      "dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+      "media": "grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"
+    },
+    "spacing": {
+      "container": "p-6 md:p-8 lg:p-12",
+      "card": "p-6",
+      "section": "py-12"
+    },
+    "sidebar": {
+      "width": "w-64",
+      "collapsed": "w-20",
+      "style": "fixed left-0 top-0 h-full border-r border-zinc-800 bg-zinc-950/95 backdrop-blur-xl z-50"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-all duration-300 hover:bg-zinc-900",
+      "radius": "rounded-xl"
+    },
+    "buttons": {
+      "primary": "bg-violet-600 hover:bg-violet-700 text-white rounded-full px-8 py-2 font-medium transition-transform active:scale-95",
+      "secondary": "bg-zinc-800 hover:bg-zinc-700 text-white rounded-full px-6 py-2 font-medium",
+      "ghost": "hover:bg-zinc-800/50 text-zinc-400 hover:text-white rounded-lg px-4 py-2"
+    },
+    "inputs": {
+      "style": "bg-zinc-950 border-zinc-800 focus:border-violet-500 focus:ring-violet-500/20 rounded-lg h-10"
+    },
+    "tables": {
+      "style": "w-full text-sm text-left",
+      "header": "text-zinc-400 font-medium border-b border-zinc-800 pb-4",
+      "row": "border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-black/40 border border-white/10",
+    "gradients": {
+      "hero": "bg-gradient-to-b from-violet-900/20 to-zinc-950",
+      "card_hover": "hover:bg-gradient-to-br hover:from-zinc-900 hover:to-zinc-800"
+    },
+    "shadows": {
+      "glow": "shadow-[0_0_20px_rgba(139,92,246,0.15)]",
+      "card": "shadow-xl shadow-black/20"
+    }
+  },
+  "images": {
+    "church_interiors": [
+      "https://images.unsplash.com/photo-1762425476678-12878efac31d?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1755442038693-2f3b6fd79b9b?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1762275588185-5eaec5a6dc4a?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ],
+    "choirs": [
+      "https://images.unsplash.com/photo-1761901219315-bfe7d72340b9?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1760367120038-34885d779db1?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ],
+    "portraits": [
+      "https://images.unsplash.com/photo-1673757519094-6063fec0549c?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1760893107446-58b108d419d8?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1589668944320-409833e5ba10?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ],
+    "album_art": [
+      "https://images.unsplash.com/photo-1581084349663-7ab88c58d362?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1682778964790-b2fa177b5e45?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1593462475357-67ac85ec71a7?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ]
+  },
+  "universal_guidelines": [
+    "Dark mode is MANDATORY. No light mode toggle.",
+    "Use 'Figtree' for headings and 'Inter' for body text.",
+    "Primary action color is Violet (#8b5cf6). Success/Play color is Emerald (#10b981).",
+    "Cards must be borderless or have a very subtle 1px border (#27272a).",
+    "Use generous padding (p-6 minimum for cards).",
+    "All interactive elements must have a hover state (brightness-110 or bg-opacity change).",
+    "Use 'sonner' for toasts.",
+    "Do not use generic gradients. Use subtle noise textures if needed.",
+    "Ensure all text has sufficient contrast (APCA standards).",
+    "Add 'data-testid' to all interactive elements."
+  ],
+  "instructions_to_main_agent": "You are building a Christian App Admin Dashboard. Follow the 'Midnight Cathedral' theme. Use the provided image URLs for placeholders. Implement the sidebar navigation and the 'Bento' grid for the dashboard. Use Recharts for analytics. Ensure the media player controls look like Spotify's (Green play button, progress bar). Use Shadcn UI components but override the styles to match the dark theme defined in 'colors'."
+}
