@@ -2264,6 +2264,18 @@ async def create_withdrawal_request(data: dict, request: Request):
     doc["created_at"] = doc["created_at"].isoformat()
     await db.withdrawal_requests.insert_one(doc)
     
+    # Notify priest about withdrawal request
+    notification = PriestNotification(
+        notification_type="withdrawal_request",
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        message=f"{account['choir_name']} has requested a withdrawal of TZS {amount:,.0f}",
+        details={"request_id": doc["request_id"], "amount": amount, "payment_method": data.get("payment_method", "mobile_money")}
+    )
+    notif_doc = notification.model_dump()
+    notif_doc["created_at"] = notif_doc["created_at"].isoformat()
+    await db.priest_notifications.insert_one(notif_doc)
+    
     return {"request_id": doc["request_id"], "message": "Withdrawal request submitted"}
 
 @api_router.get("/withdrawal/requests")
