@@ -1,0 +1,237 @@
+{
+  "summary": {
+    "total_tests": 45,
+    "passed": 45,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "failed_tests": [],
+  "detailed_results": {
+    "Analytics Overview": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.045943"
+    },
+    "Analytics Trends": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.079704"
+    },
+    "Create Category": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.140960"
+    },
+    "Get Categories": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.173154"
+    },
+    "Update Category": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.208509"
+    },
+    "Delete Category": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.239715"
+    },
+    "Create Album": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.315204"
+    },
+    "Get Albums": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.388569"
+    },
+    "Get Single Album": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.424515"
+    },
+    "Update Album": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.461440"
+    },
+    "Delete Album": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.494017"
+    },
+    "Create Album for Song Test": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.529860"
+    },
+    "Create Song": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.604622"
+    },
+    "Get Songs": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.643728"
+    },
+    "Update Song": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.674507"
+    },
+    "Delete Song": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.710352"
+    },
+    "Delete Test Album": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.783477"
+    },
+    "Create Church": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.818813"
+    },
+    "Get Churches": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.851503"
+    },
+    "Get Single Church": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.883928"
+    },
+    "Update Church": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.921240"
+    },
+    "Delete Church": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.954346"
+    },
+    "Create Religious Leader": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:09.995831"
+    },
+    "Get Religious Leaders": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.030515"
+    },
+    "Update Religious Leader": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.068355"
+    },
+    "Delete Religious Leader": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.144098"
+    },
+    "Create Singer": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.182638"
+    },
+    "Get Singers": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.216327"
+    },
+    "Update Singer": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.285644"
+    },
+    "Delete Singer": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.317025"
+    },
+    "Create Seminar": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.353060"
+    },
+    "Get Seminars": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.429161"
+    },
+    "Update Seminar": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.462337"
+    },
+    "Delete Seminar": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.532981"
+    },
+    "Create Audio Room": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.568232"
+    },
+    "Get Audio Rooms": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.607675"
+    },
+    "Update Audio Room": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.637821"
+    },
+    "Delete Audio Room": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.668263"
+    },
+    "Create Donation Campaign": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.699469"
+    },
+    "Get Donation Campaigns": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.730562"
+    },
+    "Update Donation Campaign": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.763095"
+    },
+    "Delete Donation Campaign": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.793136"
+    },
+    "Get Priest Bookings": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.829144"
+    },
+    "Get Pending Approvals": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.859289"
+    },
+    "File Upload": {
+      "success": true,
+      "details": "",
+      "timestamp": "2026-01-14T10:12:10.909543"
+    }
+  },
+  "timestamp": "2026-01-14T10:12:10.910371"
+}
