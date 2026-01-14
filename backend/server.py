@@ -1224,16 +1224,24 @@ async def end_listening_session(data: dict):
     duration_seconds = int((now - start_time).total_seconds())
     duration_hours = duration_seconds / 3600
     
+    # Only count for revenue if duration >= 45 seconds
+    counts_for_revenue = duration_seconds >= MIN_STREAM_DURATION_SECONDS
+    
     await db.listening_sessions.update_one(
         {"session_id": session_id},
         {"$set": {
             "end_time": now.isoformat(),
             "duration_seconds": duration_seconds,
-            "duration_hours": duration_hours
+            "duration_hours": duration_hours,
+            "counts_for_revenue": counts_for_revenue
         }}
     )
     
-    return {"duration_seconds": duration_seconds, "duration_hours": round(duration_hours, 4)}
+    return {
+        "duration_seconds": duration_seconds, 
+        "duration_hours": round(duration_hours, 4),
+        "counts_for_revenue": counts_for_revenue
+    }
 
 # ============== ADMIN REVENUE ANALYTICS ==============
 
