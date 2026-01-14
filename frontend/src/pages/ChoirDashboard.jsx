@@ -259,15 +259,49 @@ export default function ChoirDashboard() {
   // Upload Song Request
   const handleUploadSong = async (e) => {
     e.preventDefault();
+    
+    if (!songForm.title) {
+      toast.error("Please enter a song title");
+      return;
+    }
+    
     try {
-      await axios.post(`${API}/choir/songs/upload`, songForm,
-        { headers: { Authorization: `Bearer ${sessionToken}` }, withCredentials: true }
-      );
+      let audioUrl = null;
+      
+      // Upload audio file first if provided
+      if (songAudioFile) {
+        setUploadingAudio(true);
+        const formData = new FormData();
+        formData.append("file", songAudioFile);
+        
+        const uploadRes = await axios.post(`${API}/upload`, formData, {
+          headers: { 
+            Authorization: `Bearer ${sessionToken}`,
+            "Content-Type": "multipart/form-data"
+          },
+          withCredentials: true
+        });
+        
+        audioUrl = uploadRes.data.url;
+        setUploadingAudio(false);
+      }
+      
+      // Submit song with audio URL
+      await axios.post(`${API}/choir/songs/upload`, {
+        ...songForm,
+        audio_url: audioUrl
+      }, { 
+        headers: { Authorization: `Bearer ${sessionToken}` }, 
+        withCredentials: true 
+      });
+      
       toast.success("Song upload request submitted for approval");
       setIsSongModalOpen(false);
       setSongForm({ title: "", album_id: "", duration_formatted: "", lyrics: "" });
+      setSongAudioFile(null);
       fetchData();
     } catch (error) {
+      setUploadingAudio(false);
       toast.error(error.response?.data?.detail || "Failed to submit song request");
     }
   };
