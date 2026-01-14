@@ -84,6 +84,7 @@ export default function ChoirDetailsPage() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [choirId]);
 
   const handleUpdate = async (e) => {
