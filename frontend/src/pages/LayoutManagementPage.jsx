@@ -64,16 +64,13 @@ const LINK_TYPES = [
 ];
 
 // Helper function to get icon component
-const getIconComponent = (iconName) => {
-  const icons = {
-    crown: Crown, gift: Gift, music: Music2, star: Star
-  };
-  return icons[iconName] || Crown;
+const ICON_MAP = {
+  crown: Crown, gift: Gift, music: Music2, star: Star
 };
 
 // Burner preview component - moved outside main component to avoid re-creation on each render
 const BurnerPreview = ({ burner, small = false }) => {
-  const IconComp = getIconComponent(burner.icon);
+  const IconComp = ICON_MAP[burner.icon] || Crown;
   return (
     <div 
       className={`rounded-2xl p-${small ? '4' : '6'} relative overflow-hidden`}
