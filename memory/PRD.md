@@ -260,25 +260,31 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - GET `/api/layout/config/{platform}` - Get layout for app/web
 
 ## Next Tasks (Priority Order)
-1. **P0 - Enhanced Admin Analytics**: Full analytics suite with metrics for actual revenue, stream time, unique streams/plays, downloads per choir
-2. **P1 - User-Facing App**: Build main front-end for listeners to stream content (using layout system)
+1. **P0 - React Native Mobile App**: Build native mobile app for Android/iOS using React Native
+2. **P1 - Audio Playback**: Implement actual audio streaming with audio_url support
 3. **P1 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
 4. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
 5. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
+6. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
 
 ## Future/Backlog
 - Audio Rooms (Clubhouse-style)
 - Christian Community features (Facebook-like)
 - Push notifications
-- Mobile app/PWA
+- Offline mode / Downloads
 - Audio preview/playback improvements
 
 ## Testing Status
 - ✅ Phase 1 & 2: 45/45 tests passed (100%)
 - ✅ Phase 3 Layout Management: 29/29 tests passed (100%)
+- ✅ Phase 4 Enhanced Analytics & User App: 39/39 tests passed (100%)
 - ✅ Choir authentication working
 - ✅ All monetization endpoints working
 - ✅ SMS logs endpoint working
 - ✅ Admin choir management working
 - ✅ Layout Management APIs working
-- Test files: `/app/tests/test_layout_management.py`
+- ✅ User Registration/Login working
+- ✅ User Streaming App UI working
+- Test files: 
+  - `/app/tests/test_layout_management.py`
+  - `/app/tests/test_user_app_and_analytics.py`
