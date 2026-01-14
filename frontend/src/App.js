@@ -268,7 +268,12 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/choir/login" element={<ChoirLoginPage />} />
+      <Route path="/choir/dashboard" element={<ChoirDashboard />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
+      <Route path="/choir-accounts" element={<ProtectedRoute><ChoirAccountsPage /></ProtectedRoute>} />
+      <Route path="/withdrawals" element={<ProtectedRoute><WithdrawalsPage /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
       <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
       <Route path="/albums" element={<ProtectedRoute><AlbumsPage /></ProtectedRoute>} />
