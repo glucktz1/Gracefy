@@ -311,6 +311,15 @@ class ChoirAccount(BaseModel):
     choir_name: str
     email: str
     password_hash: str  # Will use simple hash for demo
+    # Denomination and contacts (synced from Singer)
+    denomination: Optional[str] = None
+    treasurer_name: Optional[str] = None
+    treasurer_phone: Optional[str] = None
+    chairman_name: Optional[str] = None
+    chairman_phone: Optional[str] = None
+    parish_priest_name: Optional[str] = None
+    parish_priest_phone: Optional[str] = None
+    # Balance info
     current_balance: float = 0.0
     total_earned: float = 0.0
     total_withdrawn: float = 0.0
