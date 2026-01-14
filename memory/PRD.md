@@ -88,6 +88,43 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
 - ✅ Emergency controls (pause all payouts, freeze monetization)
 - ✅ Save all changes with single button
 
+### Phase 3 - Layout Management System (January 14, 2026)
+
+**Backend - Layout Sections:**
+- ✅ LayoutSection model with section types: hero, quick_access, featured_albums, seasonal, trending, cta, custom
+- ✅ GET `/api/layout/sections` - List all sections with platform/active filtering
+- ✅ GET `/api/layout/sections/{section_id}` - Get specific section with content items
+- ✅ POST `/api/layout/sections` - Create section with auto-ordering
+- ✅ PUT `/api/layout/sections/{section_id}` - Update section properties
+- ✅ DELETE `/api/layout/sections/{section_id}` - Delete section
+- ✅ PUT `/api/layout/sections/{section_id}/toggle` - Toggle active status
+- ✅ POST `/api/layout/sections/reorder` - Reorder sections with new sort_order
+- ✅ POST `/api/layout/sections/{section_id}/assign-content` - Assign categories/albums/songs
+
+**Backend - Layout Burners (Promotional Banners):**
+- ✅ LayoutBurner model with full styling options (gradients, colors, icons)
+- ✅ GET `/api/layout/burners` - List all burners with platform/active filtering
+- ✅ GET `/api/layout/burners/{burner_id}` - Get specific burner
+- ✅ POST `/api/layout/burners` - Create burner with auto-ordering
+- ✅ PUT `/api/layout/burners/{burner_id}` - Update burner properties
+- ✅ DELETE `/api/layout/burners/{burner_id}` - Delete burner
+- ✅ PUT `/api/layout/burners/{burner_id}/toggle` - Toggle active status
+
+**Backend - Layout Config & Analytics:**
+- ✅ GET `/api/layout/config/{platform}` - Get complete layout for app/web platform
+- ✅ POST `/api/layout/sections/{section_id}/track-click` - Analytics tracking
+- ✅ POST `/api/layout/burners/{burner_id}/track-click` - Click tracking
+- ✅ POST `/api/layout/burners/{burner_id}/track-impression` - Impression tracking
+
+**Frontend - LayoutManagementPage (`/layout-management`):**
+- ✅ Three tabs: Sections, Burners, Preview
+- ✅ Platform filter toggle (App/Web)
+- ✅ Section management: Create, edit, delete, reorder, toggle visibility
+- ✅ Content assignment modal for categories/albums
+- ✅ Burner management: Create, edit, delete with live preview
+- ✅ Full styling options: Gradients, colors, icons, CTA buttons
+- ✅ Preview mode showing sections and burners in order
+
 ### Previously Implemented (Phase 0)
 
 - ✅ Admin Dashboard MVP with 45+ API endpoints
@@ -146,11 +183,27 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
 - GET `/api/admin/sms-logs` - View SMS logs
 - POST `/api/admin/sms/send` - Manual SMS (for testing)
 
+### Layout Management
+- GET `/api/layout/sections` - List sections
+- POST `/api/layout/sections` - Create section
+- PUT `/api/layout/sections/{section_id}` - Update section
+- DELETE `/api/layout/sections/{section_id}` - Delete section
+- PUT `/api/layout/sections/{section_id}/toggle` - Toggle active
+- POST `/api/layout/sections/reorder` - Reorder sections
+- POST `/api/layout/sections/{section_id}/assign-content` - Assign content
+- GET `/api/layout/burners` - List burners
+- POST `/api/layout/burners` - Create burner
+- PUT `/api/layout/burners/{burner_id}` - Update burner
+- DELETE `/api/layout/burners/{burner_id}` - Delete burner
+- PUT `/api/layout/burners/{burner_id}/toggle` - Toggle active
+- GET `/api/layout/config/{platform}` - Get layout for app/web
+
 ## Next Tasks (Priority Order)
-1. **P0 - User-Facing App**: Build main front-end for listeners to stream content
-2. **P1 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
-3. **P1 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
-4. **P1 - Real M-Pesa Integration**: Implement actual mobile money payouts
+1. **P0 - Enhanced Admin Analytics**: Full analytics suite with metrics for actual revenue, stream time, unique streams/plays, downloads per choir
+2. **P1 - User-Facing App**: Build main front-end for listeners to stream content (using layout system)
+3. **P1 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
+4. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
+5. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
 
 ## Future/Backlog
 - Audio Rooms (Clubhouse-style)
@@ -161,7 +214,10 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
 
 ## Testing Status
 - ✅ Phase 1 & 2: 45/45 tests passed (100%)
+- ✅ Phase 3 Layout Management: 29/29 tests passed (100%)
 - ✅ Choir authentication working
 - ✅ All monetization endpoints working
 - ✅ SMS logs endpoint working
 - ✅ Admin choir management working
+- ✅ Layout Management APIs working
+- Test files: `/app/tests/test_layout_management.py`
