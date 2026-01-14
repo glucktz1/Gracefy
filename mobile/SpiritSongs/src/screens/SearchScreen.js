@@ -1,290 +1,252 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity, Image,
-  StyleSheet, FlatList, Dimensions, ActivityIndicator, StatusBar
+  View, Text, TextInput, TouchableOpacity, FlatList, Image,
+  StyleSheet, Dimensions, ActivityIndicator, Keyboard
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { contentService } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import MiniPlayer from '../components/MiniPlayer';
+import SongListItem from '../components/SongListItem';
+import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
 
-// Song Item
-const SongItem = ({ song, index, onPress, isPlaying, isActive }) => (
-  <TouchableOpacity style={styles.songItem} onPress={onPress} activeOpacity={0.7}>
-    <View style={styles.songThumb}>
-      {song.album_thumbnail || song.thumbnail ? (
-        <Image source={{ uri: song.album_thumbnail || song.thumbnail }} style={styles.songThumbImage} />
-      ) : (
-        <View style={styles.songThumbPlaceholder}>
-          <Ionicons name="musical-notes" size={16} color="#52525b" />
-        </View>
-      )}
-    </View>
-    <View style={styles.songInfo}>
-      <Text style={[styles.songTitle, isActive && styles.songTitleActive]} numberOfLines={1}>
-        {song.title}
-      </Text>
-      <Text style={styles.songArtist} numberOfLines={1}>
-        {song.artist_name || 'Unknown Artist'}
-      </Text>
-    </View>
-    {isActive && isPlaying && (
-      <View style={styles.playingIndicator}>
-        <View style={[styles.bar, { height: 8 }]} />
-        <View style={[styles.bar, { height: 14 }]} />
-        <View style={[styles.bar, { height: 10 }]} />
-      </View>
-    )}
-  </TouchableOpacity>
-);
+const CategoryCard = ({ category, onPress }) => {
+  const colors = [
+    ['#e13300', '#a52800'],
+    ['#8c1932', '#5e1020'],
+    ['#477d95', '#2a5066'],
+    ['#1e3264', '#0f1932'],
+    ['#503750', '#30223a'],
+    ['#8b2041', '#5c1530'],
+    ['#2d7f6e', '#1a4d42'],
+    ['#7856ff', '#4f3bb2'],
+  ];
+  const colorIndex = Math.abs(category.name?.charCodeAt(0) || 0) % colors.length;
+  
+  return (
+    <TouchableOpacity style={styles.categoryCard} onPress={onPress} activeOpacity={0.8}>
+      <LinearGradient
+        colors={colors[colorIndex]}
+        style={styles.categoryGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Text style={styles.categoryName}>{category.name}</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
 
-// Album Card
 const AlbumCard = ({ album, onPress }) => (
-  <TouchableOpacity style={styles.albumCard} onPress={onPress} activeOpacity={0.8}>
-    <View style={styles.albumImageContainer}>
+  <TouchableOpacity style={styles.searchAlbumCard} onPress={onPress} activeOpacity={0.8}>
+    <View style={styles.searchAlbumArt}>
       {album.thumbnail ? (
-        <Image source={{ uri: album.thumbnail }} style={styles.albumImage} />
+        <Image source={{ uri: album.thumbnail }} style={styles.searchAlbumImg} />
       ) : (
-        <LinearGradient colors={['#7c3aed', '#10b981']} style={styles.albumPlaceholder}>
-          <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.4)" />
+        <LinearGradient colors={['#535353', '#121212']} style={styles.searchAlbumImg}>
+          <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.3)" />
         </LinearGradient>
       )}
     </View>
-    <Text style={styles.albumTitle} numberOfLines={1}>{album.title}</Text>
-    <Text style={styles.albumArtist} numberOfLines={1}>{album.artist_name}</Text>
-  </TouchableOpacity>
-);
-
-// Artist Card
-const ArtistCard = ({ artist }) => (
-  <View style={styles.artistCard}>
-    <View style={styles.artistImage}>
-      {artist.photo ? (
-        <Image source={{ uri: artist.photo }} style={styles.artistImg} />
-      ) : (
-        <View style={styles.artistPlaceholder}>
-          <Ionicons name="person" size={32} color="#52525b" />
-        </View>
-      )}
+    <View style={styles.searchAlbumInfo}>
+      <Text style={styles.searchAlbumTitle} numberOfLines={1}>{album.title}</Text>
+      <Text style={styles.searchAlbumArtist} numberOfLines={1}>Album • {album.artist_name}</Text>
     </View>
-    <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
-    <Text style={styles.artistLabel}>Artist</Text>
-  </View>
+  </TouchableOpacity>
 );
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
   const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
-  const { currentSong, isPlaying, playSong } = usePlayer();
+  const [loading, setLoading] = useState(true);
+  
+  const { currentSong } = usePlayer();
 
   useEffect(() => {
-    loadCategories();
+    fetchCategories();
   }, []);
 
-  useEffect(() => {
-    if (query.length < 2) {
-      setResults(null);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const data = await contentService.search(query);
-        setResults(data);
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
-        setLoading(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const loadCategories = async () => {
+  const fetchCategories = async () => {
     try {
       const data = await contentService.getCategories();
       setCategories(data.categories || []);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('Error fetching categories:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePlaySong = (song, index) => {
-    const queue = results.songs.map(s => ({ 
-      song: s, 
-      album: { thumbnail: s.album_thumbnail, artist_name: s.artist_name } 
-    }));
-    playSong(song, { thumbnail: song.album_thumbnail, artist_name: song.artist_name }, queue, index);
+  const handleSearch = useCallback(async (text) => {
+    setQuery(text);
+    
+    if (text.length < 2) {
+      setResults(null);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const data = await contentService.search(text);
+      setResults(data);
+    } catch (error) {
+      console.error('Error searching:', error);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const clearSearch = () => {
+    setQuery('');
+    setResults(null);
+    Keyboard.dismiss();
+  };
+
+  const handleNowPlaying = () => {
+    navigation.navigate('NowPlaying');
+  };
+
+  const renderSearchResults = () => {
+    if (!results) return null;
+
+    const hasResults = 
+      (results.songs?.length > 0) || 
+      (results.albums?.length > 0) || 
+      (results.artists?.length > 0);
+
+    if (!hasResults) {
+      return (
+        <View style={styles.noResults}>
+          <Ionicons name="search-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.noResultsText}>No results found for "{query}"</Text>
+          <Text style={styles.noResultsHint}>
+            Check your spelling or try different keywords
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={[
+          ...(results.songs?.slice(0, 5).map(s => ({ ...s, type: 'song' })) || []),
+          ...(results.albums?.slice(0, 5).map(a => ({ ...a, type: 'album' })) || []),
+        ]}
+        keyExtractor={(item, idx) => `${item.type}-${item.song_id || item.album_id || idx}`}
+        renderItem={({ item }) => {
+          if (item.type === 'song') {
+            return (
+              <SongListItem
+                song={item}
+                showIndex={false}
+                showThumbnail={true}
+              />
+            );
+          }
+          return (
+            <AlbumCard 
+              album={item}
+              onPress={() => navigation.navigate('Album', { albumId: item.album_id })}
+            />
+          );
+        }}
+        contentContainerStyle={styles.resultsList}
+        showsVerticalScrollIndicator={false}
+      />
+    );
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
       {/* Search Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Search</Text>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#71717a" style={styles.searchIcon} />
+        
+        {/* Search Input */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={COLORS.background} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="What do you want to listen to?"
-            placeholderTextColor="#71717a"
+            placeholderTextColor={COLORS.textMuted}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={handleSearch}
             autoCapitalize="none"
             autoCorrect={false}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#71717a" />
+            <TouchableOpacity onPress={clearSearch} style={styles.clearBtn}>
+              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, currentSong && { paddingBottom: 90 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#10b981" />
-          </View>
-        )}
+      {/* Content */}
+      {searching ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : query.length >= 2 ? (
+        renderSearchResults()
+      ) : loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={categories}
+          keyExtractor={(item) => item.category_id}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <CategoryCard 
+              category={item}
+              onPress={() => navigation.navigate('Category', { category: item })}
+            />
+          )}
+          contentContainerStyle={[
+            styles.categoriesGrid,
+            currentSong && { paddingBottom: 140 }
+          ]}
+          ListHeaderComponent={
+            <Text style={styles.browseTitle}>Browse all</Text>
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-        {/* Search Results */}
-        {results && !loading && (
-          <>
-            {/* Songs */}
-            {results.songs?.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Songs</Text>
-                {results.songs.slice(0, 5).map((song, idx) => (
-                  <SongItem
-                    key={song.song_id}
-                    song={song}
-                    index={idx}
-                    onPress={() => handlePlaySong(song, idx)}
-                    isActive={currentSong?.song_id === song.song_id}
-                    isPlaying={isPlaying}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Albums */}
-            {results.albums?.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Albums</Text>
-                <FlatList
-                  horizontal
-                  data={results.albums}
-                  keyExtractor={(item) => item.album_id}
-                  renderItem={({ item }) => (
-                    <AlbumCard 
-                      album={item} 
-                      onPress={() => navigation.navigate('Album', { albumId: item.album_id })}
-                    />
-                  )}
-                  showsHorizontalScrollIndicator={false}
-                />
-              </View>
-            )}
-
-            {/* Artists */}
-            {results.artists?.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Artists</Text>
-                <FlatList
-                  horizontal
-                  data={results.artists}
-                  keyExtractor={(item) => item.singer_id}
-                  renderItem={({ item }) => <ArtistCard artist={item} />}
-                  showsHorizontalScrollIndicator={false}
-                />
-              </View>
-            )}
-          </>
-        )}
-
-        {/* Browse Categories (when no search) */}
-        {!results && !loading && (
-          <View style={styles.browseSection}>
-            <Text style={styles.sectionTitle}>Browse All</Text>
-            <View style={styles.categoryGrid}>
-              {categories.map((cat, idx) => (
-                <TouchableOpacity 
-                  key={cat.category_id || idx}
-                  style={styles.categoryCard}
-                  onPress={() => navigation.navigate('Category', { category: cat })}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={getCategoryColors(idx)}
-                    style={styles.categoryGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.categoryName}>{cat.name}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
-
-      {currentSong && <MiniPlayer navigation={navigation} />}
+      {/* Mini Player */}
+      {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
     </View>
   );
 }
 
-// Get category gradient colors
-const getCategoryColors = (index) => {
-  const colors = [
-    ['#7c3aed', '#a855f7'],
-    ['#10b981', '#34d399'],
-    ['#f59e0b', '#fbbf24'],
-    ['#3b82f6', '#60a5fa'],
-    ['#ef4444', '#f87171'],
-    ['#ec4899', '#f472b6'],
-    ['#06b6d4', '#22d3ee'],
-    ['#84cc16', '#a3e635'],
-  ];
-  return colors[index % colors.length];
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 50,
+    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    backgroundColor: '#18181b',
   },
   headerTitle: {
+    color: COLORS.textPrimary,
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
     marginBottom: 16,
   },
-  searchBox: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#27272a',
-    borderRadius: 8,
+    backgroundColor: COLORS.textPrimary,
+    borderRadius: 4,
     paddingHorizontal: 12,
   },
   searchIcon: {
@@ -293,162 +255,98 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#fff',
-    fontSize: 16,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  section: {
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  songItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  songThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  songThumbImage: {
-    width: '100%',
-    height: '100%',
-  },
-  songThumbPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#27272a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  songInfo: {
-    flex: 1,
-  },
-  songTitle: {
-    color: '#fff',
+    color: COLORS.background,
     fontSize: 15,
     fontWeight: '500',
   },
-  songTitleActive: {
-    color: '#10b981',
+  clearBtn: {
+    padding: 4,
   },
-  songArtist: {
-    color: '#71717a',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  playingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  bar: {
-    width: 3,
-    backgroundColor: '#10b981',
-    borderRadius: 2,
-  },
-  albumCard: {
-    width: width * 0.4,
-    marginRight: 12,
-  },
-  albumImageContainer: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  albumImage: {
-    width: '100%',
-    height: '100%',
-  },
-  albumPlaceholder: {
-    width: '100%',
-    height: '100%',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  albumTitle: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+  browseTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 16,
+    paddingHorizontal: 0,
   },
-  albumArtist: {
-    color: '#71717a',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  artistCard: {
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  artistImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  artistImg: {
-    width: '100%',
-    height: '100%',
-  },
-  artistPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#27272a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  artistName: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  artistLabel: {
-    color: '#71717a',
-    fontSize: 12,
-  },
-  browseSection: {
-    marginTop: 16,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  categoriesGrid: {
+    padding: 16,
   },
   categoryCard: {
-    width: (width - 44) / 2,
+    width: (width - 40) / 2,
     height: 100,
+    marginRight: 8,
+    marginBottom: 8,
     borderRadius: 8,
     overflow: 'hidden',
   },
   categoryGradient: {
     flex: 1,
-    padding: 16,
+    padding: 12,
     justifyContent: 'flex-end',
   },
   categoryName: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: COLORS.textPrimary,
     fontSize: 16,
+    fontWeight: '700',
+  },
+  noResults: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  noResultsText: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  noResultsHint: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  resultsList: {
+    paddingBottom: 100,
+  },
+  searchAlbumCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    paddingHorizontal: 16,
+  },
+  searchAlbumArt: {
+    width: 48,
+    height: 48,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  searchAlbumImg: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchAlbumInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  searchAlbumTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  searchAlbumArtist: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
   },
 });
