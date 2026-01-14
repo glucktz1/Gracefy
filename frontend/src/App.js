@@ -48,6 +48,7 @@ const Sidebar = ({ user, onLogout, isOpen, setIsOpen }) => {
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/revenue", icon: TrendingUp, label: "Revenue Analytics" },
+    { path: "/monetization", icon: Settings, label: "Monetization" },
     { path: "/admin/choirs", icon: Mic2, label: "Choir Management" },
     { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts" },
     { path: "/withdrawals", icon: CreditCard, label: "Withdrawals" },
