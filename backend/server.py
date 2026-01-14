@@ -343,6 +343,118 @@ class RevenueSettings(BaseModel):
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ============== LAYOUT MANAGEMENT MODELS ==============
+
+class LayoutSection(BaseModel):
+    """A section in the app/web layout"""
+    model_config = ConfigDict(extra="ignore")
+    section_id: str = Field(default_factory=lambda: f"section_{uuid.uuid4().hex[:12]}")
+    name: str  # Internal name
+    display_name: str  # Shown to users
+    section_type: str  # hero, quick_access, featured_albums, seasonal, trending, cta, custom
+    description: Optional[str] = None
+    
+    # Platform targeting
+    platforms: List[str] = ["app", "web"]  # app, web, or both
+    
+    # Visibility and ordering
+    is_active: bool = True
+    sort_order: int = 0
+    
+    # Content assignment
+    content_type: Optional[str] = None  # categories, albums, songs, playlists, custom
+    content_ids: List[str] = []  # List of category_ids, album_ids, song_ids, etc.
+    content_count: int = 10  # Max items to show
+    content_source: str = "manual"  # manual, auto_trending, auto_recent, auto_popular
+    
+    # Hero/Background settings
+    background_image: Optional[str] = None
+    background_color: Optional[str] = None
+    background_gradient: Optional[str] = None
+    
+    # Link to specific content
+    link_type: Optional[str] = None  # album, category, playlist, external, page
+    link_target: Optional[str] = None  # album_id, category_id, URL, page_name
+    
+    # Schedule
+    schedule_start: Optional[str] = None  # ISO date for scheduled activation
+    schedule_end: Optional[str] = None  # ISO date for scheduled deactivation
+    
+    # Metadata
+    last_edited_by: Optional[str] = None
+    clicks_count: int = 0
+    views_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[str] = None
+
+class LayoutBurner(BaseModel):
+    """Promotional banner/CTA (like the Premium upgrade card)"""
+    model_config = ConfigDict(extra="ignore")
+    burner_id: str = Field(default_factory=lambda: f"burner_{uuid.uuid4().hex[:12]}")
+    name: str  # Internal name
+    
+    # Display content
+    icon: Optional[str] = None  # Icon name (e.g., "crown", "gift", "music")
+    icon_color: str = "#a855f7"  # Default purple
+    headline: str
+    subtitle: Optional[str] = None
+    cta_text: str  # Button text
+    cta_link: str  # Link target (URL, page, album_id, etc.)
+    cta_link_type: str = "page"  # page, album, category, playlist, external, payment
+    
+    # Styling
+    background_type: str = "gradient"  # solid, gradient, image
+    background_color: str = "#1e1b4b"  # Dark purple default
+    background_gradient: Optional[str] = "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)"
+    background_image: Optional[str] = None
+    text_color: str = "#ffffff"
+    button_style: str = "solid"  # solid, outline
+    button_color: str = "#ffffff"
+    button_text_color: str = "#000000"
+    border_radius: str = "16px"
+    
+    # Platform targeting
+    platforms: List[str] = ["app", "web"]
+    
+    # Visibility
+    is_active: bool = True
+    sort_order: int = 0
+    
+    # Assignment to section (optional)
+    section_id: Optional[str] = None
+    
+    # Schedule
+    schedule_start: Optional[str] = None
+    schedule_end: Optional[str] = None
+    
+    # Analytics
+    clicks_count: int = 0
+    impressions_count: int = 0
+    
+    # Metadata
+    last_edited_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[str] = None
+
+class LayoutConfig(BaseModel):
+    """Global layout configuration"""
+    model_config = ConfigDict(extra="ignore")
+    config_id: str = Field(default_factory=lambda: f"layout_{uuid.uuid4().hex[:12]}")
+    platform: str  # app or web
+    
+    # Section order (list of section_ids in display order)
+    section_order: List[str] = []
+    
+    # Global settings
+    show_search_bar: bool = True
+    show_categories_nav: bool = True
+    default_theme: str = "dark"
+    
+    # Metadata
+    last_edited_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[str] = None
+
 class ListeningSession(BaseModel):
     """Track user listening sessions for revenue calculation"""
     model_config = ConfigDict(extra="ignore")
