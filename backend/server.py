@@ -221,8 +221,118 @@ class PriestBooking(BaseModel):
 
 # ============== REVENUE & ANALYTICS MODELS ==============
 
+class MonetizationSettings(BaseModel):
+    """Comprehensive platform monetization settings"""
+    model_config = ConfigDict(extra="ignore")
+    settings_id: str = Field(default_factory=lambda: f"monet_{uuid.uuid4().hex[:12]}")
+    
+    # 1. Subscription Settings
+    subscription_enabled: bool = True
+    subscription_price_monthly: float = 5000.0  # TZS per month
+    subscription_price_yearly: float = 50000.0  # TZS per year
+    free_trial_enabled: bool = True
+    free_trial_days: int = 7
+    auto_renew_enabled: bool = True
+    grace_period_days: int = 3
+    
+    # 2. Platform Revenue Settings
+    platform_fee_percentage: float = 30.0
+    platform_fee_effective_date: Optional[str] = None
+    apply_fee_to_subscriptions: bool = True
+    apply_fee_to_donations: bool = True
+    
+    # 3. Content Revenue Rates
+    premium_rate_per_hour: float = 10.0  # TZS per hour
+    standard_rate_per_hour: float = 5.0  # TZS per hour
+    rate_effective_date: Optional[str] = None
+    
+    # 4. Premium Content Rules
+    premium_duration_days: int = 90
+    auto_downgrade_to_standard: bool = True
+    premium_approval_required: bool = True
+    
+    # 5. Listening Time Rules
+    min_qualifying_play_seconds: int = 45
+    max_payable_hours_per_user_per_hour: float = 1.0
+    max_payable_hours_per_user_per_day: float = 24.0
+    ignore_muted_playback: bool = True
+    
+    # 6. Payout Settings
+    minimum_payout_threshold: float = 10000.0  # TZS
+    payout_frequency: str = "monthly"  # monthly, bi_weekly
+    payout_cutoff_day: int = 25  # Day of month
+    payout_fee_handling: str = "platform_pays"  # platform_pays, choir_pays
+    
+    # 7. Payout Methods
+    payout_mobile_money_enabled: bool = True
+    payout_bank_transfer_enabled: bool = True
+    payout_paypal_enabled: bool = False
+    
+    # 8. Tips & Donations
+    tips_enabled: bool = True
+    suggested_tip_amounts: List[float] = [500, 1000, 2000, 5000]
+    platform_fee_on_tips_percentage: float = 10.0
+    
+    # 9. Album Monetization Controls
+    subscription_only_albums_enabled: bool = True
+    free_promotional_albums_enabled: bool = True
+    geo_restricted_monetization: bool = False
+    
+    # 10. Tax & Compliance
+    vat_percentage: float = 18.0
+    withholding_tax_percentage: float = 5.0
+    tax_invoice_generation_enabled: bool = True
+    
+    # 11. Currency & Rounding
+    base_currency: str = "TZS"
+    rounding_precision: int = 0  # Round to nearest whole number
+    
+    # 12. Analytics & Reporting
+    revenue_aggregation_interval: str = "daily"  # hourly, daily
+    data_retention_days: int = 365
+    
+    # 13. Alerts & Monitoring
+    revenue_drop_alert_threshold: float = 20.0  # Alert if revenue drops by 20%
+    unusual_spike_alert_enabled: bool = True
+    failed_payout_alert_enabled: bool = True
+    
+    # 14. Permissions & Safety
+    choir_monetization_frozen: bool = False
+    all_payouts_paused: bool = False
+    emergency_rate_rollback_enabled: bool = False
+    
+    # Metadata
+    last_updated_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[str] = None
+
+class SubscriptionPlan(BaseModel):
+    """User subscription plans"""
+    model_config = ConfigDict(extra="ignore")
+    plan_id: str = Field(default_factory=lambda: f"plan_{uuid.uuid4().hex[:12]}")
+    name: str  # daily, weekly, monthly, yearly
+    display_name: str
+    price: float
+    duration_days: int
+    features: List[str] = []
+    is_active: bool = True
+    sort_order: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class RateChangeHistory(BaseModel):
+    """History of rate changes for audit"""
+    model_config = ConfigDict(extra="ignore")
+    change_id: str = Field(default_factory=lambda: f"rate_{uuid.uuid4().hex[:12]}")
+    change_type: str  # premium_rate, standard_rate, platform_fee
+    old_value: float
+    new_value: float
+    effective_date: str
+    changed_by: Optional[str] = None
+    reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class RevenueSettings(BaseModel):
-    """Platform revenue settings - hourly rates for content types"""
+    """Platform revenue settings - hourly rates for content types (legacy support)"""
     model_config = ConfigDict(extra="ignore")
     settings_id: str = Field(default_factory=lambda: f"rev_{uuid.uuid4().hex[:12]}")
     premium_rate_per_hour: float = 10.0  # TZS per hour for premium content
