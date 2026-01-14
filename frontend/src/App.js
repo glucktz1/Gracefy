@@ -24,6 +24,8 @@ import ChoirAccountsPage from "@/pages/ChoirAccountsPage";
 import WithdrawalsPage from "@/pages/WithdrawalsPage";
 import ChoirLoginPage from "@/pages/ChoirLoginPage";
 import ChoirDashboard from "@/pages/ChoirDashboard";
+import ChoirManagementPage from "@/pages/ChoirManagementPage";
+import ChoirDetailsPage from "@/pages/ChoirDetailsPage";
 
 // Icons
 import { 
