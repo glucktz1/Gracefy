@@ -27,6 +27,7 @@ import ChoirDashboard from "@/pages/ChoirDashboard";
 import ChoirManagementPage from "@/pages/ChoirManagementPage";
 import ChoirDetailsPage from "@/pages/ChoirDetailsPage";
 import MonetizationSettingsPage from "@/pages/MonetizationSettingsPage";
+import LayoutManagementPage from "@/pages/LayoutManagementPage";
 
 // Icons
 import { 
