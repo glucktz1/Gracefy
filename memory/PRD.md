@@ -67,17 +67,28 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 
 **UI Components:**
 - ✅ HeroSection: Full-width hero with centered CTA, dynamic content from burners
-- ✅ QuickAccessCard: Grid items with icons for category shortcuts
+- ✅ QuickAccessCard: Grid items right below greeting (linked to layout manager)
 - ✅ CategoryFilters: Filter pills (All, Prayers, Christmas, Lent, Catechism, etc.)
 - ✅ SectionHeader: Title with "Show all" button for sections with many items
-- ✅ AlbumCardWide: Wide rectangular cards for featured content
+- ✅ AlbumCardWide: Wide rectangular cards for featured carousel (max 5)
 - ✅ AlbumCardSquare: Standard square album cards
-- ✅ AlbumCardCompact: Compact list-style cards
+- ✅ ListItem: Compact list-style cards for variety
 - ✅ ArtistCard: Circular artist cards
+- ✅ Different section layouts alternate for visual variety
+
+**Audio Player (WORKING):**
+- ✅ HTML5 Audio API with real playback
+- ✅ MiniPlayer: Fixed at bottom with progress bar, song info, controls
+- ✅ FullPlayer: Full-screen modal with large album art, all controls
+- ✅ Controls: Play/Pause, Next, Previous, Shuffle, Repeat (off/all/one)
+- ✅ Progress: Seekable slider with time display
+- ✅ Volume: Desktop slider control
+- ✅ Sample audio fallback when no audio_url in song data
 
 **Backend Updates:**
 - ✅ DEFAULT_CATEGORIES: Prayers, Christmas, Lent, Catechism, Worship, Gospel, Hymns, Praise, Easter, Marian
-- ✅ Expanded DEFAULT_SECTIONS: 10 sections including seasonal (Christmas, Lent), themed (Prayers, Catechism, Worship), and standard (Featured, Trending, New Releases)
+- ✅ DEFAULT_SECTIONS with content_ids for admin-controlled quick access and carousel
+- ✅ Featured albums carousel limited to 5 items
 - ✅ Auto-creation of default categories and sections if empty
 
 ### Phase 3 - Layout Management System (January 14, 2026)
