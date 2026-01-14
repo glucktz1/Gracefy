@@ -551,7 +551,7 @@ export default function ChoirDashboard() {
               <Card className="bg-zinc-900/50 border-zinc-800">
                 <CardContent className="p-8 text-center">
                   <Music2 size={48} className="mx-auto text-zinc-700 mb-4" />
-                  <p className="text-zinc-500">You don't have any albums yet</p>
+                  <p className="text-zinc-500">You don&apos;t have any albums yet</p>
                   <Button onClick={() => setIsAlbumModalOpen(true)} className="mt-4 bg-emerald-600 hover:bg-emerald-700">
                     Create Your First Album
                   </Button>
