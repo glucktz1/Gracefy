@@ -1,15 +1,19 @@
 # Spirit Songs - Christian App Admin Dashboard PRD
 
 ## Original Problem Statement
-Build a comprehensive Christian app admin dashboard with capabilities for managing religious content (songs, sermons, podcasts), churches, religious leaders, singers/choirs, live seminars, audio rooms, donation campaigns, community moderation, and priest bookings.
+Build a comprehensive Christian app with features similar to Spotify, Clubhouse, and Facebook. Build admin dashboard for managing content, choir dashboard for artists, and a user-facing streaming app for listeners with a modern dark theme design.
 
 ## User Choices
-- **Authentication**: Emergent-managed Google OAuth (Admin), Email/Password JWT (Choir)
-- **Design**: Dark mode, Spotify-like sleek design
+- **Authentication**: 
+  - Admin: Emergent-managed Google OAuth
+  - Choir: Email/Password JWT
+  - Users: Email/Phone/Password + Google OAuth
+- **Design**: Dark mode, modern music streaming UI
 - **Storage**: Firebase Cloud Storage (MOCKED - using MongoDB base64)
 - **Live Seminars**: Google Meet integration (scheduling only)
 - **Payments**: M-Pesa mobile money (API placeholder with MOCK OTP)
-- **SMS**: MOCK implementation (logs to database, provision for future integration)
+- **SMS**: MOCK implementation (logs to database)
+- **Mobile**: PWA + React Native (Android/iOS) planned
 
 ## Architecture
 - **Backend**: FastAPI (Python) with Motor async MongoDB driver
@@ -18,8 +22,65 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
 - **Authentication**: 
   - Admin: Emergent Google OAuth
   - Choir: Email/Password JWT with session management
+  - App Users: Email/Phone/Password with JWT tokens
 
 ## What's Been Implemented
+
+### Phase 4 - Enhanced Analytics & User Streaming App (January 14, 2026)
+
+**Enhanced Analytics Dashboard:**
+- ✅ GET `/api/analytics/enhanced` - Comprehensive analytics with period filtering (7d, 30d, 90d, 1y)
+- ✅ GET `/api/analytics/realtime` - Real-time streaming stats
+- ✅ Metrics: total streams, unique listeners, stream hours, revenue breakdown
+- ✅ Daily trends, top songs, top choirs, category distribution
+- ✅ Platform stats: albums, songs, choirs, users count
+- ✅ Frontend: EnhancedAnalyticsPage (`/analytics`) with charts and tables
+
+**User Streaming App (PWA):**
+- ✅ POST `/api/user/register` - Register with email or phone
+- ✅ POST `/api/user/login` - Login with email/phone + password
+- ✅ GET `/api/user/me` - Get authenticated user profile
+- ✅ GET `/api/user/home` - Home screen with layout sections and burners
+- ✅ GET `/api/user/browse/categories` - Browse all categories
+- ✅ GET `/api/user/browse/category/{id}` - Get category albums
+- ✅ GET `/api/user/album/{id}` - Get album with all songs
+- ✅ GET `/api/user/search` - Search songs, albums, artists
+- ✅ POST `/api/user/favorites/add` - Add to favorites
+- ✅ POST `/api/user/favorites/remove` - Remove from favorites
+- ✅ GET `/api/user/library` - User library (favorites, playlists, recently played)
+- ✅ POST `/api/user/playlist/create` - Create playlist
+- ✅ POST `/api/user/playlist/{id}/add` - Add song to playlist
+- ✅ GET `/api/user/playlist/{id}` - Get playlist with songs
+
+**Frontend - UserStreamingApp (`/app`):**
+- ✅ Modern dark theme design
+- ✅ Sidebar navigation: Home, Search, Library
+- ✅ Home screen with sections and promotional burners
+- ✅ Album view with play button, favorites, song list
+- ✅ Search view with results for albums, songs, artists
+- ✅ Library view with favorites, playlists, recently played
+- ✅ Player bar UI with play/pause, skip, shuffle, repeat, progress, volume
+- ✅ Auth modal with email/phone/password + Google OAuth
+- ✅ Mobile responsive with bottom navigation
+
+### Phase 3 - Layout Management System (January 14, 2026)
+
+**Backend - Layout Sections:**
+- ✅ Full CRUD for layout sections
+- ✅ Section types: hero, quick_access, featured_albums, seasonal, trending, cta, custom
+- ✅ Section reordering, toggle visibility, content assignment
+- ✅ Platform targeting (app/web)
+
+**Backend - Layout Burners:**
+- ✅ Full CRUD for promotional banners
+- ✅ Full styling: gradients, colors, icons, CTA buttons
+- ✅ Click/impression tracking
+
+**Frontend - LayoutManagementPage (`/layout-management`):**
+- ✅ Three tabs: Sections, Burners, Preview
+- ✅ Drag-to-reorder sections
+- ✅ Content assignment modal
+- ✅ Live burner preview
 
 ### Phase 1 - Core Admin Analytics & Choir Management (January 14, 2026)
 
