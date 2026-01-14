@@ -1436,67 +1436,72 @@ async def get_monetization_settings():
 @api_router.put("/monetization/settings")
 async def update_monetization_settings(data: dict):
     """Update monetization settings (admin only)"""
-    # Get current settings
+    # Get current settings or defaults
     current = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not current:
+        # Use default settings as base
+        default = MonetizationSettings()
+        current = default.model_dump()
+        current["created_at"] = current["created_at"].isoformat()
     
     # Check for rate changes to log history
     rate_changes = []
-    if current:
-        if data.get("premium_rate_per_hour") and data["premium_rate_per_hour"] != current.get("premium_rate_per_hour"):
-            rate_changes.append({
-                "change_id": f"rate_{uuid.uuid4().hex[:12]}",
-                "change_type": "premium_rate",
-                "old_value": current.get("premium_rate_per_hour"),
-                "new_value": data["premium_rate_per_hour"],
-                "effective_date": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
-                "changed_by": data.get("last_updated_by"),
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-        if data.get("standard_rate_per_hour") and data["standard_rate_per_hour"] != current.get("standard_rate_per_hour"):
-            rate_changes.append({
-                "change_id": f"rate_{uuid.uuid4().hex[:12]}",
-                "change_type": "standard_rate",
-                "old_value": current.get("standard_rate_per_hour"),
-                "new_value": data["standard_rate_per_hour"],
-                "effective_date": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
-                "changed_by": data.get("last_updated_by"),
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-        if data.get("platform_fee_percentage") and data["platform_fee_percentage"] != current.get("platform_fee_percentage"):
-            rate_changes.append({
-                "change_id": f"rate_{uuid.uuid4().hex[:12]}",
-                "change_type": "platform_fee",
-                "old_value": current.get("platform_fee_percentage"),
-                "new_value": data["platform_fee_percentage"],
-                "effective_date": data.get("platform_fee_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
-                "changed_by": data.get("last_updated_by"),
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
+    if data.get("premium_rate_per_hour") and data["premium_rate_per_hour"] != current.get("premium_rate_per_hour"):
+        rate_changes.append({
+            "change_id": f"rate_{uuid.uuid4().hex[:12]}",
+            "change_type": "premium_rate",
+            "old_value": current.get("premium_rate_per_hour"),
+            "new_value": data["premium_rate_per_hour"],
+            "effective_date": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+            "changed_by": data.get("last_updated_by"),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    if data.get("standard_rate_per_hour") and data["standard_rate_per_hour"] != current.get("standard_rate_per_hour"):
+        rate_changes.append({
+            "change_id": f"rate_{uuid.uuid4().hex[:12]}",
+            "change_type": "standard_rate",
+            "old_value": current.get("standard_rate_per_hour"),
+            "new_value": data["standard_rate_per_hour"],
+            "effective_date": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+            "changed_by": data.get("last_updated_by"),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    if data.get("platform_fee_percentage") and data["platform_fee_percentage"] != current.get("platform_fee_percentage"):
+        rate_changes.append({
+            "change_id": f"rate_{uuid.uuid4().hex[:12]}",
+            "change_type": "platform_fee",
+            "old_value": current.get("platform_fee_percentage"),
+            "new_value": data["platform_fee_percentage"],
+            "effective_date": data.get("platform_fee_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+            "changed_by": data.get("last_updated_by"),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
     
     # Log rate changes
     if rate_changes:
         await db.rate_change_history.insert_many(rate_changes)
     
-    # Update settings
-    data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    data["settings_id"] = f"monet_{uuid.uuid4().hex[:12]}"
-    data["created_at"] = datetime.now(timezone.utc).isoformat()
+    # Merge current settings with new data (new data takes precedence)
+    merged_settings = {**current, **data}
+    merged_settings["updated_at"] = datetime.now(timezone.utc).isoformat()
+    merged_settings["settings_id"] = f"monet_{uuid.uuid4().hex[:12]}"
+    merged_settings["created_at"] = datetime.now(timezone.utc).isoformat()
     
-    await db.monetization_settings.insert_one(data)
+    await db.monetization_settings.insert_one(merged_settings)
     
     # Also update legacy revenue_settings for backward compatibility
     legacy_settings = {
         "settings_id": f"rev_{uuid.uuid4().hex[:12]}",
-        "premium_rate_per_hour": data.get("premium_rate_per_hour", 10.0),
-        "standard_rate_per_hour": data.get("standard_rate_per_hour", 5.0),
-        "platform_share_percentage": data.get("platform_fee_percentage", 30.0),
-        "minimum_withdrawal": data.get("minimum_payout_threshold", 10000.0),
-        "effective_from": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+        "premium_rate_per_hour": merged_settings.get("premium_rate_per_hour", 10.0),
+        "standard_rate_per_hour": merged_settings.get("standard_rate_per_hour", 5.0),
+        "platform_share_percentage": merged_settings.get("platform_fee_percentage", 30.0),
+        "minimum_withdrawal": merged_settings.get("minimum_payout_threshold", 10000.0),
+        "effective_from": merged_settings.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.revenue_settings.insert_one(legacy_settings)
     
-    return {"message": "Monetization settings updated", "settings_id": data["settings_id"]}
+    return {"message": "Monetization settings updated", "settings_id": merged_settings["settings_id"]}
 
 @api_router.get("/monetization/rate-history")
 async def get_rate_change_history():
