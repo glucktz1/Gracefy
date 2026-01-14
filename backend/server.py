@@ -122,12 +122,26 @@ class Singer(BaseModel):
     singer_id: str = Field(default_factory=lambda: f"sing_{uuid.uuid4().hex[:12]}")
     name: str
     type: str = "solo"  # solo, choir, band
+    # Choir-specific fields
+    denomination: Optional[str] = None  # roman_catholic, lutheran, anglican, etc.
     church_id: Optional[str] = None
     church_name: Optional[str] = None
+    # Treasurer details
+    treasurer_name: Optional[str] = None
+    treasurer_phone: Optional[str] = None
+    # Chairman details
+    chairman_name: Optional[str] = None
+    chairman_phone: Optional[str] = None
+    # Parish Priest/Leader details
+    parish_priest_name: Optional[str] = None
+    parish_priest_phone: Optional[str] = None
+    # General info
     bio: Optional[str] = None
     photo: Optional[str] = None
     followers: int = 0
-    status: str = "active"
+    status: str = "active"  # active, inactive, suspended, pending_approval
+    approval_status: str = "pending"  # pending, approved, rejected
+    admin_notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class LiveSeminar(BaseModel):
