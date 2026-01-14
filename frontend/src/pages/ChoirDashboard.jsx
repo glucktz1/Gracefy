@@ -125,6 +125,7 @@ export default function ChoirDashboard() {
       return;
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionToken, choirId, navigate]);
 
   const handleLogout = async () => {
