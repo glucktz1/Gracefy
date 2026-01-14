@@ -205,6 +205,104 @@ class PriestBooking(BaseModel):
     status: str = "pending"  # pending, confirmed, completed, cancelled
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ============== REVENUE & ANALYTICS MODELS ==============
+
+class RevenueSettings(BaseModel):
+    """Platform revenue settings - hourly rates for content types"""
+    model_config = ConfigDict(extra="ignore")
+    settings_id: str = Field(default_factory=lambda: f"rev_{uuid.uuid4().hex[:12]}")
+    premium_rate_per_hour: float = 10.0  # TZS per hour for premium content
+    standard_rate_per_hour: float = 5.0  # TZS per hour for standard content
+    platform_share_percentage: float = 30.0  # Platform takes 30%, choir gets 70%
+    minimum_withdrawal: float = 10000.0  # Minimum amount for withdrawal
+    effective_from: str = ""  # Date from which these rates apply
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ListeningSession(BaseModel):
+    """Track user listening sessions for revenue calculation"""
+    model_config = ConfigDict(extra="ignore")
+    session_id: str = Field(default_factory=lambda: f"listen_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    song_id: str
+    album_id: str
+    choir_id: str  # Singer/choir who owns the album
+    content_type: str = "standard"  # premium or standard
+    start_time: str = ""
+    end_time: Optional[str] = None
+    duration_seconds: int = 0
+    duration_hours: float = 0.0
+    date: str = ""  # YYYY-MM-DD for daily aggregation
+    month: str = ""  # YYYY-MM for monthly aggregation
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ChoirRevenue(BaseModel):
+    """Aggregated revenue data for each choir"""
+    model_config = ConfigDict(extra="ignore")
+    revenue_id: str = Field(default_factory=lambda: f"chorrev_{uuid.uuid4().hex[:12]}")
+    choir_id: str
+    choir_name: str
+    period: str  # YYYY-MM for monthly
+    premium_hours: float = 0.0
+    standard_hours: float = 0.0
+    total_hours: float = 0.0
+    premium_revenue: float = 0.0
+    standard_revenue: float = 0.0
+    gross_revenue: float = 0.0
+    platform_share: float = 0.0
+    net_revenue: float = 0.0  # What choir earns
+    total_plays: int = 0
+    status: str = "pending"  # pending, calculated, paid
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AlbumPerformance(BaseModel):
+    """Album-level performance metrics"""
+    model_config = ConfigDict(extra="ignore")
+    performance_id: str = Field(default_factory=lambda: f"albperf_{uuid.uuid4().hex[:12]}")
+    album_id: str
+    album_title: str
+    choir_id: str
+    choir_name: str
+    period: str  # YYYY-MM
+    premium_hours: float = 0.0
+    standard_hours: float = 0.0
+    total_hours: float = 0.0
+    revenue_generated: float = 0.0
+    total_plays: int = 0
+    unique_listeners: int = 0
+    avg_listen_duration: float = 0.0  # Average session duration in minutes
+    revenue_percentage: float = 0.0  # % of choir's total revenue
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class WithdrawalRequest(BaseModel):
+    """Choir withdrawal requests"""
+    model_config = ConfigDict(extra="ignore")
+    request_id: str = Field(default_factory=lambda: f"wd_{uuid.uuid4().hex[:12]}")
+    choir_id: str
+    choir_name: str
+    amount: float
+    payment_method: str = "mobile_money"  # mobile_money, bank_transfer
+    payment_details: Optional[dict] = None  # {phone, bank_name, account_number, etc.}
+    status: str = "pending"  # pending, approved, rejected, completed
+    admin_notes: Optional[str] = None
+    processed_by: Optional[str] = None
+    processed_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ChoirAccount(BaseModel):
+    """Choir account for login and balance tracking"""
+    model_config = ConfigDict(extra="ignore")
+    account_id: str = Field(default_factory=lambda: f"acc_{uuid.uuid4().hex[:12]}")
+    choir_id: str  # Links to singers collection
+    choir_name: str
+    email: str
+    password_hash: str  # Will use simple hash for demo
+    current_balance: float = 0.0
+    total_earned: float = 0.0
+    total_withdrawn: float = 0.0
+    status: str = "pending"  # pending, approved, suspended
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ============== AUTH ENDPOINTS ==============
 
 @api_router.post("/auth/session")
