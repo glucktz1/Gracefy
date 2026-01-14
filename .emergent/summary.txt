@@ -1,94 +1,87 @@
 <analysis>**original_problem_statement:**
-The user wants to develop a comprehensive Christian app with features similar to Spotify, Clubhouse, and Facebook. The initial focus is on building a powerful admin dashboard.
+The user wants to develop a comprehensive Christian app with features similar to Spotify, Clubhouse, and Facebook. The project is being developed in phases.
 
-**Phase 1 (Completed): Admin & Choir Dashboard**
-- Create a comprehensive admin dashboard for analytics, user management, and content management (approving posts, managing categories, uploading songs/sermons).
-- Build a separate dashboard for Choirs to manage their content, track performance, and handle finances.
-- Implement detailed business logic: revenue is calculated only for streams longer than 45 seconds, and all choir-initiated actions (content uploads, payment detail changes, withdrawal requests) require admin approval.
-- Enhance the choir registration form to include detailed contact information (denomination, treasurer, chairman, priest).
-- Implement a mock SMS notification system for critical events like withdrawal requests.
-
-**Phase 2 (Completed): Monetization Settings**
-- Create a comprehensive Monetization Settings page for the admin with 14 detailed sections covering subscriptions, platform fees, revenue rates, payout rules, tips, taxes, and more.
-
-**Phase 3 (In-Progress): Layout Management System**
-- Allow the admin to dynamically control the layout of the user-facing application (both web and mobile) through a drag-and-drop interface.
-- Admins should be able to activate/deactivate sections, reorder them, and assign specific content (categories, albums).
-- Implement Burners (promotional cards/banners) with editable text, CTAs, and uploaded images, which can be linked to specific pages or content.
-- Provide a preview mode within the admin panel.
+- **Phase 1 & 2 (Completed):** A full-featured Admin and Choir dashboard with detailed analytics, content management (with admin approval flows), and comprehensive monetization settings.
+- **Phase 3 (Completed):** A dynamic Layout Management System for the admin to control the user-facing app's UI.
+- **Phase 4 (Completed):** A user-facing Progressive Web App (PWA) for streaming, with a Spotify-like UI, audio playback, and a full file upload system for songs and album art.
+- **Phase 5 (In-Progress):** A native mobile app (Android & iOS) with features like offline downloads and playlists, mirroring the PWA's functionality but with a native experience.
+- **Additional Request:** Allow choirs to view and edit their existing albums and songs from their dashboard, with changes subject to admin approval.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a FastAPI backend, React frontend, and MongoDB.
-- A Spotify-style dark-themed admin dashboard with management pages for Users, Categories, Churches, Albums, etc.
-- A fully functional Choir Dashboard with JWT authentication, where choirs can manage content (upload albums/songs pending approval), submit payment details, request withdrawals, and view detailed performance analytics (revenue, stream time, unique streams).
-- An admin approvals page to manage choir content and payment detail requests.
-- A comprehensive admin page for managing all monetization settings.
-- Backend models and API endpoints for all the above features, including the initial scaffolding for the Layout Management system.
+A full-stack application with a FastAPI backend, a React web frontend, and a new React Native mobile app project.
+- **Backend:** A monolithic  containing all APIs for admin, choir, layout, analytics, user streaming, and file uploads. It serves audio files via a streaming endpoint.
+- **Web Frontend:**
+    - A comprehensive Admin Dashboard.
+    - A functional Choir Dashboard (login, content management, analytics, withdrawals).
+    - A user-facing PWA () with a Spotify-like UI, home page, album view, and a working audio player.
+- **Mobile Frontend:** An Expo (React Native) project has been initialized at  with a basic file structure (screens, services, context) but no implemented UI or logic yet.
 
 **Last working item**:
-    - Last item agent was working: The agent was implementing the **Layout Management System**. It successfully created the necessary backend models (, , ) and API endpoints in . It then created the new frontend page component at . The agent was interrupted just before integrating this new page into the main application router ().
+    - Last item agent was working: Scaffolding the new React Native mobile application using Expo. The agent initialized the project, installed necessary dependencies (, , etc.), and created the directory structure with placeholder files for screens (, ), contexts (, ), and services ().
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? both
+    - Which testing method agent to use? The testing agent should be used after significant portions of the UI and functionality are built. Initial development will require manual testing via an emulator.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  Issue 1:  Complete Layout Management System Implementation (P0)
+  Issue 1:  Implement Choir Album/Song Editing (P1)
   
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: Backend models and API endpoints have been created. A placeholder frontend page component has been created.
+     - Attempted fixes: None. The task was requested by the user but deferred to prioritize the native app.
      - Next debug checklist: 
-        1. ****: Import the new  component.
-        2. ****: Add a new sidebar navigation item for Layout Management.
-        3. ****: Add the route for  pointing to the new component.
-        4. ****: Implement the full UI, including:
-            - Fetching and displaying the current layout sections.
-            - Implementing drag-and-drop functionality to reorder sections.
-            - Building forms to edit sections, create/edit burners (with image upload), and manage content associations.
-            - Implementing the preview modal.
-            - Connecting all UI elements to the backend APIs.
-     - Why fix this issue and what will be achieved with the fix? This will give the admin dynamic control over the user-facing application's appearance and content promotion without needing developer intervention.
-     - Status:  IN PROGRESS
+        1. In , add UI elements (e.g., an Edit button) to the lists of albums and songs.
+        2. Create modals or pages for editing album details (thumbnail, title) and song details (title, audio file).
+        3. Ensure that submitting an edit sends the data to a new or existing backend endpoint and puts the content into a pending state.
+        4. Update the admin  to handle these new edit requests.
+     - Why fix this issue and what will be achieved with the fix? It will allow choirs to self-manage their content post-upload, improving their user experience and reducing the admin's workload for minor corrections.
+     - Status:  NOT STARTED
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1:  Complete Layout Management System Frontend Integration and UI
-     - Where to resume: Resume at  to add the imports, sidebar link, and route for the newly created .
-     - What will be achieved with this? The Layout Management page will become accessible within the admin dashboard, paving the way for the UI build-out.
+  - Task 1:  Build the React Native Mobile App (P0)
+     - Where to resume: Start populating the placeholder files in .
+        - Begin with  and a login screen to connect to the existing authentication endpoints.
+        - Implement  to fetch data from the backend.
+        - Build out  to replicate the PWA's layout, fetching dynamic sections from the  endpoint.
+        - Implement the  and audio player UI, referencing the user's Spotify-like design images.
+     - What will be achieved with this? A functional native mobile app for Android and iOS that connects to the existing backend, providing users with a dedicated mobile streaming experience.
      - Status:  IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
+     - Should Test frontend/backend/both after fix? both (Frontend testing via emulator, backend is mostly existing)
      - Blocked on something: No
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **Enhanced Admin Analytics (P1)**: Enhance the main revenue dashboard to be a full analytics suite with metrics for actual revenue, stream time, unique streams/plays, downloads, etc. Allow admins to view performance per choir.
-    - **User-Facing Application (P1)**: Develop the main front-end application for end-users to listen to content, create playlists, etc., based on the layouts defined in the new Layout Management System.
+    - **Native App - Advanced Features (P1)**: Implement native-specific features like offline downloads and playlist creation/management.
 
     Future Tasks:
-    - **Live Seminars (P2)**: Implement Google Meet integration for scheduling and joining live seminars.
+    - **Live Seminars (P2)**: Integrate Google Meet for scheduling and joining live seminars.
     - **Audio Rooms (P2)**: Build the Clubhouse/Twitter Spaces-like audio discussion feature.
     - **Christian Community (P3)**: Develop the Facebook-like social community features.
-    - **Real Payment/SMS Integration (P3)**: Replace mocked payment and SMS services with real provider APIs (e.g., M-Pesa, Twilio).
+    - **Real Payment/SMS Integration (P3)**: Replace mocked payment (M-Pesa) and SMS services (Twilio) with real provider APIs.
 
 **Completed work in this session**
-- **Choir Dashboard & Workflow:** A full-featured dashboard for choirs was implemented with JWT authentication, performance analytics, and content management. All choir actions (uploads, payment changes, withdrawals) now correctly enter a pending approval state for admin review.
-- **Comprehensive Monetization Engine:** A detailed backend and frontend system was built for admins to control 14 different aspects of monetization, including subscription pricing, platform fees, revenue rates per hour, and payout rules.
-- **Admin Choir Management:** Created pages for admins to view a list of all choirs, manage them (approve, edit, deactivate), and view detailed analytics for each specific choir.
-- **Enhanced Choir Model:** The  and  models were updated to include detailed contact information for the choir's treasurer, chairman, and parish priest.
-- **Mock SMS Notifications:** A mock notification service was created to log SMS alerts to relevant contacts upon events like withdrawal requests.
-- **CORS Fix:** Resolved a critical CORS misconfiguration that prevented the frontend choir login from working.
-- **Testing:** Successfully used the testing agent to run comprehensive tests on all completed features (Phases 1 & 2), achieving 100% pass rates and fixing minor bugs.
+- **Layout Management System:** Completed the frontend integration and UI, fixed backend  serialization bugs, and verified with comprehensive tests.
+- **Enhanced Admin Analytics:** Created a new backend endpoint and frontend page () to display detailed metrics like total streams, revenue, active users, and top content.
+- **User-Facing PWA:**
+    - Built the initial version of the streaming app at .
+    - Significantly improved the UI/UX based on user feedback and reference images, creating a responsive, Spotify-like design with dynamic sections, varied tile layouts, and a full-width hero section.
+- **Audio Player & File Uploads:**
+    - Implemented a full-featured file upload system for both images (album art) and audio files, with a streaming endpoint for efficient playback.
+    - Integrated a working audio player into the PWA.
+    - Fixed a bug on the Choir Dashboard, adding the missing audio file upload field to the Upload Song modal.
+- **Testing:** Successfully used the testing agent after every major feature completion (5 times, iterations 4-8), ensuring high quality and no regressions.
+- **React Native App Scaffolding:** Initialized a new Expo project for the native mobile app.
 
 **Earlier issues found/mentioned but not fixed**
    - None.
 
 **Known issue recurrence from previous fork**
-  - An issue of Memory Limit exceeded was reported in a past session. This was resolved by an infrastructure change, but the agent should remain mindful of memory-intensive operations, especially in analytics processing.
+  - Memory Limit exceeded was reported in a past session. This has not recurred but remains a point of caution for memory-intensive operations.
   - Recurrence count: 1
   - Status: RESOLVED
 
@@ -96,84 +89,90 @@ A full-stack application with a FastAPI backend, React frontend, and MongoDB.
 
 
 **Key Technical Concepts**
-- **Stack:** FastAPI, React, MongoDB
-- **Authentication:** Emergent-managed Google Auth (Admins), JWT (Choirs)
-- **Design:** Dark-mode, Spotify-style UI using shadcn components.
-- **UI:** Drag-and-Drop for layout management.
-- **Revenue Model:** Time-based calculation (TZS per hour) for streams > 45 seconds, with detailed admin controls.
-- **File Handling:** Direct file uploads to the backend.
+- **Stack:** FastAPI, React, React Native (Expo), MongoDB
+- **Authentication:** Emergent-managed Google Auth (Admins), JWT (Choirs, Users)
+- **UI:** Dynamic layouts driven by admin, Spotify-clone aesthetic, Shadcn UI components.
+- **File Handling:** Chunked file uploads to a persistent  directory with a dedicated streaming endpoint () that supports HTTP Range requests.
 
 **key DB schema**
-  - **Singer:** {..., denomination, treasurer_name, treasurer_phone, chairman_name, chairman_phone, priest_name, priest_phone}
-  - **ChoirAccount:** {..., contacts: {treasurer, chairman, priest}}
-  - **RevenueSettings:** (Expanded with 14 detailed monetization sections)
-  - **SmsNotification:** {recipient, message, timestamp}
-  - **LayoutSettings:** {platform ('web'/'app'), sections: [...]}
-  - **Section:** {section_id, type, title, order, active, content: {type, ids}}
-  - **Burner:** {burner_id, active, headline, subtext, cta_text, link, image_url}
+  - No major schema changes in this session. Existing models for , , , , , , and  were utilized and proven stable.
 
 **changes in tech stack**
-  - None.
+  - **React Native (with Expo)** was introduced for the mobile app development.
 
 **All files of reference**
-- : Heavily modified to add models and endpoints for Choir Management, Monetization, and Layout Management.
-- : Rewritten to be a full-featured dashboard.
-- : Rewritten to handle new content/payment approval types.
-- : Created for admin monetization control.
-- : Created for admin to manage all choirs.
-- : Created for viewing a single choir's performance.
-- : Created as a placeholder for the layout system.
-- : Modified to add new routes and sidebar links.
+- **Created/Overwritten:**
+  - : Entire new React Native project structure.
+  - : New admin analytics page.
+  - : The user-facing PWA (heavily modified).
+- **Updated:**
+  - : Added file upload/streaming endpoints, fixed  bugs, added default sections/categories, and enhanced analytics endpoints.
+  - : Added routes for new pages (, ).
+  - : Integrated file upload logic.
+  - : Fixed song upload modal by adding the file input field.
+  - : Updated with all completed work and next tasks.
 
 **Areas that need refactoring**:
--  is now over 3500 lines long. It should be broken down into a more modular structure, separating models, routes, and services into different files/directories for better maintainability.
+-  has grown significantly and is now over 4700 lines. It urgently needs to be broken down into a modular structure (e.g., separate files for routes, models, and services) to improve maintainability.
 
 **key api endpoints**
-- : GET (all), GET (one with details)
-- : PUT
-- : GET, POST
-- : GET, POST
-- : POST
-- : PUT, DELETE
+- : POST for single file upload.
+- : POST for bulk file uploads.
+- : GET file metadata.
+- : GET to stream audio files (supports Range headers).
+- : GET for enhanced admin analytics.
+- : GET the layout for the web or mobile app.
 
 **Critical Info for New Agent**
-- Your immediate priority is to complete the **Layout Management System**. Start by editing  to add the new page to the router and sidebar. Then, build out the full UI and functionality in .
-- The backend for layout management is already in place. You need to implement the frontend logic for drag-and-drop, forms, image uploads for burners, and previews.
-- The project is being built in phases. After completing the current layout management task, refer to the Upcoming Tasks to plan the next phase, which is likely enhancing the admin analytics dashboard.
+- **The highest priority is the React Native app.** The user has explicitly requested to prioritize this. Start by building out the screens and logic using the created file structure in . The goal is to replicate the Spotify UI/UX shown in the reference images.
+- All backend APIs needed for the initial mobile app (auth, layout, content fetching) already exist and are in use by the PWA. You can find the API base URL in  in  and use it for the mobile app's configuration.
+- After making significant progress on the native app, the next task is to implement the Edit Album/Song feature for the Choir Dashboard.
+- The file upload and audio streaming system is fully functional. Use the  endpoint for all audio playback.
 
 **documents and test reports created in this job**
+  - 
+  - 
+  - 
+  - 
+  - 
   -  (Updated)
-  - 
-  - 
 
-**Last 10 User Messages and any pending HUMAN messages** 
-- User provided a massive feature request for enhanced admin analytics, monetization settings, and choir management features. (Msg 124)
-- Agent broke the request into three phases and asked for clarification. (Msg 125)
-- User confirmed the phased approach, clarified that SMS/payments should be mocked for now, and prioritized Phase 1 (Choir Dashboard). (Msg 127)
-- Agent completed Phase 1 (Choir Dashboard) and Phase 2 (Monetization Settings), with successful testing.
-- User provided another large feature request for a dynamic Layout Management System. (Msg 234)
-- Agent asked for clarification on burner design and other details. (Msg 235)
-- User confirmed details, clarifying that burners should allow image uploads and provided a design via an uploaded image. (Msg 237)
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **Request:** User asked to implement native file uploads (not URLs) for songs and album art. (Completed)
+2.  **Bug Report:** User reported that the choir account's Upload Song modal was missing the audio file input. (Completed)
+3.  **Request:** User provided a large request to build a native mobile app (Android & iOS) with a Spotify-like UI, offline downloads, and playlists. They also requested an edit feature for choirs on their dashboard. (In Progress)
+4.  **User Clarification:** Confirmed to use Expo for the React Native app and to prioritize its development. Confirmed that choir edits should go into a pending approval state. (Acknowledged)
+5.  **Request:** User asked to remove the quick grids label, link it to the layout manager, and add more variety to section designs, like Spotify. Also requested a working audio player. (Completed in PWA)
+6.  **Request:** User asked for UI improvements to the PWA: full-width hero, quick access grids, section filters, varied tile layouts, and a see more button. (Completed in PWA)
+7.  **Request:** User asked to build the Enhanced Admin Analytics and the User-Facing PWA. (Completed)
+8.  **User Clarification:** User specified login options for the user app (Google, Email/Pass, Mobile) and emphasized the desire for an exact Spotify UI/UX. (Acknowledged)
+9.  **Request:** User provided feature list for P0 (Enhanced Analytics) and P1 (User-facing App). (Completed)
+10. **Request:** User approved the plan to complete the Layout Management system. (Completed)
 
 **Project Health Check:**
-- **Broken:** The Layout Management feature is incomplete. The frontend page is not yet integrated or built.
-- **Mocked:** SMS notifications and payment gateway integrations are placeholders.
+- **Broken:** The React Native app () is a non-functional skeleton.
+- **Mocked:**
+    - SMS notifications and payment gateway integrations.
 
 **3rd Party Integrations**
 - **Emergent-managed Google Auth:** In use for Admin login.
-- **Firebase Cloud Storage:** Planned for media files.
-- **Google Meet:** Planned for live seminars.
-- **Mobile Money Provider (e.g., M-Pesa):** Planned for payouts.
+- **React Native / Expo:** Introduced for mobile app development.
+- **(Planned):** Firebase Cloud Storage, Google Meet, Mobile Money Provider (e.g., M-Pesa).
 
 **Testing status**
-  - Testing agent used after significant changes: YES (twice in this session)
+  - Testing agent used after significant changes: YES (5 times this session, for every major feature)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: [, ]
-  - Known regressions: None
+  - Test files created:
+      - 
+      - 
+      - 
+      - 
+      - 
+  - Known regressions: None.
 
 **Credentials to test flow:**
-- **Admin:** Login is handled via the Continue with Google button (Emergent-managed Google Auth).
-- **Choir:** A test account is available. **Email:** , **Password:** 
+- **Admin:** Login via the Continue with Google button.
+- **Choir:** Email: , Password: 
 
 **What agent forgot to execute**
-The agent was in the middle of a task. It created the  file but did not yet add the necessary import, sidebar link, and route to  to make the page accessible. This is the immediate next step.</analysis>
+The agent correctly deferred the choir album/song editing feature to prioritize the native app as requested by the user. This task is not forgotten but is now pending and listed in the All Pending/In progress Issue list.</analysis>
