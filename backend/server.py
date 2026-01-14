@@ -1771,11 +1771,452 @@ async def get_choir_revenue(choir_id: str):
         "rates": {
             "premium_rate": settings["premium_rate_per_hour"],
             "standard_rate": settings["standard_rate_per_hour"],
-            "platform_share": settings["platform_share_percentage"]
+            "platform_share": settings["platform_share_percentage"],
+            "minimum_withdrawal": settings.get("minimum_withdrawal", 10000)
         },
         "albums": albums_performance,
         "monthly": monthly_revenue
     }
+
+# ============== CHOIR PAYMENT DETAILS ==============
+
+async def get_choir_from_session(request: Request):
+    """Helper to get choir account from session"""
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    account = await db.choir_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0})
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    return account
+
+@api_router.post("/choir/payment-details/request-otp")
+async def request_otp_for_mobile_money(data: dict, request: Request):
+    """Request OTP for mobile money verification (MOCK)"""
+    account = await get_choir_from_session(request)
+    phone_number = data.get("phone_number")
+    
+    if not phone_number:
+        raise HTTPException(status_code=400, detail="Phone number required")
+    
+    # Generate 6-digit OTP (In production, send via SMS)
+    import random
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+    
+    # Store OTP
+    otp_doc = {
+        "otp_id": f"otp_{uuid.uuid4().hex[:12]}",
+        "choir_id": account["choir_id"],
+        "phone_number": phone_number,
+        "otp_code": otp_code,
+        "verified": False,
+        "expires_at": expires_at,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.otp_verifications.insert_one(otp_doc)
+    
+    # In production, send SMS here. For now, return the OTP in response (MOCK)
+    return {
+        "message": "OTP sent to phone number",
+        "otp_id": otp_doc["otp_id"],
+        "mock_otp": otp_code,  # REMOVE IN PRODUCTION - only for demo
+        "expires_in_minutes": 10
+    }
+
+@api_router.post("/choir/payment-details/verify-otp")
+async def verify_otp(data: dict, request: Request):
+    """Verify OTP for mobile money"""
+    account = await get_choir_from_session(request)
+    otp_id = data.get("otp_id")
+    otp_code = data.get("otp_code")
+    
+    otp_record = await db.otp_verifications.find_one({
+        "otp_id": otp_id,
+        "choir_id": account["choir_id"]
+    }, {"_id": 0})
+    
+    if not otp_record:
+        raise HTTPException(status_code=404, detail="OTP not found")
+    
+    expires_at = datetime.fromisoformat(otp_record["expires_at"].replace("Z", "+00:00"))
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP expired")
+    
+    if otp_record["otp_code"] != otp_code:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    # Mark as verified
+    await db.otp_verifications.update_one(
+        {"otp_id": otp_id},
+        {"$set": {"verified": True}}
+    )
+    
+    return {"message": "OTP verified successfully", "phone_number": otp_record["phone_number"]}
+
+@api_router.post("/choir/payment-details/submit")
+async def submit_payment_details(data: dict, request: Request):
+    """Submit payment details for approval"""
+    account = await get_choir_from_session(request)
+    
+    payment_method = data.get("payment_method")  # mobile_money or bank_transfer
+    payment_details = data.get("payment_details", {})
+    otp_id = data.get("otp_id")  # Required for mobile money
+    
+    if payment_method not in ["mobile_money", "bank_transfer"]:
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+    
+    otp_verified = False
+    if payment_method == "mobile_money":
+        if not otp_id:
+            raise HTTPException(status_code=400, detail="OTP verification required for mobile money")
+        
+        otp_record = await db.otp_verifications.find_one({
+            "otp_id": otp_id,
+            "choir_id": account["choir_id"],
+            "verified": True
+        }, {"_id": 0})
+        
+        if not otp_record:
+            raise HTTPException(status_code=400, detail="Please verify phone number first")
+        
+        payment_details["phone"] = otp_record["phone_number"]
+        otp_verified = True
+    else:
+        # Bank transfer validation
+        if not payment_details.get("bank_name") or not payment_details.get("account_number"):
+            raise HTTPException(status_code=400, detail="Bank name and account number required")
+    
+    # Create payment detail change request for admin approval
+    change_request = PaymentDetailChangeRequest(
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        payment_method=payment_method,
+        payment_details=payment_details,
+        otp_verified=otp_verified
+    )
+    doc = change_request.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.payment_change_requests.insert_one(doc)
+    
+    # Create notification for priest/admin
+    notification = PriestNotification(
+        notification_type="payment_change",
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        message=f"{account['choir_name']} has requested to update their payment details ({payment_method})",
+        details={"request_id": doc["request_id"], "payment_method": payment_method}
+    )
+    notif_doc = notification.model_dump()
+    notif_doc["created_at"] = notif_doc["created_at"].isoformat()
+    await db.priest_notifications.insert_one(notif_doc)
+    
+    return {"message": "Payment details submitted for approval", "request_id": doc["request_id"]}
+
+@api_router.get("/choir/payment-details")
+async def get_my_payment_details(request: Request):
+    """Get current payment details for choir"""
+    account = await get_choir_from_session(request)
+    
+    # Get any pending requests
+    pending_request = await db.payment_change_requests.find_one({
+        "choir_id": account["choir_id"],
+        "status": "pending"
+    }, {"_id": 0})
+    
+    return {
+        "current_method": account.get("payment_method"),
+        "current_details": account.get("payment_details"),
+        "details_status": account.get("payment_details_status", "not_set"),
+        "pending_request": pending_request
+    }
+
+# ============== ADMIN PAYMENT APPROVAL ==============
+
+@api_router.get("/admin/payment-requests")
+async def get_payment_change_requests(status: Optional[str] = None):
+    """Get all payment change requests (admin)"""
+    query = {}
+    if status:
+        query["status"] = status
+    requests = await db.payment_change_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"requests": requests}
+
+@api_router.put("/admin/payment-requests/{request_id}")
+async def process_payment_request(request_id: str, data: dict):
+    """Approve or reject payment detail change request"""
+    status = data.get("status")  # approved or rejected
+    admin_notes = data.get("admin_notes", "")
+    processed_by = data.get("processed_by", "admin")
+    
+    if status not in ["approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="Status must be approved or rejected")
+    
+    change_request = await db.payment_change_requests.find_one({"request_id": request_id}, {"_id": 0})
+    if not change_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Update request status
+    await db.payment_change_requests.update_one(
+        {"request_id": request_id},
+        {"$set": {
+            "status": status,
+            "admin_notes": admin_notes,
+            "processed_by": processed_by,
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # If approved, update the choir account
+    if status == "approved":
+        await db.choir_accounts.update_one(
+            {"choir_id": change_request["choir_id"]},
+            {"$set": {
+                "payment_method": change_request["payment_method"],
+                "payment_details": change_request["payment_details"],
+                "payment_details_status": "approved",
+                "payment_details_updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    
+    return {"message": f"Payment request {status}"}
+
+# ============== CHOIR CONTENT UPLOAD (WITH APPROVAL) ==============
+
+@api_router.post("/choir/albums/create")
+async def choir_create_album_request(data: dict, request: Request):
+    """Choir requests to create an album (requires admin approval)"""
+    account = await get_choir_from_session(request)
+    
+    album_data = {
+        "title": data.get("title"),
+        "description": data.get("description"),
+        "category_id": data.get("category_id"),
+        "monetization_type": data.get("monetization_type", "standard"),
+        "release_date": data.get("release_date"),
+        "thumbnail": data.get("thumbnail")
+    }
+    
+    if not album_data["title"]:
+        raise HTTPException(status_code=400, detail="Album title required")
+    
+    # Create content request
+    content_request = ChoirContentRequest(
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        request_type="album_create",
+        content_data=album_data
+    )
+    doc = content_request.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.choir_content_requests.insert_one(doc)
+    
+    # Notify priest/admin
+    notification = PriestNotification(
+        notification_type="content_request",
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        message=f"{account['choir_name']} wants to create a new album: {album_data['title']}",
+        details={"request_id": doc["request_id"], "album_title": album_data["title"]}
+    )
+    notif_doc = notification.model_dump()
+    notif_doc["created_at"] = notif_doc["created_at"].isoformat()
+    await db.priest_notifications.insert_one(notif_doc)
+    
+    return {"message": "Album creation request submitted for approval", "request_id": doc["request_id"]}
+
+@api_router.post("/choir/songs/upload")
+async def choir_upload_song_request(data: dict, request: Request):
+    """Choir requests to upload a song (requires admin approval)"""
+    account = await get_choir_from_session(request)
+    
+    song_data = {
+        "title": data.get("title"),
+        "album_id": data.get("album_id"),
+        "duration": data.get("duration"),
+        "duration_formatted": data.get("duration_formatted"),
+        "audio_url": data.get("audio_url"),
+        "lyrics": data.get("lyrics"),
+        "track_number": data.get("track_number")
+    }
+    
+    if not song_data["title"] or not song_data["album_id"]:
+        raise HTTPException(status_code=400, detail="Song title and album_id required")
+    
+    # Verify the album belongs to this choir
+    album = await db.albums.find_one({"album_id": song_data["album_id"]}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    if album.get("artist_id") != account["choir_id"]:
+        raise HTTPException(status_code=403, detail="You can only upload songs to your own albums")
+    
+    # Create content request
+    content_request = ChoirContentRequest(
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        request_type="song_upload",
+        content_data=song_data
+    )
+    doc = content_request.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.choir_content_requests.insert_one(doc)
+    
+    # Notify priest/admin
+    notification = PriestNotification(
+        notification_type="content_request",
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        message=f"{account['choir_name']} wants to upload a new song: {song_data['title']}",
+        details={"request_id": doc["request_id"], "song_title": song_data["title"], "album": album["title"]}
+    )
+    notif_doc = notification.model_dump()
+    notif_doc["created_at"] = notif_doc["created_at"].isoformat()
+    await db.priest_notifications.insert_one(notif_doc)
+    
+    return {"message": "Song upload request submitted for approval", "request_id": doc["request_id"]}
+
+@api_router.get("/choir/my-content-requests")
+async def get_my_content_requests(request: Request):
+    """Get choir's content requests"""
+    account = await get_choir_from_session(request)
+    
+    requests = await db.choir_content_requests.find(
+        {"choir_id": account["choir_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return {"requests": requests}
+
+@api_router.get("/choir/my-albums")
+async def get_my_albums(request: Request):
+    """Get albums belonging to this choir"""
+    account = await get_choir_from_session(request)
+    
+    albums = await db.albums.find(
+        {"artist_id": account["choir_id"]},
+        {"_id": 0}
+    ).to_list(100)
+    
+    return {"albums": albums}
+
+# ============== ADMIN CONTENT APPROVAL ==============
+
+@api_router.get("/admin/content-requests")
+async def get_content_requests(status: Optional[str] = None):
+    """Get all content requests (admin)"""
+    query = {}
+    if status:
+        query["status"] = status
+    requests = await db.choir_content_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"requests": requests}
+
+@api_router.put("/admin/content-requests/{request_id}")
+async def process_content_request(request_id: str, data: dict):
+    """Approve or reject content request"""
+    status = data.get("status")  # approved or rejected
+    admin_notes = data.get("admin_notes", "")
+    processed_by = data.get("processed_by", "admin")
+    
+    if status not in ["approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="Status must be approved or rejected")
+    
+    content_request = await db.choir_content_requests.find_one({"request_id": request_id}, {"_id": 0})
+    if not content_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Update request status
+    await db.choir_content_requests.update_one(
+        {"request_id": request_id},
+        {"$set": {
+            "status": status,
+            "admin_notes": admin_notes,
+            "processed_by": processed_by,
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # If approved, create the content
+    if status == "approved":
+        if content_request["request_type"] == "album_create":
+            album_data = content_request["content_data"]
+            album_obj = Album(
+                title=album_data["title"],
+                description=album_data.get("description"),
+                artist_id=content_request["choir_id"],
+                artist_name=content_request["choir_name"],
+                category_id=album_data.get("category_id"),
+                thumbnail=album_data.get("thumbnail"),
+                release_date=album_data.get("release_date"),
+                monetization_type=album_data.get("monetization_type", "standard"),
+                status="active"
+            )
+            doc = album_obj.model_dump()
+            doc["created_at"] = doc["created_at"].isoformat()
+            await db.albums.insert_one(doc)
+            
+        elif content_request["request_type"] == "song_upload":
+            song_data = content_request["content_data"]
+            song_obj = Song(
+                title=song_data["title"],
+                album_id=song_data["album_id"],
+                duration=song_data.get("duration"),
+                duration_formatted=song_data.get("duration_formatted"),
+                audio_url=song_data.get("audio_url"),
+                lyrics=song_data.get("lyrics"),
+                track_number=song_data.get("track_number"),
+                status="active"
+            )
+            doc = song_obj.model_dump()
+            doc["created_at"] = doc["created_at"].isoformat()
+            await db.songs.insert_one(doc)
+            
+            # Update album song count
+            await db.albums.update_one(
+                {"album_id": song_data["album_id"]},
+                {"$inc": {"songs_count": 1}}
+            )
+    
+    return {"message": f"Content request {status}"}
+
+# ============== PRIEST NOTIFICATIONS ==============
+
+@api_router.get("/admin/notifications")
+async def get_admin_notifications(unread_only: bool = False):
+    """Get notifications for admins/priests"""
+    query = {}
+    if unread_only:
+        query["read"] = False
+    
+    notifications = await db.priest_notifications.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    unread_count = await db.priest_notifications.count_documents({"read": False})
+    
+    return {"notifications": notifications, "unread_count": unread_count}
+
+@api_router.put("/admin/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str):
+    """Mark notification as read"""
+    await db.priest_notifications.update_one(
+        {"notification_id": notification_id},
+        {"$set": {"read": True}}
+    )
+    return {"message": "Notification marked as read"}
+
+@api_router.put("/admin/notifications/read-all")
+async def mark_all_notifications_read():
+    """Mark all notifications as read"""
+    await db.priest_notifications.update_many({}, {"$set": {"read": True}})
+    return {"message": "All notifications marked as read"}
 
 # ============== WITHDRAWAL REQUESTS ==============
 
