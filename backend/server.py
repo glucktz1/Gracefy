@@ -603,6 +603,32 @@ async def delete_song(song_id: str):
         raise HTTPException(status_code=404, detail="Song not found")
     return {"message": "Song deleted successfully"}
 
+@api_router.post("/songs/bulk-status")
+async def bulk_update_song_status(data: dict):
+    """Bulk update song status (activate/deactivate)"""
+    song_ids = data.get("song_ids", [])
+    status = data.get("status", "active")
+    
+    if not song_ids:
+        raise HTTPException(status_code=400, detail="No song IDs provided")
+    
+    result = await db.songs.update_many(
+        {"song_id": {"$in": song_ids}},
+        {"$set": {"status": status}}
+    )
+    return {"message": f"{result.modified_count} songs updated to {status}"}
+
+@api_router.post("/songs/bulk-delete")
+async def bulk_delete_songs(data: dict):
+    """Bulk delete songs"""
+    song_ids = data.get("song_ids", [])
+    
+    if not song_ids:
+        raise HTTPException(status_code=400, detail="No song IDs provided")
+    
+    result = await db.songs.delete_many({"song_id": {"$in": song_ids}})
+    return {"message": f"{result.deleted_count} songs deleted"}
+
 # ============== CHURCHES MANAGEMENT ==============
 
 @api_router.get("/churches")
