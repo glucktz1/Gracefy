@@ -259,6 +259,26 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - PUT `/api/layout/burners/{burner_id}/toggle` - Toggle active
 - GET `/api/layout/config/{platform}` - Get layout for app/web
 
+### User Streaming App
+- POST `/api/user/register` - Register with email/phone
+- POST `/api/user/login` - Login with email/phone
+- GET `/api/user/me` - Get authenticated user profile
+- GET `/api/user/home` - Home screen data with layout sections
+- GET `/api/user/browse/categories` - Browse categories
+- GET `/api/user/browse/category/{id}` - Category albums
+- GET `/api/user/album/{id}` - Album with songs
+- GET `/api/user/search?q={query}` - Search content
+- POST `/api/user/favorites/add` - Add to favorites
+- POST `/api/user/favorites/remove` - Remove from favorites
+- GET `/api/user/library` - User library
+- POST `/api/user/playlist/create` - Create playlist
+- POST `/api/user/playlist/{id}/add` - Add to playlist
+- GET `/api/user/playlist/{id}` - Get playlist
+
+### Enhanced Analytics
+- GET `/api/analytics/enhanced` - Comprehensive analytics (7d/30d/90d/1y)
+- GET `/api/analytics/realtime` - Real-time streaming stats
+
 ## Next Tasks (Priority Order)
 1. **P0 - React Native Mobile App**: Build native mobile app for Android/iOS using React Native
 2. **P1 - Audio Playback**: Implement actual audio streaming with audio_url support
