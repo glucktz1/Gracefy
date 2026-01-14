@@ -2033,6 +2033,708 @@ async def get_all_choirs_revenue():
     
     return {"choirs": choir_revenues}
 
+@api_router.get("/analytics/enhanced")
+async def get_enhanced_analytics(period: str = "30d"):
+    """Get comprehensive analytics dashboard data"""
+    # Parse period
+    if period == "7d":
+        days = 7
+    elif period == "30d":
+        days = 30
+    elif period == "90d":
+        days = 90
+    elif period == "1y":
+        days = 365
+    else:
+        days = 30
+    
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Revenue eligible filter
+    revenue_filter = {"$or": [
+        {"counts_for_revenue": True},
+        {"duration_seconds": {"$gte": MIN_STREAM_DURATION_SECONDS}}
+    ]}
+    
+    # Total streams vs revenue-eligible streams
+    total_streams = await db.listening_sessions.count_documents({})
+    revenue_streams = await db.listening_sessions.count_documents(revenue_filter)
+    
+    # Unique listeners
+    unique_listeners_pipeline = [
+        {"$match": {"user_id": {"$ne": "anonymous"}}},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "total"}
+    ]
+    unique_result = await db.listening_sessions.aggregate(unique_listeners_pipeline).to_list(1)
+    unique_listeners = unique_result[0]["total"] if unique_result else 0
+    
+    # Unique songs played
+    unique_songs_pipeline = [
+        {"$group": {"_id": "$song_id"}},
+        {"$count": "total"}
+    ]
+    unique_songs_result = await db.listening_sessions.aggregate(unique_songs_pipeline).to_list(1)
+    unique_songs_played = unique_songs_result[0]["total"] if unique_songs_result else 0
+    
+    # Total listening time
+    listening_pipeline = [
+        {"$group": {
+            "_id": None,
+            "total_seconds": {"$sum": "$duration_seconds"},
+            "total_hours": {"$sum": "$duration_hours"},
+            "avg_duration": {"$avg": "$duration_seconds"}
+        }}
+    ]
+    listening_result = await db.listening_sessions.aggregate(listening_pipeline).to_list(1)
+    listening_stats = listening_result[0] if listening_result else {"total_seconds": 0, "total_hours": 0, "avg_duration": 0}
+    
+    # Revenue by content type
+    revenue_pipeline = [
+        {"$match": revenue_filter},
+        {"$group": {
+            "_id": "$content_type",
+            "hours": {"$sum": "$duration_hours"},
+            "streams": {"$sum": 1}
+        }}
+    ]
+    revenue_by_type = await db.listening_sessions.aggregate(revenue_pipeline).to_list(10)
+    
+    premium_hours = 0
+    standard_hours = 0
+    for r in revenue_by_type:
+        if r["_id"] == "premium":
+            premium_hours = r["hours"]
+        else:
+            standard_hours = r["hours"]
+    
+    gross_revenue = (premium_hours * settings["premium_rate_per_hour"] + 
+                    standard_hours * settings["standard_rate_per_hour"])
+    platform_revenue = gross_revenue * (settings["platform_share_percentage"] / 100)
+    
+    # Daily trend data
+    daily_pipeline = [
+        {"$group": {
+            "_id": "$date",
+            "streams": {"$sum": 1},
+            "hours": {"$sum": "$duration_hours"},
+            "unique_users": {"$addToSet": "$user_id"}
+        }},
+        {"$sort": {"_id": -1}},
+        {"$limit": days}
+    ]
+    daily_data = await db.listening_sessions.aggregate(daily_pipeline).to_list(days)
+    
+    daily_trend = []
+    for d in reversed(daily_data):
+        day_revenue = d["hours"] * settings["standard_rate_per_hour"]
+        daily_trend.append({
+            "date": d["_id"],
+            "streams": d["streams"],
+            "hours": round(d["hours"], 2),
+            "unique_users": len(d["unique_users"]),
+            "revenue": round(day_revenue, 2)
+        })
+    
+    # Top songs
+    top_songs_pipeline = [
+        {"$group": {
+            "_id": "$song_id",
+            "plays": {"$sum": 1},
+            "hours": {"$sum": "$duration_hours"}
+        }},
+        {"$sort": {"plays": -1}},
+        {"$limit": 10}
+    ]
+    top_songs_data = await db.listening_sessions.aggregate(top_songs_pipeline).to_list(10)
+    
+    top_songs = []
+    for s in top_songs_data:
+        song = await db.songs.find_one({"song_id": s["_id"]}, {"_id": 0})
+        if song:
+            album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0})
+            top_songs.append({
+                "song_id": s["_id"],
+                "title": song.get("title", "Unknown"),
+                "album": album.get("title") if album else "Unknown",
+                "artist": album.get("artist_name") if album else "Unknown",
+                "plays": s["plays"],
+                "hours": round(s["hours"], 2)
+            })
+    
+    # Top choirs with detailed stats
+    choir_pipeline = [
+        {"$match": revenue_filter},
+        {"$group": {
+            "_id": "$choir_id",
+            "streams": {"$sum": 1},
+            "hours": {"$sum": "$duration_hours"},
+            "unique_listeners": {"$addToSet": "$user_id"}
+        }},
+        {"$sort": {"hours": -1}},
+        {"$limit": 10}
+    ]
+    top_choirs_data = await db.listening_sessions.aggregate(choir_pipeline).to_list(10)
+    
+    top_choirs = []
+    for c in top_choirs_data:
+        singer = await db.singers.find_one({"singer_id": c["_id"]}, {"_id": 0})
+        if singer:
+            choir_revenue = c["hours"] * settings["standard_rate_per_hour"]
+            top_choirs.append({
+                "choir_id": c["_id"],
+                "name": singer.get("name", "Unknown"),
+                "streams": c["streams"],
+                "hours": round(c["hours"], 2),
+                "unique_listeners": len(c["unique_listeners"]),
+                "revenue": round(choir_revenue, 2)
+            })
+    
+    # Category breakdown
+    category_pipeline = [
+        {"$lookup": {
+            "from": "albums",
+            "localField": "album_id",
+            "foreignField": "album_id",
+            "as": "album"
+        }},
+        {"$unwind": {"path": "$album", "preserveNullAndEmptyArrays": True}},
+        {"$group": {
+            "_id": "$album.category_name",
+            "streams": {"$sum": 1},
+            "hours": {"$sum": "$duration_hours"}
+        }},
+        {"$sort": {"streams": -1}},
+        {"$limit": 10}
+    ]
+    category_data = await db.listening_sessions.aggregate(category_pipeline).to_list(10)
+    
+    categories = [{"name": c["_id"] or "Uncategorized", "streams": c["streams"], "hours": round(c["hours"], 2)} for c in category_data]
+    
+    # Platform stats
+    total_albums = await db.albums.count_documents({"status": "active"})
+    total_songs = await db.songs.count_documents({"status": "active"})
+    total_choirs = await db.singers.count_documents({"status": "active"})
+    total_users = await db.users.count_documents({})
+    
+    return {
+        "period": period,
+        "overview": {
+            "total_streams": total_streams,
+            "revenue_streams": revenue_streams,
+            "unique_listeners": unique_listeners,
+            "unique_songs_played": unique_songs_played,
+            "total_listening_hours": round(listening_stats["total_hours"], 2),
+            "avg_session_duration": round(listening_stats["avg_duration"] / 60, 2),  # in minutes
+            "gross_revenue": round(gross_revenue, 2),
+            "platform_revenue": round(platform_revenue, 2),
+            "choir_payouts": round(gross_revenue - platform_revenue, 2)
+        },
+        "platform_stats": {
+            "total_albums": total_albums,
+            "total_songs": total_songs,
+            "total_choirs": total_choirs,
+            "total_users": total_users
+        },
+        "revenue_breakdown": {
+            "premium_hours": round(premium_hours, 2),
+            "standard_hours": round(standard_hours, 2),
+            "premium_revenue": round(premium_hours * settings["premium_rate_per_hour"], 2),
+            "standard_revenue": round(standard_hours * settings["standard_rate_per_hour"], 2)
+        },
+        "daily_trend": daily_trend,
+        "top_songs": top_songs,
+        "top_choirs": top_choirs,
+        "categories": categories,
+        "rates": {
+            "premium_rate": settings["premium_rate_per_hour"],
+            "standard_rate": settings["standard_rate_per_hour"],
+            "platform_share": settings["platform_share_percentage"]
+        }
+    }
+
+@api_router.get("/analytics/realtime")
+async def get_realtime_analytics():
+    """Get real-time analytics for the last hour"""
+    one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    
+    # Active sessions in last hour
+    recent_pipeline = [
+        {"$match": {"start_time": {"$gte": one_hour_ago}}},
+        {"$group": {
+            "_id": None,
+            "active_streams": {"$sum": 1},
+            "unique_listeners": {"$addToSet": "$user_id"}
+        }}
+    ]
+    recent = await db.listening_sessions.aggregate(recent_pipeline).to_list(1)
+    
+    active_streams = recent[0]["active_streams"] if recent else 0
+    active_listeners = len(recent[0]["unique_listeners"]) if recent else 0
+    
+    # Per-minute breakdown for last hour
+    minute_pipeline = [
+        {"$match": {"start_time": {"$gte": one_hour_ago}}},
+        {"$project": {
+            "minute": {"$substr": ["$start_time", 0, 16]}
+        }},
+        {"$group": {
+            "_id": "$minute",
+            "count": {"$sum": 1}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    per_minute = await db.listening_sessions.aggregate(minute_pipeline).to_list(60)
+    
+    return {
+        "active_streams": active_streams,
+        "active_listeners": active_listeners,
+        "per_minute": [{"time": m["_id"], "streams": m["count"]} for m in per_minute]
+    }
+
+# ============== USER APP ENDPOINTS ==============
+
+@api_router.post("/user/register")
+async def register_user(data: dict):
+    """Register a new user with email/password or phone"""
+    import hashlib
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    password = data.get("password")
+    name = data.get("name", "")
+    
+    if not password or (not email and not phone):
+        raise HTTPException(status_code=400, detail="Email or phone and password required")
+    
+    # Check if user exists
+    if email:
+        existing = await db.app_users.find_one({"email": email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+    if phone:
+        existing = await db.app_users.find_one({"phone": phone})
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone already registered")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    user = {
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": email,
+        "phone": phone,
+        "name": name,
+        "password_hash": password_hash,
+        "picture": None,
+        "subscription_type": "free",  # free, premium
+        "subscription_expires": None,
+        "favorites": [],
+        "playlists": [],
+        "recently_played": [],
+        "downloads": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "active"
+    }
+    
+    await db.app_users.insert_one(user)
+    del user["password_hash"]
+    user.pop("_id", None)
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    })
+    
+    return {"user": user, "token": token}
+
+@api_router.post("/user/login")
+async def login_user(data: dict):
+    """Login user with email/phone and password"""
+    import hashlib
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    password = data.get("password")
+    
+    if not password or (not email and not phone):
+        raise HTTPException(status_code=400, detail="Credentials required")
+    
+    query = {"email": email} if email else {"phone": phone}
+    user = await db.app_users.find_one(query)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user["password_hash"] != password_hash:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    })
+    
+    del user["password_hash"]
+    user.pop("_id", None)
+    
+    return {"user": user, "token": token}
+
+@api_router.get("/user/me")
+async def get_user_profile(request: Request):
+    """Get current user profile"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = await db.app_users.find_one({"user_id": token_doc["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return user
+
+@api_router.get("/user/home")
+async def get_user_home():
+    """Get home screen data for the user app based on layout settings"""
+    # Get active layout sections for app
+    sections = await db.layout_sections.find(
+        {"platforms": "app", "is_active": True},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(20)
+    
+    home_data = []
+    
+    for section in sections:
+        section_data = {
+            "section_id": section["section_id"],
+            "type": section["section_type"],
+            "title": section["display_name"],
+            "description": section.get("description", "")
+        }
+        
+        # Populate content based on type
+        if section["section_type"] == "quick_access":
+            categories = await db.categories.find(
+                {"status": "active"},
+                {"_id": 0}
+            ).limit(section.get("content_count", 6)).to_list(6)
+            section_data["items"] = categories
+            
+        elif section["section_type"] in ["featured_albums", "trending"]:
+            albums = await db.albums.find(
+                {"status": "active"},
+                {"_id": 0}
+            ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            section_data["items"] = albums
+            
+        elif section["section_type"] == "hero":
+            section_data["background"] = section.get("background_gradient") or section.get("background_color")
+            section_data["items"] = []
+            
+        else:
+            # For other types, get albums or use manual content
+            if section.get("content_ids"):
+                if section.get("content_type") == "albums":
+                    items = await db.albums.find(
+                        {"album_id": {"$in": section["content_ids"]}},
+                        {"_id": 0}
+                    ).to_list(20)
+                elif section.get("content_type") == "categories":
+                    items = await db.categories.find(
+                        {"category_id": {"$in": section["content_ids"]}},
+                        {"_id": 0}
+                    ).to_list(20)
+                else:
+                    items = []
+                section_data["items"] = items
+            else:
+                section_data["items"] = []
+        
+        home_data.append(section_data)
+    
+    # Get active burners
+    burners = await db.layout_burners.find(
+        {"platforms": "app", "is_active": True},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(5)
+    
+    # Get recently played (if authenticated, handled separately)
+    
+    return {
+        "sections": home_data,
+        "burners": burners
+    }
+
+@api_router.get("/user/browse/categories")
+async def browse_categories():
+    """Get all categories for browsing"""
+    categories = await db.categories.find({"status": "active"}, {"_id": 0}).to_list(50)
+    return {"categories": categories}
+
+@api_router.get("/user/browse/category/{category_id}")
+async def get_category_albums(category_id: str):
+    """Get albums in a category"""
+    category = await db.categories.find_one({"category_id": category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    albums = await db.albums.find(
+        {"category_id": category_id, "status": "active"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return {"category": category, "albums": albums}
+
+@api_router.get("/user/album/{album_id}")
+async def get_album_details(album_id: str):
+    """Get album with all songs"""
+    album = await db.albums.find_one({"album_id": album_id}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    songs = await db.songs.find(
+        {"album_id": album_id, "status": "active"},
+        {"_id": 0}
+    ).sort("track_number", 1).to_list(100)
+    
+    # Get artist info
+    artist = None
+    if album.get("artist_id"):
+        artist = await db.singers.find_one({"singer_id": album["artist_id"]}, {"_id": 0})
+    
+    return {"album": album, "songs": songs, "artist": artist}
+
+@api_router.get("/user/search")
+async def search_content(q: str):
+    """Search albums, songs, and artists"""
+    if not q or len(q) < 2:
+        return {"albums": [], "songs": [], "artists": []}
+    
+    # Search albums
+    albums = await db.albums.find(
+        {"$or": [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"artist_name": {"$regex": q, "$options": "i"}}
+        ], "status": "active"},
+        {"_id": 0}
+    ).limit(10).to_list(10)
+    
+    # Search songs
+    songs = await db.songs.find(
+        {"title": {"$regex": q, "$options": "i"}, "status": "active"},
+        {"_id": 0}
+    ).limit(10).to_list(10)
+    
+    # Enrich songs with album info
+    for song in songs:
+        album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0, "title": 1, "thumbnail": 1, "artist_name": 1})
+        if album:
+            song["album_title"] = album.get("title")
+            song["album_thumbnail"] = album.get("thumbnail")
+            song["artist_name"] = album.get("artist_name")
+    
+    # Search artists
+    artists = await db.singers.find(
+        {"name": {"$regex": q, "$options": "i"}, "status": "active"},
+        {"_id": 0}
+    ).limit(10).to_list(10)
+    
+    return {"albums": albums, "songs": songs, "artists": artists}
+
+@api_router.post("/user/favorites/add")
+async def add_to_favorites(request: Request, data: dict):
+    """Add song or album to favorites"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    item_type = data.get("type")  # "song" or "album"
+    item_id = data.get("id")
+    
+    await db.app_users.update_one(
+        {"user_id": token_doc["user_id"]},
+        {"$addToSet": {"favorites": {"type": item_type, "id": item_id, "added_at": datetime.now(timezone.utc).isoformat()}}}
+    )
+    
+    return {"message": "Added to favorites"}
+
+@api_router.post("/user/favorites/remove")
+async def remove_from_favorites(request: Request, data: dict):
+    """Remove from favorites"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    item_id = data.get("id")
+    
+    await db.app_users.update_one(
+        {"user_id": token_doc["user_id"]},
+        {"$pull": {"favorites": {"id": item_id}}}
+    )
+    
+    return {"message": "Removed from favorites"}
+
+@api_router.get("/user/library")
+async def get_user_library(request: Request):
+    """Get user's library (favorites, playlists, downloads)"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = await db.app_users.find_one({"user_id": token_doc["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Enrich favorites with details
+    favorites = []
+    for fav in user.get("favorites", []):
+        if fav["type"] == "song":
+            song = await db.songs.find_one({"song_id": fav["id"]}, {"_id": 0})
+            if song:
+                album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0})
+                favorites.append({
+                    "type": "song",
+                    "item": song,
+                    "album": album,
+                    "added_at": fav.get("added_at")
+                })
+        elif fav["type"] == "album":
+            album = await db.albums.find_one({"album_id": fav["id"]}, {"_id": 0})
+            if album:
+                favorites.append({
+                    "type": "album",
+                    "item": album,
+                    "added_at": fav.get("added_at")
+                })
+    
+    # Get playlists
+    playlists = await db.playlists.find({"user_id": user["user_id"]}, {"_id": 0}).to_list(50)
+    
+    # Recently played
+    recent = await db.listening_sessions.find(
+        {"user_id": user["user_id"]},
+        {"_id": 0}
+    ).sort("start_time", -1).limit(20).to_list(20)
+    
+    recently_played = []
+    seen_songs = set()
+    for r in recent:
+        if r["song_id"] not in seen_songs:
+            song = await db.songs.find_one({"song_id": r["song_id"]}, {"_id": 0})
+            if song:
+                album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0})
+                recently_played.append({"song": song, "album": album})
+                seen_songs.add(r["song_id"])
+        if len(recently_played) >= 10:
+            break
+    
+    return {
+        "favorites": favorites,
+        "playlists": playlists,
+        "recently_played": recently_played,
+        "downloads": user.get("downloads", [])
+    }
+
+@api_router.post("/user/playlist/create")
+async def create_playlist(request: Request, data: dict):
+    """Create a new playlist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    playlist = {
+        "playlist_id": f"pl_{uuid.uuid4().hex[:12]}",
+        "user_id": token_doc["user_id"],
+        "name": data.get("name", "My Playlist"),
+        "description": data.get("description", ""),
+        "songs": [],
+        "is_public": data.get("is_public", False),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.playlists.insert_one(playlist)
+    playlist.pop("_id", None)
+    
+    return {"playlist": playlist}
+
+@api_router.post("/user/playlist/{playlist_id}/add")
+async def add_to_playlist(request: Request, playlist_id: str, data: dict):
+    """Add song to playlist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    song_id = data.get("song_id")
+    
+    result = await db.playlists.update_one(
+        {"playlist_id": playlist_id, "user_id": token_doc["user_id"]},
+        {"$addToSet": {"songs": song_id}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    return {"message": "Song added to playlist"}
+
+@api_router.get("/user/playlist/{playlist_id}")
+async def get_playlist(playlist_id: str):
+    """Get playlist with songs"""
+    playlist = await db.playlists.find_one({"playlist_id": playlist_id}, {"_id": 0})
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    # Get songs
+    songs = []
+    for song_id in playlist.get("songs", []):
+        song = await db.songs.find_one({"song_id": song_id}, {"_id": 0})
+        if song:
+            album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0})
+            songs.append({"song": song, "album": album})
+    
+    return {"playlist": playlist, "songs": songs}
+
 # ============== CHOIR ACCOUNT MANAGEMENT ==============
 
 @api_router.post("/choir/account/create")
