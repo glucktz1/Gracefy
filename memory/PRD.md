@@ -9,6 +9,7 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
 - **Storage**: Firebase Cloud Storage (MOCKED - using MongoDB base64)
 - **Live Seminars**: Google Meet integration (scheduling only)
 - **Payments**: M-Pesa mobile money (API placeholder with MOCK OTP)
+- **SMS**: MOCK implementation (logs to database, provision for future integration)
 
 ## Architecture
 - **Backend**: FastAPI (Python) with Motor async MongoDB driver
@@ -18,61 +19,84 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
   - Admin: Emergent Google OAuth
   - Choir: Email/Password JWT with session management
 
-## User Personas
-1. **Admin**: Full access to all features, user management, approvals
-2. **Content Manager**: Manage albums, songs, categories
-3. **Moderator**: Community post moderation, audio room management
-4. **Choir**: Revenue dashboard, content upload, payment management
-
-## Core Requirements (Static)
-- User management (Customers vs System Users)
-- Content categories CRUD
-- Albums & Songs management with file upload
-- Churches management with schedules & announcements
-- Religious leaders with verification badges
-- Singers/Choirs management
-- Live seminars scheduling
-- Audio rooms management
-- Donation campaigns with progress tracking
-- Community post moderation
-- Priest booking management
-- Approvals queue
-
 ## What's Been Implemented
 
-### Admin Dashboard MVP (January 2026)
-- ✅ All 45+ API endpoints working
-- ✅ Emergent Google OAuth authentication
-- ✅ Session management with cookies
-- ✅ CRUD for: Users, Categories, Albums, Songs, Churches, Leaders, Singers, Seminars, Audio Rooms, Donations, Community Posts, Bookings
-- ✅ Analytics endpoints
-- ✅ File upload endpoint (base64 storage)
-- ✅ Approvals workflow
+### Phase 1 - Core Admin Analytics & Choir Management (January 14, 2026)
 
-### Choir Dashboard & Revenue System (January 14, 2026)
 **Backend:**
-- ✅ Choir JWT authentication (email/password login)
-- ✅ Choir session management
-- ✅ Revenue calculation with 45-second minimum stream rule
-- ✅ Payment details submission with OTP verification (MOCK)
-- ✅ Mobile Money and Bank transfer support
-- ✅ Withdrawal request system with priest notifications
-- ✅ Content upload requests (albums/songs) requiring admin approval
-- ✅ Admin approval endpoints for content and payment changes
-- ✅ Priest notification system for choir activities
+- ✅ Enhanced Singer/Choir model with:
+  - Denomination (Roman Catholic, Lutheran, Anglican, etc.)
+  - Treasurer name & phone
+  - Chairman name & phone
+  - Parish Priest name & phone
+- ✅ Admin choir analytics endpoints:
+  - GET `/api/admin/choirs` - List all choirs with performance stats
+  - GET `/api/admin/choirs/{choir_id}` - Detailed choir view with albums, revenue, withdrawals
+  - POST `/api/admin/choirs` - Create choir with all enhanced fields
+  - PUT `/api/admin/choirs/{choir_id}` - Update, approve, suspend choirs
+- ✅ Admin album/song management:
+  - GET `/api/admin/albums` - List all albums with songs and stats
+  - PUT `/api/admin/albums/{album_id}` - Enable/disable albums
+  - PUT `/api/admin/songs/{song_id}` - Enable/disable songs
+  - POST `/api/admin/albums/{album_id}/approve` - Approve album with all songs
+- ✅ SMS notification service (MOCK):
+  - Logs to database with status 'mock_sent'
+  - Provision for future SMS provider integration (Twilio, Africa's Talking, Beem)
+  - Withdrawal notifications to treasurer, chairman, and parish priest
 
 **Frontend:**
-- ✅ Choir Login page with JWT auth
+- ✅ ChoirManagementPage (`/admin/choirs`):
+  - List all choirs with stats (albums, songs, hours, revenue)
+  - Search and filter by status
+  - Create/edit choir with enhanced fields
+  - Approve/suspend choirs
+- ✅ ChoirDetailsPage (`/admin/choirs/{choirId}`):
+  - Overview with monthly revenue chart
+  - Albums tab with songs list and audio preview
+  - Enable/disable albums and individual songs
+  - Approve albums with all songs
+  - Withdrawals history
+  - Contacts tab (treasurer, chairman, priest)
+
+### Phase 2 - Monetization Settings (January 14, 2026)
+
+**Backend - MonetizationSettings Model with 14 Sections:**
+1. ✅ Subscription Settings (price, billing cycle, free trial, auto-renew, grace period)
+2. ✅ Platform Revenue Settings (platform fee %, effective date, apply to subscriptions/donations)
+3. ✅ Content Revenue Rates (premium/standard rates per hour, effective date)
+4. ✅ Premium Content Rules (duration days, auto-downgrade, approval required)
+5. ✅ Listening Time Rules (min 45 seconds, max hours per user)
+6. ✅ Payout Settings (minimum threshold, frequency, cutoff day, fee handling)
+7. ✅ Payout Methods (Mobile Money, Bank Transfer, PayPal toggles)
+8. ✅ Tips & Donations (enable tips, suggested amounts, platform fee)
+9. ✅ Album Monetization Controls (subscription-only, free promotional, geo-restricted)
+10. ✅ Tax & Compliance (VAT, withholding tax, invoice generation)
+11. ✅ Currency & Rounding (base currency TZS, rounding precision)
+12. ✅ Analytics & Reporting (aggregation interval, data retention)
+13. ✅ Alerts & Monitoring (revenue drop, unusual spikes, failed payouts)
+14. ✅ Permissions & Safety (freeze monetization, pause payouts, emergency rollback)
+
+**Subscription Plans:**
+- ✅ Default plans: Daily (500 TZS), Weekly (2000 TZS), Monthly (5000 TZS), Yearly (50000 TZS)
+- ✅ CRUD operations for subscription plans
+- ✅ Plan features list
+
+**Frontend - MonetizationSettingsPage (`/monetization`):**
+- ✅ 6 organized tabs: General, Subscriptions, Content Rates, Payouts, Tax, Safety
+- ✅ Subscription plans management with create/edit/delete
+- ✅ Rate change history viewer
+- ✅ Emergency controls (pause all payouts, freeze monetization)
+- ✅ Save all changes with single button
+
+### Previously Implemented (Phase 0)
+
+- ✅ Admin Dashboard MVP with 45+ API endpoints
+- ✅ Choir JWT authentication (email/password)
 - ✅ Choir Dashboard with tabs: Overview, My Content, Requests
-- ✅ Revenue metrics: Actual Revenue, Stream Time, Unique Streams (>45s), Total Plays
-- ✅ Monthly revenue trend chart
-- ✅ Revenue split pie chart (Choir vs Platform)
-- ✅ Album performance breakdown
-- ✅ Payment details modal with OTP verification flow
-- ✅ Album creation modal with category, monetization type
-- ✅ Song upload modal
-- ✅ Withdrawal request modal with payment method selection
-- ✅ Enhanced Admin Approvals page with Content Requests, Payment Requests, Notifications tabs
+- ✅ Revenue calculation with 45-second minimum stream rule
+- ✅ Payment details submission with OTP verification (MOCK)
+- ✅ Content upload with admin approval
+- ✅ Withdrawal requests with priest notifications
 
 ## Revenue Model
 - **Calculation**: Time-based (listening hours × rate per hour)
@@ -81,79 +105,63 @@ Build a comprehensive Christian app admin dashboard with capabilities for managi
 - **Minimum Withdrawal**: Configurable (default TZS 10,000)
 - **45-Second Rule**: Only streams >= 45 seconds count toward revenue
 
-## Prioritized Backlog
-
-### P0 (Critical) - COMPLETED
-- [x] Admin authentication
-- [x] Dashboard analytics
-- [x] Core CRUD operations
-- [x] Choir login/authentication
-- [x] Choir revenue dashboard
-- [x] Payment details management
-
-### P1 (High Priority)
-- [ ] Implement actual Firebase Storage integration
-- [ ] Google Meet API integration for auto-generating meeting links
-- [ ] M-Pesa payment gateway integration (real SMS OTP, real payouts)
-- [ ] Real-time audio rooms (WebRTC/similar)
-
-### P2 (Medium Priority)
-- [ ] Customer-facing mobile app/PWA
-- [ ] Push notifications
-- [ ] Email notifications for bookings
-- [ ] Advanced analytics with date filters
-- [ ] Bulk song upload
-- [ ] Playlist management
-
-### P3 (Nice to Have)
-- [ ] AI-powered content recommendations
-- [ ] Lyrics synchronization
-- [ ] Multi-language support
-- [ ] Offline mode for mobile app
-
 ## Test Credentials
 - **Test Choir Account**: testchoir@example.com / test123
+- **Test Choir with Full Details**: St. Mary Cathedral Choir (sing_6ac984c0ee0e)
 - **Admin**: Google OAuth (Emergent-managed)
 
 ## Mocked Features
-1. **OTP Verification**: Returns OTP code in API response for testing (mock_otp field)
-2. **Mobile Money/Bank Payouts**: Withdrawal requests created but payouts are manual
+1. **OTP Verification**: Returns OTP code in API response (mock_otp field)
+2. **SMS Notifications**: Logged to database with status 'mock_sent'
+3. **Mobile Money/Bank Payouts**: Withdrawal requests created but payouts require manual processing
 
 ## API Endpoints Summary
 
-### Choir Authentication
-- POST `/api/choir/login` - Choir JWT login
-- GET `/api/choir/me` - Get choir profile
-- POST `/api/choir/logout` - Choir logout
+### Admin Choir Management
+- GET `/api/admin/choirs` - List all choirs with stats
+- GET `/api/admin/choirs/{choir_id}` - Detailed choir view
+- POST `/api/admin/choirs` - Create choir
+- PUT `/api/admin/choirs/{choir_id}` - Update/approve/suspend choir
 
-### Choir Revenue & Analytics
-- GET `/api/choir/revenue/{choir_id}` - Get choir revenue analytics
+### Admin Album/Song Management
+- GET `/api/admin/albums` - List all albums
+- GET `/api/admin/albums/{album_id}` - Album details with songs
+- PUT `/api/admin/albums/{album_id}` - Update/enable/disable album
+- PUT `/api/admin/songs/{song_id}` - Update/enable/disable song
+- POST `/api/admin/albums/{album_id}/approve` - Approve album with all songs
 
-### Payment Details
-- GET `/api/choir/payment-details` - Get current payment details
-- POST `/api/choir/payment-details/request-otp` - Request OTP (MOCK)
-- POST `/api/choir/payment-details/verify-otp` - Verify OTP
-- POST `/api/choir/payment-details/submit` - Submit payment details for approval
+### Monetization Settings
+- GET `/api/monetization/settings` - Get all settings
+- PUT `/api/monetization/settings` - Update settings
+- GET `/api/monetization/rate-history` - Rate change history
+- GET `/api/monetization/plans` - List subscription plans
+- POST `/api/monetization/plans` - Create plan
+- PUT `/api/monetization/plans/{plan_id}` - Update plan
+- DELETE `/api/monetization/plans/{plan_id}` - Delete plan
+- POST `/api/monetization/pause-all-payouts` - Emergency pause
+- POST `/api/monetization/resume-payouts` - Resume payouts
+- POST `/api/monetization/freeze-choir/{choir_id}` - Freeze choir monetization
 
-### Content Upload (Requires Admin Approval)
-- POST `/api/choir/albums/create` - Request album creation
-- POST `/api/choir/songs/upload` - Request song upload
-- GET `/api/choir/my-content-requests` - Get content request history
-- GET `/api/choir/my-albums` - Get choir's albums
+### SMS Notifications (MOCK)
+- GET `/api/admin/sms-logs` - View SMS logs
+- POST `/api/admin/sms/send` - Manual SMS (for testing)
 
-### Withdrawals
-- POST `/api/withdrawal/request` - Create withdrawal request
-- GET `/api/withdrawal/my-requests` - Get withdrawal history
+## Next Tasks (Priority Order)
+1. **P0 - User-Facing App**: Build main front-end for listeners to stream content
+2. **P1 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
+3. **P1 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
+4. **P1 - Real M-Pesa Integration**: Implement actual mobile money payouts
 
-### Admin Approvals
-- GET `/api/admin/content-requests` - Get pending content requests
-- PUT `/api/admin/content-requests/{id}` - Approve/reject content
-- GET `/api/admin/payment-requests` - Get pending payment changes
-- PUT `/api/admin/payment-requests/{id}` - Approve/reject payment details
-- GET `/api/admin/notifications` - Get priest notifications
+## Future/Backlog
+- Audio Rooms (Clubhouse-style)
+- Christian Community features (Facebook-like)
+- Push notifications
+- Mobile app/PWA
+- Audio preview/playback improvements
 
-## Next Tasks
-1. User-facing application for listeners
-2. Live Seminars with Google Meet integration
-3. Audio Rooms (Clubhouse-style)
-4. Real Mobile Money API integration (Mpesa)
+## Testing Status
+- ✅ Phase 1 & 2: 45/45 tests passed (100%)
+- ✅ Choir authentication working
+- ✅ All monetization endpoints working
+- ✅ SMS logs endpoint working
+- ✅ Admin choir management working
