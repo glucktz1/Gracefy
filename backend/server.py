@@ -1253,8 +1253,15 @@ async def get_admin_revenue_overview():
     if not settings:
         settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
     
-    # Aggregate listening data
+    # Only count streams >= 45 seconds for revenue
+    revenue_filter = {"$or": [
+        {"counts_for_revenue": True},
+        {"duration_seconds": {"$gte": MIN_STREAM_DURATION_SECONDS}}
+    ]}
+    
+    # Aggregate listening data (only counting revenue-eligible streams)
     pipeline = [
+        {"$match": revenue_filter},
         {"$group": {
             "_id": "$content_type",
             "total_hours": {"$sum": "$duration_hours"},
@@ -1262,6 +1269,10 @@ async def get_admin_revenue_overview():
         }}
     ]
     listening_stats = await db.listening_sessions.aggregate(pipeline).to_list(10)
+    
+    # Also get total streams (all) for comparison
+    all_streams_count = await db.listening_sessions.count_documents({})
+    revenue_streams_count = await db.listening_sessions.count_documents(revenue_filter)
     
     premium_hours = 0
     standard_hours = 0
@@ -1291,8 +1302,9 @@ async def get_admin_revenue_overview():
     active_days_result = await db.listening_sessions.aggregate(active_days_pipeline).to_list(1)
     active_days = active_days_result[0]["days"] if active_days_result else 1
     
-    # Top performing choirs
+    # Top performing choirs (only revenue-eligible streams)
     choir_pipeline = [
+        {"$match": revenue_filter},
         {"$group": {
             "_id": "$choir_id",
             "total_hours": {"$sum": "$duration_hours"},
