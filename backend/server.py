@@ -1425,13 +1425,18 @@ async def get_revenue_settings_history():
 async def get_monetization_settings():
     """Get all monetization settings"""
     settings = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    
+    # Always return full settings by merging with defaults
+    default = MonetizationSettings()
+    default_doc = default.model_dump()
+    default_doc["created_at"] = default_doc["created_at"].isoformat()
+    
     if not settings:
-        # Return default settings
-        default = MonetizationSettings()
-        doc = default.model_dump()
-        doc["created_at"] = doc["created_at"].isoformat()
-        return doc
-    return settings
+        return default_doc
+    
+    # Merge defaults with stored settings (stored takes precedence)
+    merged = {**default_doc, **settings}
+    return merged
 
 @api_router.put("/monetization/settings")
 async def update_monetization_settings(data: dict):
