@@ -1359,12 +1359,15 @@ async def get_admin_revenue_overview():
             "premium_hours": round(premium_hours, 2),
             "standard_hours": round(standard_hours, 2),
             "total_sessions": total_sessions,
+            "all_streams_count": all_streams_count,
+            "revenue_streams_count": revenue_streams_count,  # Only streams >= 45s
             "gross_revenue": round(gross_revenue, 2),
             "platform_earnings": round(platform_share, 2),
             "choir_payouts": round(choir_payouts, 2),
             "avg_earning_per_hour": round(platform_share / max(total_hours, 1), 2),
             "avg_earning_per_day": round(platform_share / max(active_days, 1), 2),
-            "active_days": active_days
+            "active_days": active_days,
+            "min_stream_duration_seconds": MIN_STREAM_DURATION_SECONDS
         },
         "rates": {
             "premium_rate": settings["premium_rate_per_hour"],
