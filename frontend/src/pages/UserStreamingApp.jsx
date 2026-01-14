@@ -92,7 +92,9 @@ const useAudioPlayer = () => {
     if (sessionIdRef.current) {
       try {
         await axios.post(`${API}/listening/end`, { session_id: sessionIdRef.current });
-      } catch (e) {}
+      } catch (e) {
+        // Silently ignore session end errors
+      }
     }
 
     if (queue.length === 0) return;
