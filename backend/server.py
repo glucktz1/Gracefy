@@ -2400,7 +2400,7 @@ async def create_withdrawal_request(data: dict, request: Request):
     doc["created_at"] = doc["created_at"].isoformat()
     await db.withdrawal_requests.insert_one(doc)
     
-    # Notify priest about withdrawal request
+    # Notify priest about withdrawal request (in-app)
     notification = PriestNotification(
         notification_type="withdrawal_request",
         choir_id=account["choir_id"],
@@ -2411,6 +2411,9 @@ async def create_withdrawal_request(data: dict, request: Request):
     notif_doc = notification.model_dump()
     notif_doc["created_at"] = notif_doc["created_at"].isoformat()
     await db.priest_notifications.insert_one(notif_doc)
+    
+    # Send SMS to treasurer, chairman, and parish priest (MOCK)
+    await notify_choir_contacts_withdrawal(account["choir_id"], doc, "withdrawal_request")
     
     return {"request_id": doc["request_id"], "message": "Withdrawal request submitted"}
 
