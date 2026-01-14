@@ -301,7 +301,68 @@ class ChoirAccount(BaseModel):
     total_earned: float = 0.0
     total_withdrawn: float = 0.0
     status: str = "pending"  # pending, approved, suspended
+    # Payment details
+    payment_method: Optional[str] = None  # mobile_money, bank_transfer
+    payment_details: Optional[dict] = None  # {phone, otp_verified} or {bank_name, account_number, account_name}
+    payment_details_status: str = "not_set"  # not_set, pending_approval, approved, rejected
+    payment_details_updated_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ChoirContentRequest(BaseModel):
+    """Choir content upload requests (albums/songs) requiring admin approval"""
+    model_config = ConfigDict(extra="ignore")
+    request_id: str = Field(default_factory=lambda: f"content_{uuid.uuid4().hex[:12]}")
+    choir_id: str
+    choir_name: str
+    request_type: str  # album_create, song_upload
+    content_data: dict  # Album or song data
+    status: str = "pending"  # pending, approved, rejected
+    admin_notes: Optional[str] = None
+    processed_by: Optional[str] = None
+    processed_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PaymentDetailChangeRequest(BaseModel):
+    """Request to change payment details - requires admin approval"""
+    model_config = ConfigDict(extra="ignore")
+    request_id: str = Field(default_factory=lambda: f"pdc_{uuid.uuid4().hex[:12]}")
+    choir_id: str
+    choir_name: str
+    payment_method: str  # mobile_money, bank_transfer
+    payment_details: dict  # New payment details
+    otp_verified: bool = False  # For mobile money
+    status: str = "pending"  # pending, approved, rejected
+    admin_notes: Optional[str] = None
+    processed_by: Optional[str] = None
+    processed_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class OTPVerification(BaseModel):
+    """OTP verification for mobile money"""
+    model_config = ConfigDict(extra="ignore")
+    otp_id: str = Field(default_factory=lambda: f"otp_{uuid.uuid4().hex[:12]}")
+    choir_id: str
+    phone_number: str
+    otp_code: str
+    verified: bool = False
+    expires_at: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PriestNotification(BaseModel):
+    """Notifications to priests about choir activities"""
+    model_config = ConfigDict(extra="ignore")
+    notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
+    recipient_type: str = "priest"  # priest, admin
+    notification_type: str  # withdrawal_request, content_request, payment_change
+    choir_id: str
+    choir_name: str
+    message: str
+    details: Optional[dict] = None
+    read: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Minimum stream duration for counting revenue (45 seconds)
+MIN_STREAM_DURATION_SECONDS = 45
 
 # ============== AUTH ENDPOINTS ==============
 
