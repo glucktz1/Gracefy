@@ -2482,10 +2482,33 @@ async def get_user_home():
         "burners": burners
     }
 
+DEFAULT_CATEGORIES = [
+    {"category_id": "cat_prayers", "name": "Prayers", "description": "Prayer and meditation music", "icon": "book-open", "status": "active"},
+    {"category_id": "cat_christmas", "name": "Christmas", "description": "Christmas carols and hymns", "icon": "star", "status": "active"},
+    {"category_id": "cat_lent", "name": "Lent", "description": "Music for the Lenten season", "icon": "cross", "status": "active"},
+    {"category_id": "cat_catechism", "name": "Catechism", "description": "Teaching songs and catechetical music", "icon": "church", "status": "active"},
+    {"category_id": "cat_worship", "name": "Worship", "description": "Worship and praise music", "icon": "flame", "status": "active"},
+    {"category_id": "cat_gospel", "name": "Gospel", "description": "Gospel music and spirituals", "icon": "sun", "status": "active"},
+    {"category_id": "cat_hymns", "name": "Hymns", "description": "Traditional church hymns", "icon": "music", "status": "active"},
+    {"category_id": "cat_praise", "name": "Praise", "description": "Contemporary praise music", "icon": "sparkles", "status": "active"},
+    {"category_id": "cat_easter", "name": "Easter", "description": "Easter and resurrection songs", "icon": "sunrise", "status": "active"},
+    {"category_id": "cat_marian", "name": "Marian", "description": "Songs honoring Mary", "icon": "heart", "status": "active"},
+]
+
 @api_router.get("/user/browse/categories")
 async def browse_categories():
     """Get all categories for browsing"""
     categories = await db.categories.find({"status": "active"}, {"_id": 0}).to_list(50)
+    
+    # Create default categories if none exist
+    if not categories:
+        import copy
+        for cat_data in DEFAULT_CATEGORIES:
+            data_copy = copy.deepcopy(cat_data)
+            data_copy["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.categories.insert_one(data_copy)
+        categories = await db.categories.find({"status": "active"}, {"_id": 0}).to_list(50)
+    
     return {"categories": categories}
 
 @api_router.get("/user/browse/category/{category_id}")
