@@ -1075,6 +1075,794 @@ async def reject_item(data: dict):
     
     return {"message": "Item rejected"}
 
+# ============== REVENUE SETTINGS MANAGEMENT ==============
+
+@api_router.get("/revenue/settings")
+async def get_revenue_settings():
+    """Get current revenue settings"""
+    settings = await db.revenue_settings.find_one(
+        {}, 
+        {"_id": 0},
+        sort=[("created_at", -1)]
+    )
+    if not settings:
+        # Return default settings
+        return {
+            "premium_rate_per_hour": 10.0,
+            "standard_rate_per_hour": 5.0,
+            "platform_share_percentage": 30.0,
+            "minimum_withdrawal": 10000.0,
+            "effective_from": datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        }
+    return settings
+
+@api_router.post("/revenue/settings")
+async def update_revenue_settings(settings: dict):
+    """Update revenue settings (admin only)"""
+    settings_obj = RevenueSettings(**settings)
+    doc = settings_obj.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["effective_from"] = settings.get("effective_from", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    await db.revenue_settings.insert_one(doc)
+    return {"settings_id": doc["settings_id"], "message": "Settings updated successfully"}
+
+@api_router.get("/revenue/settings/history")
+async def get_revenue_settings_history():
+    """Get history of revenue settings changes"""
+    settings = await db.revenue_settings.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"settings": settings}
+
+# ============== LISTENING SESSIONS (for tracking) ==============
+
+@api_router.post("/listening/start")
+async def start_listening_session(data: dict):
+    """Start a listening session when user plays a song"""
+    song_id = data.get("song_id")
+    user_id = data.get("user_id", "anonymous")
+    
+    # Get song and album info
+    song = await db.songs.find_one({"song_id": song_id}, {"_id": 0})
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    album = await db.albums.find_one({"album_id": song["album_id"]}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    now = datetime.now(timezone.utc)
+    session = ListeningSession(
+        user_id=user_id,
+        song_id=song_id,
+        album_id=song["album_id"],
+        choir_id=album.get("artist_id", ""),
+        content_type=album.get("monetization_type", "standard"),
+        start_time=now.isoformat(),
+        date=now.strftime("%Y-%m-%d"),
+        month=now.strftime("%Y-%m")
+    )
+    doc = session.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.listening_sessions.insert_one(doc)
+    
+    # Increment play count
+    await db.songs.update_one({"song_id": song_id}, {"$inc": {"plays": 1}})
+    
+    return {"session_id": doc["session_id"]}
+
+@api_router.post("/listening/end")
+async def end_listening_session(data: dict):
+    """End a listening session and calculate duration"""
+    session_id = data.get("session_id")
+    
+    session = await db.listening_sessions.find_one({"session_id": session_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    now = datetime.now(timezone.utc)
+    start_time = datetime.fromisoformat(session["start_time"].replace("Z", "+00:00"))
+    duration_seconds = int((now - start_time).total_seconds())
+    duration_hours = duration_seconds / 3600
+    
+    await db.listening_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "end_time": now.isoformat(),
+            "duration_seconds": duration_seconds,
+            "duration_hours": duration_hours
+        }}
+    )
+    
+    return {"duration_seconds": duration_seconds, "duration_hours": round(duration_hours, 4)}
+
+# ============== ADMIN REVENUE ANALYTICS ==============
+
+@api_router.get("/revenue/admin/overview")
+async def get_admin_revenue_overview():
+    """Get platform-wide revenue overview for admin"""
+    # Get current settings
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Aggregate listening data
+    pipeline = [
+        {"$group": {
+            "_id": "$content_type",
+            "total_hours": {"$sum": "$duration_hours"},
+            "total_sessions": {"$sum": 1}
+        }}
+    ]
+    listening_stats = await db.listening_sessions.aggregate(pipeline).to_list(10)
+    
+    premium_hours = 0
+    standard_hours = 0
+    total_sessions = 0
+    
+    for stat in listening_stats:
+        if stat["_id"] == "premium":
+            premium_hours = stat["total_hours"]
+        else:
+            standard_hours = stat["total_hours"]
+        total_sessions += stat["total_sessions"]
+    
+    total_hours = premium_hours + standard_hours
+    
+    # Calculate revenues
+    premium_revenue = premium_hours * settings["premium_rate_per_hour"]
+    standard_revenue = standard_hours * settings["standard_rate_per_hour"]
+    gross_revenue = premium_revenue + standard_revenue
+    platform_share = gross_revenue * (settings["platform_share_percentage"] / 100)
+    choir_payouts = gross_revenue - platform_share
+    
+    # Get unique days with activity
+    active_days_pipeline = [
+        {"$group": {"_id": "$date"}},
+        {"$count": "days"}
+    ]
+    active_days_result = await db.listening_sessions.aggregate(active_days_pipeline).to_list(1)
+    active_days = active_days_result[0]["days"] if active_days_result else 1
+    
+    # Top performing choirs
+    choir_pipeline = [
+        {"$group": {
+            "_id": "$choir_id",
+            "total_hours": {"$sum": "$duration_hours"},
+            "total_plays": {"$sum": 1}
+        }},
+        {"$sort": {"total_hours": -1}},
+        {"$limit": 5}
+    ]
+    top_choirs_data = await db.listening_sessions.aggregate(choir_pipeline).to_list(5)
+    
+    # Enrich with choir names
+    top_choirs = []
+    for choir in top_choirs_data:
+        singer = await db.singers.find_one({"singer_id": choir["_id"]}, {"_id": 0})
+        if singer:
+            choir_revenue = choir["total_hours"] * settings["standard_rate_per_hour"]
+            top_choirs.append({
+                "choir_id": choir["_id"],
+                "name": singer["name"],
+                "total_hours": round(choir["total_hours"], 2),
+                "total_plays": choir["total_plays"],
+                "revenue": round(choir_revenue, 2)
+            })
+    
+    # Top performing albums
+    album_pipeline = [
+        {"$group": {
+            "_id": "$album_id",
+            "total_hours": {"$sum": "$duration_hours"},
+            "total_plays": {"$sum": 1}
+        }},
+        {"$sort": {"total_hours": -1}},
+        {"$limit": 5}
+    ]
+    top_albums_data = await db.listening_sessions.aggregate(album_pipeline).to_list(5)
+    
+    top_albums = []
+    for album_data in top_albums_data:
+        album = await db.albums.find_one({"album_id": album_data["_id"]}, {"_id": 0})
+        if album:
+            top_albums.append({
+                "album_id": album_data["_id"],
+                "title": album["title"],
+                "artist": album.get("artist_name", "Unknown"),
+                "total_hours": round(album_data["total_hours"], 2),
+                "total_plays": album_data["total_plays"]
+            })
+    
+    return {
+        "summary": {
+            "total_listening_hours": round(total_hours, 2),
+            "premium_hours": round(premium_hours, 2),
+            "standard_hours": round(standard_hours, 2),
+            "total_sessions": total_sessions,
+            "gross_revenue": round(gross_revenue, 2),
+            "platform_earnings": round(platform_share, 2),
+            "choir_payouts": round(choir_payouts, 2),
+            "avg_earning_per_hour": round(platform_share / max(total_hours, 1), 2),
+            "avg_earning_per_day": round(platform_share / max(active_days, 1), 2),
+            "active_days": active_days
+        },
+        "rates": {
+            "premium_rate": settings["premium_rate_per_hour"],
+            "standard_rate": settings["standard_rate_per_hour"],
+            "platform_share": settings["platform_share_percentage"]
+        },
+        "top_choirs": top_choirs,
+        "top_albums": top_albums
+    }
+
+@api_router.get("/revenue/admin/daily")
+async def get_admin_daily_revenue(days: int = 30):
+    """Get daily revenue breakdown for admin"""
+    # Get listening data grouped by date
+    pipeline = [
+        {"$group": {
+            "_id": {"date": "$date", "type": "$content_type"},
+            "hours": {"$sum": "$duration_hours"},
+            "plays": {"$sum": 1}
+        }},
+        {"$sort": {"_id.date": -1}},
+        {"$limit": days * 2}  # Account for premium + standard per day
+    ]
+    
+    daily_data = await db.listening_sessions.aggregate(pipeline).to_list(days * 2)
+    
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Organize by date
+    by_date = {}
+    for item in daily_data:
+        date = item["_id"]["date"]
+        if date not in by_date:
+            by_date[date] = {"date": date, "premium_hours": 0, "standard_hours": 0, "plays": 0}
+        
+        if item["_id"]["type"] == "premium":
+            by_date[date]["premium_hours"] = round(item["hours"], 2)
+        else:
+            by_date[date]["standard_hours"] = round(item["hours"], 2)
+        by_date[date]["plays"] += item["plays"]
+    
+    # Calculate revenue for each day
+    result = []
+    for date, data in sorted(by_date.items(), reverse=True)[:days]:
+        revenue = (data["premium_hours"] * settings["premium_rate_per_hour"] + 
+                   data["standard_hours"] * settings["standard_rate_per_hour"])
+        result.append({
+            **data,
+            "total_hours": round(data["premium_hours"] + data["standard_hours"], 2),
+            "revenue": round(revenue, 2)
+        })
+    
+    return {"daily_data": result}
+
+@api_router.get("/revenue/admin/choirs")
+async def get_all_choirs_revenue():
+    """Get revenue breakdown for all choirs (admin view)"""
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Get all singers/choirs
+    singers = await db.singers.find({}, {"_id": 0}).to_list(100)
+    
+    choir_revenues = []
+    for singer in singers:
+        # Get listening stats for this choir
+        pipeline = [
+            {"$match": {"choir_id": singer["singer_id"]}},
+            {"$group": {
+                "_id": "$content_type",
+                "hours": {"$sum": "$duration_hours"},
+                "plays": {"$sum": 1}
+            }}
+        ]
+        stats = await db.listening_sessions.aggregate(pipeline).to_list(10)
+        
+        premium_hours = 0
+        standard_hours = 0
+        total_plays = 0
+        
+        for stat in stats:
+            if stat["_id"] == "premium":
+                premium_hours = stat["hours"]
+            else:
+                standard_hours = stat["hours"]
+            total_plays += stat["plays"]
+        
+        gross = (premium_hours * settings["premium_rate_per_hour"] + 
+                 standard_hours * settings["standard_rate_per_hour"])
+        platform_share = gross * (settings["platform_share_percentage"] / 100)
+        net = gross - platform_share
+        
+        # Get choir account balance
+        account = await db.choir_accounts.find_one({"choir_id": singer["singer_id"]}, {"_id": 0})
+        
+        choir_revenues.append({
+            "choir_id": singer["singer_id"],
+            "name": singer["name"],
+            "type": singer["type"],
+            "premium_hours": round(premium_hours, 2),
+            "standard_hours": round(standard_hours, 2),
+            "total_hours": round(premium_hours + standard_hours, 2),
+            "total_plays": total_plays,
+            "gross_revenue": round(gross, 2),
+            "platform_share": round(platform_share, 2),
+            "net_revenue": round(net, 2),
+            "current_balance": account["current_balance"] if account else 0,
+            "account_status": account["status"] if account else "no_account"
+        })
+    
+    # Sort by net revenue
+    choir_revenues.sort(key=lambda x: x["net_revenue"], reverse=True)
+    
+    return {"choirs": choir_revenues}
+
+# ============== CHOIR ACCOUNT MANAGEMENT ==============
+
+@api_router.post("/choir/account/create")
+async def create_choir_account(data: dict):
+    """Create account for a choir (admin creates, choir gets credentials)"""
+    import hashlib
+    
+    choir_id = data.get("choir_id")
+    email = data.get("email")
+    password = data.get("password")
+    
+    # Check if choir exists
+    singer = await db.singers.find_one({"singer_id": choir_id}, {"_id": 0})
+    if not singer:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    # Check if account already exists
+    existing = await db.choir_accounts.find_one({"choir_id": choir_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Account already exists for this choir")
+    
+    # Hash password
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    account = ChoirAccount(
+        choir_id=choir_id,
+        choir_name=singer["name"],
+        email=email,
+        password_hash=password_hash,
+        status="approved"  # Admin-created accounts are auto-approved
+    )
+    doc = account.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.choir_accounts.insert_one(doc)
+    
+    return {"account_id": doc["account_id"], "message": "Choir account created successfully"}
+
+@api_router.post("/choir/login")
+async def choir_login(data: dict, response: Response):
+    """Choir login endpoint"""
+    import hashlib
+    
+    email = data.get("email")
+    password = data.get("password")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    account = await db.choir_accounts.find_one({
+        "email": email,
+        "password_hash": password_hash
+    }, {"_id": 0})
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if account["status"] != "approved":
+        raise HTTPException(status_code=403, detail="Account not approved")
+    
+    # Create session
+    session_token = f"choir_{uuid.uuid4().hex}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    session_doc = {
+        "session_id": f"sess_{uuid.uuid4().hex}",
+        "account_id": account["account_id"],
+        "choir_id": account["choir_id"],
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.choir_sessions.insert_one(session_doc)
+    
+    response.set_cookie(
+        key="choir_session",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=7 * 24 * 60 * 60
+    )
+    
+    return {
+        "choir_id": account["choir_id"],
+        "choir_name": account["choir_name"],
+        "email": account["email"],
+        "session_token": session_token
+    }
+
+@api_router.get("/choir/me")
+async def get_choir_profile(request: Request):
+    """Get current choir profile"""
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    account = await db.choir_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0})
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    return {
+        "choir_id": account["choir_id"],
+        "choir_name": account["choir_name"],
+        "email": account["email"],
+        "current_balance": account["current_balance"],
+        "total_earned": account["total_earned"],
+        "total_withdrawn": account["total_withdrawn"],
+        "status": account["status"]
+    }
+
+@api_router.post("/choir/logout")
+async def choir_logout(request: Request, response: Response):
+    """Choir logout"""
+    session_token = request.cookies.get("choir_session")
+    if session_token:
+        await db.choir_sessions.delete_one({"session_token": session_token})
+    response.delete_cookie(key="choir_session", path="/")
+    return {"message": "Logged out successfully"}
+
+@api_router.get("/choir/accounts")
+async def get_all_choir_accounts():
+    """Get all choir accounts (admin view)"""
+    accounts = await db.choir_accounts.find({}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return {"accounts": accounts}
+
+@api_router.put("/choir/account/{account_id}")
+async def update_choir_account(account_id: str, updates: dict):
+    """Update choir account status (admin)"""
+    updates.pop("_id", None)
+    updates.pop("account_id", None)
+    updates.pop("password_hash", None)
+    
+    result = await db.choir_accounts.update_one({"account_id": account_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"message": "Account updated"}
+
+# ============== CHOIR REVENUE ANALYTICS ==============
+
+@api_router.get("/choir/revenue/{choir_id}")
+async def get_choir_revenue(choir_id: str):
+    """Get revenue analytics for a specific choir"""
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Get overall stats
+    pipeline = [
+        {"$match": {"choir_id": choir_id}},
+        {"$group": {
+            "_id": "$content_type",
+            "hours": {"$sum": "$duration_hours"},
+            "plays": {"$sum": 1}
+        }}
+    ]
+    stats = await db.listening_sessions.aggregate(pipeline).to_list(10)
+    
+    premium_hours = 0
+    standard_hours = 0
+    total_plays = 0
+    
+    for stat in stats:
+        if stat["_id"] == "premium":
+            premium_hours = stat["hours"]
+        else:
+            standard_hours = stat["hours"]
+        total_plays += stat["plays"]
+    
+    gross = (premium_hours * settings["premium_rate_per_hour"] + 
+             standard_hours * settings["standard_rate_per_hour"])
+    platform_share = gross * (settings["platform_share_percentage"] / 100)
+    net = gross - platform_share
+    
+    # Get account info
+    account = await db.choir_accounts.find_one({"choir_id": choir_id}, {"_id": 0, "password_hash": 0})
+    
+    # Get album performance
+    album_pipeline = [
+        {"$match": {"choir_id": choir_id}},
+        {"$group": {
+            "_id": "$album_id",
+            "premium_hours": {"$sum": {"$cond": [{"$eq": ["$content_type", "premium"]}, "$duration_hours", 0]}},
+            "standard_hours": {"$sum": {"$cond": [{"$ne": ["$content_type", "premium"]}, "$duration_hours", 0]}},
+            "total_plays": {"$sum": 1}
+        }},
+        {"$sort": {"total_plays": -1}}
+    ]
+    album_stats = await db.listening_sessions.aggregate(album_pipeline).to_list(50)
+    
+    albums_performance = []
+    for album_stat in album_stats:
+        album = await db.albums.find_one({"album_id": album_stat["_id"]}, {"_id": 0})
+        if album:
+            album_revenue = (album_stat["premium_hours"] * settings["premium_rate_per_hour"] + 
+                           album_stat["standard_hours"] * settings["standard_rate_per_hour"])
+            albums_performance.append({
+                "album_id": album_stat["_id"],
+                "title": album["title"],
+                "monetization_type": album.get("monetization_type", "standard"),
+                "premium_hours": round(album_stat["premium_hours"], 2),
+                "standard_hours": round(album_stat["standard_hours"], 2),
+                "total_hours": round(album_stat["premium_hours"] + album_stat["standard_hours"], 2),
+                "total_plays": album_stat["total_plays"],
+                "revenue": round(album_revenue, 2),
+                "revenue_percentage": round((album_revenue / max(gross, 1)) * 100, 1)
+            })
+    
+    # Monthly breakdown
+    monthly_pipeline = [
+        {"$match": {"choir_id": choir_id}},
+        {"$group": {
+            "_id": "$month",
+            "premium_hours": {"$sum": {"$cond": [{"$eq": ["$content_type", "premium"]}, "$duration_hours", 0]}},
+            "standard_hours": {"$sum": {"$cond": [{"$ne": ["$content_type", "premium"]}, "$duration_hours", 0]}},
+            "plays": {"$sum": 1}
+        }},
+        {"$sort": {"_id": -1}},
+        {"$limit": 12}
+    ]
+    monthly_data = await db.listening_sessions.aggregate(monthly_pipeline).to_list(12)
+    
+    monthly_revenue = []
+    for month in monthly_data:
+        month_gross = (month["premium_hours"] * settings["premium_rate_per_hour"] + 
+                      month["standard_hours"] * settings["standard_rate_per_hour"])
+        month_net = month_gross * (1 - settings["platform_share_percentage"] / 100)
+        monthly_revenue.append({
+            "month": month["_id"],
+            "premium_hours": round(month["premium_hours"], 2),
+            "standard_hours": round(month["standard_hours"], 2),
+            "plays": month["plays"],
+            "gross_revenue": round(month_gross, 2),
+            "net_revenue": round(month_net, 2)
+        })
+    
+    return {
+        "summary": {
+            "total_hours": round(premium_hours + standard_hours, 2),
+            "premium_hours": round(premium_hours, 2),
+            "standard_hours": round(standard_hours, 2),
+            "total_plays": total_plays,
+            "gross_revenue": round(gross, 2),
+            "platform_share": round(platform_share, 2),
+            "net_revenue": round(net, 2),
+            "current_balance": account["current_balance"] if account else 0,
+            "total_withdrawn": account["total_withdrawn"] if account else 0
+        },
+        "rates": {
+            "premium_rate": settings["premium_rate_per_hour"],
+            "standard_rate": settings["standard_rate_per_hour"],
+            "platform_share": settings["platform_share_percentage"]
+        },
+        "albums": albums_performance,
+        "monthly": monthly_revenue
+    }
+
+# ============== WITHDRAWAL REQUESTS ==============
+
+@api_router.post("/withdrawal/request")
+async def create_withdrawal_request(data: dict, request: Request):
+    """Create a withdrawal request (choir)"""
+    # Get choir from session
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    account = await db.choir_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0})
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    amount = data.get("amount", 0)
+    
+    # Get minimum withdrawal
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    min_withdrawal = settings.get("minimum_withdrawal", 10000) if settings else 10000
+    
+    if amount < min_withdrawal:
+        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is TZS {min_withdrawal}")
+    
+    if amount > account["current_balance"]:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+    
+    withdrawal = WithdrawalRequest(
+        choir_id=account["choir_id"],
+        choir_name=account["choir_name"],
+        amount=amount,
+        payment_method=data.get("payment_method", "mobile_money"),
+        payment_details=data.get("payment_details", {})
+    )
+    doc = withdrawal.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.withdrawal_requests.insert_one(doc)
+    
+    return {"request_id": doc["request_id"], "message": "Withdrawal request submitted"}
+
+@api_router.get("/withdrawal/requests")
+async def get_withdrawal_requests(status: Optional[str] = None):
+    """Get all withdrawal requests (admin)"""
+    query = {}
+    if status:
+        query["status"] = status
+    requests = await db.withdrawal_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"requests": requests}
+
+@api_router.get("/withdrawal/my-requests")
+async def get_my_withdrawal_requests(request: Request):
+    """Get withdrawal requests for current choir"""
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    requests = await db.withdrawal_requests.find(
+        {"choir_id": session["choir_id"]}, 
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return {"requests": requests}
+
+@api_router.put("/withdrawal/{request_id}")
+async def process_withdrawal(request_id: str, data: dict):
+    """Process withdrawal request (admin)"""
+    status = data.get("status")  # approved, rejected, completed
+    admin_notes = data.get("admin_notes", "")
+    processed_by = data.get("processed_by", "admin")
+    
+    withdrawal = await db.withdrawal_requests.find_one({"request_id": request_id}, {"_id": 0})
+    if not withdrawal:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    updates = {
+        "status": status,
+        "admin_notes": admin_notes,
+        "processed_by": processed_by,
+        "processed_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.withdrawal_requests.update_one({"request_id": request_id}, {"$set": updates})
+    
+    # If completed, update choir account balance
+    if status == "completed":
+        await db.choir_accounts.update_one(
+            {"choir_id": withdrawal["choir_id"]},
+            {
+                "$inc": {
+                    "current_balance": -withdrawal["amount"],
+                    "total_withdrawn": withdrawal["amount"]
+                }
+            }
+        )
+    
+    return {"message": f"Withdrawal request {status}"}
+
+# ============== SIMULATE LISTENING DATA (for demo) ==============
+
+@api_router.post("/demo/generate-listening-data")
+async def generate_demo_listening_data():
+    """Generate demo listening data for testing analytics"""
+    import random
+    
+    # Get all albums and songs
+    albums = await db.albums.find({}, {"_id": 0}).to_list(100)
+    
+    if not albums:
+        return {"message": "No albums found. Create some albums first."}
+    
+    generated = 0
+    now = datetime.now(timezone.utc)
+    
+    for album in albums:
+        songs = await db.songs.find({"album_id": album["album_id"]}, {"_id": 0}).to_list(50)
+        
+        # Generate random listening sessions for the past 30 days
+        for day_offset in range(30):
+            date = now - timedelta(days=day_offset)
+            num_sessions = random.randint(5, 50)
+            
+            for _ in range(num_sessions):
+                song = random.choice(songs) if songs else None
+                if not song:
+                    continue
+                
+                duration_seconds = random.randint(60, 600)  # 1-10 minutes
+                duration_hours = duration_seconds / 3600
+                
+                session = {
+                    "session_id": f"listen_{uuid.uuid4().hex[:12]}",
+                    "user_id": f"user_{random.randint(1, 100)}",
+                    "song_id": song["song_id"],
+                    "album_id": album["album_id"],
+                    "choir_id": album.get("artist_id", ""),
+                    "content_type": album.get("monetization_type", "standard"),
+                    "start_time": date.isoformat(),
+                    "end_time": (date + timedelta(seconds=duration_seconds)).isoformat(),
+                    "duration_seconds": duration_seconds,
+                    "duration_hours": duration_hours,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "month": date.strftime("%Y-%m"),
+                    "created_at": date.isoformat()
+                }
+                await db.listening_sessions.insert_one(session)
+                generated += 1
+                
+                # Update song plays
+                await db.songs.update_one({"song_id": song["song_id"]}, {"$inc": {"plays": 1}})
+    
+    # Update choir account balances based on new data
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Calculate and update choir balances
+    choir_pipeline = [
+        {"$group": {
+            "_id": "$choir_id",
+            "premium_hours": {"$sum": {"$cond": [{"$eq": ["$content_type", "premium"]}, "$duration_hours", 0]}},
+            "standard_hours": {"$sum": {"$cond": [{"$ne": ["$content_type", "premium"]}, "$duration_hours", 0]}}
+        }}
+    ]
+    choir_stats = await db.listening_sessions.aggregate(choir_pipeline).to_list(100)
+    
+    for choir in choir_stats:
+        if not choir["_id"]:
+            continue
+        gross = (choir["premium_hours"] * settings["premium_rate_per_hour"] + 
+                 choir["standard_hours"] * settings["standard_rate_per_hour"])
+        net = gross * (1 - settings["platform_share_percentage"] / 100)
+        
+        await db.choir_accounts.update_one(
+            {"choir_id": choir["_id"]},
+            {"$set": {"current_balance": round(net, 2), "total_earned": round(net, 2)}}
+        )
+    
+    return {"message": f"Generated {generated} listening sessions"}
+
 # ============== FILE UPLOAD (Base64 for now, Firebase can be integrated) ==============
 
 @api_router.post("/upload")
