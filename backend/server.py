@@ -2456,10 +2456,22 @@ async def upload_file(file: UploadFile = File(...)):
 # Include the router in the main app
 app.include_router(api_router)
 
+# CORS configuration - for credentials, we need specific origins
+cors_origins = os.environ.get('CORS_ORIGINS', '*')
+if cors_origins == '*':
+    # For development/testing, allow common origins
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://chrismuse.preview.emergentagent.com"
+    ]
+else:
+    allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
