@@ -33,7 +33,7 @@ import LayoutManagementPage from "@/pages/LayoutManagementPage";
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
-  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings
+  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -50,6 +50,7 @@ const Sidebar = ({ user, onLogout, isOpen, setIsOpen }) => {
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/revenue", icon: TrendingUp, label: "Revenue Analytics" },
     { path: "/monetization", icon: Settings, label: "Monetization" },
+    { path: "/layout-management", icon: Layout, label: "Layout Management" },
     { path: "/admin/choirs", icon: Mic2, label: "Choir Management" },
     { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts" },
     { path: "/withdrawals", icon: CreditCard, label: "Withdrawals" },
@@ -279,6 +280,7 @@ function AppRouter() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
       <Route path="/monetization" element={<ProtectedRoute><MonetizationSettingsPage /></ProtectedRoute>} />
+      <Route path="/layout-management" element={<ProtectedRoute><LayoutManagementPage /></ProtectedRoute>} />
       <Route path="/admin/choirs" element={<ProtectedRoute><ChoirManagementPage /></ProtectedRoute>} />
       <Route path="/admin/choirs/:choirId" element={<ProtectedRoute><ChoirDetailsPage /></ProtectedRoute>} />
       <Route path="/choir-accounts" element={<ProtectedRoute><ChoirAccountsPage /></ProtectedRoute>} />
