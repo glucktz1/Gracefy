@@ -1,78 +1,70 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
-  FlatList, RefreshControl, Alert, TextInput, Modal, StatusBar
+  View, Text, ScrollView, TouchableOpacity, Image, 
+  StyleSheet, FlatList, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import { libraryService, getAudioUrl } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { libraryService, contentService } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
+import { useAuth } from '../context/AuthContext';
 import MiniPlayer from '../components/MiniPlayer';
+import SongListItem from '../components/SongListItem';
+import { COLORS } from '../config';
 
-// Downloaded song item
-const DownloadedSong = ({ song, onPlay, onDelete }) => (
-  <View style={styles.downloadedItem}>
-    <TouchableOpacity style={styles.downloadedInfo} onPress={onPlay}>
-      <View style={styles.downloadedThumb}>
-        <Ionicons name="musical-notes" size={20} color="#10b981" />
-      </View>
-      <View style={styles.downloadedText}>
-        <Text style={styles.downloadedTitle} numberOfLines={1}>{song.title}</Text>
-        <Text style={styles.downloadedArtist} numberOfLines={1}>{song.artist}</Text>
-      </View>
-    </TouchableOpacity>
-    <TouchableOpacity onPress={() => onDelete(song)}>
-      <Ionicons name="trash-outline" size={20} color="#ef4444" />
-    </TouchableOpacity>
-  </View>
-);
+const { width } = Dimensions.get('window');
+import { Dimensions } from 'react-native';
 
-// Playlist Card
 const PlaylistCard = ({ playlist, onPress }) => (
-  <TouchableOpacity style={styles.playlistCard} onPress={onPress}>
-    <LinearGradient colors={['#7c3aed', '#10b981']} style={styles.playlistImage}>
-      <Ionicons name="list" size={32} color="rgba(255,255,255,0.6)" />
-    </LinearGradient>
+  <TouchableOpacity style={styles.playlistCard} onPress={onPress} activeOpacity={0.8}>
+    <View style={styles.playlistArt}>
+      <LinearGradient colors={['#282828', '#121212']} style={styles.playlistArtGradient}>
+        <Ionicons name="musical-notes" size={32} color={COLORS.textMuted} />
+      </LinearGradient>
+    </View>
     <View style={styles.playlistInfo}>
       <Text style={styles.playlistName} numberOfLines={1}>{playlist.name}</Text>
-      <Text style={styles.playlistCount}>{playlist.songs?.length || 0} songs</Text>
+      <Text style={styles.playlistMeta}>
+        Playlist • {playlist.song_count || 0} songs
+      </Text>
     </View>
   </TouchableOpacity>
 );
 
-// Recent Item
-const RecentItem = ({ item, onPress }) => (
-  <TouchableOpacity style={styles.recentItem} onPress={onPress}>
-    <View style={styles.recentThumb}>
-      {item.album?.thumbnail ? (
-        <Image source={{ uri: item.album.thumbnail }} style={styles.recentImage} />
+const FavoriteCard = ({ item, onPress }) => (
+  <TouchableOpacity style={styles.favoriteCard} onPress={onPress} activeOpacity={0.8}>
+    <View style={styles.favoriteArt}>
+      {item.thumbnail ? (
+        <Image source={{ uri: item.thumbnail }} style={styles.favoriteImg} />
       ) : (
-        <View style={styles.recentPlaceholder}>
-          <Ionicons name="musical-notes" size={16} color="#52525b" />
-        </View>
+        <LinearGradient colors={['#535353', '#121212']} style={styles.favoriteImg}>
+          <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.3)" />
+        </LinearGradient>
       )}
     </View>
-    <View style={styles.recentInfo}>
-      <Text style={styles.recentTitle} numberOfLines={1}>{item.song.title}</Text>
-      <Text style={styles.recentArtist} numberOfLines={1}>{item.album?.artist_name}</Text>
+    <View style={styles.favoriteInfo}>
+      <Text style={styles.favoriteName} numberOfLines={1}>{item.title || item.name}</Text>
+      <Text style={styles.favoriteMeta} numberOfLines={1}>
+        {item.type === 'song' ? 'Song' : 'Album'} • {item.artist_name || 'Unknown'}
+      </Text>
     </View>
   </TouchableOpacity>
 );
 
 export default function LibraryScreen({ navigation }) {
-  const { isAuthenticated, user } = useAuth();
-  const { currentSong, playSong } = usePlayer();
-  const [activeTab, setActiveTab] = useState('recent');
+  const [activeTab, setActiveTab] = useState('playlists');
   const [library, setLibrary] = useState(null);
-  const [downloads, setDownloads] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
+  
+  const { currentSong } = usePlayer();
+  const { isAuthenticated, user } = useAuth();
 
   const fetchLibrary = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     
     try {
       const data = await libraryService.getLibrary();
@@ -80,273 +72,228 @@ export default function LibraryScreen({ navigation }) {
     } catch (error) {
       console.error('Error fetching library:', error);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   }, [isAuthenticated]);
 
-  const loadDownloads = useCallback(async () => {
-    try {
-      const dir = `${FileSystem.documentDirectory}songs/`;
-      const dirInfo = await FileSystem.getInfoAsync(dir);
-      
-      if (dirInfo.exists) {
-        const files = await FileSystem.readDirectoryAsync(dir);
-        const downloadedSongs = [];
-        
-        for (const file of files) {
-          if (file.endsWith('.mp3')) {
-            const metaPath = `${dir}${file.replace('.mp3', '.json')}`;
-            const metaInfo = await FileSystem.getInfoAsync(metaPath);
-            
-            if (metaInfo.exists) {
-              const meta = JSON.parse(await FileSystem.readAsStringAsync(metaPath));
-              downloadedSongs.push(meta);
-            }
-          }
-        }
-        
-        setDownloads(downloadedSongs);
-      }
-    } catch (error) {
-      console.error('Error loading downloads:', error);
-    }
-  }, []);
-
   useEffect(() => {
     fetchLibrary();
-    loadDownloads();
-  }, [fetchLibrary, loadDownloads]);
+  }, [fetchLibrary]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchLibrary();
-    loadDownloads();
   };
 
-  const createPlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
-    
-    try {
-      await libraryService.createPlaylist(newPlaylistName.trim());
-      setShowCreatePlaylist(false);
-      setNewPlaylistName('');
-      fetchLibrary();
-      Alert.alert('Success', 'Playlist created!');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create playlist');
-    }
+  const handleCreatePlaylist = async () => {
+    // Navigate to create playlist or show modal
   };
 
-  const deleteDownload = async (song) => {
-    Alert.alert(
-      'Delete Download',
-      `Remove "${song.title}" from downloads?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const audioPath = `${FileSystem.documentDirectory}songs/${song.song_id}.mp3`;
-              const metaPath = `${FileSystem.documentDirectory}songs/${song.song_id}.json`;
-              
-              await FileSystem.deleteAsync(audioPath, { idempotent: true });
-              await FileSystem.deleteAsync(metaPath, { idempotent: true });
-              
-              loadDownloads();
-            } catch (error) {
-              console.error('Error deleting download:', error);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const playDownloadedSong = async (song) => {
-    const audioPath = `${FileSystem.documentDirectory}songs/${song.song_id}.mp3`;
-    playSong({ ...song, audio_url: audioPath }, { artist_name: song.artist }, downloads.map(d => ({ song: d, album: { artist_name: d.artist } })), downloads.indexOf(song));
+  const handleNowPlaying = () => {
+    navigation.navigate('NowPlaying');
   };
 
   if (!isAuthenticated) {
     return (
-      <View style={styles.authPrompt}>
-        <StatusBar barStyle="light-content" />
-        <Ionicons name="library-outline" size={80} color="#27272a" />
-        <Text style={styles.authTitle}>Your Library</Text>
-        <Text style={styles.authText}>Sign in to see your playlists, downloads, and favorites</Text>
-        <TouchableOpacity 
-          style={styles.authButton}
-          onPress={() => navigation.navigate('Auth')}
-        >
-          <Text style={styles.authButtonText}>Sign In</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <View style={styles.authPrompt}>
+          <Ionicons name="library-outline" size={64} color={COLORS.textMuted} />
+          <Text style={styles.authTitle}>Your Library</Text>
+          <Text style={styles.authSubtitle}>
+            Log in to see your saved songs, playlists, and more
+          </Text>
+          <TouchableOpacity 
+            style={styles.loginButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.loginButtonText}>Log In</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  const tabs = [
+    { id: 'playlists', label: 'Playlists' },
+    { id: 'favorites', label: 'Liked Songs' },
+    { id: 'recent', label: 'Recent' },
+  ];
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'playlists':
+        return (
+          <>
+            {/* Create Playlist Button */}
+            <TouchableOpacity style={styles.createPlaylistBtn} onPress={handleCreatePlaylist}>
+              <View style={styles.createPlaylistIcon}>
+                <Ionicons name="add" size={32} color={COLORS.textMuted} />
+              </View>
+              <View style={styles.createPlaylistInfo}>
+                <Text style={styles.createPlaylistText}>Create Playlist</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Liked Songs Shortcut */}
+            <TouchableOpacity 
+              style={styles.likedSongsCard}
+              onPress={() => setActiveTab('favorites')}
+            >
+              <LinearGradient 
+                colors={['#4527a0', '#7e57c2']} 
+                style={styles.likedSongsArt}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="heart" size={24} color="#fff" />
+              </LinearGradient>
+              <View style={styles.likedSongsInfo}>
+                <Text style={styles.likedSongsTitle}>Liked Songs</Text>
+                <Text style={styles.likedSongsMeta}>
+                  Playlist • {library?.favorites?.length || 0} songs
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* User Playlists */}
+            {library?.playlists?.map((playlist) => (
+              <PlaylistCard
+                key={playlist.playlist_id}
+                playlist={playlist}
+                onPress={() => navigation.navigate('Playlist', { playlistId: playlist.playlist_id })}
+              />
+            ))}
+
+            {(!library?.playlists || library.playlists.length === 0) && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No playlists yet</Text>
+                <Text style={styles.emptyHint}>Create a playlist to get started</Text>
+              </View>
+            )}
+          </>
+        );
+
+      case 'favorites':
+        return (
+          <>
+            {library?.favorites?.length > 0 ? (
+              library.favorites.map((item, index) => (
+                <SongListItem
+                  key={item.id || index}
+                  song={item}
+                  index={index}
+                  showIndex={false}
+                  showThumbnail={true}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="heart-outline" size={48} color={COLORS.textMuted} />
+                <Text style={styles.emptyText}>No liked songs yet</Text>
+                <Text style={styles.emptyHint}>Songs you like will appear here</Text>
+              </View>
+            )}
+          </>
+        );
+
+      case 'recent':
+        return (
+          <>
+            {library?.recently_played?.length > 0 ? (
+              library.recently_played.map((item, index) => (
+                <FavoriteCard
+                  key={item.id || index}
+                  item={item}
+                  onPress={() => {
+                    if (item.album_id) {
+                      navigation.navigate('Album', { albumId: item.album_id });
+                    }
+                  }}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="time-outline" size={48} color={COLORS.textMuted} />
+                <Text style={styles.emptyText}>No recent activity</Text>
+                <Text style={styles.emptyHint}>Songs you play will appear here</Text>
+              </View>
+            )}
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}</Text>
-            </View>
-            <Text style={styles.headerTitle}>Your Library</Text>
-          </View>
-          <TouchableOpacity onPress={() => setShowCreatePlaylist(true)}>
-            <Ionicons name="add" size={28} color="#fff" />
+          <TouchableOpacity style={styles.profileBtn}>
+            <LinearGradient colors={['#b83280', '#ff6b6b']} style={styles.profileGradient}>
+              <Text style={styles.profileInitial}>
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Your Library</Text>
+          <TouchableOpacity style={styles.addBtn}>
+            <Ionicons name="add" size={28} color={COLORS.textPrimary} />
           </TouchableOpacity>
         </View>
-        
+
         {/* Tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs}>
-          {['recent', 'playlists', 'downloads', 'favorites'].map((tab) => (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {tabs.map((tab) => (
             <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
-              onPress={() => setActiveTab(tab)}
+              key={tab.id}
+              style={[styles.tab, activeTab === tab.id && styles.activeTab]}
+              onPress={() => setActiveTab(tab.id)}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <Text style={[styles.tabText, activeTab === tab.id && styles.activeTabText]}>
+                {tab.label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
+      {/* Content */}
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, currentSong && { paddingBottom: 90 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />}
+        style={styles.content}
+        contentContainerStyle={[
+          styles.contentContainer,
+          currentSong && { paddingBottom: 140 }
+        ]}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Recent */}
-        {activeTab === 'recent' && (
-          <View>
-            {library?.recently_played?.length > 0 ? (
-              library.recently_played.map((item, idx) => (
-                <RecentItem 
-                  key={item.song.song_id || idx}
-                  item={item}
-                  onPress={() => playSong(item.song, item.album, library.recently_played.map(r => ({ song: r.song, album: r.album })), idx)}
-                />
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="time-outline" size={48} color="#27272a" />
-                <Text style={styles.emptyText}>No recent plays</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Playlists */}
-        {activeTab === 'playlists' && (
-          <View>
-            <TouchableOpacity style={styles.createPlaylistBtn} onPress={() => setShowCreatePlaylist(true)}>
-              <View style={styles.createPlaylistIcon}>
-                <Ionicons name="add" size={24} color="#000" />
-              </View>
-              <Text style={styles.createPlaylistText}>Create Playlist</Text>
-            </TouchableOpacity>
-            
-            {library?.playlists?.length > 0 ? (
-              library.playlists.map((playlist) => (
-                <PlaylistCard 
-                  key={playlist.playlist_id}
-                  playlist={playlist}
-                  onPress={() => navigation.navigate('Playlist', { playlistId: playlist.playlist_id })}
-                />
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="list-outline" size={48} color="#27272a" />
-                <Text style={styles.emptyText}>No playlists yet</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Downloads */}
-        {activeTab === 'downloads' && (
-          <View>
-            {downloads.length > 0 ? (
-              downloads.map((song) => (
-                <DownloadedSong
-                  key={song.song_id}
-                  song={song}
-                  onPlay={() => playDownloadedSong(song)}
-                  onDelete={deleteDownload}
-                />
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="download-outline" size={48} color="#27272a" />
-                <Text style={styles.emptyText}>No downloads yet</Text>
-                <Text style={styles.emptySubtext}>Download songs to listen offline</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Favorites */}
-        {activeTab === 'favorites' && (
-          <View>
-            {library?.favorites?.filter(f => f.type === 'song').length > 0 ? (
-              library.favorites.filter(f => f.type === 'song').map((fav, idx) => (
-                <RecentItem 
-                  key={fav.item?.song_id || idx}
-                  item={{ song: fav.item, album: fav.album }}
-                  onPress={() => playSong(fav.item, fav.album)}
-                />
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="heart-outline" size={48} color="#27272a" />
-                <Text style={styles.emptyText}>No liked songs</Text>
-              </View>
-            )}
-          </View>
-        )}
+        {renderContent()}
       </ScrollView>
 
-      {/* Create Playlist Modal */}
-      <Modal visible={showCreatePlaylist} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create Playlist</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Playlist name"
-              placeholderTextColor="#71717a"
-              value={newPlaylistName}
-              onChangeText={setNewPlaylistName}
-              autoFocus
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalButton}
-                onPress={() => { setShowCreatePlaylist(false); setNewPlaylistName(''); }}
-              >
-                <Text style={styles.modalButtonCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={createPlaylist}
-              >
-                <Text style={styles.modalButtonText}>Create</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {currentSong && <MiniPlayer navigation={navigation} />}
+      {/* Mini Player */}
+      {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
     </View>
   );
 }
@@ -354,152 +301,110 @@ export default function LibraryScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    backgroundColor: '#18181b',
+    paddingTop: 48,
+    backgroundColor: COLORS.background,
   },
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     marginBottom: 16,
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  profileBtn: {
+    marginRight: 12,
   },
-  avatar: {
+  profileGradient: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10b981',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  avatarText: {
-    color: '#000',
-    fontWeight: 'bold',
+  profileInitial: {
+    color: '#fff',
     fontSize: 14,
+    fontWeight: '700',
   },
   headerTitle: {
+    flex: 1,
+    color: COLORS.textPrimary,
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
   },
-  tabs: {
-    flexDirection: 'row',
-    marginBottom: 12,
+  addBtn: {
+    padding: 4,
+  },
+  tabsContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   tab: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 8,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: COLORS.textMuted,
+    marginRight: 8,
   },
-  tabActive: {
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
+  activeTab: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   tabText: {
-    color: '#fff',
+    color: COLORS.textPrimary,
     fontSize: 13,
     fontWeight: '500',
   },
-  tabTextActive: {
+  activeTabText: {
     color: '#000',
+    fontWeight: '600',
   },
-  scrollView: {
+  content: {
     flex: 1,
   },
-  scrollContent: {
+  contentContainer: {
     padding: 16,
   },
   authPrompt: {
     flex: 1,
-    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
   },
   authTitle: {
+    color: COLORS.textPrimary,
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
     marginTop: 24,
     marginBottom: 8,
   },
-  authText: {
-    color: '#71717a',
+  authSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
   },
-  authButton: {
-    backgroundColor: '#10b981',
+  loginButton: {
+    backgroundColor: COLORS.textPrimary,
     paddingHorizontal: 32,
     paddingVertical: 14,
-    borderRadius: 50,
+    borderRadius: 24,
   },
-  authButtonText: {
+  loginButtonText: {
     color: '#000',
-    fontWeight: 'bold',
     fontSize: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyText: {
-    color: '#71717a',
-    fontSize: 16,
-    marginTop: 12,
-  },
-  emptySubtext: {
-    color: '#52525b',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  recentThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  recentImage: {
-    width: '100%',
-    height: '100%',
-  },
-  recentPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#27272a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recentInfo: {
-    flex: 1,
-  },
-  recentTitle: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  recentArtist: {
-    color: '#71717a',
-    fontSize: 13,
-    marginTop: 2,
+    fontWeight: '700',
   },
   createPlaylistBtn: {
     flexDirection: 'row',
@@ -508,123 +413,121 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   createPlaylistIcon: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#27272a',
+    width: 56,
+    height: 56,
+    borderRadius: 4,
+    backgroundColor: COLORS.backgroundCard,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 4,
-    marginRight: 12,
+  },
+  createPlaylistInfo: {
+    marginLeft: 12,
   },
   createPlaylistText: {
-    color: '#fff',
-    fontSize: 15,
+    color: COLORS.textPrimary,
+    fontSize: 16,
     fontWeight: '600',
   },
-  playlistCard: {
+  likedSongsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    marginBottom: 8,
   },
-  playlistImage: {
+  likedSongsArt: {
     width: 56,
     height: 56,
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+  },
+  likedSongsInfo: {
+    marginLeft: 12,
+  },
+  likedSongsTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  likedSongsMeta: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  playlistCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  playlistArt: {
+    width: 56,
+    height: 56,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  playlistArtGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playlistInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   playlistName: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  playlistCount: {
-    color: '#71717a',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  downloadedItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  downloadedInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  downloadedThumb: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#18181b',
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  downloadedText: {
-    flex: 1,
-  },
-  downloadedTitle: {
-    color: '#fff',
-    fontSize: 15,
+    color: COLORS.textPrimary,
+    fontSize: 16,
     fontWeight: '500',
   },
-  downloadedArtist: {
-    color: '#71717a',
+  playlistMeta: {
+    color: COLORS.textSecondary,
     fontSize: 13,
     marginTop: 2,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+  favoriteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  favoriteArt: {
+    width: 56,
+    height: 56,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  favoriteImg: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    width: '85%',
-    backgroundColor: '#18181b',
-    borderRadius: 16,
-    padding: 24,
+  favoriteInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modalInput: {
-    backgroundColor: '#27272a',
-    borderRadius: 8,
-    padding: 14,
-    color: '#fff',
+  favoriteName: {
+    color: COLORS.textPrimary,
     fontSize: 16,
-    marginBottom: 20,
+    fontWeight: '500',
   },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
+  favoriteMeta: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
   },
-  modalButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
   },
-  modalButtonPrimary: {
-    backgroundColor: '#10b981',
-  },
-  modalButtonCancel: {
-    color: '#71717a',
+  emptyText: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
     fontWeight: '600',
+    marginTop: 16,
   },
-  modalButtonText: {
-    color: '#000',
-    fontWeight: 'bold',
+  emptyHint: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    marginTop: 8,
   },
 });
