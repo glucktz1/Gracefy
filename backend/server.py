@@ -1639,11 +1639,17 @@ async def get_choir_revenue(choir_id: str):
     """Get revenue analytics for a specific choir"""
     settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
     if not settings:
-        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0, "minimum_withdrawal": 10000}
     
-    # Get overall stats
+    # Only count streams >= 45 seconds for revenue
+    revenue_filter = {"choir_id": choir_id, "$or": [
+        {"counts_for_revenue": True},
+        {"duration_seconds": {"$gte": MIN_STREAM_DURATION_SECONDS}}
+    ]}
+    
+    # Get overall stats (only revenue-eligible streams)
     pipeline = [
-        {"$match": {"choir_id": choir_id}},
+        {"$match": revenue_filter},
         {"$group": {
             "_id": "$content_type",
             "hours": {"$sum": "$duration_hours"},
@@ -1651,6 +1657,23 @@ async def get_choir_revenue(choir_id: str):
         }}
     ]
     stats = await db.listening_sessions.aggregate(pipeline).to_list(10)
+    
+    # Also get all streams for comparison
+    all_streams = await db.listening_sessions.count_documents({"choir_id": choir_id})
+    revenue_streams = await db.listening_sessions.count_documents(revenue_filter)
+    
+    # Calculate total listening time (in minutes and hours)
+    total_time_pipeline = [
+        {"$match": revenue_filter},
+        {"$group": {
+            "_id": None,
+            "total_seconds": {"$sum": "$duration_seconds"},
+            "total_hours": {"$sum": "$duration_hours"}
+        }}
+    ]
+    total_time_result = await db.listening_sessions.aggregate(total_time_pipeline).to_list(1)
+    total_seconds = total_time_result[0]["total_seconds"] if total_time_result else 0
+    total_minutes = total_seconds / 60
     
     premium_hours = 0
     standard_hours = 0
@@ -1671,9 +1694,9 @@ async def get_choir_revenue(choir_id: str):
     # Get account info
     account = await db.choir_accounts.find_one({"choir_id": choir_id}, {"_id": 0, "password_hash": 0})
     
-    # Get album performance
+    # Get album performance (only revenue-eligible streams)
     album_pipeline = [
-        {"$match": {"choir_id": choir_id}},
+        {"$match": revenue_filter},
         {"$group": {
             "_id": "$album_id",
             "premium_hours": {"$sum": {"$cond": [{"$eq": ["$content_type", "premium"]}, "$duration_hours", 0]}},
@@ -1702,9 +1725,9 @@ async def get_choir_revenue(choir_id: str):
                 "revenue_percentage": round((album_revenue / max(gross, 1)) * 100, 1)
             })
     
-    # Monthly breakdown
+    # Monthly breakdown (only revenue-eligible streams)
     monthly_pipeline = [
-        {"$match": {"choir_id": choir_id}},
+        {"$match": revenue_filter},
         {"$group": {
             "_id": "$month",
             "premium_hours": {"$sum": {"$cond": [{"$eq": ["$content_type", "premium"]}, "$duration_hours", 0]}},
@@ -1733,9 +1756,12 @@ async def get_choir_revenue(choir_id: str):
     return {
         "summary": {
             "total_hours": round(premium_hours + standard_hours, 2),
+            "total_minutes": round(total_minutes, 0),
             "premium_hours": round(premium_hours, 2),
             "standard_hours": round(standard_hours, 2),
             "total_plays": total_plays,
+            "all_streams_count": all_streams,
+            "unique_streams_count": revenue_streams,  # Streams >= 45s
             "gross_revenue": round(gross, 2),
             "platform_share": round(platform_share, 2),
             "net_revenue": round(net, 2),
