@@ -3397,10 +3397,13 @@ async def get_layout_sections(platform: Optional[str] = None, active_only: bool 
     
     # If no sections exist, create defaults
     if not sections:
+        import copy
         for section_data in DEFAULT_SECTIONS:
-            section_data["created_at"] = datetime.now(timezone.utc).isoformat()
-            await db.layout_sections.insert_one(section_data)
-        sections = DEFAULT_SECTIONS
+            data_copy = copy.deepcopy(section_data)
+            data_copy["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.layout_sections.insert_one(data_copy)
+        # Re-fetch to get clean data without _id
+        sections = await db.layout_sections.find(query, {"_id": 0}).sort("sort_order", 1).to_list(100)
     
     # Enrich sections with content details
     for section in sections:
@@ -3583,10 +3586,13 @@ async def get_burners(platform: Optional[str] = None, active_only: bool = False)
     
     # If no burners exist, create defaults
     if not burners:
+        import copy
         for burner_data in DEFAULT_BURNERS:
-            burner_data["created_at"] = datetime.now(timezone.utc).isoformat()
-            await db.layout_burners.insert_one(burner_data)
-        burners = DEFAULT_BURNERS
+            data_copy = copy.deepcopy(burner_data)
+            data_copy["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.layout_burners.insert_one(data_copy)
+        # Re-fetch to get clean data without _id
+        burners = await db.layout_burners.find(query, {"_id": 0}).sort("sort_order", 1).to_list(50)
     
     return {"burners": burners, "total": len(burners)}
 
