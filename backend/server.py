@@ -4695,28 +4695,146 @@ async def generate_demo_listening_data():
 
 @api_router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Upload file and return URL (stores as base64 in MongoDB for now)"""
+    """Upload file and return URL (stores in MongoDB)"""
     content = await file.read()
+    
+    # Check file size (max 50MB for audio, 5MB for images)
+    max_size = 50 * 1024 * 1024 if file.content_type and file.content_type.startswith('audio') else 5 * 1024 * 1024
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail=f"File too large. Max size is {max_size // (1024*1024)}MB")
+    
     base64_content = base64.b64encode(content).decode('utf-8')
     
     file_doc = {
         "file_id": f"file_{uuid.uuid4().hex[:12]}",
         "filename": file.filename,
         "content_type": file.content_type,
+        "size": len(content),
         "data": base64_content,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     await db.files.insert_one(file_doc)
     
-    # Return a data URL for immediate use
-    data_url = f"data:{file.content_type};base64,{base64_content}"
+    # For audio files, return a streaming URL instead of data URL
+    if file.content_type and file.content_type.startswith('audio'):
+        url = f"/api/files/{file_doc['file_id']}/stream"
+    else:
+        # For images, return data URL for immediate display
+        url = f"data:{file.content_type};base64,{base64_content}"
     
     return {
         "file_id": file_doc["file_id"],
-        "url": data_url,
-        "filename": file.filename
+        "url": url,
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "size": len(content)
     }
+
+@api_router.post("/upload/multiple")
+async def upload_multiple_files(files: List[UploadFile] = File(...)):
+    """Upload multiple files at once (for bulk song upload)"""
+    results = []
+    
+    for file in files:
+        content = await file.read()
+        
+        # Check file size
+        max_size = 50 * 1024 * 1024 if file.content_type and file.content_type.startswith('audio') else 5 * 1024 * 1024
+        if len(content) > max_size:
+            results.append({
+                "filename": file.filename,
+                "error": f"File too large. Max size is {max_size // (1024*1024)}MB"
+            })
+            continue
+        
+        base64_content = base64.b64encode(content).decode('utf-8')
+        
+        file_doc = {
+            "file_id": f"file_{uuid.uuid4().hex[:12]}",
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "size": len(content),
+            "data": base64_content,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.files.insert_one(file_doc)
+        
+        # Extract song name from filename (remove extension)
+        song_name = Path(file.filename).stem if file.filename else "Unknown"
+        
+        # For audio, return streaming URL
+        if file.content_type and file.content_type.startswith('audio'):
+            url = f"/api/files/{file_doc['file_id']}/stream"
+        else:
+            url = f"data:{file.content_type};base64,{base64_content}"
+        
+        results.append({
+            "file_id": file_doc["file_id"],
+            "url": url,
+            "filename": file.filename,
+            "song_name": song_name,
+            "content_type": file.content_type,
+            "size": len(content)
+        })
+    
+    return {"files": results, "total": len(results)}
+
+@api_router.get("/files/{file_id}/stream")
+async def stream_file(file_id: str, request: Request):
+    """Stream a file (for audio playback)"""
+    file_doc = await db.files.find_one({"file_id": file_id})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Decode base64 content
+    content = base64.b64decode(file_doc["data"])
+    content_type = file_doc.get("content_type", "application/octet-stream")
+    file_size = len(content)
+    
+    # Handle range requests for audio seeking
+    range_header = request.headers.get("Range")
+    
+    if range_header:
+        # Parse range header (e.g., "bytes=0-1024")
+        range_match = range_header.replace("bytes=", "").split("-")
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if range_match[1] else file_size - 1
+        
+        # Ensure valid range
+        if start >= file_size:
+            start = 0
+        if end >= file_size:
+            end = file_size - 1
+        
+        chunk = content[start:end + 1]
+        
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(len(chunk)),
+            "Content-Type": content_type
+        }
+        
+        return Response(content=chunk, status_code=206, headers=headers, media_type=content_type)
+    
+    # Full file response
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(file_size),
+        "Content-Type": content_type
+    }
+    
+    return Response(content=content, headers=headers, media_type=content_type)
+
+@api_router.get("/files/{file_id}")
+async def get_file_info(file_id: str):
+    """Get file metadata"""
+    file_doc = await db.files.find_one({"file_id": file_id}, {"_id": 0, "data": 0})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    return file_doc
 
 # Include the router in the main app
 app.include_router(api_router)
