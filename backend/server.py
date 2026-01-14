@@ -3318,6 +3318,474 @@ async def send_manual_sms(data: dict):
     
     return {"sms_id": sms_doc["sms_id"], "status": "mock_sent"}
 
+# ============== LAYOUT MANAGEMENT ==============
+
+# Default sections to create on first load
+DEFAULT_SECTIONS = [
+    {
+        "section_id": "section_hero_main",
+        "name": "hero_main",
+        "display_name": "Hero Section",
+        "section_type": "hero",
+        "description": "Main hero banner at the top of the page",
+        "platforms": ["app", "web"],
+        "is_active": True,
+        "sort_order": 1,
+        "content_type": None,
+        "background_gradient": "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
+    },
+    {
+        "section_id": "section_quick_access",
+        "name": "quick_access",
+        "display_name": "Quick Access",
+        "section_type": "quick_access",
+        "description": "Quick access grid for popular categories",
+        "platforms": ["app", "web"],
+        "is_active": True,
+        "sort_order": 2,
+        "content_type": "categories",
+        "content_count": 6,
+    },
+    {
+        "section_id": "section_featured",
+        "name": "featured_albums",
+        "display_name": "Featured Albums",
+        "section_type": "featured_albums",
+        "description": "Handpicked featured albums",
+        "platforms": ["app", "web"],
+        "is_active": True,
+        "sort_order": 3,
+        "content_type": "albums",
+        "content_count": 10,
+        "content_source": "manual",
+    },
+]
+
+DEFAULT_BURNERS = [
+    {
+        "burner_id": "burner_premium",
+        "name": "premium_upgrade",
+        "icon": "crown",
+        "icon_color": "#fbbf24",
+        "headline": "Upgrade to Premium",
+        "subtitle": "Enjoy ad-free music with offline listening",
+        "cta_text": "Get Premium",
+        "cta_link": "/subscription",
+        "cta_link_type": "page",
+        "background_type": "gradient",
+        "background_color": "#1e1b4b",
+        "background_gradient": "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)",
+        "text_color": "#ffffff",
+        "button_color": "#ffffff",
+        "button_text_color": "#000000",
+        "platforms": ["app", "web"],
+        "is_active": True,
+        "sort_order": 1,
+    },
+]
+
+@api_router.get("/layout/sections")
+async def get_layout_sections(platform: Optional[str] = None, active_only: bool = False):
+    """Get all layout sections"""
+    query = {}
+    if platform:
+        query["platforms"] = platform
+    if active_only:
+        query["is_active"] = True
+    
+    sections = await db.layout_sections.find(query, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    
+    # If no sections exist, create defaults
+    if not sections:
+        for section_data in DEFAULT_SECTIONS:
+            section_data["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.layout_sections.insert_one(section_data)
+        sections = DEFAULT_SECTIONS
+    
+    # Enrich sections with content details
+    for section in sections:
+        if section.get("content_type") == "categories" and section.get("content_ids"):
+            categories = await db.categories.find(
+                {"category_id": {"$in": section["content_ids"]}},
+                {"_id": 0}
+            ).to_list(50)
+            section["content_items"] = categories
+        elif section.get("content_type") == "albums" and section.get("content_ids"):
+            albums = await db.albums.find(
+                {"album_id": {"$in": section["content_ids"]}},
+                {"_id": 0}
+            ).to_list(50)
+            section["content_items"] = albums
+        elif section.get("content_type") == "songs" and section.get("content_ids"):
+            songs = await db.songs.find(
+                {"song_id": {"$in": section["content_ids"]}},
+                {"_id": 0}
+            ).to_list(50)
+            section["content_items"] = songs
+    
+    return {"sections": sections, "total": len(sections)}
+
+@api_router.get("/layout/sections/{section_id}")
+async def get_layout_section(section_id: str):
+    """Get a specific layout section"""
+    section = await db.layout_sections.find_one({"section_id": section_id}, {"_id": 0})
+    if not section:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    # Enrich with content
+    if section.get("content_type") == "categories" and section.get("content_ids"):
+        categories = await db.categories.find(
+            {"category_id": {"$in": section["content_ids"]}},
+            {"_id": 0}
+        ).to_list(50)
+        section["content_items"] = categories
+    elif section.get("content_type") == "albums" and section.get("content_ids"):
+        albums = await db.albums.find(
+            {"album_id": {"$in": section["content_ids"]}},
+            {"_id": 0}
+        ).to_list(50)
+        section["content_items"] = albums
+    
+    return section
+
+@api_router.post("/layout/sections")
+async def create_layout_section(data: dict):
+    """Create a new layout section"""
+    # Get max sort_order
+    max_order = await db.layout_sections.find_one({}, sort=[("sort_order", -1)])
+    next_order = (max_order.get("sort_order", 0) if max_order else 0) + 1
+    
+    section = LayoutSection(
+        name=data.get("name"),
+        display_name=data.get("display_name"),
+        section_type=data.get("section_type", "custom"),
+        description=data.get("description"),
+        platforms=data.get("platforms", ["app", "web"]),
+        is_active=data.get("is_active", True),
+        sort_order=data.get("sort_order", next_order),
+        content_type=data.get("content_type"),
+        content_ids=data.get("content_ids", []),
+        content_count=data.get("content_count", 10),
+        content_source=data.get("content_source", "manual"),
+        background_image=data.get("background_image"),
+        background_color=data.get("background_color"),
+        background_gradient=data.get("background_gradient"),
+        link_type=data.get("link_type"),
+        link_target=data.get("link_target"),
+        schedule_start=data.get("schedule_start"),
+        schedule_end=data.get("schedule_end"),
+        last_edited_by=data.get("last_edited_by")
+    )
+    
+    doc = section.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.layout_sections.insert_one(doc)
+    
+    return {"section_id": doc["section_id"], "message": "Section created"}
+
+@api_router.put("/layout/sections/{section_id}")
+async def update_layout_section(section_id: str, data: dict):
+    """Update a layout section"""
+    allowed_fields = [
+        "name", "display_name", "section_type", "description", "platforms",
+        "is_active", "sort_order", "content_type", "content_ids", "content_count",
+        "content_source", "background_image", "background_color", "background_gradient",
+        "link_type", "link_target", "schedule_start", "schedule_end", "last_edited_by"
+    ]
+    
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.layout_sections.update_one(
+        {"section_id": section_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    return {"message": "Section updated"}
+
+@api_router.delete("/layout/sections/{section_id}")
+async def delete_layout_section(section_id: str):
+    """Delete a layout section"""
+    result = await db.layout_sections.delete_one({"section_id": section_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Section not found")
+    return {"message": "Section deleted"}
+
+@api_router.post("/layout/sections/reorder")
+async def reorder_sections(data: dict):
+    """Reorder sections by updating sort_order"""
+    section_order = data.get("section_order", [])  # List of section_ids in new order
+    platform = data.get("platform")  # Optional: only reorder for specific platform
+    
+    for idx, section_id in enumerate(section_order):
+        await db.layout_sections.update_one(
+            {"section_id": section_id},
+            {"$set": {"sort_order": idx + 1, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {"message": "Sections reordered", "new_order": section_order}
+
+@api_router.put("/layout/sections/{section_id}/toggle")
+async def toggle_section(section_id: str, data: dict):
+    """Toggle section active status"""
+    is_active = data.get("is_active", True)
+    platform = data.get("platform")  # Optional: toggle only for specific platform
+    
+    update = {"is_active": is_active, "updated_at": datetime.now(timezone.utc).isoformat()}
+    
+    result = await db.layout_sections.update_one(
+        {"section_id": section_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    return {"message": f"Section {'activated' if is_active else 'deactivated'}"}
+
+@api_router.post("/layout/sections/{section_id}/assign-content")
+async def assign_content_to_section(section_id: str, data: dict):
+    """Assign content (categories, albums, songs) to a section"""
+    content_type = data.get("content_type")  # categories, albums, songs
+    content_ids = data.get("content_ids", [])  # List of IDs
+    
+    update = {
+        "content_type": content_type,
+        "content_ids": content_ids,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    result = await db.layout_sections.update_one(
+        {"section_id": section_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    return {"message": "Content assigned to section"}
+
+# ============== BURNERS / CTAs ==============
+
+@api_router.get("/layout/burners")
+async def get_burners(platform: Optional[str] = None, active_only: bool = False):
+    """Get all burners/CTAs"""
+    query = {}
+    if platform:
+        query["platforms"] = platform
+    if active_only:
+        query["is_active"] = True
+    
+    burners = await db.layout_burners.find(query, {"_id": 0}).sort("sort_order", 1).to_list(50)
+    
+    # If no burners exist, create defaults
+    if not burners:
+        for burner_data in DEFAULT_BURNERS:
+            burner_data["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.layout_burners.insert_one(burner_data)
+        burners = DEFAULT_BURNERS
+    
+    return {"burners": burners, "total": len(burners)}
+
+@api_router.get("/layout/burners/{burner_id}")
+async def get_burner(burner_id: str):
+    """Get a specific burner"""
+    burner = await db.layout_burners.find_one({"burner_id": burner_id}, {"_id": 0})
+    if not burner:
+        raise HTTPException(status_code=404, detail="Burner not found")
+    return burner
+
+@api_router.post("/layout/burners")
+async def create_burner(data: dict):
+    """Create a new burner/CTA"""
+    max_order = await db.layout_burners.find_one({}, sort=[("sort_order", -1)])
+    next_order = (max_order.get("sort_order", 0) if max_order else 0) + 1
+    
+    burner = LayoutBurner(
+        name=data.get("name"),
+        icon=data.get("icon"),
+        icon_color=data.get("icon_color", "#a855f7"),
+        headline=data.get("headline"),
+        subtitle=data.get("subtitle"),
+        cta_text=data.get("cta_text"),
+        cta_link=data.get("cta_link"),
+        cta_link_type=data.get("cta_link_type", "page"),
+        background_type=data.get("background_type", "gradient"),
+        background_color=data.get("background_color", "#1e1b4b"),
+        background_gradient=data.get("background_gradient", "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)"),
+        background_image=data.get("background_image"),
+        text_color=data.get("text_color", "#ffffff"),
+        button_style=data.get("button_style", "solid"),
+        button_color=data.get("button_color", "#ffffff"),
+        button_text_color=data.get("button_text_color", "#000000"),
+        border_radius=data.get("border_radius", "16px"),
+        platforms=data.get("platforms", ["app", "web"]),
+        is_active=data.get("is_active", True),
+        sort_order=data.get("sort_order", next_order),
+        section_id=data.get("section_id"),
+        schedule_start=data.get("schedule_start"),
+        schedule_end=data.get("schedule_end"),
+        last_edited_by=data.get("last_edited_by")
+    )
+    
+    doc = burner.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.layout_burners.insert_one(doc)
+    
+    return {"burner_id": doc["burner_id"], "message": "Burner created"}
+
+@api_router.put("/layout/burners/{burner_id}")
+async def update_burner(burner_id: str, data: dict):
+    """Update a burner"""
+    allowed_fields = [
+        "name", "icon", "icon_color", "headline", "subtitle", "cta_text", "cta_link",
+        "cta_link_type", "background_type", "background_color", "background_gradient",
+        "background_image", "text_color", "button_style", "button_color", "button_text_color",
+        "border_radius", "platforms", "is_active", "sort_order", "section_id",
+        "schedule_start", "schedule_end", "last_edited_by"
+    ]
+    
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.layout_burners.update_one(
+        {"burner_id": burner_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Burner not found")
+    
+    return {"message": "Burner updated"}
+
+@api_router.delete("/layout/burners/{burner_id}")
+async def delete_burner(burner_id: str):
+    """Delete a burner"""
+    result = await db.layout_burners.delete_one({"burner_id": burner_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Burner not found")
+    return {"message": "Burner deleted"}
+
+@api_router.put("/layout/burners/{burner_id}/toggle")
+async def toggle_burner(burner_id: str, data: dict):
+    """Toggle burner active status"""
+    is_active = data.get("is_active", True)
+    
+    result = await db.layout_burners.update_one(
+        {"burner_id": burner_id},
+        {"$set": {"is_active": is_active, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Burner not found")
+    
+    return {"message": f"Burner {'activated' if is_active else 'deactivated'}"}
+
+# ============== LAYOUT CONFIG (User-side rendering) ==============
+
+@api_router.get("/layout/config/{platform}")
+async def get_layout_config(platform: str):
+    """Get complete layout configuration for app or web"""
+    if platform not in ["app", "web"]:
+        raise HTTPException(status_code=400, detail="Platform must be 'app' or 'web'")
+    
+    # Get active sections for this platform
+    sections = await db.layout_sections.find(
+        {"platforms": platform, "is_active": True},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(50)
+    
+    # Check scheduled sections
+    now = datetime.now(timezone.utc).isoformat()
+    active_sections = []
+    for section in sections:
+        # Check schedule
+        if section.get("schedule_start") and section["schedule_start"] > now:
+            continue
+        if section.get("schedule_end") and section["schedule_end"] < now:
+            continue
+        
+        # Enrich with content
+        if section.get("content_type") == "categories" and section.get("content_ids"):
+            items = await db.categories.find(
+                {"category_id": {"$in": section["content_ids"]}},
+                {"_id": 0}
+            ).to_list(section.get("content_count", 10))
+            section["content_items"] = items
+        elif section.get("content_type") == "albums" and section.get("content_ids"):
+            items = await db.albums.find(
+                {"album_id": {"$in": section["content_ids"]}, "status": "active"},
+                {"_id": 0}
+            ).to_list(section.get("content_count", 10))
+            section["content_items"] = items
+        elif section.get("content_source") == "auto_trending":
+            # Auto-populate with trending albums
+            items = await db.albums.find(
+                {"status": "active"},
+                {"_id": 0}
+            ).sort("plays_count", -1).to_list(section.get("content_count", 10))
+            section["content_items"] = items
+        elif section.get("content_source") == "auto_recent":
+            items = await db.albums.find(
+                {"status": "active"},
+                {"_id": 0}
+            ).sort("created_at", -1).to_list(section.get("content_count", 10))
+            section["content_items"] = items
+        
+        active_sections.append(section)
+    
+    # Get active burners
+    burners = await db.layout_burners.find(
+        {"platforms": platform, "is_active": True},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(20)
+    
+    # Filter scheduled burners
+    active_burners = []
+    for burner in burners:
+        if burner.get("schedule_start") and burner["schedule_start"] > now:
+            continue
+        if burner.get("schedule_end") and burner["schedule_end"] < now:
+            continue
+        active_burners.append(burner)
+    
+    return {
+        "platform": platform,
+        "sections": active_sections,
+        "burners": active_burners,
+        "generated_at": now
+    }
+
+@api_router.post("/layout/sections/{section_id}/track-click")
+async def track_section_click(section_id: str):
+    """Track click on a section"""
+    await db.layout_sections.update_one(
+        {"section_id": section_id},
+        {"$inc": {"clicks_count": 1}}
+    )
+    return {"message": "Click tracked"}
+
+@api_router.post("/layout/burners/{burner_id}/track-click")
+async def track_burner_click(burner_id: str):
+    """Track click on a burner"""
+    await db.layout_burners.update_one(
+        {"burner_id": burner_id},
+        {"$inc": {"clicks_count": 1}}
+    )
+    return {"message": "Click tracked"}
+
+@api_router.post("/layout/burners/{burner_id}/track-impression")
+async def track_burner_impression(burner_id: str):
+    """Track impression of a burner"""
+    await db.layout_burners.update_one(
+        {"burner_id": burner_id},
+        {"$inc": {"impressions_count": 1}}
+    )
+    return {"message": "Impression tracked"}
+
 # ============== SIMULATE LISTENING DATA (for demo) ==============
 
 @api_router.post("/demo/generate-listening-data")
