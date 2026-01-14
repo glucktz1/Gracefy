@@ -384,6 +384,119 @@ class PriestNotification(BaseModel):
     read: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class SMSNotification(BaseModel):
+    """SMS notification log for external integration"""
+    model_config = ConfigDict(extra="ignore")
+    sms_id: str = Field(default_factory=lambda: f"sms_{uuid.uuid4().hex[:12]}")
+    recipient_type: str  # treasurer, chairman, parish_priest, choir_owner
+    recipient_name: str
+    recipient_phone: str
+    message: str
+    notification_type: str  # withdrawal_request, withdrawal_approved, withdrawal_rejected, content_approved
+    related_id: Optional[str] = None  # withdrawal_id, content_request_id, etc.
+    choir_id: Optional[str] = None
+    choir_name: Optional[str] = None
+    status: str = "pending"  # pending, sent, failed, mock_sent
+    provider: Optional[str] = None  # twilio, africas_talking, beem, mock
+    provider_response: Optional[dict] = None
+    sent_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AlbumApproval(BaseModel):
+    """Album approval request with songs preview"""
+    model_config = ConfigDict(extra="ignore")
+    approval_id: str = Field(default_factory=lambda: f"alb_appr_{uuid.uuid4().hex[:12]}")
+    album_id: str
+    album_title: str
+    choir_id: str
+    choir_name: str
+    songs: List[dict] = []  # List of song details with audio_url for preview
+    thumbnail: Optional[str] = None
+    monetization_type: str = "standard"
+    status: str = "pending"  # pending, approved, rejected
+    admin_notes: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# ============== SMS SERVICE (MOCK) ==============
+
+async def send_sms_notification(
+    recipient_type: str,
+    recipient_name: str, 
+    recipient_phone: str,
+    message: str,
+    notification_type: str,
+    related_id: str = None,
+    choir_id: str = None,
+    choir_name: str = None
+):
+    """
+    Send SMS notification (MOCK implementation)
+    Future integration: Replace with actual SMS provider (Twilio, Africa's Talking, Beem)
+    """
+    sms_doc = {
+        "sms_id": f"sms_{uuid.uuid4().hex[:12]}",
+        "recipient_type": recipient_type,
+        "recipient_name": recipient_name,
+        "recipient_phone": recipient_phone,
+        "message": message,
+        "notification_type": notification_type,
+        "related_id": related_id,
+        "choir_id": choir_id,
+        "choir_name": choir_name,
+        "status": "mock_sent",  # Will be "sent" when real provider is integrated
+        "provider": "mock",
+        "provider_response": {"mock": True, "message": "SMS logged for future delivery"},
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.sms_notifications.insert_one(sms_doc)
+    
+    # Log to console for debugging
+    print(f"[MOCK SMS] To: {recipient_phone} ({recipient_name}) - {message[:50]}...")
+    
+    return sms_doc
+
+async def notify_choir_contacts_withdrawal(choir_id: str, withdrawal_request: dict, notification_type: str = "withdrawal_request"):
+    """Send SMS to treasurer, chairman, and parish priest about withdrawal"""
+    # Get choir details
+    choir = await db.singers.find_one({"singer_id": choir_id}, {"_id": 0})
+    if not choir:
+        return
+    
+    choir_name = choir.get("name", "Unknown Choir")
+    amount = withdrawal_request.get("amount", 0)
+    
+    # Prepare message based on type
+    if notification_type == "withdrawal_request":
+        message = f"Withdrawal request of TZS {amount:,.0f} submitted by {choir_name}. Please review."
+    elif notification_type == "withdrawal_approved":
+        message = f"Withdrawal of TZS {amount:,.0f} for {choir_name} has been approved."
+    elif notification_type == "withdrawal_rejected":
+        message = f"Withdrawal of TZS {amount:,.0f} for {choir_name} has been rejected."
+    else:
+        message = f"Notification regarding {choir_name} withdrawal."
+    
+    contacts = [
+        ("treasurer", choir.get("treasurer_name"), choir.get("treasurer_phone")),
+        ("chairman", choir.get("chairman_name"), choir.get("chairman_phone")),
+        ("parish_priest", choir.get("parish_priest_name"), choir.get("parish_priest_phone"))
+    ]
+    
+    for recipient_type, name, phone in contacts:
+        if name and phone:
+            await send_sms_notification(
+                recipient_type=recipient_type,
+                recipient_name=name,
+                recipient_phone=phone,
+                message=message,
+                notification_type=notification_type,
+                related_id=withdrawal_request.get("request_id"),
+                choir_id=choir_id,
+                choir_name=choir_name
+            )
+
 # Minimum stream duration for counting revenue (45 seconds)
 MIN_STREAM_DURATION_SECONDS = 45
 
