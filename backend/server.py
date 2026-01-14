@@ -1419,6 +1419,185 @@ async def get_revenue_settings_history():
     settings = await db.revenue_settings.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
     return {"settings": settings}
 
+# ============== COMPREHENSIVE MONETIZATION SETTINGS ==============
+
+@api_router.get("/monetization/settings")
+async def get_monetization_settings():
+    """Get all monetization settings"""
+    settings = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        # Return default settings
+        default = MonetizationSettings()
+        doc = default.model_dump()
+        doc["created_at"] = doc["created_at"].isoformat()
+        return doc
+    return settings
+
+@api_router.put("/monetization/settings")
+async def update_monetization_settings(data: dict):
+    """Update monetization settings (admin only)"""
+    # Get current settings
+    current = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    
+    # Check for rate changes to log history
+    rate_changes = []
+    if current:
+        if data.get("premium_rate_per_hour") and data["premium_rate_per_hour"] != current.get("premium_rate_per_hour"):
+            rate_changes.append({
+                "change_id": f"rate_{uuid.uuid4().hex[:12]}",
+                "change_type": "premium_rate",
+                "old_value": current.get("premium_rate_per_hour"),
+                "new_value": data["premium_rate_per_hour"],
+                "effective_date": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+                "changed_by": data.get("last_updated_by"),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        if data.get("standard_rate_per_hour") and data["standard_rate_per_hour"] != current.get("standard_rate_per_hour"):
+            rate_changes.append({
+                "change_id": f"rate_{uuid.uuid4().hex[:12]}",
+                "change_type": "standard_rate",
+                "old_value": current.get("standard_rate_per_hour"),
+                "new_value": data["standard_rate_per_hour"],
+                "effective_date": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+                "changed_by": data.get("last_updated_by"),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        if data.get("platform_fee_percentage") and data["platform_fee_percentage"] != current.get("platform_fee_percentage"):
+            rate_changes.append({
+                "change_id": f"rate_{uuid.uuid4().hex[:12]}",
+                "change_type": "platform_fee",
+                "old_value": current.get("platform_fee_percentage"),
+                "new_value": data["platform_fee_percentage"],
+                "effective_date": data.get("platform_fee_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+                "changed_by": data.get("last_updated_by"),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+    
+    # Log rate changes
+    if rate_changes:
+        await db.rate_change_history.insert_many(rate_changes)
+    
+    # Update settings
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    data["settings_id"] = f"monet_{uuid.uuid4().hex[:12]}"
+    data["created_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.monetization_settings.insert_one(data)
+    
+    # Also update legacy revenue_settings for backward compatibility
+    legacy_settings = {
+        "settings_id": f"rev_{uuid.uuid4().hex[:12]}",
+        "premium_rate_per_hour": data.get("premium_rate_per_hour", 10.0),
+        "standard_rate_per_hour": data.get("standard_rate_per_hour", 5.0),
+        "platform_share_percentage": data.get("platform_fee_percentage", 30.0),
+        "minimum_withdrawal": data.get("minimum_payout_threshold", 10000.0),
+        "effective_from": data.get("rate_effective_date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.revenue_settings.insert_one(legacy_settings)
+    
+    return {"message": "Monetization settings updated", "settings_id": data["settings_id"]}
+
+@api_router.get("/monetization/rate-history")
+async def get_rate_change_history():
+    """Get history of rate changes"""
+    history = await db.rate_change_history.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"history": history}
+
+# Subscription Plans
+@api_router.get("/monetization/plans")
+async def get_subscription_plans():
+    """Get all subscription plans"""
+    plans = await db.subscription_plans.find({}, {"_id": 0}).sort("sort_order", 1).to_list(20)
+    if not plans:
+        # Return default plans
+        default_plans = [
+            {"plan_id": "plan_daily", "name": "daily", "display_name": "Daily Pass", "price": 500, "duration_days": 1, "features": ["Unlimited streaming", "Ad-free"], "is_active": True, "sort_order": 1},
+            {"plan_id": "plan_weekly", "name": "weekly", "display_name": "Weekly", "price": 2000, "duration_days": 7, "features": ["Unlimited streaming", "Ad-free", "Offline downloads"], "is_active": True, "sort_order": 2},
+            {"plan_id": "plan_monthly", "name": "monthly", "display_name": "Monthly", "price": 5000, "duration_days": 30, "features": ["Unlimited streaming", "Ad-free", "Offline downloads", "High quality audio"], "is_active": True, "sort_order": 3},
+            {"plan_id": "plan_yearly", "name": "yearly", "display_name": "Yearly", "price": 50000, "duration_days": 365, "features": ["Unlimited streaming", "Ad-free", "Offline downloads", "High quality audio", "2 months free"], "is_active": True, "sort_order": 4}
+        ]
+        return {"plans": default_plans}
+    return {"plans": plans}
+
+@api_router.post("/monetization/plans")
+async def create_subscription_plan(data: dict):
+    """Create a new subscription plan"""
+    plan = SubscriptionPlan(
+        name=data.get("name"),
+        display_name=data.get("display_name"),
+        price=data.get("price"),
+        duration_days=data.get("duration_days"),
+        features=data.get("features", []),
+        is_active=data.get("is_active", True),
+        sort_order=data.get("sort_order", 0)
+    )
+    doc = plan.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.subscription_plans.insert_one(doc)
+    return {"plan_id": doc["plan_id"], "message": "Plan created"}
+
+@api_router.put("/monetization/plans/{plan_id}")
+async def update_subscription_plan(plan_id: str, data: dict):
+    """Update a subscription plan"""
+    update_data = {}
+    allowed_fields = ["name", "display_name", "price", "duration_days", "features", "is_active", "sort_order"]
+    for field in allowed_fields:
+        if field in data:
+            update_data[field] = data[field]
+    
+    result = await db.subscription_plans.update_one({"plan_id": plan_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"message": "Plan updated"}
+
+@api_router.delete("/monetization/plans/{plan_id}")
+async def delete_subscription_plan(plan_id: str):
+    """Delete a subscription plan"""
+    result = await db.subscription_plans.delete_one({"plan_id": plan_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"message": "Plan deleted"}
+
+# Emergency Controls
+@api_router.post("/monetization/freeze-choir/{choir_id}")
+async def freeze_choir_monetization(choir_id: str, data: dict):
+    """Freeze monetization for a specific choir"""
+    reason = data.get("reason", "")
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {"monetization_frozen": True, "monetization_freeze_reason": reason}}
+    )
+    return {"message": "Choir monetization frozen"}
+
+@api_router.post("/monetization/unfreeze-choir/{choir_id}")
+async def unfreeze_choir_monetization(choir_id: str):
+    """Unfreeze monetization for a specific choir"""
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {"monetization_frozen": False, "monetization_freeze_reason": None}}
+    )
+    return {"message": "Choir monetization unfrozen"}
+
+@api_router.post("/monetization/pause-all-payouts")
+async def pause_all_payouts(data: dict):
+    """Emergency: Pause all payouts"""
+    reason = data.get("reason", "System maintenance")
+    await db.monetization_settings.update_many(
+        {},
+        {"$set": {"all_payouts_paused": True, "payouts_paused_reason": reason, "payouts_paused_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "All payouts paused"}
+
+@api_router.post("/monetization/resume-payouts")
+async def resume_payouts():
+    """Resume all payouts"""
+    await db.monetization_settings.update_many(
+        {},
+        {"$set": {"all_payouts_paused": False, "payouts_paused_reason": None, "payouts_resumed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Payouts resumed"}
+
 # ============== LISTENING SESSIONS (for tracking) ==============
 
 @api_router.post("/listening/start")
