@@ -28,6 +28,8 @@ import ChoirManagementPage from "@/pages/ChoirManagementPage";
 import ChoirDetailsPage from "@/pages/ChoirDetailsPage";
 import MonetizationSettingsPage from "@/pages/MonetizationSettingsPage";
 import LayoutManagementPage from "@/pages/LayoutManagementPage";
+import EnhancedAnalyticsPage from "@/pages/EnhancedAnalyticsPage";
+import UserStreamingApp from "@/pages/UserStreamingApp";
 
 // Icons
 import { 
