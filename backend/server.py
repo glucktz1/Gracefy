@@ -64,9 +64,13 @@ class Album(BaseModel):
     artist_id: Optional[str] = None
     artist_name: Optional[str] = None
     category_id: Optional[str] = None
+    category_name: Optional[str] = None
     thumbnail: Optional[str] = None
     release_date: Optional[str] = None
-    status: str = "active"
+    monetization_type: str = "free"  # free, standard, premium
+    status: str = "active"  # active, inactive
+    songs_count: int = 0
+    total_plays: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Song(BaseModel):
@@ -75,12 +79,13 @@ class Song(BaseModel):
     title: str
     album_id: str
     duration: Optional[int] = None  # in seconds
+    duration_formatted: Optional[str] = None  # "3:45" format
     audio_url: Optional[str] = None
     lyrics: Optional[str] = None
     track_number: Optional[int] = None
     plays: int = 0
     likes: int = 0
-    status: str = "active"
+    status: str = "active"  # active, inactive
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Church(BaseModel):
