@@ -3323,15 +3323,19 @@ async def choir_upload_song_request(data: dict, request: Request):
         "track_number": data.get("track_number")
     }
     
-    if not song_data["title"] or not song_data["album_id"]:
-        raise HTTPException(status_code=400, detail="Song title and album_id required")
+    if not song_data["title"]:
+        raise HTTPException(status_code=400, detail="Song title is required")
     
-    # Verify the album belongs to this choir
-    album = await db.albums.find_one({"album_id": song_data["album_id"]}, {"_id": 0})
-    if not album:
-        raise HTTPException(status_code=404, detail="Album not found")
-    if album.get("artist_id") != account["choir_id"]:
-        raise HTTPException(status_code=403, detail="You can only upload songs to your own albums")
+    album_title = "No Album"
+    
+    # Verify album if provided
+    if song_data["album_id"]:
+        album = await db.albums.find_one({"album_id": song_data["album_id"]}, {"_id": 0})
+        if not album:
+            raise HTTPException(status_code=404, detail="Album not found")
+        if album.get("artist_id") != account["choir_id"]:
+            raise HTTPException(status_code=403, detail="You can only upload songs to your own albums")
+        album_title = album["title"]
     
     # Create content request
     content_request = ChoirContentRequest(
@@ -3350,7 +3354,7 @@ async def choir_upload_song_request(data: dict, request: Request):
         choir_id=account["choir_id"],
         choir_name=account["choir_name"],
         message=f"{account['choir_name']} wants to upload a new song: {song_data['title']}",
-        details={"request_id": doc["request_id"], "song_title": song_data["title"], "album": album["title"]}
+        details={"request_id": doc["request_id"], "song_title": song_data["title"], "album": album_title}
     )
     notif_doc = notification.model_dump()
     notif_doc["created_at"] = notif_doc["created_at"].isoformat()
