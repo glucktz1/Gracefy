@@ -4069,7 +4069,8 @@ DEFAULT_SECTIONS = [
         "is_active": True,
         "sort_order": 2,
         "content_type": "categories",
-        "content_count": 8,
+        "content_count": 6,
+        "content_ids": [],  # Admin can set specific categories/albums
     },
     {
         "section_id": "section_featured",
@@ -4081,8 +4082,10 @@ DEFAULT_SECTIONS = [
         "is_active": True,
         "sort_order": 3,
         "content_type": "albums",
-        "content_count": 10,
+        "content_count": 5,
         "content_source": "manual",
+        "carousel": True,  # Carousel display (max 5)
+        "content_ids": [],  # Admin selects up to 5 albums for carousel
     },
     {
         "section_id": "section_trending",
