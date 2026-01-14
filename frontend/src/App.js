@@ -19,12 +19,17 @@ import CommunityPage from "@/pages/CommunityPage";
 import BookingsPage from "@/pages/BookingsPage";
 import ApprovalsPage from "@/pages/ApprovalsPage";
 import LoginPage from "@/pages/LoginPage";
+import RevenueAnalyticsPage from "@/pages/RevenueAnalyticsPage";
+import ChoirAccountsPage from "@/pages/ChoirAccountsPage";
+import WithdrawalsPage from "@/pages/WithdrawalsPage";
+import ChoirLoginPage from "@/pages/ChoirLoginPage";
+import ChoirDashboard from "@/pages/ChoirDashboard";
 
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
-  CalendarCheck, CheckCircle, LogOut, Menu, X
+  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -39,6 +44,9 @@ export const AuthContext = ({ children }) => {
 const Sidebar = ({ user, onLogout, isOpen, setIsOpen }) => {
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/revenue", icon: TrendingUp, label: "Revenue Analytics" },
+    { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts" },
+    { path: "/withdrawals", icon: CreditCard, label: "Withdrawals" },
     { path: "/users", icon: Users, label: "Users" },
     { path: "/categories", icon: FolderTree, label: "Categories" },
     { path: "/albums", icon: Music2, label: "Albums & Songs" },
