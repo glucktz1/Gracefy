@@ -369,56 +369,6 @@ export default function LayoutManagementPage() {
     return <Badge className="bg-blue-500/20 text-blue-400">Web</Badge>;
   };
 
-  // Icon component
-  const getIconComponent = (iconName) => {
-    const icons = {
-      crown: Crown, gift: Gift, music: Music2, star: Star
-    };
-    const IconComp = icons[iconName] || Crown;
-    return IconComp;
-  };
-
-  // Burner preview component
-  const BurnerPreview = ({ burner, small = false }) => {
-    const IconComp = getIconComponent(burner.icon);
-    return (
-      <div 
-        className={`rounded-2xl p-${small ? '4' : '6'} relative overflow-hidden`}
-        style={{ 
-          background: burner.background_type === "gradient" ? burner.background_gradient : burner.background_color,
-          backgroundImage: burner.background_image ? `url(${burner.background_image})` : undefined,
-          backgroundSize: 'cover'
-        }}
-      >
-        <div className="relative z-10">
-          <div 
-            className={`w-${small ? '10' : '12'} h-${small ? '10' : '12'} rounded-full flex items-center justify-center mb-3`}
-            style={{ backgroundColor: `${burner.icon_color}20` }}
-          >
-            <IconComp size={small ? 20 : 24} style={{ color: burner.icon_color }} />
-          </div>
-          <h3 
-            className={`font-bold ${small ? 'text-lg' : 'text-xl'} mb-1`}
-            style={{ color: burner.text_color }}
-          >
-            {burner.headline || "Headline"}
-          </h3>
-          {burner.subtitle && (
-            <p className={`${small ? 'text-xs' : 'text-sm'} opacity-80 mb-4`} style={{ color: burner.text_color }}>
-              {burner.subtitle}
-            </p>
-          )}
-          <button
-            className={`${small ? 'px-4 py-1.5 text-sm' : 'px-6 py-2'} rounded-full font-medium`}
-            style={{ backgroundColor: burner.button_color, color: burner.button_text_color }}
-          >
-            {burner.cta_text || "Button"}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <div className="page-container flex items-center justify-center min-h-[60vh]">
