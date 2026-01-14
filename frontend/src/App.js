@@ -277,10 +277,15 @@ function AppRouter() {
 
   return (
     <Routes>
+      {/* User Streaming App - Public */}
+      <Route path="/app" element={<UserStreamingApp />} />
+      
+      {/* Admin Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/choir/login" element={<ChoirLoginPage />} />
       <Route path="/choir/dashboard" element={<ChoirDashboard />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/analytics" element={<ProtectedRoute><EnhancedAnalyticsPage /></ProtectedRoute>} />
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
       <Route path="/monetization" element={<ProtectedRoute><MonetizationSettingsPage /></ProtectedRoute>} />
       <Route path="/layout-management" element={<ProtectedRoute><LayoutManagementPage /></ProtectedRoute>} />
