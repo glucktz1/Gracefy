@@ -82,6 +82,8 @@ export default function ChoirDashboard() {
     duration_formatted: "",
     lyrics: ""
   });
+  const [songAudioFile, setSongAudioFile] = useState(null);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
 
   const choirId = localStorage.getItem("choir_id");
   const sessionToken = localStorage.getItem("choir_session");
