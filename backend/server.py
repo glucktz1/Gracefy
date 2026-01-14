@@ -2483,6 +2483,430 @@ async def process_withdrawal(request_id: str, data: dict):
     
     return {"message": f"Withdrawal request {status}"}
 
+# ============== ADMIN CHOIR ANALYTICS & MANAGEMENT ==============
+
+@api_router.get("/admin/choirs")
+async def get_all_choirs_admin():
+    """Get all choirs with their performance summary"""
+    choirs = await db.singers.find({"type": "choir"}, {"_id": 0}).to_list(500)
+    
+    # Get performance data for each choir
+    choir_list = []
+    for choir in choirs:
+        # Get account info
+        account = await db.choir_accounts.find_one({"choir_id": choir["singer_id"]}, {"_id": 0, "password_hash": 0})
+        
+        # Get revenue stats
+        revenue_filter = {"choir_id": choir["singer_id"], "$or": [
+            {"counts_for_revenue": True},
+            {"duration_seconds": {"$gte": MIN_STREAM_DURATION_SECONDS}}
+        ]}
+        
+        pipeline = [
+            {"$match": revenue_filter},
+            {"$group": {
+                "_id": None,
+                "total_hours": {"$sum": "$duration_hours"},
+                "total_plays": {"$sum": 1}
+            }}
+        ]
+        stats = await db.listening_sessions.aggregate(pipeline).to_list(1)
+        
+        # Get album count
+        album_count = await db.albums.count_documents({"artist_id": choir["singer_id"]})
+        
+        # Get song count
+        albums = await db.albums.find({"artist_id": choir["singer_id"]}, {"album_id": 1}).to_list(100)
+        album_ids = [a["album_id"] for a in albums]
+        song_count = await db.songs.count_documents({"album_id": {"$in": album_ids}}) if album_ids else 0
+        
+        choir_data = {
+            **choir,
+            "has_account": account is not None,
+            "account_status": account.get("status") if account else None,
+            "current_balance": account.get("current_balance", 0) if account else 0,
+            "total_earned": account.get("total_earned", 0) if account else 0,
+            "total_hours": stats[0]["total_hours"] if stats else 0,
+            "total_plays": stats[0]["total_plays"] if stats else 0,
+            "album_count": album_count,
+            "song_count": song_count
+        }
+        choir_list.append(choir_data)
+    
+    return {"choirs": choir_list, "total": len(choir_list)}
+
+@api_router.get("/admin/choirs/{choir_id}")
+async def get_choir_details_admin(choir_id: str):
+    """Get detailed choir information including all albums, songs, revenue"""
+    # Get choir
+    choir = await db.singers.find_one({"singer_id": choir_id}, {"_id": 0})
+    if not choir:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    # Get account
+    account = await db.choir_accounts.find_one({"choir_id": choir_id}, {"_id": 0, "password_hash": 0})
+    
+    # Get revenue settings
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {"premium_rate_per_hour": 10.0, "standard_rate_per_hour": 5.0, "platform_share_percentage": 30.0}
+    
+    # Get revenue stats (only streams >= 45s)
+    revenue_filter = {"choir_id": choir_id, "$or": [
+        {"counts_for_revenue": True},
+        {"duration_seconds": {"$gte": MIN_STREAM_DURATION_SECONDS}}
+    ]}
+    
+    pipeline = [
+        {"$match": revenue_filter},
+        {"$group": {
+            "_id": "$content_type",
+            "hours": {"$sum": "$duration_hours"},
+            "plays": {"$sum": 1}
+        }}
+    ]
+    stats = await db.listening_sessions.aggregate(pipeline).to_list(10)
+    
+    premium_hours = 0
+    standard_hours = 0
+    total_plays = 0
+    for stat in stats:
+        if stat["_id"] == "premium":
+            premium_hours = stat["hours"]
+        else:
+            standard_hours = stat["hours"]
+        total_plays += stat["plays"]
+    
+    gross_revenue = (premium_hours * settings["premium_rate_per_hour"] + 
+                    standard_hours * settings["standard_rate_per_hour"])
+    platform_share = gross_revenue * (settings["platform_share_percentage"] / 100)
+    net_revenue = gross_revenue - platform_share
+    
+    # Get all albums with songs
+    albums = await db.albums.find({"artist_id": choir_id}, {"_id": 0}).to_list(100)
+    albums_with_songs = []
+    for album in albums:
+        songs = await db.songs.find({"album_id": album["album_id"]}, {"_id": 0}).to_list(100)
+        
+        # Get album-specific revenue
+        album_revenue_pipeline = [
+            {"$match": {"album_id": album["album_id"], **revenue_filter}},
+            {"$group": {
+                "_id": None,
+                "hours": {"$sum": "$duration_hours"},
+                "plays": {"$sum": 1}
+            }}
+        ]
+        album_stats = await db.listening_sessions.aggregate(album_revenue_pipeline).to_list(1)
+        
+        album_hours = album_stats[0]["hours"] if album_stats else 0
+        album_plays = album_stats[0]["plays"] if album_stats else 0
+        album_revenue = album_hours * (settings["premium_rate_per_hour"] if album.get("monetization_type") == "premium" else settings["standard_rate_per_hour"])
+        
+        albums_with_songs.append({
+            **album,
+            "songs": songs,
+            "total_hours": round(album_hours, 2),
+            "total_plays": album_plays,
+            "revenue": round(album_revenue, 2)
+        })
+    
+    # Get withdrawal history
+    withdrawals = await db.withdrawal_requests.find({"choir_id": choir_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    
+    # Get monthly revenue trend
+    monthly_pipeline = [
+        {"$match": revenue_filter},
+        {"$group": {
+            "_id": "$month",
+            "hours": {"$sum": "$duration_hours"},
+            "plays": {"$sum": 1}
+        }},
+        {"$sort": {"_id": -1}},
+        {"$limit": 12}
+    ]
+    monthly = await db.listening_sessions.aggregate(monthly_pipeline).to_list(12)
+    
+    return {
+        "choir": choir,
+        "account": account,
+        "revenue": {
+            "total_hours": round(premium_hours + standard_hours, 2),
+            "premium_hours": round(premium_hours, 2),
+            "standard_hours": round(standard_hours, 2),
+            "total_plays": total_plays,
+            "gross_revenue": round(gross_revenue, 2),
+            "platform_share": round(platform_share, 2),
+            "net_revenue": round(net_revenue, 2),
+            "current_balance": account.get("current_balance", 0) if account else 0,
+            "total_withdrawn": account.get("total_withdrawn", 0) if account else 0
+        },
+        "albums": albums_with_songs,
+        "withdrawals": withdrawals,
+        "monthly": monthly
+    }
+
+@api_router.put("/admin/choirs/{choir_id}")
+async def update_choir_admin(choir_id: str, data: dict):
+    """Admin update choir details (approve, suspend, edit)"""
+    update_data = {}
+    
+    # Allowed fields to update
+    allowed_fields = [
+        "name", "denomination", "church_id", "church_name", "bio", "photo",
+        "treasurer_name", "treasurer_phone", "chairman_name", "chairman_phone",
+        "parish_priest_name", "parish_priest_phone", "status", "approval_status", "admin_notes"
+    ]
+    
+    for field in allowed_fields:
+        if field in data:
+            update_data[field] = data[field]
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    result = await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    # Also update choir account if exists
+    account_update = {}
+    for field in ["choir_name", "denomination", "treasurer_name", "treasurer_phone", 
+                  "chairman_name", "chairman_phone", "parish_priest_name", "parish_priest_phone"]:
+        if field in data:
+            account_field = "choir_name" if field == "name" else field
+            account_update[account_field] = data[field]
+    
+    if account_update:
+        await db.choir_accounts.update_one(
+            {"choir_id": choir_id},
+            {"$set": account_update}
+        )
+    
+    return {"message": "Choir updated successfully"}
+
+@api_router.post("/admin/choirs")
+async def create_choir_admin(data: dict):
+    """Admin create a new choir with all details"""
+    choir = Singer(
+        name=data.get("name"),
+        type="choir",
+        denomination=data.get("denomination"),
+        church_id=data.get("church_id"),
+        church_name=data.get("church_name"),
+        treasurer_name=data.get("treasurer_name"),
+        treasurer_phone=data.get("treasurer_phone"),
+        chairman_name=data.get("chairman_name"),
+        chairman_phone=data.get("chairman_phone"),
+        parish_priest_name=data.get("parish_priest_name"),
+        parish_priest_phone=data.get("parish_priest_phone"),
+        bio=data.get("bio"),
+        photo=data.get("photo"),
+        status="active",
+        approval_status="approved"  # Admin-created choirs are auto-approved
+    )
+    
+    doc = choir.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.singers.insert_one(doc)
+    
+    return {"singer_id": doc["singer_id"], "message": "Choir created successfully"}
+
+# ============== ADMIN ALBUM & SONG MANAGEMENT ==============
+
+@api_router.get("/admin/albums")
+async def get_all_albums_admin(status: Optional[str] = None, choir_id: Optional[str] = None):
+    """Get all albums with choir info and performance data"""
+    query = {}
+    if status:
+        query["status"] = status
+    if choir_id:
+        query["artist_id"] = choir_id
+    
+    albums = await db.albums.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Enrich with performance data
+    enriched_albums = []
+    for album in albums:
+        # Get songs
+        songs = await db.songs.find({"album_id": album["album_id"]}, {"_id": 0}).to_list(100)
+        
+        # Get listening stats
+        stats_pipeline = [
+            {"$match": {"album_id": album["album_id"]}},
+            {"$group": {
+                "_id": None,
+                "total_plays": {"$sum": 1},
+                "total_hours": {"$sum": "$duration_hours"}
+            }}
+        ]
+        stats = await db.listening_sessions.aggregate(stats_pipeline).to_list(1)
+        
+        enriched_albums.append({
+            **album,
+            "songs": songs,
+            "songs_count": len(songs),
+            "total_plays": stats[0]["total_plays"] if stats else 0,
+            "total_hours": round(stats[0]["total_hours"], 2) if stats else 0
+        })
+    
+    return {"albums": enriched_albums, "total": len(enriched_albums)}
+
+@api_router.get("/admin/albums/{album_id}")
+async def get_album_details_admin(album_id: str):
+    """Get detailed album info with all songs for preview"""
+    album = await db.albums.find_one({"album_id": album_id}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    # Get all songs
+    songs = await db.songs.find({"album_id": album_id}, {"_id": 0}).to_list(100)
+    
+    # Get choir info
+    choir = await db.singers.find_one({"singer_id": album.get("artist_id")}, {"_id": 0})
+    
+    # Get listening stats per song
+    for song in songs:
+        song_stats = await db.listening_sessions.aggregate([
+            {"$match": {"song_id": song["song_id"]}},
+            {"$group": {
+                "_id": None,
+                "plays": {"$sum": 1},
+                "hours": {"$sum": "$duration_hours"}
+            }}
+        ]).to_list(1)
+        song["total_plays"] = song_stats[0]["plays"] if song_stats else 0
+        song["total_hours"] = round(song_stats[0]["hours"], 2) if song_stats else 0
+    
+    # Get approval request if pending
+    approval = await db.choir_content_requests.find_one({
+        "content_data.album_id": album_id,
+        "status": "pending"
+    }, {"_id": 0})
+    
+    return {
+        "album": album,
+        "songs": songs,
+        "choir": choir,
+        "pending_approval": approval
+    }
+
+@api_router.put("/admin/albums/{album_id}")
+async def update_album_admin(album_id: str, data: dict):
+    """Admin update album (approve, edit, enable/disable)"""
+    update_data = {}
+    
+    allowed_fields = [
+        "title", "description", "category_id", "category_name", "thumbnail",
+        "release_date", "monetization_type", "status"
+    ]
+    
+    for field in allowed_fields:
+        if field in data:
+            update_data[field] = data[field]
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    result = await db.albums.update_one(
+        {"album_id": album_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    return {"message": "Album updated successfully"}
+
+@api_router.put("/admin/songs/{song_id}")
+async def update_song_admin(song_id: str, data: dict):
+    """Admin update song (enable/disable, edit)"""
+    update_data = {}
+    
+    allowed_fields = ["title", "audio_url", "lyrics", "track_number", "status"]
+    
+    for field in allowed_fields:
+        if field in data:
+            update_data[field] = data[field]
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    result = await db.songs.update_one(
+        {"song_id": song_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    return {"message": "Song updated successfully"}
+
+@api_router.post("/admin/albums/{album_id}/approve")
+async def approve_album_with_songs(album_id: str, data: dict = None):
+    """Approve an album and all its songs at once"""
+    data = data or {}
+    
+    # Update album status
+    await db.albums.update_one(
+        {"album_id": album_id},
+        {"$set": {"status": "active"}}
+    )
+    
+    # Update all songs to active
+    await db.songs.update_many(
+        {"album_id": album_id},
+        {"$set": {"status": "active"}}
+    )
+    
+    # Update content request if exists
+    await db.choir_content_requests.update_many(
+        {"content_data.album_id": album_id, "status": "pending"},
+        {"$set": {
+            "status": "approved",
+            "processed_by": data.get("processed_by", "admin"),
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"message": "Album and all songs approved"}
+
+@api_router.get("/admin/sms-logs")
+async def get_sms_logs(choir_id: Optional[str] = None, status: Optional[str] = None):
+    """Get SMS notification logs (for debugging/future integration)"""
+    query = {}
+    if choir_id:
+        query["choir_id"] = choir_id
+    if status:
+        query["status"] = status
+    
+    logs = await db.sms_notifications.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"logs": logs, "total": len(logs)}
+
+@api_router.post("/admin/sms/send")
+async def send_manual_sms(data: dict):
+    """Manually trigger SMS (for testing/admin override)"""
+    recipient_phone = data.get("phone")
+    message = data.get("message")
+    recipient_name = data.get("name", "Unknown")
+    
+    if not recipient_phone or not message:
+        raise HTTPException(status_code=400, detail="Phone and message required")
+    
+    sms_doc = await send_sms_notification(
+        recipient_type="manual",
+        recipient_name=recipient_name,
+        recipient_phone=recipient_phone,
+        message=message,
+        notification_type="manual_admin"
+    )
+    
+    return {"sms_id": sms_doc["sms_id"], "status": "mock_sent"}
+
 # ============== SIMULATE LISTENING DATA (for demo) ==============
 
 @api_router.post("/demo/generate-listening-data")
