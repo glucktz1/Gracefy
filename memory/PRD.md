@@ -307,6 +307,12 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - GET `/api/analytics/enhanced` - Comprehensive analytics (7d/30d/90d/1y)
 - GET `/api/analytics/realtime` - Real-time streaming stats
 
+### File Upload
+- POST `/api/upload` - Single file upload (images→data URL, audio→streaming URL)
+- POST `/api/upload/multiple` - Bulk upload with song name extraction from filenames
+- GET `/api/files/{file_id}/stream` - Audio streaming with Range header support
+- GET `/api/files/{file_id}` - File metadata
+
 ## Next Tasks (Priority Order)
 1. **P0 - React Native Mobile App**: Build native mobile app for Android/iOS using React Native
 2. **P1 - Audio Playback**: Implement actual audio streaming with audio_url support
