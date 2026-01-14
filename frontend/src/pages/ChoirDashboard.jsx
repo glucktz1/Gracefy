@@ -855,38 +855,107 @@ export default function ChoirDashboard() {
 
       {/* Song Upload Modal */}
       <Dialog open={isSongModalOpen} onOpenChange={setIsSongModalOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
           <DialogHeader>
             <DialogTitle>Upload Song</DialogTitle>
             <DialogDescription className="text-zinc-400">Song will be reviewed by admin before publishing</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUploadSong}>
             <div className="space-y-4 py-4">
+              {/* Audio File Upload */}
+              <div>
+                <label className="text-sm text-zinc-400 mb-2 block">Audio File *</label>
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                    songAudioFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-700 hover:border-zinc-600 bg-zinc-950'
+                  }`}
+                  onClick={() => document.getElementById('choir-song-audio').click()}
+                >
+                  {songAudioFile ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <Music2 size={24} className="text-emerald-400" />
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-white">{songAudioFile.name}</p>
+                        <p className="text-xs text-zinc-400">{(songAudioFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSongAudioFile(null); }}
+                        className="ml-2 text-zinc-400 hover:text-red-400"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={32} className="mx-auto mb-2 text-zinc-500" />
+                      <p className="text-sm text-zinc-400">Click to upload audio file</p>
+                      <p className="text-xs text-zinc-500 mt-1">MP3, WAV, M4A (Max 50MB)</p>
+                    </>
+                  )}
+                </div>
+                <input
+                  id="choir-song-audio"
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 50 * 1024 * 1024) {
+                        toast.error("File size must be less than 50MB");
+                        return;
+                      }
+                      setSongAudioFile(file);
+                      // Auto-fill title from filename if empty
+                      if (!songForm.title) {
+                        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+                        setSongForm(prev => ({ ...prev, title: nameWithoutExt }));
+                      }
+                    }
+                  }}
+                />
+              </div>
+              
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Song Title *</label>
                 <Input value={songForm.title} onChange={(e) => setSongForm({ ...songForm, title: e.target.value })} className="bg-zinc-950 border-zinc-800 text-white" required data-testid="song-title-input" />
               </div>
               <div>
-                <label className="text-sm text-zinc-400 mb-1 block">Album *</label>
+                <label className="text-sm text-zinc-400 mb-1 block">Album</label>
                 <Select value={songForm.album_id} onValueChange={(v) => setSongForm({ ...songForm, album_id: v })}>
-                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white"><SelectValue placeholder="Select album" /></SelectTrigger>
+                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white"><SelectValue placeholder="Select album (optional)" /></SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
                     {myAlbums.map((album) => <SelectItem key={album.album_id} value={album.album_id}>{album.title}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="text-sm text-zinc-400 mb-1 block">Duration (e.g., 3:45)</label>
-                <Input value={songForm.duration_formatted} onChange={(e) => setSongForm({ ...songForm, duration_formatted: e.target.value })} placeholder="3:45" className="bg-zinc-950 border-zinc-800 text-white" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Duration (e.g., 3:45)</label>
+                  <Input value={songForm.duration_formatted} onChange={(e) => setSongForm({ ...songForm, duration_formatted: e.target.value })} placeholder="3:45" className="bg-zinc-950 border-zinc-800 text-white" />
+                </div>
               </div>
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Lyrics</label>
-                <Textarea value={songForm.lyrics} onChange={(e) => setSongForm({ ...songForm, lyrics: e.target.value })} className="bg-zinc-950 border-zinc-800 text-white" rows={4} placeholder="Enter song lyrics..." />
+                <Textarea value={songForm.lyrics} onChange={(e) => setSongForm({ ...songForm, lyrics: e.target.value })} className="bg-zinc-950 border-zinc-800 text-white" rows={3} placeholder="Enter song lyrics (optional)..." />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsSongModalOpen(false)} className="border-zinc-700">Cancel</Button>
-              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" data-testid="submit-song-btn">Submit for Approval</Button>
+              <Button type="button" variant="outline" onClick={() => { setIsSongModalOpen(false); setSongAudioFile(null); }} className="border-zinc-700">Cancel</Button>
+              <Button 
+                type="submit" 
+                className="bg-emerald-600 hover:bg-emerald-700" 
+                data-testid="submit-song-btn"
+                disabled={uploadingAudio || !songAudioFile}
+              >
+                {uploadingAudio ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Uploading...
+                  </>
+                ) : "Submit for Approval"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
