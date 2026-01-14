@@ -50,7 +50,8 @@ export const AuthContext = ({ children }) => {
 const Sidebar = ({ user, onLogout, isOpen, setIsOpen }) => {
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { path: "/revenue", icon: TrendingUp, label: "Revenue Analytics" },
+    { path: "/analytics", icon: Activity, label: "Analytics" },
+    { path: "/revenue", icon: TrendingUp, label: "Revenue" },
     { path: "/monetization", icon: Settings, label: "Monetization" },
     { path: "/layout-management", icon: Layout, label: "Layout Management" },
     { path: "/admin/choirs", icon: Mic2, label: "Choir Management" },
