@@ -523,6 +523,35 @@ async def delete_album(album_id: str):
         raise HTTPException(status_code=404, detail="Album not found")
     return {"message": "Album and songs deleted successfully"}
 
+@api_router.post("/albums/bulk-status")
+async def bulk_update_album_status(data: dict):
+    """Bulk update album status (activate/deactivate)"""
+    album_ids = data.get("album_ids", [])
+    status = data.get("status", "active")
+    
+    if not album_ids:
+        raise HTTPException(status_code=400, detail="No album IDs provided")
+    
+    result = await db.albums.update_many(
+        {"album_id": {"$in": album_ids}},
+        {"$set": {"status": status}}
+    )
+    return {"message": f"{result.modified_count} albums updated to {status}"}
+
+@api_router.post("/albums/bulk-delete")
+async def bulk_delete_albums(data: dict):
+    """Bulk delete albums and their songs"""
+    album_ids = data.get("album_ids", [])
+    
+    if not album_ids:
+        raise HTTPException(status_code=400, detail="No album IDs provided")
+    
+    # Delete all songs from these albums
+    await db.songs.delete_many({"album_id": {"$in": album_ids}})
+    # Delete the albums
+    result = await db.albums.delete_many({"album_id": {"$in": album_ids}})
+    return {"message": f"{result.deleted_count} albums deleted"}
+
 # ============== SONGS MANAGEMENT ==============
 
 @api_router.get("/songs")
