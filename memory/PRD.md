@@ -395,9 +395,27 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
   - `/app/tests/test_audio_player_improvements.py`
   - `/app/tests/test_file_upload.py`
 
-## Mobile App Testing
-To test the React Native app:
+## Mobile App Testing & Build Instructions
+
+### Development Testing
+To test the React Native app in development:
 1. Navigate to `/app/mobile/SpiritSongs`
 2. Run `npm install` (if not already done)
 3. Run `npx expo start`
 4. Press `a` to open Android emulator or scan QR code with Expo Go app
+
+### Building APK for Distribution
+To build an APK for testing on physical devices:
+1. Navigate to `/app/mobile/SpiritSongs`
+2. Login to Expo: `npx eas login`
+   - Email: `gcmgoodluck@gmail.com`
+   - Password: `Fausta@8213`
+3. Build APK: `npx eas build --platform android --profile preview`
+4. Wait for build to complete (10-15 minutes)
+5. Download the APK from the provided URL
+
+### App Version History
+- **v1.0.0**: Initial release
+- **v1.0.1**: Fixed audio player, basic UI
+- **v1.0.2**: Enhanced home screen with dynamic layouts, background playback
+- **v1.0.3**: Fixed album navigation, song playback, playlist creation, added offline downloads, profile tab
