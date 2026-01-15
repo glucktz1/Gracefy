@@ -368,6 +368,57 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - ✅ **Profile tab in bottom navigation**: Easy access to user profile and subscription
 - ✅ **Album loading optimization**: Caching for faster repeat loads
 
+### Phase 5.6 - Role-Based Access Control (January 15, 2026)
+
+**System Roles Implemented (9 roles):**
+1. **Super Admin** - Full platform control with all 22 permissions
+2. **Admin** - Platform administration and content management
+3. **Sub-Admin** - Limited administrative access (user management, choir onboarding)
+4. **Finance Admin** - Revenue configuration and payout management
+5. **Moderator** - Content moderation and layout control
+6. **Choir / Artist** - Content creation, own analytics, revenue withdrawal
+7. **Religious Leader** - Teachings, podcasts, moderation, own analytics
+8. **Listener (Free)** - Free content access only
+9. **Listener (Paid)** - Full content access with subscription
+
+**Permissions (22 total, 7 categories):**
+- Platform Administration: platform_settings, role_assignment, user_management, choir_onboarding_approval
+- Content Creation: create_albums, upload_songs, create_teachings, edit_own_content, submit_content_approval
+- Content Moderation: content_moderation, content_approval, set_content_monetization
+- Analytics & Reports: view_platform_analytics, view_own_analytics
+- Revenue & Finance: revenue_configuration, view_all_revenue_reports, view_own_revenue_reports, request_withdrawal, approve_payouts
+- Layout & Promotion: layout_promotion_control
+- Content Access: access_free_content, access_premium_content
+
+**Backend Endpoints:**
+- ✅ GET `/api/rbac/roles` - Get all system and custom roles
+- ✅ GET `/api/rbac/permissions` - Get all available permissions
+- ✅ GET `/api/rbac/role/{role_id}` - Get role details
+- ✅ POST `/api/rbac/roles` - Create custom role
+- ✅ PUT `/api/rbac/roles/{role_id}` - Update custom role
+- ✅ DELETE `/api/rbac/roles/{role_id}` - Delete custom role
+- ✅ GET `/api/rbac/users` - Get users with their role assignments
+- ✅ POST `/api/rbac/users/{user_id}/assign-role` - Assign role to user
+- ✅ POST `/api/rbac/users/{user_id}/revoke-role` - Revoke user's role
+- ✅ GET `/api/rbac/users/{user_id}/permissions` - Get user's permissions
+- ✅ GET `/api/rbac/check-permission/{user_id}/{permission}` - Check specific permission
+- ✅ GET `/api/rbac/audit-log` - Get role change audit log
+- ✅ GET `/api/rbac/stats` - Get RBAC statistics
+
+**Admin Panel - Role Management Page (`/roles`):**
+- ✅ Roles Tab: View system roles (non-editable) and custom roles (editable)
+- ✅ User Assignments Tab: Search/filter users, assign/change roles
+- ✅ Permissions Matrix Tab: Visual grid showing permissions per role
+- ✅ Audit Log Tab: Track all role changes with timestamps and actors
+- ✅ Create Custom Role Modal: Name, description, base role, color, permissions
+- ✅ Assign Role Modal: Select role, add notes for user
+
+**Data Models:**
+- `SystemRole` - Predefined roles with permissions
+- `CustomRole` - Admin-created roles
+- `UserRoleAssignment` - User-to-role mapping
+- `RoleChangeLog` - Audit trail for all role changes
+
 ## Next Tasks (Priority Order)
 1. **P1 - Build & Test New APK**: Build APK with monetization features and test on device
 2. **P1 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
