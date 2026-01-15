@@ -553,14 +553,32 @@ export default function HomeScreen({ navigation }) {
 
         {/* Dynamic sections from admin */}
         {sections.map((section, idx) => {
-          if (section.type === 'hero' || section.type === 'featured_albums') return null;
+          // Skip hero (handled above), but show other sections including quick_access with albums
+          if (section.section_type === 'hero') return null;
+          
           const items = section.items || [];
           if (items.length === 0) return null;
+          
+          // Check if items are albums (have album_id) or categories
+          const isAlbumSection = items[0] && (items[0].album_id || items[0].mix_id);
 
-          if (idx % 2 === 0) {
+          // For quick_access with categories, skip (handled by QuickAccessGrid)
+          if (section.section_type === 'quick_access' && !isAlbumSection) return null;
+
+          // Vary layout based on section position
+          if (idx % 3 === 0) {
             return (
               <HorizontalSmallTiles
-                key={section.section_id || idx}
+                key={section.section_id || `section-${idx}`}
+                title={section.title}
+                items={items}
+                onItemPress={handleAlbumPress}
+              />
+            );
+          } else if (idx % 3 === 1) {
+            return (
+              <GridSection
+                key={section.section_id || `section-${idx}`}
                 title={section.title}
                 items={items}
                 onItemPress={handleAlbumPress}
@@ -568,8 +586,8 @@ export default function HomeScreen({ navigation }) {
             );
           } else {
             return (
-              <GridSection
-                key={section.section_id || idx}
+              <LargeCardsSection
+                key={section.section_id || `section-${idx}`}
                 title={section.title}
                 items={items}
                 onItemPress={handleAlbumPress}
