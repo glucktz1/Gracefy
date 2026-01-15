@@ -2,7 +2,7 @@
   "expo": {
     "name": "Spirit Songs",
     "slug": "SpiritSongs",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -10,27 +10,26 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#121212"
+      "backgroundColor": "#0a0a1a"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.spiritsongs.app",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"],
+        "NSAppleMusicUsageDescription": "This app needs access to play music in the background."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#121212"
+        "backgroundColor": "#0a0a1a"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.spiritsongs.app",
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
@@ -47,7 +46,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "de5860e0-e37e-4d42-bf0e-b81a4b9b05d9"
+        "projectId": "e0c9a34f-60e0-e37e-4d42-bf0e-b81a4b9b05d9"
       }
     }
   }
