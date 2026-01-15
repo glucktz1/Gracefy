@@ -12,6 +12,7 @@ import MiniPlayer from '../components/MiniPlayer';
 import { COLORS } from '../config';
 
 const { width, height } = Dimensions.get('window');
+const GRID_CARD_WIDTH = (width - 48) / 2;
 
 // ============ SECTION COMPONENTS ============
 
@@ -46,20 +47,13 @@ const HeroSection = ({ item, onPress }) => {
             <Ionicons name="play" size={18} color="#000" />
             <Text style={styles.heroPlayText}>Play Now</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.heroInfoBtn}>
-            <Ionicons name="information-circle-outline" size={20} color="#fff" />
-            <Text style={styles.heroInfoText}>More Info</Text>
-          </TouchableOpacity>
         </View>
       </LinearGradient>
-      <View style={styles.heroPlaysBadge}>
-        <Text style={styles.heroPlaysText}>{item.total_plays || '2M'}</Text>
-      </View>
     </TouchableOpacity>
   );
 };
 
-// Category Filter Tabs - NOW BELOW HERO
+// Category Filter Tabs - BELOW HERO
 const FilterTabs = ({ categories, activeCategory, onSelect }) => {
   const allTabs = [
     { category_id: 'all', name: 'For you' },
@@ -87,37 +81,53 @@ const FilterTabs = ({ categories, activeCategory, onSelect }) => {
   );
 };
 
-// Quick Access Grid - 2x4 layout (Liked songs, Playlists, Admin content) - RESTORED
-const QuickAccessGrid = ({ items, onItemPress, likedSongsCount, playlistsCount, navigation }) => {
-  // Build quick access items: 2 fixed (liked, playlists) + up to 6 from admin
+// Quick Access Grid - 2 columns x 4 rows (8 items total) like Spotify
+const QuickAccessGrid = ({ items, likedSongsCount, playlistsCount, downloadsCount, navigation }) => {
+  // Build 8 quick access items
   const quickItems = [
     { 
       id: 'liked', 
       name: 'Liked Songs', 
       icon: 'heart', 
-      color: '#e91e63', 
+      gradient: ['#7c3aed', '#ec4899'],
       count: likedSongsCount,
-      isSpecial: true 
+    },
+    { 
+      id: 'downloads', 
+      name: 'Downloads', 
+      icon: 'download', 
+      gradient: ['#1e88e5', '#4fc3f7'],
+      count: downloadsCount,
     },
     { 
       id: 'playlists', 
       name: 'Your Playlists', 
       icon: 'list', 
-      color: '#4CAF50', 
+      gradient: ['#4CAF50', '#8BC34A'],
       count: playlistsCount,
-      isSpecial: true 
     },
-    ...items.slice(0, 6).map(item => ({
+    { 
+      id: 'recent', 
+      name: 'Recently Played', 
+      icon: 'time', 
+      gradient: ['#ff6b6b', '#ffa502'],
+    },
+    // Fill remaining slots with albums/categories
+    ...items.slice(0, 4).map((item, idx) => ({
       ...item,
-      id: item.album_id || item.category_id || item.id,
+      id: item.album_id || item.category_id || `item-${idx}`,
       name: item.title || item.name,
+      gradient: [
+        ['#FF9800', '#FFB74D'],
+        ['#00BCD4', '#4DD0E1'],
+        ['#9c27b0', '#e040fb'],
+        ['#795548', '#A1887F'],
+      ][idx] || ['#333', '#555'],
     }))
-  ].slice(0, 8); // Maximum 8 items (4 per row)
+  ].slice(0, 8);
 
   const handlePress = (item) => {
-    if (item.id === 'liked') {
-      navigation.navigate('Library');
-    } else if (item.id === 'playlists') {
+    if (item.id === 'liked' || item.id === 'downloads' || item.id === 'playlists' || item.id === 'recent') {
       navigation.navigate('Library');
     } else if (item.album_id) {
       navigation.navigate('Album', { albumId: item.album_id });
@@ -135,17 +145,17 @@ const QuickAccessGrid = ({ items, onItemPress, likedSongsCount, playlistsCount, 
           onPress={() => handlePress(item)}
           activeOpacity={0.8}
         >
-          <View style={[styles.quickAccessImage, item.color && { backgroundColor: item.color }]}>
-            {item.icon ? (
-              <Ionicons name={item.icon} size={20} color="#fff" />
-            ) : item.thumbnail ? (
-              <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
-            ) : (
-              <LinearGradient colors={['#333', '#111']} style={styles.quickAccessImg}>
-                <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.5)" />
-              </LinearGradient>
-            )}
-          </View>
+          {item.icon ? (
+            <LinearGradient colors={item.gradient} style={styles.quickAccessIconBox}>
+              <Ionicons name={item.icon} size={22} color="#fff" />
+            </LinearGradient>
+          ) : item.thumbnail ? (
+            <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
+          ) : (
+            <LinearGradient colors={item.gradient || ['#333', '#111']} style={styles.quickAccessIconBox}>
+              <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.7)" />
+            </LinearGradient>
+          )}
           <Text style={styles.quickAccessText} numberOfLines={2}>{item.name}</Text>
         </TouchableOpacity>
       ))}
@@ -185,7 +195,7 @@ const HorizontalSmallTiles = ({ title, items, onItemPress, onSeeAll }) => {
               )}
             </View>
             <Text style={styles.smallTileTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.smallTileSubtitle} numberOfLines={1}>{item.artist_name || '2M Plays'}</Text>
+            <Text style={styles.smallTileSubtitle} numberOfLines={1}>{item.artist_name || 'Stream now'}</Text>
           </TouchableOpacity>
         )}
       />
@@ -223,7 +233,7 @@ const VerticalListSection = ({ title, items, onItemPress, onSeeAll }) => {
             <View style={styles.verticalListInfo}>
               <Text style={styles.verticalListTitle} numberOfLines={1}>{item.title}</Text>
               <Text style={styles.verticalListSubtitle} numberOfLines={1}>
-                {item.songs_count ? `${item.songs_count} songs` : item.artist_name || '2M Plays'}
+                {item.songs_count ? `${item.songs_count} songs` : item.artist_name || 'Stream now'}
               </Text>
             </View>
             <TouchableOpacity style={styles.verticalListPlay} onPress={() => onItemPress(item)}>
@@ -272,55 +282,6 @@ const GridSection = ({ title, items, onItemPress, onSeeAll }) => {
   );
 };
 
-// List with description and rating
-const DescriptionListSection = ({ title, items, onItemPress, onSeeAll }) => {
-  if (!items || items.length === 0) return null;
-  
-  return (
-    <View style={styles.sectionContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
-      </View>
-      {items.slice(0, 3).map((item, idx) => (
-        <TouchableOpacity 
-          key={item.album_id || idx} 
-          style={styles.descListItem}
-          onPress={() => onItemPress(item)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.descListThumb}>
-            {item.thumbnail ? (
-              <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.descListImg} />
-            ) : (
-              <LinearGradient colors={['#333', '#111']} style={styles.descListImg}>
-                <Ionicons name="musical-notes" size={28} color="rgba(255,255,255,0.3)" />
-              </LinearGradient>
-            )}
-            <View style={styles.descListPlayBtn}>
-              <Ionicons name="play" size={16} color="#fff" />
-            </View>
-          </View>
-          <View style={styles.descListInfo}>
-            <Text style={styles.descListTitle} numberOfLines={1}>{item.title}</Text>
-            <View style={styles.descListMeta}>
-              <Ionicons name="play" size={12} color={COLORS.textMuted} />
-              <Text style={styles.descListPlays}>{item.total_plays || '366K'}</Text>
-            </View>
-            <Text style={styles.descListDesc} numberOfLines={2}>
-              {item.description || `${item.artist_name || 'Various Artists'} - Stream now`}
-            </Text>
-          </View>
-          <View style={styles.descListRating}>
-            <Ionicons name="star" size={14} color="#FFD700" />
-            <Text style={styles.descListRatingText}>4.5</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
-
 // Large vertical cards
 const LargeCardsSection = ({ title, items, onItemPress, onSeeAll }) => {
   if (!items || items.length === 0) return null;
@@ -353,7 +314,7 @@ const LargeCardsSection = ({ title, items, onItemPress, onSeeAll }) => {
               )}
             </View>
             <Text style={styles.largeCardTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.largeCardSubtitle} numberOfLines={1}>{item.artist_name || '2M Plays'}</Text>
+            <Text style={styles.largeCardSubtitle} numberOfLines={1}>{item.artist_name || 'Stream now'}</Text>
           </TouchableOpacity>
         )}
       />
@@ -372,6 +333,7 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [likedSongsCount, setLikedSongsCount] = useState(0);
   const [playlistsCount, setPlaylistsCount] = useState(0);
+  const [downloadsCount, setDownloadsCount] = useState(0);
   const { currentSong } = usePlayer();
   const { user, isAuthenticated } = useAuth();
 
@@ -403,6 +365,14 @@ export default function HomeScreen({ navigation }) {
           console.log('Library fetch error:', e);
         }
       }
+      
+      // Get downloads count
+      try {
+        const { getDownloadedSongs } = require('../services/downloadService');
+        const downloads = await getDownloadedSongs();
+        setDownloadsCount(downloads.length);
+      } catch (e) {}
+      
     } catch (error) {
       console.error('Error fetching home data:', error);
     } finally {
@@ -430,20 +400,14 @@ export default function HomeScreen({ navigation }) {
     );
   }, [activeCategory, allAlbums, categories]);
 
-  // FIXED: Navigate to album with proper params - ensuring album_id is always passed
+  // Navigate to album with proper params
   const handleAlbumPress = useCallback((item) => {
     console.log('Album pressed:', item?.title, 'album_id:', item?.album_id);
     
     if (item.album_id) {
       navigation.navigate('Album', { albumId: item.album_id });
-    } else if (item.id === 'liked') {
-      navigation.navigate('Library');
-    } else if (item.id === 'playlists') {
-      navigation.navigate('Library');
     } else if (item.category_id) {
       navigation.navigate('Category', { category: item });
-    } else {
-      console.warn('No valid navigation target for item:', item);
     }
   }, [navigation]);
 
@@ -471,15 +435,15 @@ export default function HomeScreen({ navigation }) {
   
   // Split albums for different layouts
   const continuePlayingItems = featuredAlbums.slice(0, 6);
-  const completedSeriesItems = allAlbums.slice(0, 8);
   const gridItems = activeCategory === 'all' ? allAlbums.slice(2, 6) : filteredItems.slice(0, 4);
-  const newReleasesItems = allAlbums.slice(4, 7);
+  const newReleasesItems = allAlbums.slice(4, 8);
   const bestsellingItems = allAlbums.slice(0, 6);
+  const popularItems = allAlbums.slice(0, 4);
 
   // Quick access items from categories and albums
   const quickAccessItems = [
-    ...categories.slice(0, 3),
-    ...featuredAlbums.slice(0, 3)
+    ...categories.slice(0, 2),
+    ...featuredAlbums.slice(0, 2)
   ];
 
   return (
@@ -527,19 +491,19 @@ export default function HomeScreen({ navigation }) {
           }}
         />
 
-        {/* Filter Tabs - BELOW HERO (as requested) */}
+        {/* Filter Tabs - BELOW HERO */}
         <FilterTabs 
           categories={categories}
           activeCategory={activeCategory}
           onSelect={setActiveCategory}
         />
 
-        {/* Quick Access Grid - 8 items (4 per row) - RESTORED */}
+        {/* Quick Access Grid - 2 columns x 4 rows (8 items) */}
         <QuickAccessGrid 
           items={quickAccessItems}
-          onItemPress={handleAlbumPress}
           likedSongsCount={likedSongsCount}
           playlistsCount={playlistsCount}
+          downloadsCount={downloadsCount}
           navigation={navigation}
         />
 
@@ -548,7 +512,6 @@ export default function HomeScreen({ navigation }) {
           title="Continue Playing"
           items={continuePlayingItems}
           onItemPress={handleAlbumPress}
-          onSeeAll={() => {}}
         />
 
         {/* Show filtered content when category selected */}
@@ -557,40 +520,35 @@ export default function HomeScreen({ navigation }) {
             title={categories.find(c => c.category_id === activeCategory)?.name || 'Results'}
             items={filteredItems}
             onItemPress={handleAlbumPress}
-            onSeeAll={() => {}}
           />
         )}
 
-        {/* Completed mini series - Vertical list */}
+        {/* Popular Albums - Vertical list */}
         <VerticalListSection
           title="Popular Albums"
-          items={completedSeriesItems}
+          items={popularItems}
           onItemPress={handleAlbumPress}
-          onSeeAll={() => {}}
         />
 
-        {/* Contemporary content - 2x2 Grid */}
+        {/* Top Picks - 2x2 Grid */}
         <GridSection
           title="Top Picks"
           items={gridItems}
           onItemPress={handleAlbumPress}
-          onSeeAll={() => {}}
         />
 
-        {/* New Releases - List with descriptions */}
-        <DescriptionListSection
+        {/* New Releases */}
+        <HorizontalSmallTiles
           title="New Releases"
           items={newReleasesItems}
           onItemPress={handleAlbumPress}
-          onSeeAll={() => {}}
         />
 
-        {/* Bestselling Stories - Large vertical cards */}
+        {/* Bestselling - Large vertical cards */}
         <LargeCardsSection
           title="Bestselling"
           items={bestsellingItems}
           onItemPress={handleAlbumPress}
-          onSeeAll={() => {}}
         />
 
         {/* Dynamic sections from admin */}
@@ -599,8 +557,7 @@ export default function HomeScreen({ navigation }) {
           const items = section.items || [];
           if (items.length === 0) return null;
 
-          // Alternate layouts
-          if (idx % 3 === 0) {
+          if (idx % 2 === 0) {
             return (
               <HorizontalSmallTiles
                 key={section.section_id || idx}
@@ -609,7 +566,7 @@ export default function HomeScreen({ navigation }) {
                 onItemPress={handleAlbumPress}
               />
             );
-          } else if (idx % 3 === 1) {
+          } else {
             return (
               <GridSection
                 key={section.section_id || idx}
@@ -618,31 +575,8 @@ export default function HomeScreen({ navigation }) {
                 onItemPress={handleAlbumPress}
               />
             );
-          } else {
-            return (
-              <LargeCardsSection
-                key={section.section_id || idx}
-                title={section.title}
-                items={items}
-                onItemPress={handleAlbumPress}
-              />
-            );
           }
         })}
-
-        {/* Subscription Banner */}
-        <TouchableOpacity style={styles.subscriptionBanner} onPress={handleProfilePress}>
-          <View style={styles.subscriptionInfo}>
-            <Text style={styles.subscriptionTitle}>Subscription</Text>
-            <View style={styles.subscriptionPlan}>
-              <Text style={styles.subscriptionPlanName}>Free Plan</Text>
-            </View>
-          </View>
-          <View style={styles.subscriptionPrice}>
-            <Text style={styles.subscriptionPriceText}>Upgrade</Text>
-            <Ionicons name="chevron-forward" size={16} color="#fff" />
-          </View>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Mini Player */}
@@ -706,7 +640,7 @@ const styles = StyleSheet.create({
   },
   // Hero Section
   heroSection: {
-    height: 240,
+    height: 220,
     marginHorizontal: 16,
     marginTop: 8,
     borderRadius: 12,
@@ -765,30 +699,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
-  heroInfoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    padding: 10,
-  },
-  heroInfoText: {
-    color: '#fff',
-    fontSize: 13,
-  },
-  heroPlaysBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#e91e63',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  heroPlaysText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 14,
-  },
   // Filter Tabs
   filterContainer: {
     paddingHorizontal: 16,
@@ -814,34 +724,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  // Quick Access Grid
+  // Quick Access Grid - 2 columns x 4 rows
   quickAccessContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 12,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   quickAccessCard: {
-    width: (width - 32) / 2,
+    width: GRID_CARD_WIDTH,
     height: 56,
     backgroundColor: '#1a1a2e',
-    borderRadius: 4,
+    borderRadius: 6,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
-    margin: 4,
+    marginRight: 8,
+    marginBottom: 8,
   },
-  quickAccessImage: {
+  quickAccessIconBox: {
     width: 56,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quickAccessImg: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 56,
+    height: 56,
   },
   quickAccessText: {
     flex: 1,
@@ -876,12 +785,12 @@ const styles = StyleSheet.create({
   },
   // Small Tiles
   smallTile: {
-    width: 110,
+    width: 120,
     marginRight: 12,
   },
   smallTileImage: {
-    width: 110,
-    height: 110,
+    width: 120,
+    height: 120,
     borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 8,
@@ -894,7 +803,7 @@ const styles = StyleSheet.create({
   },
   smallTileTitle: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   smallTileSubtitle: {
@@ -955,7 +864,7 @@ const styles = StyleSheet.create({
   },
   gridItemImage: {
     width: '100%',
-    aspectRatio: 16 / 10,
+    aspectRatio: 1,
     borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 8,
@@ -975,77 +884,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11,
     marginTop: 2,
-  },
-  // Description List
-  descListItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  descListThumb: {
-    width: 70,
-    height: 70,
-    borderRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  descListImg: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  descListPlayBtn: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -12 }, { translateY: -12 }],
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  descListInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  descListTitle: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  descListMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  descListPlays: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-  },
-  descListDesc: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  descListRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  descListRatingText: {
-    color: '#000',
-    fontSize: 12,
-    fontWeight: '700',
   },
   // Large Cards
   largeCard: {
@@ -1074,48 +912,5 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11,
     marginTop: 2,
-  },
-  // Subscription Banner
-  subscriptionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-  },
-  subscriptionInfo: {},
-  subscriptionTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  subscriptionPlan: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginTop: 6,
-  },
-  subscriptionPlanName: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  subscriptionPrice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e91e63',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 4,
-  },
-  subscriptionPriceText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
   },
 });
