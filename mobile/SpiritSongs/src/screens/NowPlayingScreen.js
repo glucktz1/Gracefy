@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, TouchableOpacity, Image, StyleSheet, Dimensions,
-  Animated, Share, ScrollView, Modal, Alert
+  Animated, Share, ScrollView, Modal, Alert, ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,9 @@ const NowPlayingScreen = ({ navigation }) => {
     shuffle, 
     repeat,
     liked,
+    isDownloaded,
+    isDownloading,
+    downloadProgress,
     togglePlay, 
     playNext, 
     playPrevious, 
@@ -35,6 +38,8 @@ const NowPlayingScreen = ({ navigation }) => {
     toggleShuffle,
     cycleRepeat,
     toggleLike,
+    shareSong,
+    downloadCurrentSong,
   } = usePlayer();
   
   const [showQueue, setShowQueue] = useState(false);
@@ -70,19 +75,28 @@ const NowPlayingScreen = ({ navigation }) => {
   });
 
   const handleShare = async () => {
-    if (!currentSong) return;
-    try {
-      await Share.share({
-        message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!\n\nDownload the app to listen now.`,
-        title: `${currentSong.title} - Spirit Songs`,
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
+    if (shareSong) {
+      shareSong();
+    } else if (currentSong) {
+      try {
+        await Share.share({
+          message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!\n\nDownload the app to listen now.`,
+          title: `${currentSong.title} - Spirit Songs`,
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
     }
   };
 
   const handleAddToPlaylist = () => {
     setShowPlaylistModal(true);
+  };
+
+  const handleDownload = () => {
+    if (downloadCurrentSong) {
+      downloadCurrentSong();
+    }
   };
 
   const formatTime = (seconds) => {
@@ -226,7 +240,7 @@ const NowPlayingScreen = ({ navigation }) => {
             disabled={isLoading}
           >
             {isLoading ? (
-              <Ionicons name="hourglass" size={32} color="#000" />
+              <ActivityIndicator size="large" color="#000" />
             ) : (
               <Ionicons 
                 name={isPlaying ? 'pause' : 'play'} 
@@ -266,9 +280,24 @@ const NowPlayingScreen = ({ navigation }) => {
             <Text style={styles.secondaryText}>Share</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryBtn}>
-            <Ionicons name="download-outline" size={28} color={COLORS.textSecondary} />
-            <Text style={styles.secondaryText}>Download</Text>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handleDownload}>
+            {isDownloading ? (
+              <>
+                <ActivityIndicator size="small" color="#e91e63" />
+                <Text style={styles.secondaryText}>{Math.round(downloadProgress * 100)}%</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons 
+                  name={isDownloaded ? 'checkmark-circle' : 'download-outline'} 
+                  size={28} 
+                  color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
+                />
+                <Text style={[styles.secondaryText, isDownloaded && { color: '#4CAF50' }]}>
+                  {isDownloaded ? 'Downloaded' : 'Download'}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -527,6 +556,7 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     alignItems: 'center',
     gap: 4,
+    minWidth: 80,
   },
   secondaryText: {
     color: COLORS.textSecondary,
