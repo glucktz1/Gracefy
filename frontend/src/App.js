@@ -31,6 +31,7 @@ import LayoutManagementPage from "@/pages/LayoutManagementPage";
 import EnhancedAnalyticsPage from "@/pages/EnhancedAnalyticsPage";
 import UserStreamingApp from "@/pages/UserStreamingApp";
 import RoleManagementPage from "@/pages/RoleManagementPage";
+import SpecialMixesPage from "@/pages/SpecialMixesPage";
 
 // Icons
 import { 
