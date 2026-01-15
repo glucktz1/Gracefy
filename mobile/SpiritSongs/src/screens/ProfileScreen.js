@@ -430,6 +430,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e91e63',
   },
+  trialBadge: {
+    backgroundColor: 'rgba(255, 152, 0, 0.2)',
+    borderWidth: 1,
+    borderColor: '#FF9800',
+  },
   membershipText: {
     color: '#fff',
     fontSize: 13,
@@ -438,11 +443,45 @@ const styles = StyleSheet.create({
   premiumText: {
     color: '#e91e63',
   },
+  trialText: {
+    color: '#FF9800',
+  },
   upgradeText: {
     color: '#e91e63',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  trialWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 152, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 152, 0, 0.3)',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+  },
+  trialWarningContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  trialWarningText: {
+    flex: 1,
+  },
+  trialWarningTitle: {
+    color: '#FF9800',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  trialWarningSubtitle: {
+    color: 'rgba(255, 152, 0, 0.8)',
+    fontSize: 12,
   },
   premiumBanner: {
     marginHorizontal: 16,
