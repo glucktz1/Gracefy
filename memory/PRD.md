@@ -454,13 +454,54 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - `UserRoleAssignment` - User-to-role mapping
 - `RoleChangeLog` - Audit trail for all role changes
 
+### Phase 5.8 - Church/Choir Enhancements & Follow System (January 15, 2026)
+
+**Church Management:**
+- ✅ Enhanced Church model with detailed fields (images, prayer schedule, location, leader info)
+- ✅ Church CRUD operations: GET, POST, PUT, DELETE
+- ✅ Church approval workflow: approve/reject with admin notes
+- ✅ Status filtering: pending, approved, rejected
+- ✅ Full church profile: GET `/api/churches/{id}/full` with announcements
+
+**Church Announcements:**
+- ✅ ChurchAnnouncement model with auto-expiry (2 weeks)
+- ✅ Announcement types: general, offering, baptism, adoration, wedding, funeral, meeting, event, other
+- ✅ CRUD operations: create, list, update, delete announcements
+- ✅ Announcements grouped by date
+
+**User Follow System:**
+- ✅ UserFollow model tracking user_id, entity_type (church/choir/artist), entity_id
+- ✅ POST `/api/user/follow` - Follow church or choir (requires auth)
+- ✅ DELETE `/api/user/unfollow` - Unfollow entity
+- ✅ GET `/api/user/following` - Get all followed entities grouped by type
+- ✅ GET `/api/user/is-following/{entity_type}/{entity_id}` - Check if following
+- ✅ followers_count auto-incremented/decremented on follow/unfollow
+- ✅ Notifications sent to followers on new content (MOCKED)
+
+**Layout Integration:**
+- ✅ Section types include 'choirs' and 'churches' for dynamic home sections
+- ✅ Content types support choirs/churches for content assignment
+
+**Admin UI - ChurchesPage (`/churches`):**
+- ✅ Churches list with status tabs (All, Pending, Approved, Rejected)
+- ✅ Church cards showing thumbnail, name, denomination, location, leader
+- ✅ Create/Edit modal with all fields: basic info, leader info, location, images, prayer schedule, contact info
+- ✅ Prayer schedule builder with day/time/service type
+- ✅ Approve/Reject actions with admin notes
+- ✅ Announcement management modal
+
+**Database Migration:**
+- ✅ Auto-migration on startup: 'followers' -> 'followers_count' for consistency
+
 ## Next Tasks (Priority Order)
-1. **P1 - Build & Test New APK**: Build APK with monetization features and test on device
-2. **P1 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
-3. **P2 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
-4. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
-5. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
-6. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
+1. **P1 - Native Mobile App - Church/Choir UI**: Implement screens to display detailed church/choir profiles, prayer schedules, announcements, location maps
+2. **P1 - Native Mobile App - Follow Button**: Implement follow/unfollow functionality in the mobile app
+3. **P1 - Build & Test New APK**: Build APK with Church/Choir features and test on device
+4. **P1 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
+5. **P2 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
+6. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
+7. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
+8. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
 
 ## Future/Backlog
 - Audio Rooms (Clubhouse-style)
