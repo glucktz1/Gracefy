@@ -719,9 +719,44 @@ export default function UserStreamingApp() {
   const [categoryAlbums, setCategoryAlbums] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [quickAccessItems, setQuickAccessItems] = useState([]);
+  const [libraryTab, setLibraryTab] = useState('playlists');
 
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
+
+  // Restore playback on page load
+  useEffect(() => {
+    const restorePlayback = async () => {
+      const saved = player.restorePlaybackState();
+      if (saved && saved.song && saved.album) {
+        // Resume from last position (within 24 hours)
+        const ageMs = Date.now() - (saved.timestamp || 0);
+        if (ageMs < 24 * 60 * 60 * 1000) {
+          try {
+            // Fetch fresh album data
+            const albumRes = await axios.get(`${API}/user/album/${saved.album.album_id}`);
+            const songs = albumRes.data.songs || [];
+            const songQueue = songs.map(s => ({ song: s, album: albumRes.data.album }));
+            const songIndex = songs.findIndex(s => s.song_id === saved.song.song_id);
+            if (songIndex >= 0) {
+              // Don't auto-play, just set up the player
+              player.playSong(saved.song, saved.album, songQueue, songIndex);
+              // Seek to saved position after a brief delay
+              setTimeout(() => {
+                player.seekTo(saved.time || 0);
+              }, 500);
+            }
+          } catch (e) {
+            console.log("Could not restore playback:", e);
+          }
+        }
+      }
+    };
+    // Only restore once data is loaded
+    if (!loading && homeData) {
+      restorePlayback();
+    }
+  }, [loading, homeData]);
 
   // Get greeting based on time
   const greeting = useMemo(() => {
