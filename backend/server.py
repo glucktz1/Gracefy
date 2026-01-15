@@ -1778,6 +1778,69 @@ async def update_feature_controls(data: dict):
     )
     return {"message": "Feature controls updated", "controls": controls}
 
+@api_router.get("/monetization/trial-settings")
+async def get_trial_settings():
+    """Get free trial settings"""
+    settings = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        return {
+            "free_trial_enabled": True,
+            "free_trial_days": 7,
+            "trial_features_description": "Full premium access during trial"
+        }
+    return {
+        "free_trial_enabled": settings.get("free_trial_enabled", True),
+        "free_trial_days": settings.get("free_trial_days", 7),
+        "trial_features_description": settings.get("trial_features_description", "Full premium access during trial")
+    }
+
+@api_router.put("/monetization/trial-settings")
+async def update_trial_settings(data: dict):
+    """Update free trial settings"""
+    update_fields = {}
+    if "free_trial_enabled" in data:
+        update_fields["free_trial_enabled"] = data["free_trial_enabled"]
+    if "free_trial_days" in data:
+        update_fields["free_trial_days"] = int(data["free_trial_days"])
+    if "trial_features_description" in data:
+        update_fields["trial_features_description"] = data["trial_features_description"]
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        # Get current settings or create new
+        current = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+        if current:
+            await db.monetization_settings.update_one(
+                {"settings_id": current["settings_id"]},
+                {"$set": update_fields}
+            )
+        else:
+            new_settings = MonetizationSettings(**update_fields).model_dump()
+            new_settings["created_at"] = new_settings["created_at"].isoformat()
+            await db.monetization_settings.insert_one(new_settings)
+    
+    return {"message": "Trial settings updated", **update_fields}
+
+@api_router.get("/monetization/trial-stats")
+async def get_trial_stats():
+    """Get trial usage statistics"""
+    # Count users with active trials
+    active_trials = await db.app_users.count_documents({"trial.status": "active"})
+    expired_trials = await db.app_users.count_documents({"trial.status": "expired"})
+    converted_trials = await db.app_users.count_documents({"trial.status": "converted"})
+    total_trial_users = active_trials + expired_trials + converted_trials
+    
+    # Calculate conversion rate
+    conversion_rate = (converted_trials / total_trial_users * 100) if total_trial_users > 0 else 0
+    
+    return {
+        "active_trials": active_trials,
+        "expired_trials": expired_trials,
+        "converted_trials": converted_trials,
+        "total_trial_users": total_trial_users,
+        "conversion_rate": round(conversion_rate, 2)
+    }
+
 @api_router.get("/user/subscription-status")
 async def get_user_subscription_status(request: Request):
     """Get user's subscription status and applicable feature controls"""
