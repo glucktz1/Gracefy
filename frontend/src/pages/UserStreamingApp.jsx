@@ -50,17 +50,109 @@ const useAudioPlayer = () => {
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
   const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState('off'); // off, all, one
+  const [repeat, setRepeat] = useState('all'); // Default to 'all' for continuous playback
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
+  const fetchingMoreRef = useRef(false);
+
+  // Save playback state to localStorage
+  const savePlaybackState = useCallback((song, album, time) => {
+    if (song && album) {
+      localStorage.setItem('lastPlayback', JSON.stringify({
+        song,
+        album,
+        time: time || 0,
+        timestamp: Date.now()
+      }));
+    }
+  }, []);
+
+  // Restore playback state from localStorage
+  const restorePlaybackState = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('lastPlayback');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return null;
+  }, []);
+
+  // Fetch more songs when queue is exhausted
+  const fetchMoreSongs = useCallback(async () => {
+    if (fetchingMoreRef.current || !currentAlbum) return [];
+    fetchingMoreRef.current = true;
+    
+    try {
+      // Try to get more songs from same category or artist
+      const categoryId = currentAlbum.category_id;
+      const artistId = currentAlbum.artist_id;
+      
+      let moreSongs = [];
+      
+      // First try same category
+      if (categoryId) {
+        const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
+        const albums = catRes.data.albums || [];
+        for (const album of albums) {
+          if (album.album_id !== currentAlbum.album_id) {
+            const albumRes = await axios.get(`${API}/user/album/${album.album_id}`);
+            const songs = albumRes.data.songs || [];
+            moreSongs.push(...songs.map(s => ({ song: s, album })));
+            if (moreSongs.length >= 10) break;
+          }
+        }
+      }
+      
+      // If not enough, try same artist
+      if (moreSongs.length < 5 && artistId) {
+        const artistAlbums = await axios.get(`${API}/albums?artist_id=${artistId}`);
+        for (const album of artistAlbums.data.albums || []) {
+          if (album.album_id !== currentAlbum.album_id) {
+            const albumRes = await axios.get(`${API}/user/album/${album.album_id}`);
+            const songs = albumRes.data.songs || [];
+            moreSongs.push(...songs.map(s => ({ song: s, album })));
+            if (moreSongs.length >= 10) break;
+          }
+        }
+      }
+      
+      // If still not enough, get trending/featured
+      if (moreSongs.length < 5) {
+        const homeRes = await axios.get(`${API}/user/home`);
+        const featuredSection = homeRes.data.sections?.find(s => s.section_type === 'featured_albums');
+        for (const album of featuredSection?.items || []) {
+          if (album.album_id !== currentAlbum.album_id) {
+            const albumRes = await axios.get(`${API}/user/album/${album.album_id}`);
+            const songs = albumRes.data.songs || [];
+            moreSongs.push(...songs.map(s => ({ song: s, album })));
+            if (moreSongs.length >= 10) break;
+          }
+        }
+      }
+      
+      fetchingMoreRef.current = false;
+      return moreSongs;
+    } catch (e) {
+      console.error("Error fetching more songs:", e);
+      fetchingMoreRef.current = false;
+      return [];
+    }
+  }, [currentAlbum]);
 
   // Initialize audio element
   useEffect(() => {
     const audio = audioRef.current;
     
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      // Save position every 5 seconds
+      if (Math.floor(audio.currentTime) % 5 === 0) {
+        savePlaybackState(currentSong, currentAlbum, audio.currentTime);
+      }
+    };
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
       setIsLoading(false);
@@ -69,6 +161,8 @@ const useAudioPlayer = () => {
     const onError = (e) => {
       console.error("Audio error:", e);
       setIsLoading(false);
+      // Auto-skip to next on error
+      handleSongEnd();
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
@@ -95,14 +189,14 @@ const useAudioPlayer = () => {
       audio.removeEventListener('canplay', onCanPlay);
       audio.pause();
     };
-  }, []);
+  }, [currentSong, currentAlbum, savePlaybackState]);
 
   // Volume control
   useEffect(() => {
     audioRef.current.volume = isMuted ? 0 : volume / 100;
   }, [volume, isMuted]);
 
-  const handleSongEnd = useCallback(() => {
+  const handleSongEnd = useCallback(async () => {
     if (repeat === 'one') {
       audioRef.current.currentTime = 0;
       audioRef.current.play();
@@ -113,17 +207,29 @@ const useAudioPlayer = () => {
       } else {
         nextIndex = queueIndex + 1;
         if (nextIndex >= queue.length) {
-          if (repeat === 'all') {
+          // Fetch more songs to continue playing
+          const moreSongs = await fetchMoreSongs();
+          if (moreSongs.length > 0) {
+            setQueue(prev => [...prev, ...moreSongs]);
+            // nextIndex stays as is since we added to the queue
+          } else if (repeat === 'all') {
             nextIndex = 0;
           } else {
-            setIsPlaying(false);
-            return;
+            // Even without repeat, loop back for continuous playback
+            nextIndex = 0;
           }
         }
       }
       playFromQueue(nextIndex);
+    } else {
+      // No queue - try to fetch songs and continue
+      const moreSongs = await fetchMoreSongs();
+      if (moreSongs.length > 0) {
+        setQueue(moreSongs);
+        playFromQueue(0);
+      }
     }
-  }, [repeat, shuffle, queue, queueIndex]);
+  }, [repeat, shuffle, queue, queueIndex, fetchMoreSongs]);
 
   const playFromQueue = useCallback(async (index) => {
     if (index < 0 || index >= queue.length) return;
