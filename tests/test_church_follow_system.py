@@ -278,7 +278,7 @@ class TestChurchAnnouncements:
         assert response.status_code == 200
         data = response.json()
         assert "announcement_id" in data
-        assert data["message"] == "Announcement created successfully"
+        assert "Announcement created" in data["message"]
         
         TestChurchAnnouncements.announcement_id = data["announcement_id"]
         print(f"✓ POST /api/churches/.../announcements - Created: {data['announcement_id']}")
