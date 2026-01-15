@@ -32,6 +32,8 @@ import EnhancedAnalyticsPage from "@/pages/EnhancedAnalyticsPage";
 import UserStreamingApp from "@/pages/UserStreamingApp";
 import RoleManagementPage from "@/pages/RoleManagementPage";
 import SpecialMixesPage from "@/pages/SpecialMixesPage";
+import ChurchLeaderLoginPage from "@/pages/ChurchLeaderLoginPage";
+import ChurchLeaderDashboard from "@/pages/ChurchLeaderDashboard";
 
 // Icons
 import { 
