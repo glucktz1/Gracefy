@@ -91,24 +91,22 @@ const SubscriptionCard = ({ plan, currentPlan, onSelect }) => {
 
 export default function ProfileScreen({ navigation }) {
   const { user, isAuthenticated, logout } = useAuth();
-  const [currentPlan, setCurrentPlan] = useState('free');
+  const { isPremium, features, subscriptionExpiry, refresh } = useSubscription();
+  const [currentPlan, setCurrentPlan] = useState(isPremium ? 'premium' : 'free');
   const [loading, setLoading] = useState(false);
 
+  // Update current plan when subscription changes
+  useEffect(() => {
+    setCurrentPlan(isPremium ? 'premium' : 'free');
+  }, [isPremium]);
+
   const handleSelectPlan = (plan) => {
-    Alert.alert(
-      'Upgrade Subscription',
-      `Would you like to upgrade to ${plan.name} for ${plan.price}${plan.period}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Upgrade', 
-          onPress: () => {
-            // In production, this would open payment flow
-            Alert.alert('Coming Soon', 'Payment integration will be available soon.');
-          }
-        },
-      ]
-    );
+    if (plan.id === 'free') return;
+    navigation.navigate('Subscription');
+  };
+
+  const handleManageSubscription = () => {
+    navigation.navigate('Subscription');
   };
 
   const handleLogout = () => {
