@@ -7,9 +7,15 @@ const DOWNLOADS_INDEX_KEY = 'downloaded_songs';
 
 // Ensure downloads directory exists
 const ensureDownloadsDir = async () => {
-  const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-  if (!dirInfo.exists) {
-    await FileSystem.makeDirectoryAsync(DOWNLOADS_DIR, { intermediates: true });
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(DOWNLOADS_DIR, { intermediates: true });
+    }
+    return true;
+  } catch (error) {
+    console.error('Error creating downloads directory:', error);
+    return false;
   }
 };
 
@@ -26,7 +32,11 @@ export const getDownloadedSongs = async () => {
 
 // Save downloaded songs index
 const saveDownloadedSongs = async (songs) => {
-  await SecureStore.setItemAsync(DOWNLOADS_INDEX_KEY, JSON.stringify(songs));
+  try {
+    await SecureStore.setItemAsync(DOWNLOADS_INDEX_KEY, JSON.stringify(songs));
+  } catch (error) {
+    console.error('Error saving downloads index:', error);
+  }
 };
 
 // Check if a song is downloaded
@@ -40,40 +50,53 @@ export const isSongDownloaded = async (songId) => {
   }
 };
 
-// Download a song
+// Download a song - Using callback-based download
 export const downloadSong = async (song, album, onProgress) => {
   try {
-    await ensureDownloadsDir();
+    const dirReady = await ensureDownloadsDir();
+    if (!dirReady) {
+      throw new Error('Could not create downloads directory');
+    }
     
     const audioUrl = getAudioUrl(song.audio_url);
     if (!audioUrl) {
-      throw new Error('No audio URL available');
+      throw new Error('No audio URL available for this song');
     }
     
+    console.log('Starting download from:', audioUrl);
+    
     const downloadPath = `${DOWNLOADS_DIR}${song.song_id}.mp3`;
+    
+    // Use callback-based download with progress
+    const callback = (downloadProgress) => {
+      if (downloadProgress.totalBytesExpectedToWrite > 0) {
+        const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+        if (onProgress) {
+          onProgress(progress);
+        }
+      }
+    };
     
     // Create download resumable
     const downloadResumable = FileSystem.createDownloadResumable(
       audioUrl,
       downloadPath,
       {},
-      (downloadProgress) => {
-        const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-        if (onProgress) {
-          onProgress(progress);
-        }
-      }
+      callback
     );
     
+    // Start download
     const result = await downloadResumable.downloadAsync();
     
-    if (result?.uri) {
+    if (result && result.uri) {
+      console.log('Download complete:', result.uri);
+      
       // Update downloads index
       const downloads = await getDownloadedSongs();
       const songData = {
         song_id: song.song_id,
         title: song.title,
-        artist_name: song.artist_name || album?.artist_name,
+        artist_name: song.artist_name || album?.artist_name || 'Unknown Artist',
         duration: song.duration,
         thumbnail: song.thumbnail || album?.thumbnail,
         album_id: album?.album_id,
@@ -82,7 +105,7 @@ export const downloadSong = async (song, album, onProgress) => {
         local_path: downloadPath,
       };
       
-      // Remove existing entry if any
+      // Remove existing entry if any, then add new
       const filtered = downloads.filter(d => d.song_id !== song.song_id);
       filtered.push(songData);
       await saveDownloadedSongs(filtered);
@@ -90,7 +113,7 @@ export const downloadSong = async (song, album, onProgress) => {
       return { success: true, path: downloadPath };
     }
     
-    throw new Error('Download failed');
+    throw new Error('Download failed - no result');
   } catch (error) {
     console.error('Error downloading song:', error);
     throw error;
@@ -104,7 +127,7 @@ export const removeDownload = async (songId) => {
     const fileInfo = await FileSystem.getInfoAsync(downloadPath);
     
     if (fileInfo.exists) {
-      await FileSystem.deleteAsync(downloadPath);
+      await FileSystem.deleteAsync(downloadPath, { idempotent: true });
     }
     
     // Update downloads index
@@ -121,9 +144,13 @@ export const removeDownload = async (songId) => {
 
 // Get local path for a downloaded song
 export const getLocalSongPath = async (songId) => {
-  const downloadPath = `${DOWNLOADS_DIR}${songId}.mp3`;
-  const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-  return fileInfo.exists ? downloadPath : null;
+  try {
+    const downloadPath = `${DOWNLOADS_DIR}${songId}.mp3`;
+    const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+    return fileInfo.exists ? downloadPath : null;
+  } catch (error) {
+    return null;
+  }
 };
 
 // Get total download size
@@ -136,8 +163,14 @@ export const getDownloadsSize = async () => {
     let totalSize = 0;
     
     for (const file of files) {
-      const fileInfo = await FileSystem.getInfoAsync(`${DOWNLOADS_DIR}${file}`);
-      totalSize += fileInfo.size || 0;
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(`${DOWNLOADS_DIR}${file}`);
+        if (fileInfo.size) {
+          totalSize += fileInfo.size;
+        }
+      } catch (e) {
+        // Skip files that can't be read
+      }
     }
     
     return totalSize;
