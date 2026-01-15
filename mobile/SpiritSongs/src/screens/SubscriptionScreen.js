@@ -191,28 +191,48 @@ export default function SubscriptionScreen({ navigation, route }) {
           </LinearGradient>
 
           {/* Current Status */}
-          <View style={styles.statusCard}>
-            <View style={styles.statusIcon}>
+          <View style={[styles.statusCard, isTrial && styles.trialStatusCard]}>
+            <View style={[styles.statusIcon, isTrial && styles.trialStatusIcon]}>
               <Ionicons 
-                name={isPremium ? 'checkmark-circle' : 'alert-circle'} 
+                name={isTrial ? 'time-outline' : (isPremium ? 'checkmark-circle' : 'alert-circle')} 
                 size={24} 
-                color={isPremium ? '#4CAF50' : '#FF9800'} 
+                color={isTrial ? '#FF9800' : (isPremium ? '#4CAF50' : '#FF9800')} 
               />
             </View>
             <View style={styles.statusInfo}>
               <Text style={styles.statusTitle}>
-                {isPremium ? 'Premium Active' : 'Free Account'}
+                {isTrial 
+                  ? `Free Trial - ${getTrialDaysRemaining()} day${getTrialDaysRemaining() !== 1 ? 's' : ''} left`
+                  : (isPremium ? 'Premium Active' : 'Free Account')
+                }
               </Text>
               <Text style={styles.statusDesc}>
-                {isPremium 
-                  ? 'You have full access to all features' 
-                  : 'Upgrade to unlock all premium features'}
+                {isTrial 
+                  ? 'Enjoying all premium features. Subscribe before trial ends!'
+                  : (isPremium 
+                      ? 'You have full access to all features' 
+                      : 'Upgrade to unlock all premium features')
+                }
               </Text>
             </View>
           </View>
 
+          {/* Trial Countdown Banner */}
+          {isTrial && (
+            <View style={styles.trialBanner}>
+              <View style={styles.trialBannerLeft}>
+                <Text style={styles.trialBannerDays}>{getTrialDaysRemaining()}</Text>
+                <Text style={styles.trialBannerLabel}>days left</Text>
+              </View>
+              <View style={styles.trialBannerRight}>
+                <Text style={styles.trialBannerTitle}>Don't lose your premium access!</Text>
+                <Text style={styles.trialBannerDesc}>Subscribe now to continue enjoying all features</Text>
+              </View>
+            </View>
+          )}
+
           {/* Subscription Plans */}
-          {!isPremium && (
+          {(!isPremium || isTrial) && (
             <View style={styles.plansSection}>
               <Text style={styles.sectionTitle}>Choose a Plan</Text>
               
