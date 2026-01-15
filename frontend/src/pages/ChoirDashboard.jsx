@@ -101,14 +101,15 @@ export default function ChoirDashboard() {
     try {
       const headers = { Authorization: `Bearer ${sessionToken}` };
       
-      const [profileRes, revenueRes, withdrawalsRes, paymentRes, contentRes, albumsRes, catRes] = await Promise.all([
+      const [profileRes, revenueRes, withdrawalsRes, paymentRes, contentRes, albumsRes, catRes, editReqRes] = await Promise.all([
         axios.get(`${API}/choir/me`, { headers, withCredentials: true }),
         axios.get(`${API}/choir/revenue/${choirId}`, { headers, withCredentials: true }),
         axios.get(`${API}/withdrawal/my-requests`, { headers, withCredentials: true }),
         axios.get(`${API}/choir/payment-details`, { headers, withCredentials: true }),
         axios.get(`${API}/choir/my-content-requests`, { headers, withCredentials: true }),
         axios.get(`${API}/choir/my-albums`, { headers, withCredentials: true }),
-        axios.get(`${API}/categories`, { headers, withCredentials: true })
+        axios.get(`${API}/categories`, { headers, withCredentials: true }),
+        axios.get(`${API}/choir/my-edit-requests`, { headers, withCredentials: true }).catch(() => ({ data: { requests: [] } }))
       ]);
       
       setProfile(profileRes.data);
@@ -118,6 +119,7 @@ export default function ChoirDashboard() {
       setContentRequests(contentRes.data.requests || []);
       setMyAlbums(albumsRes.data.albums || []);
       setCategories(catRes.data.categories || []);
+      setMyEditRequests(editReqRes.data.requests || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       if (error.response?.status === 401) {
