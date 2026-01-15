@@ -317,6 +317,64 @@ export default function ChoirDashboard() {
     }
   };
 
+  // Open edit album modal
+  const openEditAlbumModal = (album) => {
+    setEditingAlbum(album);
+    setEditAlbumForm({
+      title: album.title || "",
+      description: album.description || "",
+      category_id: album.category_id || ""
+    });
+    setIsEditAlbumModalOpen(true);
+  };
+
+  // Open edit song modal
+  const openEditSongModal = (song, album) => {
+    setEditingSong({ ...song, album_title: album?.title });
+    setEditSongForm({
+      title: song.title || "",
+      duration_formatted: song.duration_formatted || "",
+      lyrics: song.lyrics || ""
+    });
+    setIsEditSongModalOpen(true);
+  };
+
+  // Submit album edit request
+  const handleSubmitAlbumEdit = async (e) => {
+    e.preventDefault();
+    try {
+      const headers = { Authorization: `Bearer ${sessionToken}` };
+      await axios.post(`${API}/choir/albums/${editingAlbum.album_id}/edit-request`, editAlbumForm, {
+        headers,
+        withCredentials: true
+      });
+      toast.success("Album edit request submitted for approval");
+      setIsEditAlbumModalOpen(false);
+      setEditingAlbum(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to submit edit request");
+    }
+  };
+
+  // Submit song edit request
+  const handleSubmitSongEdit = async (e) => {
+    e.preventDefault();
+    try {
+      const headers = { Authorization: `Bearer ${sessionToken}` };
+      await axios.post(`${API}/choir/songs/${editingSong.song_id}/edit-request`, editSongForm, {
+        headers,
+        withCredentials: true
+      });
+      toast.success("Song edit request submitted for approval");
+      setIsEditSongModalOpen(false);
+      setEditingSong(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to submit edit request");
+    }
+  };
+
   const getStatusBadge = (status) => {
     const styles = {
       pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
