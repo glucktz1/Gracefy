@@ -702,13 +702,61 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   queueList: {
-    flex: 1,
+705|    flex: 1,
+706|  },
+707|  queueEmpty: {
+708|    color: COLORS.textMuted,
+709|    fontSize: 14,
+710|    textAlign: 'center',
+711|    padding: 32,
+712|  },
+  lockBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
   },
-  queueEmpty: {
+  skipCountBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF9800',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  skipCountText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  skipInfoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  skipInfoText: {
     color: COLORS.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    padding: 32,
+    fontSize: 12,
+  },
+  upgradeLink: {
+    color: '#e91e63',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  secondaryIconWrapper: {
+    position: 'relative',
+  },
+  featureLock: {
+    position: 'absolute',
+    bottom: -2,
+    right: -4,
   },
 });
 
