@@ -207,6 +207,7 @@ const AuthCallback = () => {
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
@@ -216,7 +217,7 @@ const ProtectedRoute = ({ children }) => {
     // If user data passed from AuthCallback, use it
     if (location.state?.user) {
       setUser(location.state.user);
-      setLoading(false);
+      fetchUserPermissions(location.state.user);
       return;
     }
 
@@ -224,6 +225,7 @@ const ProtectedRoute = ({ children }) => {
       try {
         const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
         setUser(response.data);
+        await fetchUserPermissions(response.data);
       } catch (error) {
         navigate("/login", { replace: true });
       } finally {
@@ -233,6 +235,36 @@ const ProtectedRoute = ({ children }) => {
 
     checkAuth();
   }, [navigate, location.state]);
+
+  const fetchUserPermissions = async (userData) => {
+    try {
+      // For admin users, get their role-based permissions
+      const userId = userData?.admin_id || userData?.email;
+      if (userId) {
+        const response = await axios.get(`${API}/rbac/users/${userId}/permissions`, { withCredentials: true });
+        setUserPermissions(response.data.permissions || []);
+      } else {
+        // Default to all permissions for backward compatibility with existing admin users
+        setUserPermissions([
+          "platform_settings", "role_assignment", "user_management", "choir_onboarding_approval",
+          "create_albums", "upload_songs", "content_moderation", "content_approval", "set_content_monetization",
+          "view_platform_analytics", "revenue_configuration", "view_all_revenue_reports",
+          "approve_payouts", "layout_promotion_control", "access_free_content", "access_premium_content"
+        ]);
+      }
+    } catch (error) {
+      console.log("Error fetching permissions, using defaults");
+      // Default to all permissions for existing admin users
+      setUserPermissions([
+        "platform_settings", "role_assignment", "user_management", "choir_onboarding_approval",
+        "create_albums", "upload_songs", "content_moderation", "content_approval", "set_content_monetization",
+        "view_platform_analytics", "revenue_configuration", "view_all_revenue_reports",
+        "approve_payouts", "layout_promotion_control", "access_free_content", "access_premium_content"
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -253,7 +285,7 @@ const ProtectedRoute = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Sidebar user={user} onLogout={handleLogout} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <Sidebar user={user} userPermissions={userPermissions} onLogout={handleLogout} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800 z-30 flex items-center px-4">
