@@ -63,6 +63,9 @@ export default function UsersPage() {
   const [userDetails, setUserDetails] = useState(null);
   const [activeDetailTab, setActiveDetailTab] = useState("profile");
   
+  // Stats
+  const [stats, setStats] = useState(null);
+  
   // Filters
   const [membershipFilter, setMembershipFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
