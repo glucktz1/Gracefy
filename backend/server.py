@@ -7104,6 +7104,247 @@ async def log_role_change(
     log_doc["created_at"] = log_doc["created_at"].isoformat()
     await db.role_change_logs.insert_one(log_doc)
 
+# ============== SUPABASE HIGH-PERFORMANCE STREAMING ==============
+
+# Import Supabase service
+try:
+    from supabase_service import (
+        get_track_service, get_storage_service, get_supabase_client,
+        SCHEMA_SQL, SupabaseTrackService, SupabaseStorageService
+    )
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    logger.warning("Supabase service not available")
+
+@api_router.get("/supabase/status")
+async def get_supabase_status():
+    """Check Supabase connection status"""
+    if not SUPABASE_AVAILABLE:
+        return {"status": "unavailable", "message": "Supabase service not configured"}
+    
+    try:
+        client = get_supabase_client()
+        # Test connection by querying tracks
+        result = client.table("tracks").select("count", count="exact").limit(1).execute()
+        return {
+            "status": "connected",
+            "track_count": result.count if result.count else 0,
+            "message": "Supabase connected successfully"
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@api_router.get("/supabase/schema")
+async def get_supabase_schema():
+    """Get the SQL schema for Supabase setup"""
+    return {
+        "schema_sql": SCHEMA_SQL if SUPABASE_AVAILABLE else None,
+        "instructions": "Run this SQL in your Supabase SQL Editor to set up the schema"
+    }
+
+@api_router.post("/supabase/sync/artists")
+async def sync_artists_to_supabase():
+    """Sync all artists from MongoDB to Supabase"""
+    if not SUPABASE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Supabase not available")
+    
+    try:
+        track_service = get_track_service()
+        artists = await db.singers.find({}, {"_id": 0}).to_list(1000)
+        
+        synced = 0
+        for artist in artists:
+            result = await track_service.sync_artist_from_mongodb(artist)
+            if result:
+                synced += 1
+        
+        return {"synced": synced, "total": len(artists)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/supabase/sync/albums")
+async def sync_albums_to_supabase():
+    """Sync all albums from MongoDB to Supabase"""
+    if not SUPABASE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Supabase not available")
+    
+    try:
+        track_service = get_track_service()
+        albums = await db.albums.find({}, {"_id": 0}).to_list(1000)
+        
+        synced = 0
+        for album in albums:
+            result = await track_service.sync_album_from_mongodb(album)
+            if result:
+                synced += 1
+        
+        return {"synced": synced, "total": len(albums)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/supabase/sync/tracks")
+async def sync_tracks_to_supabase():
+    """Sync all tracks from MongoDB to Supabase"""
+    if not SUPABASE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Supabase not available")
+    
+    try:
+        track_service = get_track_service()
+        songs = await db.songs.find({}, {"_id": 0}).to_list(5000)
+        
+        synced = 0
+        for song in songs:
+            # Get album and artist info
+            album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0}) if song.get("album_id") else None
+            artist_id = song.get("artist_id") or song.get("singer_id") or (album.get("artist_id") if album else None)
+            artist = await db.singers.find_one({"singer_id": artist_id}, {"_id": 0}) if artist_id else None
+            
+            result = await track_service.sync_track_from_mongodb(song, album, artist)
+            if result:
+                synced += 1
+        
+        return {"synced": synced, "total": len(songs)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/supabase/search")
+async def supabase_search_tracks(q: str, limit: int = 20):
+    """Fast full-text search using Supabase Postgres"""
+    if not SUPABASE_AVAILABLE:
+        # Fallback to MongoDB search
+        return await search_content(q)
+    
+    try:
+        track_service = get_track_service()
+        results = track_service.search_tracks(q, limit)
+        return {"results": results, "source": "supabase"}
+    except Exception as e:
+        logger.error(f"Supabase search error: {e}")
+        # Fallback to MongoDB
+        return await search_content(q)
+
+@api_router.get("/supabase/tracks/{album_id}")
+async def get_album_tracks_supabase(album_id: str):
+    """Get tracks for an album from Supabase (optimized)"""
+    if not SUPABASE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Supabase not available")
+    
+    try:
+        track_service = get_track_service()
+        tracks = track_service.get_tracks_by_album(album_id)
+        return {"tracks": tracks}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/supabase/stream/{song_id}")
+async def get_streaming_info(song_id: str):
+    """Get optimized streaming URL with byte-range headers"""
+    if not SUPABASE_AVAILABLE:
+        # Fallback to MongoDB streaming
+        song = await db.songs.find_one({"song_id": song_id}, {"_id": 0})
+        if not song:
+            raise HTTPException(status_code=404, detail="Song not found")
+        return {
+            "url": song.get("audio_url"),
+            "streaming_config": {
+                "min_buffer_seconds": 2,
+                "max_buffer_seconds": 30,
+                "bitrate": 128000,
+                "format": "mp3"
+            }
+        }
+    
+    try:
+        client = get_supabase_client()
+        result = client.table("tracks").select("audio_url, audio_file_path").eq("song_id", song_id).single().execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Track not found")
+        
+        track = result.data
+        audio_url = track.get("audio_file_path") or track.get("audio_url")
+        
+        # If it's a Supabase Storage path, get CDN URL
+        if audio_url and not audio_url.startswith("http"):
+            storage = get_storage_service()
+            audio_url = storage.get_public_url(audio_url)
+        
+        return {
+            "url": audio_url,
+            "headers": {
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "public, max-age=31536000",
+                "Content-Type": "audio/mp4"
+            },
+            "streaming_config": {
+                "min_buffer_seconds": 2,
+                "max_buffer_seconds": 30,
+                "bitrate": 128000,
+                "format": "aac"
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/supabase/upload-audio")
+async def upload_audio_to_supabase(file: UploadFile = File(...)):
+    """Upload audio file to Supabase Storage with CDN caching"""
+    if not SUPABASE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Supabase not available")
+    
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("audio"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+    
+    # Read file content
+    content = await file.read()
+    
+    # Check file size (max 50MB)
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 50MB")
+    
+    try:
+        storage = get_storage_service()
+        result = storage.upload_audio_file(
+            file_path=file.filename,
+            file_data=content,
+            content_type="audio/mp4"  # AAC format
+        )
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="Upload failed")
+        
+        return {
+            "file_path": result["path"],
+            "public_url": result["public_url"],
+            "size": result["size"],
+            "streaming_url": f"/api/supabase/stream-file/{result['path']}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/supabase/track/stream-count/{song_id}")
+async def increment_stream_count(song_id: str):
+    """Increment stream count for analytics"""
+    if not SUPABASE_AVAILABLE:
+        # Fallback to MongoDB
+        await db.songs.update_one(
+            {"song_id": song_id},
+            {"$inc": {"stream_count": 1}}
+        )
+        return {"message": "Stream count updated"}
+    
+    try:
+        track_service = get_track_service()
+        track_service.increment_stream_count(song_id)
+        return {"message": "Stream count updated"}
+    except Exception as e:
+        logger.error(f"Error updating stream count: {e}")
+        return {"message": "Stream count update attempted"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
