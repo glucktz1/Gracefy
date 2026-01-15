@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
 import { API_URL } from '../config';
@@ -6,6 +6,12 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 const SubscriptionContext = createContext(null);
+
+// Navigation ref for global navigation
+let navigationRef = null;
+export const setNavigationRef = (ref) => {
+  navigationRef = ref;
+};
 
 // Default feature restrictions for free users
 const DEFAULT_FREE_FEATURES = {
@@ -40,6 +46,20 @@ const DEFAULT_PREMIUM_FEATURES = {
   audio_quality: 'high',
   background_play: 'full',
   offline_mode: true,
+};
+
+// Feature display names for user-friendly messages
+const FEATURE_NAMES = {
+  download: 'Download songs for offline listening',
+  create_playlist: 'Create custom playlists',
+  select_song: 'Choose specific songs to play',
+  shuffle_control: 'Control shuffle mode',
+  premium_content: 'Access premium content',
+  skip: 'Unlimited song skips',
+  full_playback: 'Listen to full songs',
+  background_play: 'Background playback',
+  offline: 'Offline listening',
+  high_quality: 'High quality audio',
 };
 
 export const SubscriptionProvider = ({ children }) => {
