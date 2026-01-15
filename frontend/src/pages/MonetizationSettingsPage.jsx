@@ -97,9 +97,12 @@ export default function MonetizationSettingsPage() {
   const [plans, setPlans] = useState([]);
   const [rateHistory, setRateHistory] = useState([]);
   const [featureControls, setFeatureControls] = useState(DEFAULT_FEATURE_CONTROLS);
+  const [trialSettings, setTrialSettings] = useState({ free_trial_enabled: true, free_trial_days: 7 });
+  const [trialStats, setTrialStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
+  const [savingTrial, setSavingTrial] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -109,16 +112,20 @@ export default function MonetizationSettingsPage() {
 
   const fetchData = async () => {
     try {
-      const [settingsRes, plansRes, historyRes, featuresRes] = await Promise.all([
+      const [settingsRes, plansRes, historyRes, featuresRes, trialRes, trialStatsRes] = await Promise.all([
         axios.get(`${API}/monetization/settings`, { withCredentials: true }),
         axios.get(`${API}/monetization/plans`, { withCredentials: true }),
         axios.get(`${API}/monetization/rate-history`, { withCredentials: true }),
-        axios.get(`${API}/monetization/feature-controls`, { withCredentials: true })
+        axios.get(`${API}/monetization/feature-controls`, { withCredentials: true }),
+        axios.get(`${API}/monetization/trial-settings`, { withCredentials: true }),
+        axios.get(`${API}/monetization/trial-stats`, { withCredentials: true })
       ]);
       setSettings(settingsRes.data);
       setPlans(plansRes.data.plans || []);
       setRateHistory(historyRes.data.history || []);
       setFeatureControls(featuresRes.data.controls || DEFAULT_FEATURE_CONTROLS);
+      setTrialSettings(trialRes.data);
+      setTrialStats(trialStatsRes.data);
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast.error("Failed to load settings");
@@ -130,6 +137,18 @@ export default function MonetizationSettingsPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleSaveTrialSettings = async () => {
+    setSavingTrial(true);
+    try {
+      await axios.put(`${API}/monetization/trial-settings`, trialSettings, { withCredentials: true });
+      toast.success("Trial settings saved successfully");
+    } catch (error) {
+      toast.error("Failed to save trial settings");
+    } finally {
+      setSavingTrial(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
