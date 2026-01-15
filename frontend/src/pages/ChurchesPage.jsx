@@ -994,6 +994,77 @@ export default function ChurchesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Church Leader Account Modal */}
+      <Dialog open={isLeaderAccountModalOpen} onOpenChange={setIsLeaderAccountModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Key size={18} className="text-violet-400" />
+              Create Church Leader Account
+            </DialogTitle>
+            <DialogDescription>
+              Create a login account for the leader of {leaderAccountForm.church_name}. They can then manage announcements from their dashboard.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateLeaderAccount}>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Leader Name *</label>
+                <Input
+                  value={leaderAccountForm.name}
+                  onChange={(e) => setLeaderAccountForm({ ...leaderAccountForm, name: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                  placeholder="Fr. John Doe"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Email *</label>
+                <Input
+                  type="email"
+                  value={leaderAccountForm.email}
+                  onChange={(e) => setLeaderAccountForm({ ...leaderAccountForm, email: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                  placeholder="leader@email.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Phone</label>
+                <Input
+                  value={leaderAccountForm.phone}
+                  onChange={(e) => setLeaderAccountForm({ ...leaderAccountForm, phone: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                  placeholder="+255..."
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Password *</label>
+                <Input
+                  type="password"
+                  value={leaderAccountForm.password}
+                  onChange={(e) => setLeaderAccountForm({ ...leaderAccountForm, password: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                  placeholder="Create a password"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsLeaderAccountModalOpen(false)} className="border-zinc-700 text-zinc-300">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-700">
+                Create Account
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
