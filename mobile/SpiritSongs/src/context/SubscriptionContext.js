@@ -69,6 +69,13 @@ export const SubscriptionProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [skipsUsed, setSkipsUsed] = useState(0);
   const [lastSkipReset, setLastSkipReset] = useState(Date.now());
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState(null);
+  const upgradeCallbackRef = useRef(null);
+
+  // Set the callback for navigating to upgrade screen
+  const setUpgradeCallback = useCallback((callback) => {
+    upgradeCallbackRef.current = callback;
+  }, []);
 
   // Fetch subscription status and features
   const fetchSubscriptionStatus = useCallback(async () => {
@@ -81,6 +88,7 @@ export const SubscriptionProvider = ({ children }) => {
       
       setIsPremium(data.is_premium || false);
       setFeatures(data.features || (data.is_premium ? DEFAULT_PREMIUM_FEATURES : DEFAULT_FREE_FEATURES));
+      setSubscriptionExpiry(data.subscription_expiry || null);
       
     } catch (error) {
       console.log('Error fetching subscription status:', error.message);
@@ -152,27 +160,50 @@ export const SubscriptionProvider = ({ children }) => {
     return Math.max(0, features.skips_per_hour - skipsUsed);
   };
 
-  // Show upgrade prompt
-  const showUpgradePrompt = (feature) => {
-    const featureNames = {
-      download: 'Download songs for offline listening',
-      create_playlist: 'Create custom playlists',
-      select_song: 'Choose specific songs',
-      shuffle_control: 'Control shuffle mode',
-      premium_content: 'Access premium content',
-      skip: 'Unlimited song skips',
-    };
+  // Show upgrade prompt with navigation to subscription screen
+  const showUpgradePrompt = (feature, onUpgrade) => {
+    const featureName = FEATURE_NAMES[feature] || 'This feature';
 
     Alert.alert(
-      'Upgrade to Premium',
-      `${featureNames[feature] || 'This feature'} is only available for premium subscribers.`,
+      'Premium Feature',
+      `${featureName} is only available for premium subscribers.\n\nUpgrade now to unlock this and all other premium features!`,
       [
         { text: 'Maybe Later', style: 'cancel' },
-        { text: 'Upgrade Now', onPress: () => {
-          // Navigate to subscription page - this will be handled by the calling component
-        }},
+        { 
+          text: 'Upgrade Now', 
+          onPress: () => {
+            // Use provided callback or stored callback
+            if (onUpgrade) {
+              onUpgrade(feature);
+            } else if (upgradeCallbackRef.current) {
+              upgradeCallbackRef.current(feature);
+            }
+          },
+          style: 'default'
+        },
       ]
     );
+  };
+
+  // Check if premium content access is needed
+  const isPremiumContent = (content) => {
+    if (!content) return false;
+    return content.monetization_type === 'premium' || content.is_premium === true;
+  };
+
+  // Check playback mode for free users
+  const getPlaybackMode = () => {
+    return features.play_songs || 'preview';
+  };
+
+  // Get preview duration in seconds
+  const getPreviewDurationSeconds = () => {
+    return features.preview_duration_seconds || 30;
+  };
+
+  // Check if shuffle is forced (free users)
+  const isShuffleForced = () => {
+    return features.album_playback === 'shuffle_only';
   };
 
   // Get preview duration for free users
