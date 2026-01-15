@@ -761,6 +761,7 @@ export default function UserStreamingApp() {
     if (!loading && homeData) {
       restorePlayback();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, homeData]);
 
   // Get greeting based on time
