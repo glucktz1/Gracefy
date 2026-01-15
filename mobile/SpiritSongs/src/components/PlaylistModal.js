@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, TouchableOpacity, Modal, TextInput, 
-  StyleSheet, FlatList, ActivityIndicator, Alert, Keyboard
+  StyleSheet, FlatList, ActivityIndicator, Alert, Keyboard, Dimensions
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { libraryService } from '../services/api';
 import { COLORS } from '../config';
 
+const { width } = Dimensions.get('window');
+
 const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreateInput, setShowCreateInput] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creating, setCreating] = useState(false);
   const [addingTo, setAddingTo] = useState(null);
@@ -18,7 +21,7 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
   useEffect(() => {
     if (visible) {
       fetchPlaylists();
-      setShowCreate(false);
+      setShowCreateInput(false);
       setNewPlaylistName('');
     }
   }, [visible]);
@@ -30,7 +33,6 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
       setPlaylists(data.playlists || []);
     } catch (error) {
       console.error('Error fetching playlists:', error);
-      // Show empty state instead of error
       setPlaylists([]);
     } finally {
       setLoading(false);
@@ -46,7 +48,7 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
     setAddingTo(playlistId);
     try {
       await libraryService.addToPlaylist(playlistId, song.song_id);
-      Alert.alert('Success', `Added "${song.title}" to playlist`);
+      Alert.alert('Added!', `"${song.title}" added to playlist`);
       onClose();
     } catch (error) {
       console.error('Error adding to playlist:', error);
@@ -67,33 +69,28 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
     setCreating(true);
     
     try {
-      console.log('Creating playlist:', trimmedName);
       const result = await libraryService.createPlaylist(trimmedName);
-      console.log('Playlist created:', result);
       
       // If we have a song, add it to the new playlist
       if (song?.song_id && result?.playlist?.playlist_id) {
         try {
           await libraryService.addToPlaylist(result.playlist.playlist_id, song.song_id);
-          Alert.alert('Success', `Created playlist "${trimmedName}" and added "${song.title}"`);
+          Alert.alert('Success!', `Created "${trimmedName}" and added "${song.title}"`);
         } catch (addError) {
-          console.error('Error adding song to new playlist:', addError);
           Alert.alert('Playlist Created', `Created "${trimmedName}" but couldn't add the song.`);
         }
       } else {
-        Alert.alert('Success', `Created playlist "${trimmedName}"`);
+        Alert.alert('Success!', `Created playlist "${trimmedName}"`);
       }
       
       setNewPlaylistName('');
-      setShowCreate(false);
+      setShowCreateInput(false);
       
       if (onPlaylistCreated) {
         onPlaylistCreated(result.playlist);
       }
       
-      // Refresh playlists
       fetchPlaylists();
-      
       onClose();
     } catch (error) {
       console.error('Error creating playlist:', error);
@@ -103,10 +100,142 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
     }
   };
 
-  const handleCancelCreate = () => {
-    setShowCreate(false);
-    setNewPlaylistName('');
-    Keyboard.dismiss();
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loaderText}>Loading playlists...</Text>
+        </View>
+      );
+    }
+
+    // Show create input form
+    if (showCreateInput) {
+      return (
+        <View style={styles.createSection}>
+          <Text style={styles.createTitle}>Create New Playlist</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter playlist name"
+            placeholderTextColor={COLORS.textMuted}
+            value={newPlaylistName}
+            onChangeText={setNewPlaylistName}
+            autoFocus
+            maxLength={50}
+            returnKeyType="done"
+            onSubmitEditing={handleCreatePlaylist}
+          />
+          <View style={styles.createButtons}>
+            <TouchableOpacity 
+              style={styles.cancelBtn}
+              onPress={() => {
+                setShowCreateInput(false);
+                setNewPlaylistName('');
+                Keyboard.dismiss();
+              }}
+              disabled={creating}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.confirmBtn, !newPlaylistName.trim() && styles.disabledBtn]}
+              onPress={handleCreatePlaylist}
+              disabled={!newPlaylistName.trim() || creating}
+            >
+              {creating ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <Text style={styles.confirmBtnText}>Create & Add</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    // No playlists - show create option prominently
+    if (playlists.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconContainer}>
+            <LinearGradient colors={['#e91e63', '#9c27b0']} style={styles.emptyIcon}>
+              <Ionicons name="musical-notes" size={40} color="#fff" />
+            </LinearGradient>
+          </View>
+          <Text style={styles.emptyTitle}>No Playlists Yet</Text>
+          <Text style={styles.emptySubtitle}>Create your first playlist to organize your music</Text>
+          <TouchableOpacity 
+            style={styles.createFirstBtn}
+            onPress={() => setShowCreateInput(true)}
+          >
+            <Ionicons name="add" size={20} color="#000" />
+            <Text style={styles.createFirstBtnText}>Create Playlist</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Has playlists - show list with create option at top
+    return (
+      <View style={styles.playlistsContainer}>
+        {/* Create New Playlist Option - Always at top */}
+        <TouchableOpacity 
+          style={styles.createNewOption}
+          onPress={() => setShowCreateInput(true)}
+        >
+          <View style={styles.createNewIcon}>
+            <Ionicons name="add" size={28} color="#fff" />
+          </View>
+          <View style={styles.createNewInfo}>
+            <Text style={styles.createNewText}>Create New Playlist</Text>
+            <Text style={styles.createNewSubtext}>Add "{song?.title}" to a new playlist</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+        
+        <Text style={styles.sectionTitle}>Your Playlists</Text>
+
+        {/* Existing Playlists */}
+        <FlatList
+          data={playlists}
+          keyExtractor={(item) => item.playlist_id}
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={styles.playlistItem}
+              onPress={() => handleAddToPlaylist(item.playlist_id)}
+              disabled={addingTo === item.playlist_id}
+            >
+              <View style={styles.playlistIcon}>
+                <LinearGradient 
+                  colors={['#282828', '#181818']} 
+                  style={styles.playlistIconGradient}
+                >
+                  <Ionicons name="musical-notes" size={20} color={COLORS.textMuted} />
+                </LinearGradient>
+              </View>
+              <View style={styles.playlistInfo}>
+                <Text style={styles.playlistName}>{item.name}</Text>
+                <Text style={styles.playlistCount}>
+                  {item.songs?.length || item.song_count || 0} songs
+                </Text>
+              </View>
+              {addingTo === item.playlist_id ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <View style={styles.addIconContainer}>
+                  <Ionicons name="add-circle" size={28} color="#e91e63" />
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+          style={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+    );
   };
 
   return (
@@ -117,117 +246,29 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
+        <TouchableOpacity style={styles.overlayTouch} onPress={onClose} activeOpacity={1} />
         <View style={styles.container}>
+          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>
-              {song ? 'Add to Playlist' : 'Your Playlists'}
-            </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
-            </TouchableOpacity>
+            <View style={styles.headerHandle} />
+            <View style={styles.headerContent}>
+              <Text style={styles.title}>Add to Playlist</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Song Info */}
+            {song && (
+              <View style={styles.songInfo}>
+                <Ionicons name="musical-note" size={18} color="#e91e63" />
+                <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Song Info */}
-          {song && (
-            <View style={styles.songInfo}>
-              <Ionicons name="musical-note" size={20} color={COLORS.textSecondary} />
-              <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
-            </View>
-          )}
-
-          {/* Create New Playlist */}
-          {showCreate ? (
-            <View style={styles.createForm}>
-              <TextInput
-                style={styles.input}
-                placeholder="Playlist name"
-                placeholderTextColor={COLORS.textMuted}
-                value={newPlaylistName}
-                onChangeText={setNewPlaylistName}
-                autoFocus
-                maxLength={50}
-                returnKeyType="done"
-                onSubmitEditing={handleCreatePlaylist}
-              />
-              <View style={styles.createButtons}>
-                <TouchableOpacity 
-                  style={styles.cancelBtn}
-                  onPress={handleCancelCreate}
-                  disabled={creating}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.createBtn, !newPlaylistName.trim() && styles.disabledBtn]}
-                  onPress={handleCreatePlaylist}
-                  disabled={!newPlaylistName.trim() || creating}
-                >
-                  {creating ? (
-                    <ActivityIndicator size="small" color="#000" />
-                  ) : (
-                    <Text style={styles.createBtnText}>Create</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={styles.newPlaylistBtn}
-              onPress={() => setShowCreate(true)}
-            >
-              <View style={styles.newPlaylistIcon}>
-                <Ionicons name="add" size={24} color={COLORS.textPrimary} />
-              </View>
-              <Text style={styles.newPlaylistText}>Create New Playlist</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* Existing Playlists */}
-          {loading ? (
-            <View style={styles.loaderContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loaderText}>Loading playlists...</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={playlists}
-              keyExtractor={(item) => item.playlist_id}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={styles.playlistItem}
-                  onPress={() => handleAddToPlaylist(item.playlist_id)}
-                  disabled={addingTo === item.playlist_id}
-                >
-                  <View style={styles.playlistIcon}>
-                    <Ionicons name="musical-notes" size={24} color={COLORS.textSecondary} />
-                  </View>
-                  <View style={styles.playlistInfo}>
-                    <Text style={styles.playlistName}>{item.name}</Text>
-                    <Text style={styles.playlistCount}>
-                      {item.songs?.length || item.song_count || 0} songs
-                    </Text>
-                  </View>
-                  {addingTo === item.playlist_id ? (
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                  ) : (
-                    <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="library-outline" size={48} color={COLORS.textMuted} />
-                  <Text style={styles.emptyText}>No playlists yet</Text>
-                  <Text style={styles.emptyHint}>Create your first playlist above</Text>
-                </View>
-              }
-              style={styles.list}
-              contentContainerStyle={playlists.length === 0 && styles.emptyListContent}
-            />
-          )}
+          {/* Content */}
+          {renderContent()}
         </View>
       </View>
     </Modal>
@@ -237,28 +278,43 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
+  overlayTouch: {
+    flex: 1,
+  },
   container: {
-    backgroundColor: COLORS.backgroundLight || '#181818',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 32,
+    backgroundColor: '#1a1a2e',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '75%',
+    minHeight: 300,
   },
   header: {
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  headerHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider || '#333',
+    paddingHorizontal: 20,
   },
   title: {
     color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
   },
   closeBtn: {
     padding: 4,
@@ -267,103 +323,132 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    gap: 12,
+    paddingTop: 12,
+    gap: 10,
   },
   songTitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
     flex: 1,
   },
-  newPlaylistBtn: {
-    flexDirection: 'row',
+  // Empty state
+  emptyState: {
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 40,
+    paddingHorizontal: 32,
   },
-  newPlaylistIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 4,
-    backgroundColor: COLORS.backgroundCard || '#282828',
+  emptyIconContainer: {
+    marginBottom: 20,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  newPlaylistText: {
+  emptyTitle: {
     color: COLORS.textPrimary,
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 12,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
   },
-  createForm: {
-    padding: 16,
-  },
-  input: {
-    backgroundColor: COLORS.backgroundCard || '#282828',
-    color: COLORS.textPrimary,
-    fontSize: 16,
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  createButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  cancelBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  cancelBtnText: {
+  emptySubtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  createBtn: {
-    backgroundColor: COLORS.primary || '#1DB954',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-    minWidth: 80,
+  createFirstBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 28,
+    gap: 8,
+  },
+  createFirstBtnText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // Playlists container
+  playlistsContainer: {
+    flex: 1,
+    paddingBottom: 32,
+  },
+  createNewOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: 'rgba(233, 30, 99, 0.15)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(233, 30, 99, 0.3)',
+  },
+  createNewIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#e91e63',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  disabledBtn: {
-    opacity: 0.5,
+  createNewInfo: {
+    flex: 1,
+    marginLeft: 14,
   },
-  createBtnText: {
-    color: '#000',
-    fontSize: 14,
+  createNewText: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
     fontWeight: '600',
+  },
+  createNewSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.divider || '#333',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     marginHorizontal: 16,
+    marginVertical: 16,
+  },
+  sectionTitle: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    marginBottom: 8,
   },
   list: {
     flex: 1,
   },
-  emptyListContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
   playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
   },
   playlistIcon: {
     width: 48,
     height: 48,
-    borderRadius: 4,
-    backgroundColor: COLORS.backgroundCard || '#282828',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  playlistIconGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   playlistInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
   playlistName: {
     color: COLORS.textPrimary,
@@ -375,23 +460,58 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 32,
+  addIconContainer: {
+    padding: 4,
   },
-  emptyText: {
+  // Create section
+  createSection: {
+    padding: 20,
+  },
+  createTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: '#282828',
     color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '600',
-    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
   },
-  emptyHint: {
+  createButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+  },
+  cancelBtnText: {
     color: COLORS.textSecondary,
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '500',
   },
+  confirmBtn: {
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 24,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  confirmBtnText: {
+    color: '#000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  // Loader
   loaderContainer: {
     alignItems: 'center',
     paddingVertical: 48,
