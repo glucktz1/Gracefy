@@ -137,26 +137,87 @@ export default function AlbumScreen({ route, navigation }) {
     return songs.map(song => ({ song, album }));
   }, [songs, album]);
 
+  // Check if album is premium content
+  const isAlbumPremium = useMemo(() => {
+    return album && isPremiumContent(album);
+  }, [album, isPremiumContent]);
+
+  // Handle song selection with subscription check
+  const handleSongSelect = useCallback((song, index) => {
+    // Check if user can select specific songs
+    if (!isPremium && !features.song_selection) {
+      // Free users - can't choose specific songs, show upgrade prompt
+      Alert.alert(
+        'Premium Feature',
+        'Choosing specific songs is a premium feature. Free users can only use shuffle play.',
+        [
+          { text: 'Shuffle Play', onPress: handleShuffle },
+          { text: 'Upgrade', onPress: () => goToSubscription('select_song'), style: 'default' },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    
+    // Check if content is premium-only
+    if (isAlbumPremium && !isPremium) {
+      showUpgradePrompt('premium_content', goToSubscription);
+      return;
+    }
+    
+    // Premium user or free feature - play the song
+    playSong(song, album, songQueue, index);
+  }, [isPremium, features, isAlbumPremium, showUpgradePrompt, goToSubscription, playSong, album, songQueue]);
+
   const handlePlayAll = useCallback(() => {
     if (songs.length > 0) {
+      // Check if content is premium-only
+      if (isAlbumPremium && !isPremium) {
+        showUpgradePrompt('premium_content', goToSubscription);
+        return;
+      }
+      
+      // Free users - shuffle forced
+      if (!isPremium && isShuffleForced()) {
+        handleShuffle();
+        return;
+      }
+      
       playSong(songs[0], album, songQueue, 0);
     }
-  }, [songs, album, songQueue, playSong]);
+  }, [songs, album, songQueue, playSong, isPremium, isShuffleForced, isAlbumPremium, showUpgradePrompt, goToSubscription]);
 
   const handleShuffle = useCallback(() => {
     if (songs.length > 0) {
+      // Check if content is premium-only
+      if (isAlbumPremium && !isPremium) {
+        showUpgradePrompt('premium_content', goToSubscription);
+        return;
+      }
+      
       const shuffled = [...songs].sort(() => Math.random() - 0.5);
       const shuffledQueue = shuffled.map(song => ({ song, album }));
       playSong(shuffled[0], album, shuffledQueue, 0);
     }
-  }, [songs, album, playSong]);
+  }, [songs, album, playSong, isAlbumPremium, isPremium, showUpgradePrompt, goToSubscription]);
 
   const handleAddToPlaylist = useCallback((song) => {
+    // Check if user can create playlists
+    if (!canPerformAction('create_playlist')) {
+      showUpgradePrompt('create_playlist', goToSubscription);
+      return;
+    }
     setSelectedSong(song);
     setShowPlaylistModal(true);
-  }, []);
+  }, [canPerformAction, showUpgradePrompt, goToSubscription]);
 
   const handleDownloadAll = async () => {
+    // Check if user can download
+    if (!canPerformAction('download')) {
+      showUpgradePrompt('download', goToSubscription);
+      return;
+    }
+    
     if (!songs.length) return;
     
     Alert.alert(
