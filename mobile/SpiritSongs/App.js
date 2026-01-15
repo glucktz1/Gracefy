@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Contexts
 import { AuthProvider } from './src/context/AuthContext';
 import { PlayerProvider } from './src/context/PlayerContext';
+import { SubscriptionProvider } from './src/context/SubscriptionContext';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -37,9 +38,8 @@ function TabNavigator() {
         tabBarActiveTintColor: '#e91e63',
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: styles.tabBarLabel,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           let iconName;
-
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Search') {
@@ -49,7 +49,6 @@ function TabNavigator() {
           } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'person' : 'person-outline';
           }
-
           return <Ionicons name={iconName} size={24} color={color} />;
         },
       })}
@@ -57,11 +56,7 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Library" component={LibraryScreen} />
-      <Tab.Screen 
-        name="ProfileTab" 
-        component={ProfileScreen} 
-        options={{ tabBarLabel: 'Profile' }}
-      />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -83,18 +78,12 @@ function MainNavigator() {
       <Stack.Screen 
         name="NowPlaying" 
         component={NowPlayingScreen}
-        options={{
-          animation: 'slide_from_bottom',
-          presentation: 'fullScreenModal',
-        }}
+        options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
       />
       <Stack.Screen 
         name="Login" 
         component={LoginScreen}
-        options={{
-          animation: 'slide_from_bottom',
-          presentation: 'modal',
-        }}
+        options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
       />
     </Stack.Navigator>
   );
@@ -104,12 +93,14 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <AuthProvider>
-        <PlayerProvider>
-          <NavigationContainer>
-            <StatusBar style="light" />
-            <MainNavigator />
-          </NavigationContainer>
-        </PlayerProvider>
+        <SubscriptionProvider>
+          <PlayerProvider>
+            <NavigationContainer>
+              <StatusBar style="light" />
+              <MainNavigator />
+            </NavigationContainer>
+          </PlayerProvider>
+        </SubscriptionProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
