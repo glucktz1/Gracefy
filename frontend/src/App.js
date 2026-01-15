@@ -54,6 +54,7 @@ const Sidebar = ({ user, onLogout, isOpen, setIsOpen }) => {
     { path: "/analytics", icon: Activity, label: "Analytics" },
     { path: "/revenue", icon: TrendingUp, label: "Revenue" },
     { path: "/monetization", icon: Settings, label: "Monetization" },
+    { path: "/roles", icon: Shield, label: "Role Management" },
     { path: "/layout-management", icon: Layout, label: "Layout Management" },
     { path: "/admin/choirs", icon: Mic2, label: "Choir Management" },
     { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts" },
