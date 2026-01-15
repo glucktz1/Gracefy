@@ -91,6 +91,32 @@ export default function ApprovalsPage() {
     }
   };
 
+  const handleContentEditAction = async (requestId, status, notes = "") => {
+    try {
+      const endpoint = status === "approved" 
+        ? `${API}/admin/content-edit-requests/${requestId}/approve`
+        : `${API}/admin/content-edit-requests/${requestId}/reject`;
+      await axios.post(endpoint, { admin_notes: notes }, { withCredentials: true });
+      toast.success(status === "approved" ? "Edit approved and applied" : "Edit request rejected");
+      fetchApprovals();
+    } catch (error) {
+      toast.error("Failed to process edit request");
+    }
+  };
+
+  const handleChurchLeaderAction = async (accountId, status) => {
+    try {
+      const endpoint = status === "approved"
+        ? `${API}/church-leader/account/${accountId}/approve`
+        : `${API}/church-leader/account/${accountId}/reject`;
+      await axios.put(endpoint, {}, { withCredentials: true });
+      toast.success(status === "approved" ? "Church leader account approved" : "Church leader account rejected");
+      fetchApprovals();
+    } catch (error) {
+      toast.error("Failed to process account request");
+    }
+  };
+
   const markNotificationRead = async (notificationId) => {
     try {
       await axios.put(`${API}/admin/notifications/${notificationId}/read`, {}, { withCredentials: true });
