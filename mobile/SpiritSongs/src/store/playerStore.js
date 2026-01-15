@@ -49,8 +49,11 @@ export const usePlayerStore = create(
     // Volume and settings
     volume: 1.0,
     isMuted: false,
-    repeatMode: 'off', // 'off', 'one', 'all'
+    repeatMode: 'all', // 'off', 'one', 'all' - Default to 'all' for continuous playback
     shuffleEnabled: false,
+    
+    // Last playback state for resume
+    lastPlayback: null,
     
     // Audio object reference
     sound: null,
