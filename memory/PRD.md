@@ -267,6 +267,9 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - POST `/api/monetization/pause-all-payouts` - Emergency pause
 - POST `/api/monetization/resume-payouts` - Resume payouts
 - POST `/api/monetization/freeze-choir/{choir_id}` - Freeze choir monetization
+- GET `/api/monetization/feature-controls` - Get free vs paid feature settings
+- PUT `/api/monetization/feature-controls` - Update feature controls (admin)
+- GET `/api/user/subscription-status` - Get user subscription tier and features
 
 ### SMS Notifications (MOCK)
 - GET `/api/admin/sms-logs` - View SMS logs
