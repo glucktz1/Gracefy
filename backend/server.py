@@ -641,6 +641,180 @@ class AlbumApproval(BaseModel):
     reviewed_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ============== ROLE-BASED ACCESS CONTROL (RBAC) ==============
+
+# Define all system permissions
+SYSTEM_PERMISSIONS = {
+    # Platform Administration
+    "platform_settings": "Manage platform settings and configuration",
+    "role_assignment": "Assign and modify user roles",
+    "user_management": "Manage users (view, edit, suspend, delete)",
+    "choir_onboarding_approval": "Approve new choir/artist registrations",
+    
+    # Content Creation
+    "create_albums": "Create new albums",
+    "upload_songs": "Upload songs to albums",
+    "create_teachings": "Create teachings and podcasts",
+    "edit_own_content": "Edit own uploaded content",
+    "submit_content_approval": "Submit content for approval",
+    
+    # Content Moderation
+    "content_moderation": "Review and moderate content",
+    "content_approval": "Approve or takedown content",
+    "set_content_monetization": "Set content as premium or standard",
+    
+    # Analytics & Reports
+    "view_platform_analytics": "View platform-wide analytics",
+    "view_own_analytics": "View own performance analytics",
+    
+    # Revenue & Finance
+    "revenue_configuration": "Configure revenue settings and rates",
+    "view_all_revenue_reports": "View all revenue reports",
+    "view_own_revenue_reports": "View own revenue reports",
+    "request_withdrawal": "Request revenue withdrawal",
+    "approve_payouts": "Approve and process payouts",
+    
+    # Layout & Promotion
+    "layout_promotion_control": "Control layout and promotional content",
+    
+    # Content Access
+    "access_free_content": "Access free content",
+    "access_premium_content": "Access premium content",
+}
+
+# Define role permissions mapping based on the user's table
+ROLE_PERMISSIONS = {
+    "super_admin": [
+        "platform_settings", "role_assignment", "user_management", "choir_onboarding_approval",
+        "create_albums", "upload_songs", "create_teachings", "edit_own_content", "submit_content_approval",
+        "content_moderation", "content_approval", "set_content_monetization",
+        "view_platform_analytics", "view_own_analytics",
+        "revenue_configuration", "view_all_revenue_reports", "view_own_revenue_reports",
+        "request_withdrawal", "approve_payouts",
+        "layout_promotion_control",
+        "access_free_content", "access_premium_content"
+    ],
+    "admin": [
+        "platform_settings", "role_assignment", "user_management", "choir_onboarding_approval",
+        "content_moderation", "content_approval", "set_content_monetization",
+        "view_platform_analytics",
+        "revenue_configuration", "view_all_revenue_reports",
+        "layout_promotion_control",
+        "access_free_content", "access_premium_content"
+    ],
+    "sub_admin": [
+        "user_management", "choir_onboarding_approval",
+        "access_free_content", "access_premium_content"
+    ],
+    "finance_admin": [
+        "view_platform_analytics",
+        "revenue_configuration", "view_all_revenue_reports",
+        "approve_payouts",
+        "access_free_content", "access_premium_content"
+    ],
+    "moderator": [
+        "content_moderation",
+        "layout_promotion_control",
+        "access_free_content", "access_premium_content"
+    ],
+    "choir_artist": [
+        "create_albums", "upload_songs",
+        "edit_own_content", "submit_content_approval",
+        "view_own_analytics", "view_own_revenue_reports",
+        "request_withdrawal",
+        "access_free_content", "access_premium_content"
+    ],
+    "religious_leader": [
+        "create_teachings", "upload_songs",
+        "edit_own_content", "submit_content_approval",
+        "content_moderation",
+        "view_own_analytics", "view_own_revenue_reports",
+        "access_free_content", "access_premium_content"
+    ],
+    "listener_free": [
+        "access_free_content"
+    ],
+    "listener_paid": [
+        "access_free_content", "access_premium_content"
+    ]
+}
+
+# Role hierarchy for display
+ROLE_HIERARCHY = [
+    {"id": "super_admin", "name": "Super Admin", "level": 1, "description": "Full platform control with all permissions", "color": "#9c27b0"},
+    {"id": "admin", "name": "Admin", "level": 2, "description": "Platform administration and content management", "color": "#e91e63"},
+    {"id": "sub_admin", "name": "Sub-Admin", "level": 3, "description": "Limited administrative access", "color": "#f44336"},
+    {"id": "finance_admin", "name": "Finance Admin", "level": 4, "description": "Revenue and payout management", "color": "#4caf50"},
+    {"id": "moderator", "name": "Moderator", "level": 5, "description": "Content moderation and layout control", "color": "#2196f3"},
+    {"id": "choir_artist", "name": "Choir / Artist", "level": 6, "description": "Content creation and management", "color": "#ff9800"},
+    {"id": "religious_leader", "name": "Religious Leader", "level": 7, "description": "Teachings, podcasts and moderation", "color": "#795548"},
+    {"id": "listener_free", "name": "Listener (Free)", "level": 8, "description": "Free content access only", "color": "#9e9e9e"},
+    {"id": "listener_paid", "name": "Listener (Paid)", "level": 9, "description": "Full content access with subscription", "color": "#ffc107"},
+]
+
+class SystemRole(BaseModel):
+    """System-defined roles"""
+    model_config = ConfigDict(extra="ignore")
+    role_id: str
+    name: str
+    description: Optional[str] = None
+    permissions: List[str] = []
+    level: int = 10  # Lower number = higher authority
+    color: str = "#666666"
+    is_system_role: bool = True  # Cannot be deleted
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+class CustomRole(BaseModel):
+    """Custom roles created by admins"""
+    model_config = ConfigDict(extra="ignore")
+    role_id: str = Field(default_factory=lambda: f"role_{uuid.uuid4().hex[:12]}")
+    name: str
+    description: Optional[str] = None
+    permissions: List[str] = []
+    based_on: Optional[str] = None  # System role it was based on
+    level: int = 10
+    color: str = "#666666"
+    is_system_role: bool = False
+    is_active: bool = True
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+class UserRoleAssignment(BaseModel):
+    """User to role assignments"""
+    model_config = ConfigDict(extra="ignore")
+    assignment_id: str = Field(default_factory=lambda: f"assign_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+    role_id: str
+    role_name: Optional[str] = None
+    assigned_by: str
+    assigned_by_name: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+class RoleChangeLog(BaseModel):
+    """Audit log for role changes"""
+    model_config = ConfigDict(extra="ignore")
+    log_id: str = Field(default_factory=lambda: f"rlog_{uuid.uuid4().hex[:12]}")
+    action: str  # assign, revoke, modify, create_role, delete_role
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    role_id: str
+    role_name: str
+    previous_role_id: Optional[str] = None
+    previous_role_name: Optional[str] = None
+    performed_by: str
+    performed_by_name: Optional[str] = None
+    reason: Optional[str] = None
+    ip_address: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ============== SMS SERVICE (MOCK) ==============
 
 async def send_sms_notification(
