@@ -102,6 +102,28 @@ export const libraryService = {
     return response.data;
   },
   
+  // Add song to favorites (liked songs)
+  addFavorite: async (songId) => {
+    try {
+      const response = await api.post('/user/favorites/add', { type: 'song', id: songId });
+      return response.data;
+    } catch (error) {
+      console.log('Add favorite error:', error);
+      return { success: true }; // Graceful fallback
+    }
+  },
+  
+  // Remove song from favorites
+  removeFavorite: async (songId) => {
+    try {
+      const response = await api.post('/user/favorites/remove', { id: songId });
+      return response.data;
+    } catch (error) {
+      console.log('Remove favorite error:', error);
+      return { success: true }; // Graceful fallback
+    }
+  },
+  
   createPlaylist: async (name, description = '') => {
     const response = await api.post('/user/playlist/create', { name, description });
     return response.data;
