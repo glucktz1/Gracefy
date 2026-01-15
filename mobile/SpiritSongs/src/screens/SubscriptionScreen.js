@@ -49,7 +49,7 @@ const FeatureRow = ({ feature, free, paid, icon, isPremium }) => (
 );
 
 export default function SubscriptionScreen({ navigation, route }) {
-  const { isPremium, features, refresh } = useSubscription();
+  const { isPremium, isTrial, trialInfo, features, refresh, getTrialDaysRemaining } = useSubscription();
   const { isAuthenticated, user } = useAuth();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
