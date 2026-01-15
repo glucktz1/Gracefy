@@ -118,6 +118,88 @@ export default function ChurchesPage() {
     contact_phone: ""
   });
 
+  // Image upload states
+  const [uploadingImage, setUploadingImage] = useState({ thumbnail: false, cover: false, leader: false });
+  const [imagePreview, setImagePreview] = useState({ thumbnail: "", cover_image: "", leader_photo: "" });
+
+  // Church leader account modal
+  const [isLeaderAccountModalOpen, setIsLeaderAccountModalOpen] = useState(false);
+  const [leaderAccountForm, setLeaderAccountForm] = useState({
+    church_id: "",
+    church_name: "",
+    name: "",
+    email: "",
+    password: "",
+    phone: ""
+  });
+
+  // Handle image upload
+  const handleImageUpload = async (file, type) => {
+    if (!file) return;
+    
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setUploadingImage(prev => ({ ...prev, [type]: true }));
+    
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result;
+        
+        // Upload to server
+        const response = await axios.post(`${API}/upload`, {
+          file: base64,
+          filename: `church_${type}_${Date.now()}.${file.name.split('.').pop()}`,
+          content_type: file.type
+        });
+        
+        const imageUrl = response.data.url;
+        
+        // Update form data based on type
+        const fieldMap = { thumbnail: "thumbnail", cover: "cover_image", leader: "leader_photo" };
+        setFormData(prev => ({ ...prev, [fieldMap[type]]: imageUrl }));
+        setImagePreview(prev => ({ ...prev, [fieldMap[type]]: imageUrl }));
+        toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} image uploaded`);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
+  // Create church leader account
+  const handleCreateLeaderAccount = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API}/church-leader/create`, leaderAccountForm);
+      toast.success("Church leader account created successfully");
+      setIsLeaderAccountModalOpen(false);
+      setLeaderAccountForm({ church_id: "", church_name: "", name: "", email: "", password: "", phone: "" });
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create account");
+    }
+  };
+
+  // Open leader account modal for a church
+  const openLeaderAccountModal = (church) => {
+    setLeaderAccountForm({
+      church_id: church.church_id,
+      church_name: church.name,
+      name: church.leader_name || "",
+      email: church.leader_email || "",
+      password: "",
+      phone: church.leader_phone || ""
+    });
+    setIsLeaderAccountModalOpen(true);
+  };
+
   const fetchChurches = async () => {
     try {
       const response = await axios.get(`${API}/churches`, { withCredentials: true });
