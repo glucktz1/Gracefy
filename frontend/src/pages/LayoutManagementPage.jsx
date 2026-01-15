@@ -4,7 +4,7 @@ import {
   Layout, Plus, Trash2, Edit2, Eye, EyeOff, GripVertical, 
   Smartphone, Monitor, ChevronUp, ChevronDown, Save, RefreshCw,
   Image, Link, Calendar, Crown, Gift, Music2, Grid, Star, Megaphone,
-  X, Check, ExternalLink, Play
+  X, Check, ExternalLink, Play, Users, Church, Disc
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,9 @@ const SECTION_TYPES = [
   { value: "hero", label: "Hero Section", icon: Image },
   { value: "quick_access", label: "Quick Access Grid", icon: Grid },
   { value: "featured_albums", label: "Featured Albums", icon: Star },
+  { value: "choirs", label: "Choirs & Artists", icon: Users },
+  { value: "churches", label: "Churches", icon: Church },
+  { value: "special_mixes", label: "Special Mixes", icon: Disc },
   { value: "seasonal", label: "Seasonal Section", icon: Calendar },
   { value: "trending", label: "Trending/Popular", icon: Crown },
   { value: "cta", label: "Call-to-Action", icon: Megaphone },
@@ -48,6 +51,9 @@ const CONTENT_TYPES = [
   { value: "albums", label: "Albums" },
   { value: "songs", label: "Songs" },
   { value: "playlists", label: "Playlists" },
+  { value: "choirs", label: "Choirs / Artists" },
+  { value: "churches", label: "Churches" },
+  { value: "special_mixes", label: "Special Mixes" },
 ];
 
 const ICONS = [
