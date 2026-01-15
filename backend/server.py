@@ -3144,24 +3144,45 @@ async def get_user_home():
                 {"_id": 0}
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
             section_data["items"] = albums
+        
+        elif section["section_type"] == "special_mixes":
+            # Get special mix albums
+            mixes = await db.special_mixes.find(
+                {"status": "active"},
+                {"_id": 0}
+            ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            # Transform to album-like structure for consistency
+            for mix in mixes:
+                mix["album_id"] = mix["mix_id"]
+                mix["is_special_mix"] = True
+            section_data["items"] = mixes
             
         elif section["section_type"] == "hero":
             section_data["background"] = section.get("background_gradient") or section.get("background_color")
             section_data["items"] = []
             
         else:
-            # For other types, get albums or use manual content
+            # For other types, get albums, categories, or special mixes
             if section.get("content_ids"):
-                if section.get("content_type") == "albums":
+                content_type = section.get("content_type", "albums")
+                if content_type == "albums":
                     items = await db.albums.find(
                         {"album_id": {"$in": section["content_ids"]}},
                         {"_id": 0}
                     ).to_list(20)
-                elif section.get("content_type") == "categories":
+                elif content_type == "categories":
                     items = await db.categories.find(
                         {"category_id": {"$in": section["content_ids"]}},
                         {"_id": 0}
                     ).to_list(20)
+                elif content_type == "special_mixes":
+                    items = await db.special_mixes.find(
+                        {"mix_id": {"$in": section["content_ids"]}},
+                        {"_id": 0}
+                    ).to_list(20)
+                    for mix in items:
+                        mix["album_id"] = mix["mix_id"]
+                        mix["is_special_mix"] = True
                 else:
                     items = []
                 section_data["items"] = items
