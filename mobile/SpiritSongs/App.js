@@ -27,7 +27,7 @@ import { COLORS } from './src/config';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Bottom Tab Navigator
+// Bottom Tab Navigator with Profile
 function TabNavigator() {
   return (
     <Tab.Navigator
@@ -46,6 +46,8 @@ function TabNavigator() {
             iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'Library') {
             iconName = focused ? 'library' : 'library-outline';
+          } else if (route.name === 'ProfileTab') {
+            iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={24} color={color} />;
@@ -55,6 +57,11 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Library" component={LibraryScreen} />
+      <Tab.Screen 
+        name="ProfileTab" 
+        component={ProfileScreen} 
+        options={{ tabBarLabel: 'Profile' }}
+      />
     </Tab.Navigator>
   );
 }
