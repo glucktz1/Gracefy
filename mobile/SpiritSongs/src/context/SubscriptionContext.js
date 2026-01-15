@@ -225,15 +225,21 @@ export const SubscriptionProvider = ({ children }) => {
     isPremium,
     features,
     loading,
+    subscriptionExpiry,
     canPerformAction,
     canSkip,
     useSkip,
     getRemainingSkips,
     showUpgradePrompt,
     getPreviewDuration,
+    getPreviewDurationSeconds,
     shouldShowAds,
     getAudioQuality,
     refresh: fetchSubscriptionStatus,
+    setUpgradeCallback,
+    isPremiumContent,
+    getPlaybackMode,
+    isShuffleForced,
   };
 
   return (
