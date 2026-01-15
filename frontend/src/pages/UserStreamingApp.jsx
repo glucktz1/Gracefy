@@ -830,7 +830,9 @@ export default function UserStreamingApp() {
       try {
         const res = await axios.get(`${API}/user/search?q=${encodeURIComponent(searchQuery)}`);
         setSearchResults(res.data);
-      } catch (e) {}
+      } catch (e) {
+        console.log("Search error");
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
