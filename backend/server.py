@@ -7367,6 +7367,306 @@ async def increment_stream_count(song_id: str):
         logger.error(f"Error updating stream count: {e}")
         return {"message": "Stream count update attempted"}
 
+# ============== ADMIN USERS MANAGEMENT (APP CUSTOMERS) ==============
+
+@api_router.get("/admin/users")
+async def get_admin_users(
+    page: int = 1,
+    limit: int = 10,
+    search: Optional[str] = None,
+    membership_type: Optional[str] = None,
+    status: Optional[str] = None,
+    register_by: Optional[str] = None
+):
+    """Get all app users (customers) with filters and pagination"""
+    query = {}
+    
+    # Search filter
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}},
+            {"user_id": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Membership type filter
+    if membership_type:
+        if membership_type == "premium":
+            query["subscription_type"] = "premium"
+        elif membership_type == "vip":
+            query["subscription_type"] = "vip"
+        elif membership_type == "free":
+            query["$or"] = query.get("$or", [])
+            query["subscription_type"] = {"$in": ["free", None]}
+    
+    # Status filter
+    if status:
+        query["status"] = status
+    
+    # Register by filter
+    if register_by:
+        if register_by == "phone":
+            query["phone"] = {"$ne": None, "$exists": True}
+            query["email"] = None
+        elif register_by == "email":
+            query["email"] = {"$ne": None, "$exists": True}
+            query["phone"] = None
+        elif register_by == "google":
+            query["register_by"] = "google"
+    
+    # Calculate skip
+    skip = (page - 1) * limit
+    
+    # Get total count
+    total = await db.app_users.count_documents(query)
+    
+    # Get users with pagination
+    users = await db.app_users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Format users for frontend
+    formatted_users = []
+    for user in users:
+        formatted_user = {
+            "user_id": user.get("user_id"),
+            "name": user.get("name", "User"),
+            "email": user.get("email"),
+            "phone": user.get("phone"),
+            "picture": user.get("picture"),
+            "country": user.get("country"),
+            "status": user.get("status", "active"),
+            "membership_type": user.get("subscription_type", "free"),
+            "subscription_tier": user.get("subscription_type", "free"),
+            "current_plan": user.get("current_plan"),
+            "plan_expiry_at": user.get("subscription_expires"),
+            "plan_start_date": user.get("subscription_start"),
+            "register_by": user.get("register_by", "email" if user.get("email") else "phone"),
+            "trial_active": user.get("trial", {}).get("status") == "active" if user.get("trial") else False,
+            "trial_starts_at": user.get("trial", {}).get("started_at") if user.get("trial") else None,
+            "trial_ends_at": user.get("trial", {}).get("expires_at") if user.get("trial") else None,
+            "last_active_at": user.get("last_active_at"),
+            "created_at": user.get("created_at"),
+            "devices": user.get("devices", [])
+        }
+        formatted_users.append(formatted_user)
+    
+    return {
+        "users": formatted_users,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.get("/admin/users/{user_id}")
+async def get_admin_user_detail(user_id: str):
+    """Get detailed user profile for admin"""
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Format response
+    return {
+        "user_id": user.get("user_id"),
+        "name": user.get("name", "User"),
+        "email": user.get("email"),
+        "phone": user.get("phone"),
+        "picture": user.get("picture"),
+        "country": user.get("country"),
+        "status": user.get("status", "active"),
+        "membership_type": user.get("subscription_type", "free"),
+        "subscription_tier": user.get("subscription_type", "free"),
+        "current_plan": user.get("current_plan"),
+        "plan_expiry_at": user.get("subscription_expires"),
+        "plan_start_date": user.get("subscription_start"),
+        "register_by": user.get("register_by", "email" if user.get("email") else "phone"),
+        "trial_active": user.get("trial", {}).get("status") == "active" if user.get("trial") else False,
+        "trial_starts_at": user.get("trial", {}).get("started_at") if user.get("trial") else None,
+        "trial_ends_at": user.get("trial", {}).get("expires_at") if user.get("trial") else None,
+        "last_active_at": user.get("last_active_at"),
+        "created_at": user.get("created_at"),
+        "devices": user.get("devices", []),
+        "favorites": user.get("favorites", []),
+        "playlists": user.get("playlists", []),
+        "recently_played": user.get("recently_played", [])
+    }
+
+@api_router.get("/admin/users/{user_id}/listening-history")
+async def get_user_listening_history(user_id: str, limit: int = 50):
+    """Get user's listening history"""
+    # Get from listening_sessions collection
+    sessions = await db.listening_sessions.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("start_time", -1).limit(limit).to_list(limit)
+    
+    # Enrich with song details
+    history = []
+    for session in sessions:
+        song_id = session.get("song_id")
+        song = await db.songs.find_one({"song_id": song_id}, {"_id": 0}) if song_id else None
+        album = await db.albums.find_one({"album_id": session.get("album_id")}, {"_id": 0}) if session.get("album_id") else None
+        
+        history.append({
+            "session_id": session.get("session_id"),
+            "song_id": song_id,
+            "song_title": song.get("title") if song else session.get("song_title", "Unknown"),
+            "artist_name": album.get("artist_name") if album else session.get("artist_name", "Unknown Artist"),
+            "album_title": album.get("title") if album else None,
+            "thumbnail": album.get("thumbnail") if album else None,
+            "duration_listened": session.get("duration_seconds", 0),
+            "listened_at": session.get("start_time"),
+            "completed": session.get("completed", False)
+        })
+    
+    return {"history": history, "total": len(history)}
+
+@api_router.get("/admin/users/{user_id}/transactions")
+async def get_user_transactions(user_id: str, limit: int = 50):
+    """Get user's payment transactions"""
+    transactions = await db.transactions.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # If no transactions found, check payments collection as fallback
+    if not transactions:
+        transactions = await db.payments.find(
+            {"user_id": user_id},
+            {"_id": 0}
+        ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    formatted_transactions = []
+    for tx in transactions:
+        formatted_transactions.append({
+            "transaction_id": tx.get("transaction_id") or tx.get("payment_id") or tx.get("_id"),
+            "type": tx.get("type", "subscription"),
+            "amount": tx.get("amount", 0),
+            "currency": tx.get("currency", "TSh"),
+            "status": tx.get("status", "pending"),
+            "payment_method": tx.get("payment_method"),
+            "description": tx.get("description"),
+            "created_at": tx.get("created_at")
+        })
+    
+    return {"transactions": formatted_transactions, "total": len(formatted_transactions)}
+
+@api_router.put("/admin/users/{user_id}")
+async def update_admin_user(user_id: str, updates: dict):
+    """Update app user details (admin action)"""
+    # Remove protected fields
+    updates.pop("_id", None)
+    updates.pop("user_id", None)
+    updates.pop("password_hash", None)
+    
+    # Map frontend field names to backend
+    if "membership_type" in updates:
+        updates["subscription_type"] = updates.pop("membership_type")
+    
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.app_users.update_one({"user_id": user_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User updated successfully"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_admin_user(user_id: str):
+    """Delete an app user (admin action)"""
+    result = await db.app_users.delete_one({"user_id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Also delete related data
+    await db.user_tokens.delete_many({"user_id": user_id})
+    await db.listening_sessions.delete_many({"user_id": user_id})
+    
+    return {"message": "User deleted successfully"}
+
+@api_router.post("/admin/users")
+async def create_admin_user(data: dict):
+    """Create a new app user (admin action)"""
+    import hashlib
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    name = data.get("name", "")
+    country = data.get("country")
+    membership_type = data.get("membership_type", "free")
+    status = data.get("status", "active")
+    
+    if not email and not phone:
+        raise HTTPException(status_code=400, detail="Email or phone required")
+    
+    # Check if user exists
+    if email:
+        existing = await db.app_users.find_one({"email": email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+    if phone:
+        existing = await db.app_users.find_one({"phone": phone})
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone already registered")
+    
+    # Generate default password
+    default_password = "default123"
+    password_hash = hashlib.sha256(default_password.encode()).hexdigest()
+    
+    user = {
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": email,
+        "phone": phone,
+        "name": name,
+        "password_hash": password_hash,
+        "picture": None,
+        "country": country,
+        "subscription_type": membership_type,
+        "subscription_expires": None,
+        "trial": None,
+        "favorites": [],
+        "playlists": [],
+        "recently_played": [],
+        "downloads": [],
+        "register_by": "admin",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": status
+    }
+    
+    await db.app_users.insert_one(user)
+    
+    return {"user_id": user["user_id"], "message": "User created successfully"}
+
+@api_router.get("/admin/users/stats/summary")
+async def get_users_stats_summary():
+    """Get summary statistics for users"""
+    total_users = await db.app_users.count_documents({})
+    active_users = await db.app_users.count_documents({"status": "active"})
+    suspended_users = await db.app_users.count_documents({"status": "suspended"})
+    premium_users = await db.app_users.count_documents({"subscription_type": "premium"})
+    free_users = await db.app_users.count_documents({"subscription_type": {"$in": ["free", None]}})
+    trial_active = await db.app_users.count_documents({"trial.status": "active"})
+    
+    # Users by registration method
+    phone_users = await db.app_users.count_documents({"phone": {"$ne": None}, "email": None})
+    email_users = await db.app_users.count_documents({"email": {"$ne": None}, "phone": None})
+    google_users = await db.app_users.count_documents({"register_by": "google"})
+    
+    return {
+        "total": total_users,
+        "active": active_users,
+        "suspended": suspended_users,
+        "premium": premium_users,
+        "free": free_users,
+        "trial_active": trial_active,
+        "by_registration": {
+            "phone": phone_users,
+            "email": email_users,
+            "google": google_users
+        }
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
