@@ -366,7 +366,12 @@ const NowPlayingScreen = ({ navigation }) => {
         {/* Secondary Actions */}
         <View style={styles.secondaryActions}>
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleAddToPlaylist}>
-            <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
+            <View style={styles.secondaryIconWrapper}>
+              <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
+              {!canPerformAction('create_playlist') && (
+                <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
+              )}
+            </View>
             <Text style={styles.secondaryText}>Add to Playlist</Text>
           </TouchableOpacity>
 
@@ -382,13 +387,18 @@ const NowPlayingScreen = ({ navigation }) => {
                 <Text style={styles.secondaryText}>{Math.round(downloadProgress * 100)}%</Text>
               </>
             ) : (
-              <>
+              <View style={styles.secondaryIconWrapper}>
                 <Ionicons 
                   name={isDownloaded ? 'checkmark-circle' : 'download-outline'} 
                   size={28} 
                   color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
                 />
-                <Text style={[styles.secondaryText, isDownloaded && { color: '#4CAF50' }]}>
+                {!canPerformAction('download') && !isDownloaded && (
+                  <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
+                )}
+              </View>
+            )}
+            <Text style={[styles.secondaryText, isDownloaded && { color: '#4CAF50' }]}>
                   {isDownloaded ? 'Downloaded' : 'Download'}
                 </Text>
               </>
