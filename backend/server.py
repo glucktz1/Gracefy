@@ -5252,6 +5252,516 @@ async def get_file_info(file_id: str):
         raise HTTPException(status_code=404, detail="File not found")
     return file_doc
 
+# ============== ROLE-BASED ACCESS CONTROL API ==============
+
+@api_router.get("/rbac/roles")
+async def get_all_roles():
+    """Get all system and custom roles"""
+    # Return system roles from the defined hierarchy
+    system_roles = []
+    for role in ROLE_HIERARCHY:
+        system_roles.append({
+            "role_id": role["id"],
+            "name": role["name"],
+            "description": role["description"],
+            "level": role["level"],
+            "color": role["color"],
+            "permissions": ROLE_PERMISSIONS.get(role["id"], []),
+            "is_system_role": True,
+            "is_active": True
+        })
+    
+    # Get custom roles from database
+    custom_roles = await db.custom_roles.find({"is_active": True}, {"_id": 0}).to_list(100)
+    
+    return {
+        "system_roles": system_roles,
+        "custom_roles": custom_roles,
+        "all_roles": system_roles + custom_roles
+    }
+
+@api_router.get("/rbac/permissions")
+async def get_all_permissions():
+    """Get all available permissions"""
+    permissions = []
+    for perm_id, description in SYSTEM_PERMISSIONS.items():
+        permissions.append({
+            "permission_id": perm_id,
+            "name": perm_id.replace("_", " ").title(),
+            "description": description,
+            "category": categorize_permission(perm_id)
+        })
+    return {"permissions": permissions}
+
+def categorize_permission(perm_id: str) -> str:
+    """Categorize permissions for UI grouping"""
+    if perm_id in ["platform_settings", "role_assignment", "user_management", "choir_onboarding_approval"]:
+        return "Platform Administration"
+    elif perm_id in ["create_albums", "upload_songs", "create_teachings", "edit_own_content", "submit_content_approval"]:
+        return "Content Creation"
+    elif perm_id in ["content_moderation", "content_approval", "set_content_monetization"]:
+        return "Content Moderation"
+    elif perm_id in ["view_platform_analytics", "view_own_analytics"]:
+        return "Analytics & Reports"
+    elif perm_id in ["revenue_configuration", "view_all_revenue_reports", "view_own_revenue_reports", "request_withdrawal", "approve_payouts"]:
+        return "Revenue & Finance"
+    elif perm_id in ["layout_promotion_control"]:
+        return "Layout & Promotion"
+    elif perm_id in ["access_free_content", "access_premium_content"]:
+        return "Content Access"
+    return "Other"
+
+@api_router.get("/rbac/role/{role_id}")
+async def get_role_details(role_id: str):
+    """Get details of a specific role"""
+    # Check system roles first
+    for role in ROLE_HIERARCHY:
+        if role["id"] == role_id:
+            return {
+                "role_id": role["id"],
+                "name": role["name"],
+                "description": role["description"],
+                "level": role["level"],
+                "color": role["color"],
+                "permissions": ROLE_PERMISSIONS.get(role["id"], []),
+                "is_system_role": True,
+                "is_active": True
+            }
+    
+    # Check custom roles
+    custom_role = await db.custom_roles.find_one({"role_id": role_id}, {"_id": 0})
+    if custom_role:
+        return custom_role
+    
+    raise HTTPException(status_code=404, detail="Role not found")
+
+@api_router.post("/rbac/roles")
+async def create_custom_role(data: dict):
+    """Create a new custom role"""
+    name = data.get("name")
+    description = data.get("description", "")
+    permissions = data.get("permissions", [])
+    based_on = data.get("based_on")
+    color = data.get("color", "#666666")
+    created_by = data.get("created_by", "admin")
+    
+    if not name:
+        raise HTTPException(status_code=400, detail="Role name is required")
+    
+    # Check if name already exists
+    existing = await db.custom_roles.find_one({"name": {"$regex": f"^{name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="A role with this name already exists")
+    
+    # If based on a system role, inherit permissions
+    if based_on and based_on in ROLE_PERMISSIONS:
+        if not permissions:
+            permissions = ROLE_PERMISSIONS[based_on].copy()
+    
+    role = CustomRole(
+        name=name,
+        description=description,
+        permissions=permissions,
+        based_on=based_on,
+        color=color,
+        created_by=created_by
+    )
+    
+    role_doc = role.model_dump()
+    role_doc["created_at"] = role_doc["created_at"].isoformat()
+    await db.custom_roles.insert_one(role_doc)
+    
+    # Log the action
+    await log_role_change("create_role", None, role.role_id, name, created_by, "Created new custom role")
+    
+    return {"message": "Custom role created", "role": {k: v for k, v in role_doc.items() if k != "_id"}}
+
+@api_router.put("/rbac/roles/{role_id}")
+async def update_custom_role(role_id: str, data: dict):
+    """Update a custom role"""
+    # Check if it's a system role
+    for role in ROLE_HIERARCHY:
+        if role["id"] == role_id:
+            raise HTTPException(status_code=400, detail="Cannot modify system roles")
+    
+    update_fields = {}
+    if "name" in data:
+        update_fields["name"] = data["name"]
+    if "description" in data:
+        update_fields["description"] = data["description"]
+    if "permissions" in data:
+        update_fields["permissions"] = data["permissions"]
+    if "color" in data:
+        update_fields["color"] = data["color"]
+    if "is_active" in data:
+        update_fields["is_active"] = data["is_active"]
+    
+    update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.custom_roles.update_one(
+        {"role_id": role_id},
+        {"$set": update_fields}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    updated_by = data.get("updated_by", "admin")
+    await log_role_change("modify", None, role_id, data.get("name", role_id), updated_by, "Modified custom role")
+    
+    return {"message": "Role updated successfully"}
+
+@api_router.delete("/rbac/roles/{role_id}")
+async def delete_custom_role(role_id: str, deleted_by: str = "admin"):
+    """Delete a custom role"""
+    # Check if it's a system role
+    for role in ROLE_HIERARCHY:
+        if role["id"] == role_id:
+            raise HTTPException(status_code=400, detail="Cannot delete system roles")
+    
+    # Check if any users have this role
+    users_with_role = await db.user_role_assignments.count_documents({"role_id": role_id, "is_active": True})
+    if users_with_role > 0:
+        raise HTTPException(status_code=400, detail=f"Cannot delete role: {users_with_role} users have this role assigned")
+    
+    role_doc = await db.custom_roles.find_one({"role_id": role_id})
+    if not role_doc:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    await db.custom_roles.delete_one({"role_id": role_id})
+    await log_role_change("delete_role", None, role_id, role_doc.get("name", role_id), deleted_by, "Deleted custom role")
+    
+    return {"message": "Role deleted successfully"}
+
+@api_router.get("/rbac/users")
+async def get_users_with_roles(role_filter: Optional[str] = None, search: Optional[str] = None):
+    """Get all users with their role assignments"""
+    # Get users from different collections
+    users = []
+    
+    # Get admin users
+    admin_query = {}
+    if search:
+        admin_query["$or"] = [
+            {"email": {"$regex": search, "$options": "i"}},
+            {"name": {"$regex": search, "$options": "i"}}
+        ]
+    admin_users = await db.admin_users.find(admin_query, {"_id": 0, "password": 0}).to_list(500)
+    for user in admin_users:
+        user["user_type"] = "admin"
+        user["user_id"] = user.get("admin_id", user.get("email"))
+        users.append(user)
+    
+    # Get choir users
+    choir_query = {}
+    if search:
+        choir_query["$or"] = [
+            {"email": {"$regex": search, "$options": "i"}},
+            {"name": {"$regex": search, "$options": "i"}}
+        ]
+    choir_users = await db.choir_accounts.find(choir_query, {"_id": 0, "password_hash": 0}).to_list(500)
+    for user in choir_users:
+        user["user_type"] = "choir"
+        user["user_id"] = user.get("choir_id")
+        users.append(user)
+    
+    # Get app users (listeners)
+    app_query = {}
+    if search:
+        app_query["$or"] = [
+            {"email": {"$regex": search, "$options": "i"}},
+            {"name": {"$regex": search, "$options": "i"}}
+        ]
+    app_users = await db.app_users.find(app_query, {"_id": 0, "password_hash": 0}).to_list(500)
+    for user in app_users:
+        user["user_type"] = "app_user"
+        users.append(user)
+    
+    # Get role assignments for each user
+    for user in users:
+        user_id = user.get("user_id") or user.get("email")
+        assignment = await db.user_role_assignments.find_one(
+            {"user_id": user_id, "is_active": True},
+            {"_id": 0}
+        )
+        if assignment:
+            user["assigned_role"] = assignment.get("role_id")
+            user["role_name"] = assignment.get("role_name")
+        else:
+            # Assign default role based on user type
+            if user["user_type"] == "admin":
+                user["assigned_role"] = "admin"
+                user["role_name"] = "Admin"
+            elif user["user_type"] == "choir":
+                user["assigned_role"] = "choir_artist"
+                user["role_name"] = "Choir / Artist"
+            else:
+                # Check if paid listener
+                is_premium = user.get("subscription_type") == "premium" or (user.get("trial", {}) or {}).get("status") == "active"
+                user["assigned_role"] = "listener_paid" if is_premium else "listener_free"
+                user["role_name"] = "Listener (Paid)" if is_premium else "Listener (Free)"
+    
+    # Filter by role if specified
+    if role_filter:
+        users = [u for u in users if u.get("assigned_role") == role_filter]
+    
+    return {"users": users, "total": len(users)}
+
+@api_router.post("/rbac/users/{user_id}/assign-role")
+async def assign_role_to_user(user_id: str, data: dict):
+    """Assign a role to a user"""
+    role_id = data.get("role_id")
+    assigned_by = data.get("assigned_by", "admin")
+    assigned_by_name = data.get("assigned_by_name", "Administrator")
+    notes = data.get("notes", "")
+    
+    if not role_id:
+        raise HTTPException(status_code=400, detail="Role ID is required")
+    
+    # Validate role exists
+    role_exists = False
+    role_name = role_id
+    for role in ROLE_HIERARCHY:
+        if role["id"] == role_id:
+            role_exists = True
+            role_name = role["name"]
+            break
+    
+    if not role_exists:
+        custom_role = await db.custom_roles.find_one({"role_id": role_id})
+        if custom_role:
+            role_exists = True
+            role_name = custom_role.get("name", role_id)
+    
+    if not role_exists:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Get user info
+    user_info = await get_user_info(user_id)
+    if not user_info:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user already has a role assignment
+    existing = await db.user_role_assignments.find_one({"user_id": user_id, "is_active": True})
+    previous_role = existing.get("role_id") if existing else None
+    previous_role_name = existing.get("role_name") if existing else None
+    
+    # Deactivate existing assignment
+    if existing:
+        await db.user_role_assignments.update_one(
+            {"assignment_id": existing["assignment_id"]},
+            {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    # Create new assignment
+    assignment = UserRoleAssignment(
+        user_id=user_id,
+        user_email=user_info.get("email"),
+        user_name=user_info.get("name"),
+        role_id=role_id,
+        role_name=role_name,
+        assigned_by=assigned_by,
+        assigned_by_name=assigned_by_name,
+        notes=notes
+    )
+    
+    assignment_doc = assignment.model_dump()
+    assignment_doc["created_at"] = assignment_doc["created_at"].isoformat()
+    await db.user_role_assignments.insert_one(assignment_doc)
+    
+    # Log the change
+    await log_role_change(
+        "assign", user_id, role_id, role_name, assigned_by,
+        notes, previous_role, previous_role_name, user_info.get("name")
+    )
+    
+    return {
+        "message": f"Role '{role_name}' assigned to user successfully",
+        "assignment": {k: v for k, v in assignment_doc.items() if k != "_id"}
+    }
+
+@api_router.post("/rbac/users/{user_id}/revoke-role")
+async def revoke_user_role(user_id: str, data: dict):
+    """Revoke a user's role assignment"""
+    revoked_by = data.get("revoked_by", "admin")
+    reason = data.get("reason", "Role revoked")
+    
+    existing = await db.user_role_assignments.find_one({"user_id": user_id, "is_active": True})
+    if not existing:
+        raise HTTPException(status_code=404, detail="No active role assignment found")
+    
+    await db.user_role_assignments.update_one(
+        {"assignment_id": existing["assignment_id"]},
+        {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    user_info = await get_user_info(user_id)
+    await log_role_change(
+        "revoke", user_id, existing["role_id"], existing.get("role_name", ""),
+        revoked_by, reason, None, None, user_info.get("name") if user_info else None
+    )
+    
+    return {"message": "Role revoked successfully"}
+
+@api_router.get("/rbac/users/{user_id}/permissions")
+async def get_user_permissions(user_id: str):
+    """Get all permissions for a specific user"""
+    # Get user's role assignment
+    assignment = await db.user_role_assignments.find_one({"user_id": user_id, "is_active": True})
+    
+    if not assignment:
+        # Get user info to determine default role
+        user_info = await get_user_info(user_id)
+        if not user_info:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Assign default permissions based on user type
+        user_type = user_info.get("user_type", "listener")
+        if user_type == "admin":
+            role_id = "admin"
+        elif user_type == "choir":
+            role_id = "choir_artist"
+        else:
+            is_premium = user_info.get("subscription_type") == "premium"
+            role_id = "listener_paid" if is_premium else "listener_free"
+    else:
+        role_id = assignment.get("role_id")
+    
+    # Get permissions for the role
+    permissions = ROLE_PERMISSIONS.get(role_id, [])
+    
+    # Check for custom role
+    if not permissions:
+        custom_role = await db.custom_roles.find_one({"role_id": role_id})
+        if custom_role:
+            permissions = custom_role.get("permissions", [])
+    
+    return {
+        "user_id": user_id,
+        "role_id": role_id,
+        "permissions": permissions,
+        "permission_details": [
+            {"id": p, "description": SYSTEM_PERMISSIONS.get(p, "")} for p in permissions
+        ]
+    }
+
+@api_router.get("/rbac/check-permission/{user_id}/{permission}")
+async def check_user_permission(user_id: str, permission: str):
+    """Check if a user has a specific permission"""
+    user_perms = await get_user_permissions(user_id)
+    has_permission = permission in user_perms.get("permissions", [])
+    return {
+        "user_id": user_id,
+        "permission": permission,
+        "has_permission": has_permission,
+        "role_id": user_perms.get("role_id")
+    }
+
+@api_router.get("/rbac/audit-log")
+async def get_role_audit_log(
+    user_id: Optional[str] = None,
+    role_id: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = 100
+):
+    """Get role change audit log"""
+    query = {}
+    if user_id:
+        query["user_id"] = user_id
+    if role_id:
+        query["role_id"] = role_id
+    if action:
+        query["action"] = action
+    
+    logs = await db.role_change_logs.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return {"logs": logs, "total": len(logs)}
+
+@api_router.get("/rbac/stats")
+async def get_rbac_stats():
+    """Get role-based access control statistics"""
+    stats = {}
+    
+    # Count users per role
+    for role in ROLE_HIERARCHY:
+        count = await db.user_role_assignments.count_documents({"role_id": role["id"], "is_active": True})
+        stats[role["id"]] = {
+            "name": role["name"],
+            "count": count,
+            "color": role["color"]
+        }
+    
+    # Count custom roles
+    custom_role_count = await db.custom_roles.count_documents({"is_active": True})
+    
+    # Count total role assignments
+    total_assignments = await db.user_role_assignments.count_documents({"is_active": True})
+    
+    return {
+        "role_stats": stats,
+        "custom_roles_count": custom_role_count,
+        "total_assignments": total_assignments
+    }
+
+async def get_user_info(user_id: str) -> Optional[dict]:
+    """Helper to get user info from various collections"""
+    # Check admin users
+    admin = await db.admin_users.find_one(
+        {"$or": [{"admin_id": user_id}, {"email": user_id}]},
+        {"_id": 0, "password": 0}
+    )
+    if admin:
+        admin["user_type"] = "admin"
+        admin["user_id"] = admin.get("admin_id", admin.get("email"))
+        return admin
+    
+    # Check choir accounts
+    choir = await db.choir_accounts.find_one(
+        {"choir_id": user_id},
+        {"_id": 0, "password_hash": 0}
+    )
+    if choir:
+        choir["user_type"] = "choir"
+        choir["user_id"] = choir.get("choir_id")
+        return choir
+    
+    # Check app users
+    app_user = await db.app_users.find_one(
+        {"user_id": user_id},
+        {"_id": 0, "password_hash": 0}
+    )
+    if app_user:
+        app_user["user_type"] = "app_user"
+        return app_user
+    
+    return None
+
+async def log_role_change(
+    action: str,
+    user_id: Optional[str],
+    role_id: str,
+    role_name: str,
+    performed_by: str,
+    reason: Optional[str] = None,
+    previous_role_id: Optional[str] = None,
+    previous_role_name: Optional[str] = None,
+    user_name: Optional[str] = None
+):
+    """Log role changes for audit"""
+    log = RoleChangeLog(
+        action=action,
+        user_id=user_id,
+        user_name=user_name,
+        role_id=role_id,
+        role_name=role_name,
+        previous_role_id=previous_role_id,
+        previous_role_name=previous_role_name,
+        performed_by=performed_by,
+        reason=reason
+    )
+    log_doc = log.model_dump()
+    log_doc["created_at"] = log_doc["created_at"].isoformat()
+    await db.role_change_logs.insert_one(log_doc)
+
 # Include the router in the main app
 app.include_router(api_router)
 
