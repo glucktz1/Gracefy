@@ -1,158 +1,212 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
+/**
+ * Optimized Mini Player Component
+ * Shows at bottom of screen during playback - uses Zustand store
+ */
+
+import React, { memo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePlayer } from '../context/PlayerContext';
-import { getThumbnailUrl } from '../services/api';
-import AnimatedBars from './AnimatedBars';
+import { useNavigation } from '@react-navigation/native';
+import {
+  useCurrentTrack,
+  useIsPlaying,
+  useIsLoading,
+  useProgress,
+  usePlayerControls,
+} from '../store/playerStore';
 import { COLORS } from '../config';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PLACEHOLDER_IMAGE = require('../../assets/placeholder-album.png');
 
-const MiniPlayer = ({ navigation, onPress }) => {
-  const { currentSong, currentAlbum, isPlaying, togglePlay, playNext, position, duration } = usePlayer();
+const MiniPlayer = memo(({ onPress }) => {
+  const navigation = useNavigation();
+  const currentTrack = useCurrentTrack();
+  const isPlaying = useIsPlaying();
+  const isLoading = useIsLoading();
+  const { position, duration } = useProgress();
+  const { togglePlayPause, skipToNext } = usePlayerControls();
 
-  if (!currentSong) return null;
-
-  const progress = duration > 0 ? (position / duration) * 100 : 0;
-  const thumbnailUrl = getThumbnailUrl(currentSong.thumbnail || currentAlbum?.thumbnail);
-
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (onPress) {
       onPress();
     } else {
-      navigation?.navigate('NowPlaying');
+      navigation.navigate('NowPlaying');
     }
-  };
+  }, [onPress, navigation]);
+
+  const handlePlayPause = useCallback((e) => {
+    e.stopPropagation();
+    togglePlayPause();
+  }, [togglePlayPause]);
+
+  const handleSkipNext = useCallback((e) => {
+    e.stopPropagation();
+    skipToNext();
+  }, [skipToNext]);
+
+  // Don't render if no track
+  if (!currentTrack) return null;
+
+  // Calculate progress percentage
+  const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
-    <TouchableOpacity 
-      style={styles.container} 
+    <Pressable
+      style={styles.container}
       onPress={handlePress}
-      activeOpacity={0.95}
+      data-testid="mini-player"
     >
-      {/* Progress bar at top */}
+      {/* Background with blur effect */}
+      <LinearGradient
+        colors={['rgba(30, 30, 30, 0.98)', 'rgba(20, 20, 20, 0.98)']}
+        style={styles.background}
+      />
+
+      {/* Progress bar */}
       <View style={styles.progressContainer}>
-        <View style={[styles.progressBar, { width: `${progress}%` }]} />
+        <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
       </View>
 
+      {/* Content */}
       <View style={styles.content}>
         {/* Album Art */}
-        <View style={styles.artContainer}>
-          {thumbnailUrl ? (
-            <Image 
-              source={{ uri: thumbnailUrl }} 
-              style={styles.albumArt}
-            />
-          ) : (
-            <LinearGradient colors={['#7c3aed', '#10b981']} style={styles.albumArt}>
-              <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.6)" />
-            </LinearGradient>
-          )}
-        </View>
+        <Image
+          source={currentTrack.thumbnail ? { uri: currentTrack.thumbnail } : PLACEHOLDER_IMAGE}
+          style={styles.albumArt}
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
+        />
 
-        {/* Song Info */}
-        <View style={styles.infoContainer}>
-          <View style={styles.titleRow}>
-            {isPlaying && <AnimatedBars isPlaying={isPlaying} size="small" />}
-            <Text style={styles.songTitle} numberOfLines={1}>
-              {currentSong.title}
-            </Text>
-          </View>
+        {/* Track Info */}
+        <View style={styles.trackInfo}>
+          <Text style={styles.trackTitle} numberOfLines={1}>
+            {currentTrack.title}
+          </Text>
           <Text style={styles.artistName} numberOfLines={1}>
-            {currentSong.artist_name || currentAlbum?.artist_name || 'Unknown Artist'}
+            {currentTrack.artist_name || 'Unknown Artist'}
           </Text>
         </View>
 
         {/* Controls */}
         <View style={styles.controls}>
-          <TouchableOpacity onPress={togglePlay} style={styles.playButton}>
-            <Ionicons 
-              name={isPlaying ? 'pause' : 'play'} 
-              size={28} 
-              color={COLORS.textPrimary} 
-            />
+          {/* Play/Pause Button */}
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={handlePlayPause}
+            disabled={isLoading}
+            data-testid="mini-player-play-btn"
+          >
+            {isLoading ? (
+              <View style={styles.loadingIndicator} />
+            ) : (
+              <Ionicons
+                name={isPlaying ? 'pause' : 'play'}
+                size={24}
+                color="#fff"
+              />
+            )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={playNext} style={styles.controlButton}>
-            <Ionicons name="play-forward" size={24} color={COLORS.textPrimary} />
+
+          {/* Skip Next Button */}
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleSkipNext}
+            data-testid="mini-player-next-btn"
+          >
+            <Ionicons name="play-forward" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
-};
+});
+
+// Static height for layout calculations
+MiniPlayer.HEIGHT = 64;
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 60,
-    left: 8,
-    right: 8,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    bottom: 60, // Above tab bar
+    left: 0,
+    right: 0,
+    height: 64,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
   },
   progressContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     height: 2,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#e91e63',
+    backgroundColor: COLORS.primary,
   },
   content: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-  },
-  artContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 4,
-    overflow: 'hidden',
+    paddingHorizontal: 12,
+    paddingTop: 2,
   },
   albumArt: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    backgroundColor: '#222',
   },
-  infoContainer: {
+  trackInfo: {
     flex: 1,
     marginLeft: 12,
     justifyContent: 'center',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  songTitle: {
-    color: COLORS.textPrimary,
+  trackTitle: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    flex: 1,
+    marginBottom: 2,
   },
   artistName: {
-    color: COLORS.textSecondary,
+    color: '#888',
     fontSize: 12,
-    marginTop: 2,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   playButton: {
-    padding: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  controlButton: {
-    padding: 8,
+  skipButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderTopColor: 'transparent',
   },
 });
 
