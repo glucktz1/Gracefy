@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlayer } from '../context/PlayerContext';
+import { getThumbnailUrl } from '../services/api';
 import AnimatedBars from './AnimatedBars';
 import { COLORS } from '../config';
 
@@ -14,6 +15,7 @@ const MiniPlayer = ({ navigation, onPress }) => {
   if (!currentSong) return null;
 
   const progress = duration > 0 ? (position / duration) * 100 : 0;
+  const thumbnailUrl = getThumbnailUrl(currentSong.thumbnail || currentAlbum?.thumbnail);
 
   const handlePress = () => {
     if (onPress) {
@@ -37,9 +39,9 @@ const MiniPlayer = ({ navigation, onPress }) => {
       <View style={styles.content}>
         {/* Album Art */}
         <View style={styles.artContainer}>
-          {currentSong.thumbnail || currentAlbum?.thumbnail ? (
+          {thumbnailUrl ? (
             <Image 
-              source={{ uri: currentSong.thumbnail || currentAlbum?.thumbnail }} 
+              source={{ uri: thumbnailUrl }} 
               style={styles.albumArt}
             />
           ) : (
@@ -86,7 +88,7 @@ const styles = StyleSheet.create({
     bottom: 60,
     left: 8,
     right: 8,
-    backgroundColor: COLORS.backgroundCard,
+    backgroundColor: '#1a1a2e',
     borderRadius: 8,
     overflow: 'hidden',
     elevation: 8,
@@ -97,11 +99,11 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     height: 2,
-    backgroundColor: COLORS.backgroundElevated,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#e91e63',
   },
   content: {
     flexDirection: 'row',
