@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { sessionService, getAudioUrl } from '../services/api';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const PlayerContext = createContext(null);
 
 // Sample audio for fallback/demo
 const SAMPLE_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+
+// Singleton sound reference to ensure only one audio plays at a time
+let globalSoundRef = null;
 
 export const PlayerProvider = ({ children }) => {
   const [currentSong, setCurrentSong] = useState(null);
@@ -21,22 +25,26 @@ export const PlayerProvider = ({ children }) => {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('off'); // off, all, one
   const [error, setError] = useState(null);
+  const [liked, setLiked] = useState(false);
   
   const soundRef = useRef(null);
   const sessionIdRef = useRef(null);
+  const isLoadingRef = useRef(false);
 
-  // Configure audio mode on mount
+  // Configure audio mode on mount - IMPORTANT for lock screen playback
   useEffect(() => {
     const setupAudio = async () => {
       try {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
-          staysActiveInBackground: true,
+          staysActiveInBackground: true, // Keep playing when app is in background
           playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix, // Stop other audio when this plays
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix, // Stop other audio when this plays
+          shouldDuckAndroid: false,
           playThroughEarpieceAndroid: false,
         });
-        console.log('Audio mode configured successfully');
+        console.log('Audio mode configured for background playback');
       } catch (err) {
         console.error('Error setting audio mode:', err);
       }
@@ -44,11 +52,34 @@ export const PlayerProvider = ({ children }) => {
     setupAudio();
     
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      // Cleanup on unmount
+      stopAndUnloadSound();
     };
   }, []);
+
+  // Stop and unload any existing sound
+  const stopAndUnloadSound = async () => {
+    try {
+      if (globalSoundRef) {
+        const status = await globalSoundRef.getStatusAsync();
+        if (status.isLoaded) {
+          await globalSoundRef.stopAsync();
+          await globalSoundRef.unloadAsync();
+        }
+        globalSoundRef = null;
+      }
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+        }
+        soundRef.current = null;
+      }
+    } catch (e) {
+      console.log('Error stopping sound:', e);
+    }
+  };
 
   // Playback status update handler
   const onPlaybackStatusUpdate = useCallback((status) => {
@@ -84,21 +115,21 @@ export const PlayerProvider = ({ children }) => {
   }, [repeat, queue, queueIndex, shuffle]);
 
   const loadAndPlaySong = async (song, album) => {
+    // Prevent multiple simultaneous load attempts
+    if (isLoadingRef.current) {
+      console.log('Already loading a song, skipping...');
+      return;
+    }
+    
     try {
+      isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
       
       console.log('Loading song:', song.title, 'Audio URL:', song.audio_url);
       
-      // Unload previous sound
-      if (soundRef.current) {
-        try {
-          await soundRef.current.unloadAsync();
-        } catch (e) {
-          console.log('Error unloading previous sound:', e);
-        }
-        soundRef.current = null;
-      }
+      // CRITICAL: Stop and unload any existing sound FIRST
+      await stopAndUnloadSound();
       
       // End previous session
       if (sessionIdRef.current) {
@@ -107,6 +138,7 @@ export const PlayerProvider = ({ children }) => {
         } catch (e) {
           console.log('Error ending session:', e);
         }
+        sessionIdRef.current = null;
       }
       
       // Determine audio URL
@@ -138,19 +170,33 @@ export const PlayerProvider = ({ children }) => {
       
       console.log('Final audio URL:', audioUrl);
       
-      // Create and load sound
+      // Create and load sound with background playback support
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
         { 
           shouldPlay: true,
           progressUpdateIntervalMillis: 500,
+          // These help with lock screen controls
+          isLooping: repeat === 'one',
         },
         onPlaybackStatusUpdate
       );
       
+      // Store in both local and global refs
       soundRef.current = sound;
+      globalSoundRef = sound;
+      
       setCurrentSong(song);
       setCurrentAlbum(album);
+      
+      // Check if song is liked
+      try {
+        const favorites = await SecureStore.getItemAsync('favorites');
+        if (favorites) {
+          const favList = JSON.parse(favorites);
+          setLiked(favList.includes(song.song_id));
+        }
+      } catch (e) {}
       
       // Start listening session
       try {
@@ -162,27 +208,33 @@ export const PlayerProvider = ({ children }) => {
       }
       
       setIsLoading(false);
-      console.log('Song loaded successfully');
+      isLoadingRef.current = false;
+      console.log('Song loaded and playing successfully');
       
     } catch (error) {
       console.error('Error loading song:', error);
       setError(error.message || 'Failed to load audio');
       setIsLoading(false);
+      isLoadingRef.current = false;
       
       // Try fallback to sample audio
       try {
         console.log('Attempting fallback to sample audio...');
+        await stopAndUnloadSound();
         const { sound } = await Audio.Sound.createAsync(
           { uri: SAMPLE_AUDIO },
           { shouldPlay: true },
           onPlaybackStatusUpdate
         );
         soundRef.current = sound;
+        globalSoundRef = sound;
         setCurrentSong(song);
         setCurrentAlbum(album);
         setIsLoading(false);
+        isLoadingRef.current = false;
       } catch (fallbackError) {
         console.error('Fallback also failed:', fallbackError);
+        isLoadingRef.current = false;
       }
     }
   };
@@ -201,6 +253,12 @@ export const PlayerProvider = ({ children }) => {
     }
     
     try {
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) {
+        console.log('Sound not loaded');
+        return;
+      }
+      
       if (isPlaying) {
         await soundRef.current.pauseAsync();
       } else {
@@ -216,7 +274,10 @@ export const PlayerProvider = ({ children }) => {
     
     let nextIndex;
     if (shuffle) {
-      nextIndex = Math.floor(Math.random() * queue.length);
+      // Get random index different from current
+      do {
+        nextIndex = Math.floor(Math.random() * queue.length);
+      } while (nextIndex === queueIndex && queue.length > 1);
     } else {
       nextIndex = queueIndex + 1;
       if (nextIndex >= queue.length) {
@@ -261,7 +322,45 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const cycleRepeat = () => {
-    setRepeat(prev => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
+    const newRepeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
+    setRepeat(newRepeat);
+    
+    // Update looping on current sound
+    if (soundRef.current) {
+      soundRef.current.setIsLoopingAsync(newRepeat === 'one');
+    }
+  };
+
+  const toggleShuffle = () => {
+    setShuffle(prev => !prev);
+  };
+
+  const toggleLike = async () => {
+    if (!currentSong) return;
+    
+    try {
+      let favorites = [];
+      const stored = await SecureStore.getItemAsync('favorites');
+      if (stored) {
+        favorites = JSON.parse(stored);
+      }
+      
+      if (liked) {
+        favorites = favorites.filter(id => id !== currentSong.song_id);
+      } else {
+        favorites.push(currentSong.song_id);
+      }
+      
+      await SecureStore.setItemAsync('favorites', JSON.stringify(favorites));
+      setLiked(!liked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
+
+  const addToPlaylist = async (playlistId) => {
+    // This would call the API to add current song to playlist
+    console.log('Adding song to playlist:', playlistId);
   };
 
   const value = {
@@ -276,13 +375,17 @@ export const PlayerProvider = ({ children }) => {
     shuffle,
     repeat,
     error,
+    liked,
     playSong,
     togglePlay,
     playNext,
     playPrevious,
     seekTo,
     setShuffle,
+    toggleShuffle,
     cycleRepeat,
+    toggleLike,
+    addToPlaylist,
   };
 
   return (
