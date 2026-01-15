@@ -357,20 +357,38 @@ const useAudioPlayer = () => {
 
 // ==================== COMPONENTS ====================
 
-// Quick Access Card (for grid below greeting)
+// Quick Access Card - Spotify-style compact tile
 const QuickAccessCard = ({ item, onClick }) => {
-  const IconComponent = categoryIcons[item.name?.toLowerCase()] || categoryIcons.default;
+  // Determine icon and gradient based on item type
+  let IconComponent = categoryIcons[item.name?.toLowerCase()] || categoryIcons.default;
+  let gradient = 'from-emerald-600 to-teal-700';
+  
+  // Special styling for user items
+  if (item.type === 'liked_songs') {
+    IconComponent = Heart;
+    gradient = 'from-violet-500 via-purple-500 to-fuchsia-500';
+  } else if (item.type === 'library') {
+    IconComponent = Library;
+    gradient = 'from-blue-600 to-cyan-600';
+  } else if (item.type === 'downloads') {
+    IconComponent = Download;
+    gradient = 'from-emerald-600 to-green-600';
+  } else if (item.type === 'playlists') {
+    IconComponent = ListMusic;
+    gradient = 'from-orange-500 to-amber-500';
+  }
+  
   return (
     <button
       onClick={onClick}
       className="flex items-center gap-3 bg-zinc-800/70 hover:bg-zinc-700/90 rounded overflow-hidden transition-all duration-200 h-14"
-      data-testid={`quick-${item.category_id || item.album_id}`}
+      data-testid={`quick-${item.id || item.category_id || item.album_id || item.type}`}
     >
-      <div className="w-14 h-14 bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center flex-shrink-0">
+      <div className={`w-14 h-14 bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
         {item.thumbnail ? (
           <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
         ) : (
-          <IconComponent size={22} className="text-white" />
+          <IconComponent size={22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
       </div>
       <span className="font-semibold text-sm text-white pr-3 truncate">{item.name || item.title}</span>
