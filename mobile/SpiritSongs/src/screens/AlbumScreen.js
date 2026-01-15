@@ -15,7 +15,7 @@ import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
 
-// Cache for album data to improve performance
+// Cache for album data
 const albumCache = new Map();
 
 export default function AlbumScreen({ route, navigation }) {
@@ -23,9 +23,11 @@ export default function AlbumScreen({ route, navigation }) {
   const [album, setAlbum] = useState(null);
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedSong, setSelectedSong] = useState(null);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const { playSong, currentSong, isPlaying, togglePlay } = usePlayer();
 
@@ -34,19 +36,21 @@ export default function AlbumScreen({ route, navigation }) {
       fetchAlbum();
     } else {
       console.error('No albumId provided to AlbumScreen');
+      setError('No album ID provided');
       setLoading(false);
     }
-  }, [albumId]);
+  }, [albumId, retryCount]);
 
   const fetchAlbum = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Check cache first for better performance
+      // Check cache first
       const cacheKey = `album_${albumId}`;
       const cached = albumCache.get(cacheKey);
       
-      if (cached && Date.now() - cached.timestamp < 60000) { // 1 minute cache
+      if (cached && Date.now() - cached.timestamp < 60000) {
         setAlbum(cached.album);
         setSongs(cached.songs);
         setLoading(false);
@@ -54,32 +58,67 @@ export default function AlbumScreen({ route, navigation }) {
       }
       
       console.log('Fetching album:', albumId);
-      const data = await contentService.getAlbum(albumId);
       
-      // The API returns { album, songs, artist }
-      const albumData = data.album || data;
-      const songsData = data.songs || albumData.songs || [];
+      // Fetch with timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       
-      console.log('Album data received:', albumData?.title, 'Songs:', songsData.length);
+      try {
+        const data = await contentService.getAlbum(albumId);
+        clearTimeout(timeoutId);
+        
+        console.log('Raw API response:', JSON.stringify(data).substring(0, 200));
+        
+        // Handle different response formats
+        let albumData, songsData;
+        
+        if (data.album) {
+          albumData = data.album;
+          songsData = data.songs || [];
+        } else if (data.title) {
+          // Direct album object
+          albumData = data;
+          songsData = data.songs || [];
+        } else {
+          throw new Error('Invalid album data format');
+        }
+        
+        console.log('Album:', albumData?.title, 'Songs:', songsData?.length);
+        
+        // Cache the result
+        albumCache.set(cacheKey, {
+          album: albumData,
+          songs: songsData,
+          timestamp: Date.now()
+        });
+        
+        setAlbum(albumData);
+        setSongs(songsData || []);
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
       
-      // Update cache
-      albumCache.set(cacheKey, {
-        album: albumData,
-        songs: songsData,
-        timestamp: Date.now()
-      });
+    } catch (err) {
+      console.error('Error fetching album:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Could not load album';
+      setError(errorMessage);
       
-      setAlbum(albumData);
-      setSongs(songsData);
-    } catch (error) {
-      console.error('Error fetching album:', error);
-      Alert.alert('Error', 'Could not load album. Please try again.');
+      // Only show alert for non-network errors or after retries
+      if (retryCount >= 2 || !err.message?.includes('Network')) {
+        Alert.alert('Error', 'Could not load album. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Pre-build the queue once for better performance
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+  };
+
+  // Pre-build the queue
   const songQueue = useMemo(() => {
     return songs.map(song => ({ song, album }));
   }, [songs, album]);
@@ -148,26 +187,31 @@ export default function AlbumScreen({ route, navigation }) {
 
   const isAlbumPlaying = currentSong && songs.some(s => s.song_id === currentSong.song_id);
 
+  // Loading state
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color="#e91e63" />
         <Text style={styles.loadingText}>Loading album...</Text>
       </View>
     );
   }
 
-  if (!album || !albumId) {
+  // Error state
+  if (error || !album) {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />
-        <Text style={styles.errorText}>Album not found</Text>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
+        <Text style={styles.errorText}>{error || 'Album not found'}</Text>
+        <View style={styles.errorButtons}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Ionicons name="refresh" size={20} color="#000" />
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -193,10 +237,7 @@ export default function AlbumScreen({ route, navigation }) {
           style={styles.headerGradient}
         >
           {/* Back Button */}
-          <TouchableOpacity 
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color={COLORS.textPrimary} />
           </TouchableOpacity>
 
@@ -221,7 +262,7 @@ export default function AlbumScreen({ route, navigation }) {
               <Text style={styles.artistName}>{album.artist_name || 'Various Artists'}</Text>
             </TouchableOpacity>
             <Text style={styles.albumMeta}>
-              {album.category} • {songs.length} songs • {formatDuration(totalDuration)}
+              {album.category || 'Album'} • {songs.length} songs • {formatDuration(totalDuration)}
             </Text>
           </View>
         </LinearGradient>
@@ -238,7 +279,7 @@ export default function AlbumScreen({ route, navigation }) {
               disabled={downloadingAll}
             >
               {downloadingAll ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <ActivityIndicator size="small" color="#e91e63" />
               ) : (
                 <Ionicons name="download-outline" size={24} color={COLORS.textSecondary} />
               )}
@@ -249,7 +290,7 @@ export default function AlbumScreen({ route, navigation }) {
           </View>
           <View style={styles.rightActions}>
             <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffle}>
-              <Ionicons name="shuffle" size={24} color={COLORS.primary} />
+              <Ionicons name="shuffle" size={24} color="#e91e63" />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.playBtn} 
@@ -290,9 +331,7 @@ export default function AlbumScreen({ route, navigation }) {
         <View style={styles.footer}>
           <Text style={styles.footerDate}>
             {album.release_date || new Date().toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+              year: 'numeric', month: 'long', day: 'numeric' 
             })}
           </Text>
           <Text style={styles.footerMeta}>
@@ -339,20 +378,39 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.textSecondary,
-    fontSize: 18,
+    fontSize: 16,
     marginTop: 16,
     marginBottom: 24,
+    textAlign: 'center',
+  },
+  errorButtons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  retryButtonText: {
+    color: '#000',
+    fontWeight: '600',
+    fontSize: 14,
   },
   backButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
+    backgroundColor: '#333',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 24,
   },
   backButtonText: {
-    color: '#000',
+    color: '#fff',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
   },
   scrollView: {
     flex: 1,
@@ -447,7 +505,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#e91e63',
     justifyContent: 'center',
     alignItems: 'center',
   },
