@@ -641,13 +641,46 @@ export default function ChoirDashboard() {
                           <Music2 size={24} className="text-violet-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-white truncate">{album.title}</h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-white truncate">{album.title}</h4>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => openEditAlbumModal(album)}
+                              className="h-7 w-7 p-0 text-zinc-400 hover:text-violet-400"
+                              title="Edit Album"
+                            >
+                              <Edit2 size={14} />
+                            </Button>
+                          </div>
                           <p className="text-xs text-zinc-500">{album.songs_count || 0} songs</p>
                           <span className={`text-xs mt-1 inline-block px-2 py-0.5 rounded ${album.monetization_type === "premium" ? "bg-amber-500/20 text-amber-400" : "bg-violet-500/20 text-violet-400"}`}>
                             {album.monetization_type}
                           </span>
                         </div>
                       </div>
+                      {/* Songs in Album */}
+                      {album.songs && album.songs.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
+                          {album.songs.map((song) => (
+                            <div key={song.song_id} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2 text-zinc-400">
+                                <PlayCircle size={12} />
+                                <span className="truncate max-w-[150px]">{song.title}</span>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => openEditSongModal(song, album)}
+                                className="h-6 w-6 p-0 text-zinc-500 hover:text-violet-400"
+                                title="Edit Song"
+                              >
+                                <Edit2 size={12} />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
