@@ -7137,7 +7137,7 @@ try:
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False
-    logger.warning("Supabase service not available")
+    print("WARNING: Supabase service not available")
 
 @api_router.get("/supabase/status")
 async def get_supabase_status():
