@@ -364,19 +364,62 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - ✅ **Album loading optimization**: Caching for faster repeat loads
 
 ## Next Tasks (Priority Order)
-1. **P0 - Build & Test APK v1.0.3**: Build new APK with EAS and test all fixed features
+1. **P1 - Build & Test New APK**: Build APK with monetization features and test on device
 2. **P1 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
-3. **P1 - Mobile App Testing**: Verify all features work on physical device
-4. **P2 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
-5. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
-6. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
-7. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
+3. **P2 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
+4. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
+5. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
+6. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
 
 ## Future/Backlog
 - Audio Rooms (Clubhouse-style)
 - Christian Community features (Facebook-like)
 - Push notifications
 - Backend refactoring (break down server.py into modular structure)
+
+### Phase 5.5 - Monetization & Feature Gates (January 15, 2026)
+
+**Backend - Monetization Feature Controls:**
+- ✅ GET `/api/monetization/feature-controls` - Get free vs paid feature settings
+- ✅ PUT `/api/monetization/feature-controls` - Update feature controls (admin)
+- ✅ GET `/api/user/subscription-status` - Get user's subscription tier and applicable features
+
+**Admin Panel - MonetizationSettingsPage (`/monetization`):**
+- ✅ Feature Controls tab with side-by-side Free vs Premium comparison
+- ✅ Configurable settings: skips per hour, preview duration (seconds), song selection, shuffle control
+- ✅ Toggle controls for: downloads, playlists, premium content, ads, offline mode, background play
+- ✅ Select options for: play mode (preview/limited/full), album playback, audio quality, background play
+- ✅ Reset to defaults functionality
+- ✅ Save Feature Controls button
+
+**Mobile App - Subscription Integration:**
+- ✅ `SubscriptionContext.js`: Context for managing subscription state and feature checks
+- ✅ `SubscriptionScreen.js`: Premium upgrade screen with feature comparison and subscription plans
+- ✅ Feature gate checks throughout the app
+- ✅ Upgrade prompts with "Maybe Later" and "Upgrade Now" options
+- ✅ Skip counter display for free users (e.g., "6 skips left this hour")
+- ✅ Lock icons on restricted features for free users
+
+**Feature Gates Implemented (Free Users):**
+- ✅ Limited skips per hour (admin configurable, default 6)
+- ✅ Cannot select specific songs (shuffle only)
+- ✅ Preview playback only (configurable duration, default 30 sec)
+- ✅ Cannot download songs for offline
+- ✅ Cannot create playlists
+- ✅ Forced shuffle mode
+- ✅ Ads shown (placeholder)
+- ✅ Standard audio quality only
+- ✅ Limited background play
+
+**Updated Screens:**
+- ✅ `NowPlayingScreen.js`: Skip limit display, upgrade prompts for downloads/playlists, lock icons
+- ✅ `AlbumScreen.js`: Song selection gates, shuffle-only for free users, upgrade prompts
+- ✅ `ProfileScreen.js`: Premium banner, subscription status display, manage subscription link
+- ✅ `SongListItem.js`: Custom onSongPress handler for subscription checks
+
+**Layout Management Integration:**
+- ✅ HomeScreen fetches dynamic content from `/api/user/home` (uses admin-configured layout sections)
+- ✅ Sections, burners, and content controlled via admin Layout Management page
 
 ## Testing Status
 - ✅ Phase 1 & 2: 45/45 tests passed (100%)
