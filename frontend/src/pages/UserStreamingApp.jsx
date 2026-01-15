@@ -952,9 +952,15 @@ export default function UserStreamingApp() {
 
                 {/* Dynamic Sections */}
                 {!activeCategory && homeData.sections?.map((section, idx) => {
-                  if (section.type === 'hero' || section.type === 'quick_access') return null;
+                  // Skip hero (handled above) but show quick_access if it has album items
+                  if (section.section_type === 'hero') return null;
+                  
                   const items = section.items || [];
                   if (items.length === 0) return null;
+                  
+                  // If quick_access has albums (not categories), show it as album section
+                  const isAlbumSection = section.content_type === 'albums' || 
+                    (items[0] && (items[0].album_id || items[0].title));
 
                   // Alternate layouts for variety
                   const layoutType = idx % 4;
@@ -967,47 +973,65 @@ export default function UserStreamingApp() {
                         onSeeMore={items.length > 5 ? () => {} : null}
                       />
 
-                      {/* Layout 0: Wide Cards (Carousel) */}
-                      {layoutType === 0 && section.type === 'featured_albums' && (
-                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-                          {items.slice(0, 5).map(album => (
-                            <WideAlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Layout 1: Standard Cards */}
-                      {(layoutType === 1 || (layoutType === 0 && section.type !== 'featured_albums')) && (
-                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-                          {items.slice(0, 10).map(album => (
-                            <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Layout 2: Compact List */}
-                      {layoutType === 2 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                          {items.slice(0, 6).map((album, i) => (
-                            <ListItem 
-                              key={album.album_id} 
-                              item={{...album, thumbnail: album.thumbnail}}
-                              index={i}
-                              onPlay={() => openAlbum(album.album_id)}
-                              isActive={false}
-                              isPlaying={false}
+                      {/* Quick Access Grid (for categories only) */}
+                      {section.section_type === 'quick_access' && !isAlbumSection && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {items.slice(0, 6).map(item => (
+                            <QuickAccessCard 
+                              key={item.category_id || item.name} 
+                              item={item} 
+                              onClick={() => handleCategorySelect(item)}
                             />
                           ))}
                         </div>
                       )}
 
-                      {/* Layout 3: Grid */}
-                      {layoutType === 3 && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                          {items.slice(0, 10).map(album => (
-                            <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} size="sm" />
-                          ))}
-                        </div>
+                      {/* Album Sections */}
+                      {isAlbumSection && (
+                        <>
+                          {/* Layout 0: Wide Cards (Carousel) */}
+                          {layoutType === 0 && section.section_type === 'featured_albums' && (
+                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                              {items.slice(0, 5).map(album => (
+                                <WideAlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Layout 1: Standard Cards (default) */}
+                          {(layoutType === 1 || (layoutType === 0 && section.section_type !== 'featured_albums') || section.section_type === 'seasonal' || section.section_type === 'quick_access') && (
+                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                              {items.slice(0, 10).map(album => (
+                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Layout 2: Compact List */}
+                          {layoutType === 2 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                              {items.slice(0, 6).map((album, i) => (
+                                <ListItem 
+                                  key={album.album_id} 
+                                  item={{...album, thumbnail: album.thumbnail}}
+                                  index={i}
+                                  onPlay={() => openAlbum(album.album_id)}
+                                  isActive={false}
+                                  isPlaying={false}
+                                />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Layout 3: Grid */}
+                          {layoutType === 3 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                              {items.slice(0, 10).map(album => (
+                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} size="sm" />
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </section>
                   );
