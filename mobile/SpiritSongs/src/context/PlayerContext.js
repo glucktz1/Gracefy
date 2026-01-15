@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
-import { sessionService, getAudioUrl } from '../services/api';
+import { Alert, Share } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { Platform, Alert, Share } from 'react-native';
+import { sessionService, getAudioUrl, contentService, libraryService } from '../services/api';
 import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from '../services/downloadService';
 
 const PlayerContext = createContext(null);
@@ -30,6 +29,7 @@ export const PlayerProvider = ({ children }) => {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [allAlbums, setAllAlbums] = useState([]); // For auto-play next album
   
   const soundRef = useRef(null);
   const sessionIdRef = useRef(null);
@@ -41,10 +41,10 @@ export const PlayerProvider = ({ children }) => {
       try {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
-          staysActiveInBackground: true, // Keep playing when app is in background
+          staysActiveInBackground: true,
           playsInSilentModeIOS: true,
-          interruptionModeIOS: InterruptionModeIOS.DoNotMix, // Stop other audio when this plays
-          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix, // Stop other audio when this plays
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
           shouldDuckAndroid: false,
           playThroughEarpieceAndroid: false,
         });
@@ -54,12 +54,32 @@ export const PlayerProvider = ({ children }) => {
       }
     };
     setupAudio();
+    fetchAllAlbums();
     
     return () => {
-      // Cleanup on unmount
       stopAndUnloadSound();
     };
   }, []);
+
+  // Fetch all albums for auto-play next album feature
+  const fetchAllAlbums = async () => {
+    try {
+      const homeData = await contentService.getHome();
+      const albums = [];
+      homeData?.sections?.forEach(section => {
+        if (section.items) {
+          section.items.forEach(item => {
+            if (item.album_id && !albums.find(a => a.album_id === item.album_id)) {
+              albums.push(item);
+            }
+          });
+        }
+      });
+      setAllAlbums(albums);
+    } catch (error) {
+      console.log('Error fetching albums for auto-play:', error);
+    }
+  };
 
   // Stop and unload any existing sound
   const stopAndUnloadSound = async () => {
@@ -94,7 +114,7 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(status.isBuffering);
       setError(null);
       
-      // Handle song end
+      // Handle song end - auto-play next
       if (status.didJustFinish && !status.isLooping) {
         handleSongEnd();
       }
@@ -105,21 +125,69 @@ export const PlayerProvider = ({ children }) => {
     }
   }, []);
 
+  // Handle song end - play next song in album, or next album
   const handleSongEnd = useCallback(async () => {
+    console.log('Song ended. Repeat mode:', repeat, 'Queue length:', queue.length, 'Index:', queueIndex);
+    
     if (repeat === 'one') {
       // Replay current song
       if (soundRef.current) {
         await soundRef.current.setPositionAsync(0);
         await soundRef.current.playAsync();
       }
-    } else {
-      // Play next
-      playNext();
+      return;
     }
-  }, [repeat, queue, queueIndex, shuffle]);
+    
+    // Check if there are more songs in the queue
+    if (queueIndex < queue.length - 1) {
+      // Play next song in queue/album
+      playNext();
+    } else if (repeat === 'all') {
+      // Restart queue from beginning
+      setQueueIndex(0);
+      const item = queue[0];
+      await loadAndPlaySong(item.song || item, item.album || currentAlbum);
+    } else {
+      // End of album - try to play next album
+      await playNextAlbum();
+    }
+  }, [repeat, queue, queueIndex, currentAlbum, allAlbums]);
+
+  // Play next album automatically
+  const playNextAlbum = async () => {
+    if (!currentAlbum || allAlbums.length === 0) {
+      console.log('No more albums to play');
+      return;
+    }
+    
+    // Find current album index
+    const currentIndex = allAlbums.findIndex(a => a.album_id === currentAlbum.album_id);
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex < allAlbums.length) {
+      const nextAlbum = allAlbums[nextIndex];
+      console.log('Auto-playing next album:', nextAlbum.title);
+      
+      try {
+        // Fetch songs for next album
+        const albumData = await contentService.getAlbum(nextAlbum.album_id);
+        const songs = albumData.songs || [];
+        
+        if (songs.length > 0) {
+          const newQueue = songs.map(song => ({ song, album: albumData.album || nextAlbum }));
+          setQueue(newQueue);
+          setQueueIndex(0);
+          await loadAndPlaySong(songs[0], albumData.album || nextAlbum);
+        }
+      } catch (error) {
+        console.error('Error loading next album:', error);
+      }
+    } else {
+      console.log('Reached end of all albums');
+    }
+  };
 
   const loadAndPlaySong = async (song, album) => {
-    // Prevent multiple simultaneous load attempts
     if (isLoadingRef.current) {
       console.log('Already loading a song, skipping...');
       return;
@@ -132,24 +200,21 @@ export const PlayerProvider = ({ children }) => {
       
       console.log('Loading song:', song.title, 'Song ID:', song.song_id);
       
-      // CRITICAL: Stop and unload any existing sound FIRST
       await stopAndUnloadSound();
       
       // End previous session
       if (sessionIdRef.current) {
         try {
           await sessionService.endSession(sessionIdRef.current);
-        } catch (e) {
-          console.log('Error ending session:', e);
-        }
+        } catch (e) {}
         sessionIdRef.current = null;
       }
       
-      // Determine audio URL - First check for local download
+      // Determine audio URL
       let audioUrl = null;
       let isLocalFile = false;
       
-      // Check if file is downloaded locally FIRST (highest priority)
+      // Check for local download first
       try {
         const localPath = await getLocalSongPath(song.song_id);
         if (localPath) {
@@ -161,39 +226,30 @@ export const PlayerProvider = ({ children }) => {
           setIsDownloaded(false);
         }
       } catch (e) {
-        console.log('Error checking local file:', e);
         setIsDownloaded(false);
       }
       
-      // If not local, try to get the remote audio URL
+      // Remote URL if not local
       if (!audioUrl) {
         if (song.audio_url) {
           audioUrl = getAudioUrl(song.audio_url);
-          console.log('Resolved remote audio URL:', audioUrl);
         }
-        
-        // Fallback to sample audio if no URL
         if (!audioUrl) {
-          console.log('No audio URL found, using sample audio');
           audioUrl = SAMPLE_AUDIO;
         }
       }
       
-      console.log('Final audio URL:', audioUrl, 'isLocal:', isLocalFile);
-      
-      // Create and load sound with background playback support
+      // Create and load sound
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
         { 
           shouldPlay: true,
           progressUpdateIntervalMillis: 500,
-          // These help with lock screen controls
           isLooping: repeat === 'one',
         },
         onPlaybackStatusUpdate
       );
       
-      // Store in both local and global refs
       soundRef.current = sound;
       globalSoundRef = sound;
       
@@ -201,26 +257,17 @@ export const PlayerProvider = ({ children }) => {
       setCurrentAlbum(album);
       
       // Check if song is liked
-      try {
-        const favorites = await SecureStore.getItemAsync('favorites');
-        if (favorites) {
-          const favList = JSON.parse(favorites);
-          setLiked(favList.includes(song.song_id));
-        }
-      } catch (e) {}
+      await checkIfLiked(song.song_id);
       
       // Start listening session
       try {
         const userId = await SecureStore.getItemAsync('user_id');
         const session = await sessionService.startSession(song.song_id, userId);
         sessionIdRef.current = session?.session_id;
-      } catch (e) {
-        console.log('Session tracking error (non-critical):', e);
-      }
+      } catch (e) {}
       
       setIsLoading(false);
       isLoadingRef.current = false;
-      console.log('Song loaded and playing successfully');
       
     } catch (error) {
       console.error('Error loading song:', error);
@@ -228,9 +275,8 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(false);
       isLoadingRef.current = false;
       
-      // Try fallback to sample audio
+      // Fallback
       try {
-        console.log('Attempting fallback to sample audio...');
         await stopAndUnloadSound();
         const { sound } = await Audio.Sound.createAsync(
           { uri: SAMPLE_AUDIO },
@@ -244,9 +290,23 @@ export const PlayerProvider = ({ children }) => {
         setIsLoading(false);
         isLoadingRef.current = false;
       } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
         isLoadingRef.current = false;
       }
+    }
+  };
+
+  // Check if current song is liked
+  const checkIfLiked = async (songId) => {
+    try {
+      const favorites = await SecureStore.getItemAsync('favorites');
+      if (favorites) {
+        const favList = JSON.parse(favorites);
+        setLiked(favList.includes(songId));
+      } else {
+        setLiked(false);
+      }
+    } catch (e) {
+      setLiked(false);
     }
   };
 
@@ -258,17 +318,11 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const togglePlay = async () => {
-    if (!soundRef.current) {
-      console.log('No sound loaded');
-      return;
-    }
+    if (!soundRef.current) return;
     
     try {
       const status = await soundRef.current.getStatusAsync();
-      if (!status.isLoaded) {
-        console.log('Sound not loaded');
-        return;
-      }
+      if (!status.isLoaded) return;
       
       if (isPlaying) {
         await soundRef.current.pauseAsync();
@@ -285,7 +339,6 @@ export const PlayerProvider = ({ children }) => {
     
     let nextIndex;
     if (shuffle) {
-      // Get random index different from current
       do {
         nextIndex = Math.floor(Math.random() * queue.length);
       } while (nextIndex === queueIndex && queue.length > 1);
@@ -295,6 +348,8 @@ export const PlayerProvider = ({ children }) => {
         if (repeat === 'all') {
           nextIndex = 0;
         } else {
+          // Auto-play next album
+          await playNextAlbum();
           return;
         }
       }
@@ -307,7 +362,6 @@ export const PlayerProvider = ({ children }) => {
 
   const playPrevious = async () => {
     if (position > 3) {
-      // Restart current song if more than 3 seconds in
       if (soundRef.current) {
         await soundRef.current.setPositionAsync(0);
       }
@@ -336,7 +390,6 @@ export const PlayerProvider = ({ children }) => {
     const newRepeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
     setRepeat(newRepeat);
     
-    // Update looping on current sound
     if (soundRef.current) {
       soundRef.current.setIsLoopingAsync(newRepeat === 'one');
     }
@@ -346,6 +399,7 @@ export const PlayerProvider = ({ children }) => {
     setShuffle(prev => !prev);
   };
 
+  // Toggle like - saves to local storage AND syncs with backend
   const toggleLike = async () => {
     if (!currentSong) return;
     
@@ -356,22 +410,38 @@ export const PlayerProvider = ({ children }) => {
         favorites = JSON.parse(stored);
       }
       
-      if (liked) {
-        favorites = favorites.filter(id => id !== currentSong.song_id);
+      const newLiked = !liked;
+      
+      if (newLiked) {
+        // Add to favorites
+        if (!favorites.includes(currentSong.song_id)) {
+          favorites.push(currentSong.song_id);
+        }
+        
+        // Sync with backend
+        try {
+          await libraryService.addFavorite(currentSong.song_id);
+        } catch (e) {
+          console.log('Backend sync error (non-critical):', e);
+        }
       } else {
-        favorites.push(currentSong.song_id);
+        // Remove from favorites
+        favorites = favorites.filter(id => id !== currentSong.song_id);
+        
+        // Sync with backend
+        try {
+          await libraryService.removeFavorite(currentSong.song_id);
+        } catch (e) {
+          console.log('Backend sync error (non-critical):', e);
+        }
       }
       
       await SecureStore.setItemAsync('favorites', JSON.stringify(favorites));
-      setLiked(!liked);
+      setLiked(newLiked);
+      
     } catch (error) {
       console.error('Error toggling like:', error);
     }
-  };
-
-  const addToPlaylist = async (playlistId) => {
-    // This would call the API to add current song to playlist
-    console.log('Adding song to playlist:', playlistId);
   };
 
   // Share song
@@ -393,7 +463,6 @@ export const PlayerProvider = ({ children }) => {
     if (!currentSong || !currentAlbum) return;
     
     if (isDownloaded) {
-      // Remove download
       Alert.alert(
         'Remove Download',
         'This will remove the offline version of this song.',
@@ -415,7 +484,6 @@ export const PlayerProvider = ({ children }) => {
         ]
       );
     } else {
-      // Download the song
       setIsDownloading(true);
       setDownloadProgress(0);
       
@@ -425,9 +493,8 @@ export const PlayerProvider = ({ children }) => {
         });
         setIsDownloaded(true);
         setIsDownloading(false);
-        Alert.alert('Downloaded', 'Song is now available offline');
+        Alert.alert('Downloaded!', 'Song is now available offline');
       } catch (error) {
-        console.error('Download error:', error);
         setIsDownloading(false);
         Alert.alert('Download Failed', error.message || 'Could not download song');
       }
@@ -459,7 +526,6 @@ export const PlayerProvider = ({ children }) => {
     toggleShuffle,
     cycleRepeat,
     toggleLike,
-    addToPlaylist,
     shareSong,
     downloadCurrentSong,
   };
