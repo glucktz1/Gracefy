@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image, 
-  StyleSheet, Dimensions, FlatList, ActivityIndicator
+  StyleSheet, Dimensions, ActivityIndicator, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { contentService, getThumbnailUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
+import { downloadSong, isSongDownloaded } from '../services/downloadService';
 import SongListItem from '../components/SongListItem';
 import MiniPlayer from '../components/MiniPlayer';
 import PlaylistModal from '../components/PlaylistModal';
@@ -14,67 +15,152 @@ import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
 
+// Cache for album data to improve performance
+const albumCache = new Map();
+
 export default function AlbumScreen({ route, navigation }) {
-  const { albumId } = route.params;
+  const { albumId } = route.params || {};
   const [album, setAlbum] = useState(null);
+  const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState(null);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   
   const { playSong, currentSong, isPlaying, togglePlay } = usePlayer();
 
   useEffect(() => {
-    fetchAlbum();
+    if (albumId) {
+      fetchAlbum();
+    } else {
+      console.error('No albumId provided to AlbumScreen');
+      setLoading(false);
+    }
   }, [albumId]);
 
   const fetchAlbum = async () => {
     try {
+      setLoading(true);
+      
+      // Check cache first for better performance
+      const cacheKey = `album_${albumId}`;
+      const cached = albumCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < 60000) { // 1 minute cache
+        setAlbum(cached.album);
+        setSongs(cached.songs);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Fetching album:', albumId);
       const data = await contentService.getAlbum(albumId);
-      setAlbum(data);
+      
+      // The API returns { album, songs, artist }
+      const albumData = data.album || data;
+      const songsData = data.songs || albumData.songs || [];
+      
+      console.log('Album data received:', albumData?.title, 'Songs:', songsData.length);
+      
+      // Update cache
+      albumCache.set(cacheKey, {
+        album: albumData,
+        songs: songsData,
+        timestamp: Date.now()
+      });
+      
+      setAlbum(albumData);
+      setSongs(songsData);
     } catch (error) {
       console.error('Error fetching album:', error);
+      Alert.alert('Error', 'Could not load album. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePlayAll = () => {
-    if (album?.songs?.length > 0) {
-      const queue = album.songs.map(song => ({ song, album }));
-      playSong(album.songs[0], album, queue, 0);
-    }
-  };
+  // Pre-build the queue once for better performance
+  const songQueue = useMemo(() => {
+    return songs.map(song => ({ song, album }));
+  }, [songs, album]);
 
-  const handleShuffle = () => {
-    if (album?.songs?.length > 0) {
-      const shuffled = [...album.songs].sort(() => Math.random() - 0.5);
-      const queue = shuffled.map(song => ({ song, album }));
-      playSong(shuffled[0], album, queue, 0);
+  const handlePlayAll = useCallback(() => {
+    if (songs.length > 0) {
+      playSong(songs[0], album, songQueue, 0);
     }
-  };
+  }, [songs, album, songQueue, playSong]);
 
-  const handleAddToPlaylist = (song) => {
+  const handleShuffle = useCallback(() => {
+    if (songs.length > 0) {
+      const shuffled = [...songs].sort(() => Math.random() - 0.5);
+      const shuffledQueue = shuffled.map(song => ({ song, album }));
+      playSong(shuffled[0], album, shuffledQueue, 0);
+    }
+  }, [songs, album, playSong]);
+
+  const handleAddToPlaylist = useCallback((song) => {
     setSelectedSong(song);
     setShowPlaylistModal(true);
+  }, []);
+
+  const handleDownloadAll = async () => {
+    if (!songs.length) return;
+    
+    Alert.alert(
+      'Download Album',
+      `Download all ${songs.length} songs for offline listening?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: async () => {
+            setDownloadingAll(true);
+            let downloaded = 0;
+            let failed = 0;
+            
+            for (const song of songs) {
+              try {
+                const isDownloaded = await isSongDownloaded(song.song_id);
+                if (!isDownloaded) {
+                  await downloadSong(song, album);
+                  downloaded++;
+                }
+              } catch (error) {
+                failed++;
+                console.error('Failed to download:', song.title, error);
+              }
+            }
+            
+            setDownloadingAll(false);
+            Alert.alert(
+              'Download Complete',
+              `Downloaded ${downloaded} songs${failed > 0 ? `. ${failed} failed.` : '.'}`
+            );
+          }
+        }
+      ]
+    );
   };
 
-  const handleNowPlaying = () => {
+  const handleNowPlaying = useCallback(() => {
     navigation.navigate('NowPlaying');
-  };
+  }, [navigation]);
 
-  const isAlbumPlaying = currentSong && album?.songs?.some(s => s.song_id === currentSong.song_id);
+  const isAlbumPlaying = currentSong && songs.some(s => s.song_id === currentSong.song_id);
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading album...</Text>
       </View>
     );
   }
 
-  if (!album) {
+  if (!album || !albumId) {
     return (
       <View style={styles.errorContainer}>
+        <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />
         <Text style={styles.errorText}>Album not found</Text>
         <TouchableOpacity 
           style={styles.backButton}
@@ -86,7 +172,7 @@ export default function AlbumScreen({ route, navigation }) {
     );
   }
 
-  const totalDuration = album.songs?.reduce((acc, song) => acc + (song.duration || 0), 0) || 0;
+  const totalDuration = songs.reduce((acc, song) => acc + (song.duration || 0), 0);
   const formatDuration = (seconds) => {
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -135,7 +221,7 @@ export default function AlbumScreen({ route, navigation }) {
               <Text style={styles.artistName}>{album.artist_name || 'Various Artists'}</Text>
             </TouchableOpacity>
             <Text style={styles.albumMeta}>
-              {album.category} • {album.songs?.length || 0} songs • {formatDuration(totalDuration)}
+              {album.category} • {songs.length} songs • {formatDuration(totalDuration)}
             </Text>
           </View>
         </LinearGradient>
@@ -146,8 +232,16 @@ export default function AlbumScreen({ route, navigation }) {
             <TouchableOpacity style={styles.actionBtn}>
               <Ionicons name="heart-outline" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <Ionicons name="download-outline" size={24} color={COLORS.textSecondary} />
+            <TouchableOpacity 
+              style={styles.actionBtn} 
+              onPress={handleDownloadAll}
+              disabled={downloadingAll}
+            >
+              {downloadingAll ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Ionicons name="download-outline" size={24} color={COLORS.textSecondary} />
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn}>
               <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.textSecondary} />
@@ -157,7 +251,10 @@ export default function AlbumScreen({ route, navigation }) {
             <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffle}>
               <Ionicons name="shuffle" size={24} color={COLORS.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.playBtn} onPress={handlePlayAll}>
+            <TouchableOpacity 
+              style={styles.playBtn} 
+              onPress={isAlbumPlaying && isPlaying ? togglePlay : handlePlayAll}
+            >
               <Ionicons 
                 name={isAlbumPlaying && isPlaying ? 'pause' : 'play'} 
                 size={28} 
@@ -169,17 +266,24 @@ export default function AlbumScreen({ route, navigation }) {
 
         {/* Songs List */}
         <View style={styles.songsList}>
-          {album.songs?.map((song, index) => (
-            <SongListItem
-              key={song.song_id}
-              song={song}
-              album={album}
-              index={index}
-              queue={album.songs.map(s => ({ song: s, album }))}
-              showIndex={true}
-              onAddToPlaylist={handleAddToPlaylist}
-            />
-          ))}
+          {songs.length > 0 ? (
+            songs.map((song, index) => (
+              <SongListItem
+                key={song.song_id || `song-${index}`}
+                song={song}
+                album={album}
+                index={index}
+                queue={songQueue}
+                showIndex={true}
+                onAddToPlaylist={handleAddToPlaylist}
+              />
+            ))
+          ) : (
+            <View style={styles.noSongs}>
+              <Ionicons name="musical-notes-outline" size={48} color={COLORS.textMuted} />
+              <Text style={styles.noSongsText}>No songs in this album</Text>
+            </View>
+          )}
         </View>
 
         {/* Album Footer */}
@@ -192,7 +296,7 @@ export default function AlbumScreen({ route, navigation }) {
             })}
           </Text>
           <Text style={styles.footerMeta}>
-            {album.songs?.length || 0} songs, {formatDuration(totalDuration)}
+            {songs.length} songs, {formatDuration(totalDuration)}
           </Text>
         </View>
       </ScrollView>
@@ -221,26 +325,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingText: {
+    color: COLORS.textSecondary,
+    marginTop: 12,
+    fontSize: 14,
+  },
   errorContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
   },
   errorText: {
     color: COLORS.textSecondary,
-    fontSize: 16,
-    marginBottom: 20,
+    fontSize: 18,
+    marginTop: 16,
+    marginBottom: 24,
   },
   backButton: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
     borderRadius: 24,
   },
   backButtonText: {
     color: '#000',
     fontWeight: '600',
+    fontSize: 16,
   },
   scrollView: {
     flex: 1,
@@ -255,6 +367,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     marginBottom: 16,
+    width: 40,
   },
   artContainer: {
     alignItems: 'center',
@@ -319,6 +432,8 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     padding: 4,
+    minWidth: 32,
+    alignItems: 'center',
   },
   rightActions: {
     flexDirection: 'row',
@@ -338,6 +453,15 @@ const styles = StyleSheet.create({
   },
   songsList: {
     paddingTop: 8,
+  },
+  noSongs: {
+    alignItems: 'center',
+    padding: 48,
+  },
+  noSongsText: {
+    color: COLORS.textMuted,
+    fontSize: 16,
+    marginTop: 16,
   },
   footer: {
     padding: 20,
