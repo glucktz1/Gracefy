@@ -47,31 +47,41 @@ export const AuthContext = ({ children }) => {
   return children;
 };
 
-// Sidebar component
-const Sidebar = ({ user, onLogout, isOpen, setIsOpen }) => {
+// Sidebar component with permission-based rendering
+const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) => {
+  // Map each nav item to required permissions
   const navItems = [
-    { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { path: "/analytics", icon: Activity, label: "Analytics" },
-    { path: "/revenue", icon: TrendingUp, label: "Revenue" },
-    { path: "/monetization", icon: Settings, label: "Monetization" },
-    { path: "/roles", icon: Shield, label: "Role Management" },
-    { path: "/layout-management", icon: Layout, label: "Layout Management" },
-    { path: "/admin/choirs", icon: Mic2, label: "Choir Management" },
-    { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts" },
-    { path: "/withdrawals", icon: CreditCard, label: "Withdrawals" },
-    { path: "/users", icon: Users, label: "Users" },
-    { path: "/categories", icon: FolderTree, label: "Categories" },
-    { path: "/albums", icon: Music2, label: "Albums & Songs" },
-    { path: "/churches", icon: Church, label: "Churches" },
-    { path: "/leaders", icon: UserCheck, label: "Religious Leaders" },
-    { path: "/singers", icon: Mic2, label: "Singers & Choirs" },
-    { path: "/seminars", icon: Video, label: "Live Seminars" },
-    { path: "/audiorooms", icon: Radio, label: "Audio Rooms" },
-    { path: "/donations", icon: Heart, label: "Donations" },
-    { path: "/community", icon: MessageSquare, label: "Community" },
-    { path: "/bookings", icon: CalendarCheck, label: "Bookings" },
-    { path: "/approvals", icon: CheckCircle, label: "Approvals" },
+    { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] }, // Always visible
+    { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
+    { path: "/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
+    { path: "/monetization", icon: Settings, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
+    { path: "/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
+    { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
+    { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
+    { path: "/admin/choirs", icon: Mic2, label: "Choir Management", permissions: ["choir_onboarding_approval", "user_management"] },
+    { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+    { path: "/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
+    { path: "/users", icon: Users, label: "Users", permissions: ["user_management"] },
+    { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
+    { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
+    { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
+    { path: "/leaders", icon: UserCheck, label: "Religious Leaders", permissions: ["user_management"] },
+    { path: "/singers", icon: Mic2, label: "Singers & Choirs", permissions: ["user_management"] },
+    { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
+    { path: "/audiorooms", icon: Radio, label: "Audio Rooms", permissions: ["platform_settings"] },
+    { path: "/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
+    { path: "/community", icon: MessageSquare, label: "Community", permissions: ["content_moderation"] },
+    { path: "/bookings", icon: CalendarCheck, label: "Bookings", permissions: ["platform_settings"] },
+    { path: "/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
   ];
+
+  // Filter nav items based on user permissions
+  const filteredNavItems = navItems.filter(item => {
+    // Items with no permissions are always visible
+    if (!item.permissions || item.permissions.length === 0) return true;
+    // Check if user has at least one of the required permissions
+    return item.permissions.some(perm => userPermissions.includes(perm));
+  });
 
   return (
     <>
