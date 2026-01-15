@@ -3,7 +3,9 @@ import axios from "axios";
 import { 
   Settings, DollarSign, Clock, Users, CreditCard, Bell, Shield,
   Save, RefreshCw, AlertTriangle, CheckCircle, Plus, Trash2, Edit2,
-  Percent, Calendar, Globe, FileText, TrendingDown, Pause, Play
+  Percent, Calendar, Globe, FileText, TrendingDown, Pause, Play,
+  Music, Lock, Unlock, Volume2, Download, ListMusic, Shuffle, SkipForward,
+  Headphones, Wifi, WifiOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,12 +38,68 @@ import { toast } from "sonner";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Default feature controls
+const DEFAULT_FEATURE_CONTROLS = {
+  free: {
+    play_songs: "preview",
+    preview_duration_seconds: 30,
+    album_playback: "shuffle_only",
+    song_selection: false,
+    skips_per_hour: 6,
+    shuffle_control: false,
+    show_ads: true,
+    premium_content_access: false,
+    downloads_allowed: false,
+    create_playlists: false,
+    add_to_favorites: true,
+    audio_quality: "standard",
+    background_play: "limited",
+    offline_mode: false,
+  },
+  premium: {
+    play_songs: "full",
+    preview_duration_seconds: 0,
+    album_playback: "all",
+    song_selection: true,
+    skips_per_hour: -1,
+    shuffle_control: true,
+    show_ads: false,
+    premium_content_access: true,
+    downloads_allowed: true,
+    create_playlists: true,
+    add_to_favorites: true,
+    audio_quality: "high",
+    background_play: "full",
+    offline_mode: true,
+  }
+};
+
+// Feature configuration
+const FEATURE_CONFIG = [
+  { key: "play_songs", label: "Play Songs", icon: Music, type: "select", options: ["preview", "limited", "full"], freeDefault: "preview", paidDefault: "full" },
+  { key: "preview_duration_seconds", label: "Preview Duration (sec)", icon: Clock, type: "number", freeDefault: 30, paidDefault: 0 },
+  { key: "album_playback", label: "Album Playback", icon: ListMusic, type: "select", options: ["shuffle_only", "sequential", "all"], freeDefault: "shuffle_only", paidDefault: "all" },
+  { key: "song_selection", label: "Choose Specific Song", icon: Music, type: "boolean", freeDefault: false, paidDefault: true },
+  { key: "skips_per_hour", label: "Skips Per Hour (-1 = unlimited)", icon: SkipForward, type: "number", freeDefault: 6, paidDefault: -1 },
+  { key: "shuffle_control", label: "Shuffle Control", icon: Shuffle, type: "boolean", freeDefault: false, paidDefault: true },
+  { key: "show_ads", label: "Show Ads", icon: Bell, type: "boolean", freeDefault: true, paidDefault: false },
+  { key: "premium_content_access", label: "Premium Content Access", icon: Lock, type: "boolean", freeDefault: false, paidDefault: true },
+  { key: "downloads_allowed", label: "Downloads Allowed", icon: Download, type: "boolean", freeDefault: false, paidDefault: true },
+  { key: "create_playlists", label: "Create Playlists", icon: ListMusic, type: "boolean", freeDefault: false, paidDefault: true },
+  { key: "add_to_favorites", label: "Like/Save Songs", icon: CheckCircle, type: "boolean", freeDefault: true, paidDefault: true },
+  { key: "audio_quality", label: "Audio Quality", icon: Volume2, type: "select", options: ["standard", "high", "lossless"], freeDefault: "standard", paidDefault: "high" },
+  { key: "background_play", label: "Background Play", icon: Headphones, type: "select", options: ["disabled", "limited", "full"], freeDefault: "limited", paidDefault: "full" },
+  { key: "offline_mode", label: "Offline Mode", icon: WifiOff, type: "boolean", freeDefault: false, paidDefault: true },
+];
+
 export default function MonetizationSettingsPage() {
   const [settings, setSettings] = useState(null);
   const [plans, setPlans] = useState([]);
   const [rateHistory, setRateHistory] = useState([]);
+  const [featureControls, setFeatureControls] = useState(DEFAULT_FEATURE_CONTROLS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingFeatures, setSavingFeatures] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -51,14 +109,16 @@ export default function MonetizationSettingsPage() {
 
   const fetchData = async () => {
     try {
-      const [settingsRes, plansRes, historyRes] = await Promise.all([
+      const [settingsRes, plansRes, historyRes, featuresRes] = await Promise.all([
         axios.get(`${API}/monetization/settings`, { withCredentials: true }),
         axios.get(`${API}/monetization/plans`, { withCredentials: true }),
-        axios.get(`${API}/monetization/rate-history`, { withCredentials: true })
+        axios.get(`${API}/monetization/rate-history`, { withCredentials: true }),
+        axios.get(`${API}/monetization/feature-controls`, { withCredentials: true })
       ]);
       setSettings(settingsRes.data);
       setPlans(plansRes.data.plans || []);
       setRateHistory(historyRes.data.history || []);
+      setFeatureControls(featuresRes.data.controls || DEFAULT_FEATURE_CONTROLS);
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast.error("Failed to load settings");
@@ -84,12 +144,34 @@ export default function MonetizationSettingsPage() {
     }
   };
 
+  const handleSaveFeatureControls = async () => {
+    setSavingFeatures(true);
+    try {
+      await axios.put(`${API}/monetization/feature-controls`, { controls: featureControls }, { withCredentials: true });
+      toast.success("Feature controls saved successfully");
+    } catch (error) {
+      toast.error("Failed to save feature controls");
+    } finally {
+      setSavingFeatures(false);
+    }
+  };
+
   const handleToggle = (key) => {
     setSettings({ ...settings, [key]: !settings[key] });
   };
 
   const handleChange = (key, value) => {
     setSettings({ ...settings, [key]: value });
+  };
+
+  const handleFeatureChange = (tier, key, value) => {
+    setFeatureControls(prev => ({
+      ...prev,
+      [tier]: {
+        ...prev[tier],
+        [key]: value
+      }
+    }));
   };
 
   const handlePausePayouts = async () => {
@@ -163,6 +245,11 @@ export default function MonetizationSettingsPage() {
     setIsPlanModalOpen(true);
   };
 
+  const resetFeaturesToDefaults = () => {
+    setFeatureControls(DEFAULT_FEATURE_CONTROLS);
+    toast.info("Reset to defaults - click Save to apply");
+  };
+
   if (loading) {
     return (
       <div className="page-container flex items-center justify-center min-h-[60vh]">
@@ -178,14 +265,14 @@ export default function MonetizationSettingsPage() {
           <h1 className="page-title flex items-center gap-2">
             <Settings className="text-violet-400" /> Monetization Settings
           </h1>
-          <p className="page-subtitle">Configure platform revenue, subscriptions, payouts, and more</p>
+          <p className="page-subtitle">Configure platform revenue, subscriptions, feature controls, and more</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchData} className="border-zinc-700 text-zinc-300">
             <RefreshCw size={16} className="mr-2" /> Refresh
           </Button>
           <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700" data-testid="save-settings-btn">
-            <Save size={16} className="mr-2" /> {saving ? "Saving..." : "Save All Changes"}
+            <Save size={16} className="mr-2" /> {saving ? "Saving..." : "Save Settings"}
           </Button>
         </div>
       </div>
@@ -209,12 +296,199 @@ export default function MonetizationSettingsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-zinc-900 border border-zinc-800 flex-wrap h-auto p-1">
           <TabsTrigger value="general" className="data-[state=active]:bg-violet-600">General</TabsTrigger>
+          <TabsTrigger value="features" className="data-[state=active]:bg-violet-600">Feature Controls</TabsTrigger>
           <TabsTrigger value="subscriptions" className="data-[state=active]:bg-violet-600">Subscriptions</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">Content Rates</TabsTrigger>
           <TabsTrigger value="payouts" className="data-[state=active]:bg-violet-600">Payouts</TabsTrigger>
-          <TabsTrigger value="tax" className="data-[state=active]:bg-violet-600">Tax & Compliance</TabsTrigger>
           <TabsTrigger value="safety" className="data-[state=active]:bg-violet-600">Safety</TabsTrigger>
         </TabsList>
+
+        {/* Feature Controls Tab - NEW */}
+        <TabsContent value="features" className="space-y-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Free vs Premium Feature Controls</h2>
+              <p className="text-sm text-zinc-400">Configure what features are available for free and paid users</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={resetFeaturesToDefaults} className="border-zinc-700 text-zinc-300">
+                Reset to Defaults
+              </Button>
+              <Button onClick={handleSaveFeatureControls} disabled={savingFeatures} className="bg-emerald-600 hover:bg-emerald-700">
+                <Save size={16} className="mr-2" /> {savingFeatures ? "Saving..." : "Save Feature Controls"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Feature Comparison Table */}
+          <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden">
+            <CardHeader className="border-b border-zinc-800">
+              <CardTitle className="text-white text-base">Feature Comparison</CardTitle>
+              <CardDescription>Configure restrictions for each subscription tier</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-zinc-800">
+                      <th className="text-left p-4 text-zinc-400 font-medium">Feature</th>
+                      <th className="text-center p-4 text-zinc-400 font-medium min-w-[200px]">
+                        <div className="flex items-center justify-center gap-2">
+                          <Lock size={16} className="text-zinc-500" />
+                          Free Users
+                        </div>
+                      </th>
+                      <th className="text-center p-4 text-zinc-400 font-medium min-w-[200px]">
+                        <div className="flex items-center justify-center gap-2">
+                          <Unlock size={16} className="text-emerald-400" />
+                          Premium Users
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FEATURE_CONFIG.map((feature) => {
+                      const Icon = feature.icon;
+                      return (
+                        <tr key={feature.key} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <Icon size={18} className="text-violet-400" />
+                              <span className="text-white font-medium">{feature.label}</span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex justify-center">
+                              {feature.type === "boolean" ? (
+                                <Switch
+                                  checked={featureControls.free?.[feature.key] ?? feature.freeDefault}
+                                  onCheckedChange={(checked) => handleFeatureChange("free", feature.key, checked)}
+                                  className="data-[state=checked]:bg-emerald-600"
+                                />
+                              ) : feature.type === "select" ? (
+                                <Select
+                                  value={featureControls.free?.[feature.key] ?? feature.freeDefault}
+                                  onValueChange={(value) => handleFeatureChange("free", feature.key, value)}
+                                >
+                                  <SelectTrigger className="w-[140px] bg-zinc-950 border-zinc-700 text-white">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-zinc-900 border-zinc-700">
+                                    {feature.options.map(opt => (
+                                      <SelectItem key={opt} value={opt} className="text-white hover:bg-zinc-800">
+                                        {opt.replace(/_/g, " ")}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  value={featureControls.free?.[feature.key] ?? feature.freeDefault}
+                                  onChange={(e) => handleFeatureChange("free", feature.key, parseInt(e.target.value))}
+                                  className="w-[100px] bg-zinc-950 border-zinc-700 text-white text-center"
+                                />
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex justify-center">
+                              {feature.type === "boolean" ? (
+                                <Switch
+                                  checked={featureControls.premium?.[feature.key] ?? feature.paidDefault}
+                                  onCheckedChange={(checked) => handleFeatureChange("premium", feature.key, checked)}
+                                  className="data-[state=checked]:bg-emerald-600"
+                                />
+                              ) : feature.type === "select" ? (
+                                <Select
+                                  value={featureControls.premium?.[feature.key] ?? feature.paidDefault}
+                                  onValueChange={(value) => handleFeatureChange("premium", feature.key, value)}
+                                >
+                                  <SelectTrigger className="w-[140px] bg-zinc-950 border-zinc-700 text-white">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-zinc-900 border-zinc-700">
+                                    {feature.options.map(opt => (
+                                      <SelectItem key={opt} value={opt} className="text-white hover:bg-zinc-800">
+                                        {opt.replace(/_/g, " ")}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  value={featureControls.premium?.[feature.key] ?? feature.paidDefault}
+                                  onChange={(e) => handleFeatureChange("premium", feature.key, parseInt(e.target.value))}
+                                  className="w-[100px] bg-zinc-950 border-zinc-700 text-white text-center"
+                                />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Feature Explanation Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-sm flex items-center gap-2">
+                  <Lock size={16} className="text-zinc-500" /> Free Tier Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between text-zinc-400">
+                  <span>Song Playback:</span>
+                  <Badge variant="outline" className="border-zinc-700">{featureControls.free?.play_songs || "preview"}</Badge>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Skips/Hour:</span>
+                  <Badge variant="outline" className="border-zinc-700">{featureControls.free?.skips_per_hour ?? 6}</Badge>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Ads:</span>
+                  <Badge variant="outline" className="border-amber-600 text-amber-400">{featureControls.free?.show_ads ? "Yes" : "No"}</Badge>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Downloads:</span>
+                  <Badge variant="outline" className="border-red-600 text-red-400">{featureControls.free?.downloads_allowed ? "Yes" : "No"}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-sm flex items-center gap-2">
+                  <Unlock size={16} className="text-emerald-400" /> Premium Tier Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between text-zinc-400">
+                  <span>Song Playback:</span>
+                  <Badge variant="outline" className="border-emerald-600 text-emerald-400">{featureControls.premium?.play_songs || "full"}</Badge>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Skips/Hour:</span>
+                  <Badge variant="outline" className="border-emerald-600 text-emerald-400">{featureControls.premium?.skips_per_hour === -1 ? "Unlimited" : featureControls.premium?.skips_per_hour}</Badge>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Ads:</span>
+                  <Badge variant="outline" className="border-emerald-600 text-emerald-400">{featureControls.premium?.show_ads ? "Yes" : "No"}</Badge>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Downloads:</span>
+                  <Badge variant="outline" className="border-emerald-600 text-emerald-400">{featureControls.premium?.downloads_allowed ? "Yes" : "No"}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-6">
@@ -248,113 +522,45 @@ export default function MonetizationSettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-zinc-400">Apply to Subscriptions</span>
-                  <Switch checked={settings?.apply_fee_to_subscriptions} onCheckedChange={() => handleToggle("apply_fee_to_subscriptions")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Apply to Donations</span>
-                  <Switch checked={settings?.apply_fee_to_donations} onCheckedChange={() => handleToggle("apply_fee_to_donations")} />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tips & Donations */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <DollarSign size={18} className="text-pink-400" /> Tips & Donations
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Enable Tips</span>
-                  <Switch checked={settings?.tips_enabled} onCheckedChange={() => handleToggle("tips_enabled")} />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Platform Fee on Tips (%)</label>
-                  <Input
-                    type="number"
-                    value={settings?.platform_fee_on_tips_percentage || 10}
-                    onChange={(e) => handleChange("platform_fee_on_tips_percentage", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Suggested Tip Amounts (TZS)</label>
-                  <Input
-                    value={settings?.suggested_tip_amounts?.join(", ") || "500, 1000, 2000, 5000"}
-                    onChange={(e) => handleChange("suggested_tip_amounts", e.target.value.split(",").map(v => parseFloat(v.trim())))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    placeholder="500, 1000, 2000, 5000"
+                  <Switch
+                    checked={settings?.apply_fee_to_subscriptions || false}
+                    onCheckedChange={() => handleToggle("apply_fee_to_subscriptions")}
+                    className="data-[state=checked]:bg-emerald-600"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Currency & Rounding */}
+            {/* Currency Settings */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
                 <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Globe size={18} className="text-violet-400" /> Currency & Rounding
+                  <Globe size={18} className="text-blue-400" /> Currency
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Base Currency</label>
-                  <Select value={settings?.base_currency || "TZS"} onValueChange={(v) => handleChange("base_currency", v)}>
+                  <label className="text-sm text-zinc-400 mb-1 block">Primary Currency</label>
+                  <Select
+                    value={settings?.primary_currency || "TZS"}
+                    onValueChange={(value) => handleChange("primary_currency", value)}
+                  >
                     <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">
-                      <SelectItem value="TZS">TZS (Tanzanian Shilling)</SelectItem>
-                      <SelectItem value="KES">KES (Kenyan Shilling)</SelectItem>
-                      <SelectItem value="UGX">UGX (Ugandan Shilling)</SelectItem>
-                      <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                      <SelectItem value="TZS" className="text-white">TZS - Tanzanian Shilling</SelectItem>
+                      <SelectItem value="USD" className="text-white">USD - US Dollar</SelectItem>
+                      <SelectItem value="KES" className="text-white">KES - Kenyan Shilling</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Rounding Precision</label>
-                  <Select value={settings?.rounding_precision?.toString() || "0"} onValueChange={(v) => handleChange("rounding_precision", parseInt(v))}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">
-                      <SelectItem value="0">Whole numbers</SelectItem>
-                      <SelectItem value="1">1 decimal place</SelectItem>
-                      <SelectItem value="2">2 decimal places</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Analytics */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <FileText size={18} className="text-amber-400" /> Analytics & Reporting
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Revenue Aggregation</label>
-                  <Select value={settings?.revenue_aggregation_interval || "daily"} onValueChange={(v) => handleChange("revenue_aggregation_interval", v)}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">
-                      <SelectItem value="hourly">Hourly</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Data Retention (days)</label>
-                  <Input
-                    type="number"
-                    value={settings?.data_retention_days || 365}
-                    onChange={(e) => handleChange("data_retention_days", parseInt(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-zinc-400">Multi-Currency Support</span>
+                  <Switch
+                    checked={settings?.multi_currency_enabled || false}
+                    onCheckedChange={() => handleToggle("multi_currency_enabled")}
+                    className="data-[state=checked]:bg-emerald-600"
                   />
                 </div>
               </CardContent>
@@ -364,255 +570,108 @@ export default function MonetizationSettingsPage() {
 
         {/* Subscriptions Tab */}
         <TabsContent value="subscriptions" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Subscription Settings */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Users size={18} className="text-emerald-400" /> Subscription Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Enable Subscriptions</span>
-                  <Switch checked={settings?.subscription_enabled} onCheckedChange={() => handleToggle("subscription_enabled")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Free Trial</span>
-                  <Switch checked={settings?.free_trial_enabled} onCheckedChange={() => handleToggle("free_trial_enabled")} />
-                </div>
-                {settings?.free_trial_enabled && (
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1 block">Free Trial Days</label>
-                    <Input
-                      type="number"
-                      value={settings?.free_trial_days || 7}
-                      onChange={(e) => handleChange("free_trial_days", parseInt(e.target.value))}
-                      className="bg-zinc-950 border-zinc-800 text-white"
-                    />
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Auto-Renew</span>
-                  <Switch checked={settings?.auto_renew_enabled} onCheckedChange={() => handleToggle("auto_renew_enabled")} />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Grace Period (days)</label>
-                  <Input
-                    type="number"
-                    value={settings?.grace_period_days || 3}
-                    onChange={(e) => handleChange("grace_period_days", parseInt(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Album Monetization */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <DollarSign size={18} className="text-violet-400" /> Album Controls
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Subscription-Only Albums</span>
-                  <Switch checked={settings?.subscription_only_albums_enabled} onCheckedChange={() => handleToggle("subscription_only_albums_enabled")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Free/Promotional Albums</span>
-                  <Switch checked={settings?.free_promotional_albums_enabled} onCheckedChange={() => handleToggle("free_promotional_albums_enabled")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Geo-Restricted Monetization</span>
-                  <Switch checked={settings?.geo_restricted_monetization} onCheckedChange={() => handleToggle("geo_restricted_monetization")} />
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-white">Subscription Plans</h2>
+            <Button onClick={() => { setEditingPlan(null); setPlanForm({ name: "", display_name: "", price: "", duration_days: "", features: "", is_active: true }); setIsPlanModalOpen(true); }} className="bg-violet-600 hover:bg-violet-700">
+              <Plus size={16} className="mr-2" /> Add Plan
+            </Button>
           </div>
 
-          {/* Subscription Plans */}
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white text-base">Subscription Plans</CardTitle>
-              <Button onClick={() => { setEditingPlan(null); setPlanForm({ name: "", display_name: "", price: "", duration_days: "", features: "", is_active: true }); setIsPlanModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700" data-testid="add-plan-btn">
-                <Plus size={16} className="mr-2" /> Add Plan
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {plans.map((plan) => (
-                  <div key={plan.plan_id} className={`p-4 rounded-lg border ${plan.is_active ? "bg-zinc-800/50 border-zinc-700" : "bg-zinc-900/50 border-zinc-800 opacity-60"}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-white">{plan.display_name}</h4>
-                      {plan.is_active ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-400">Active</Badge>
-                      ) : (
-                        <Badge className="bg-zinc-500/20 text-zinc-400">Inactive</Badge>
-                      )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans.map(plan => (
+              <Card key={plan.plan_id} className={`bg-zinc-900/50 border-zinc-800 ${!plan.is_active ? 'opacity-60' : ''}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-white text-base">{plan.display_name}</CardTitle>
+                      <Badge variant="outline" className={plan.is_active ? "border-emerald-600 text-emerald-400" : "border-zinc-600 text-zinc-400"}>
+                        {plan.is_active ? "Active" : "Inactive"}
+                      </Badge>
                     </div>
-                    <p className="text-2xl font-bold text-white mb-1">TZS {plan.price?.toLocaleString()}</p>
-                    <p className="text-xs text-zinc-500 mb-3">{plan.duration_days} days</p>
-                    <ul className="text-xs text-zinc-400 space-y-1 mb-4">
-                      {plan.features?.slice(0, 3).map((f, i) => (
-                        <li key={i} className="flex items-center gap-1">
-                          <CheckCircle size={10} className="text-emerald-400" /> {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openEditPlan(plan)} className="flex-1 border-zinc-700 text-zinc-300">
-                        <Edit2 size={12} className="mr-1" /> Edit
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditPlan(plan)}>
+                        <Edit2 size={14} />
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleDeletePlan(plan.plan_id)} className="border-red-600 text-red-400">
-                        <Trash2 size={12} />
+                      <Button variant="ghost" size="sm" onClick={() => handleDeletePlan(plan.plan_id)} className="text-red-400">
+                        <Trash2 size={14} />
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-white mb-2">
+                    {settings?.primary_currency || "TZS"} {plan.price?.toLocaleString()}
+                    <span className="text-sm font-normal text-zinc-400">/{plan.duration_days} days</span>
+                  </div>
+                  <div className="space-y-1">
+                    {plan.features?.slice(0, 4).map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm text-zinc-400">
+                        <CheckCircle size={14} className="text-emerald-400" />
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         {/* Content Rates Tab */}
         <TabsContent value="content" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Content Revenue Rates */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
                 <CardTitle className="text-white text-base flex items-center gap-2">
-                  <DollarSign size={18} className="text-emerald-400" /> Content Revenue Rates
+                  <Music size={18} className="text-violet-400" /> Streaming Rates
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Premium Rate (TZS/hour)</label>
+                  <label className="text-sm text-zinc-400 mb-1 block">Rate per 1000 streams ({settings?.primary_currency || "TZS"})</label>
                   <Input
                     type="number"
-                    value={settings?.premium_rate_per_hour || 10}
-                    onChange={(e) => handleChange("premium_rate_per_hour", parseFloat(e.target.value))}
+                    value={settings?.rate_per_1000_streams || 500}
+                    onChange={(e) => handleChange("rate_per_1000_streams", parseFloat(e.target.value))}
                     className="bg-zinc-950 border-zinc-800 text-white"
-                    data-testid="premium-rate-input"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Standard Rate (TZS/hour)</label>
+                  <label className="text-sm text-zinc-400 mb-1 block">Min stream duration (seconds)</label>
                   <Input
                     type="number"
-                    value={settings?.standard_rate_per_hour || 5}
-                    onChange={(e) => handleChange("standard_rate_per_hour", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    data-testid="standard-rate-input"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Rate Effective Date</label>
-                  <Input
-                    type="date"
-                    value={settings?.rate_effective_date || ""}
-                    onChange={(e) => handleChange("rate_effective_date", e.target.value)}
+                    value={settings?.min_stream_duration || 45}
+                    onChange={(e) => handleChange("min_stream_duration", parseInt(e.target.value))}
                     className="bg-zinc-950 border-zinc-800 text-white"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Premium Content Rules */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
                 <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Clock size={18} className="text-amber-400" /> Premium Content Rules
+                  <Download size={18} className="text-blue-400" /> Download Rates
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Premium Duration (days)</label>
+                  <label className="text-sm text-zinc-400 mb-1 block">Rate per download ({settings?.primary_currency || "TZS"})</label>
                   <Input
                     type="number"
-                    value={settings?.premium_duration_days || 90}
-                    onChange={(e) => handleChange("premium_duration_days", parseInt(e.target.value))}
+                    value={settings?.rate_per_download || 100}
+                    onChange={(e) => handleChange("rate_per_download", parseFloat(e.target.value))}
                     className="bg-zinc-950 border-zinc-800 text-white"
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Auto-Downgrade to Standard</span>
-                  <Switch checked={settings?.auto_downgrade_to_standard} onCheckedChange={() => handleToggle("auto_downgrade_to_standard")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Premium Approval Required</span>
-                  <Switch checked={settings?.premium_approval_required} onCheckedChange={() => handleToggle("premium_approval_required")} />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Listening Time Rules */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Clock size={18} className="text-violet-400" /> Listening Time Rules
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Min Qualifying Play Time (seconds)</label>
-                  <Input
-                    type="number"
-                    value={settings?.min_qualifying_play_seconds || 45}
-                    onChange={(e) => handleChange("min_qualifying_play_seconds", parseInt(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    data-testid="min-play-seconds-input"
-                  />
-                  <p className="text-xs text-zinc-500 mt-1">Streams shorter than this don&apos;t count for revenue</p>
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Max Payable Hours/User/Hour</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={settings?.max_payable_hours_per_user_per_hour || 1}
-                    onChange={(e) => handleChange("max_payable_hours_per_user_per_hour", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
+                  <span className="text-sm text-zinc-400">Downloads Enabled</span>
+                  <Switch
+                    checked={settings?.downloads_enabled ?? true}
+                    onCheckedChange={() => handleToggle("downloads_enabled")}
+                    className="data-[state=checked]:bg-emerald-600"
                   />
                 </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Max Payable Hours/User/Day</label>
-                  <Input
-                    type="number"
-                    value={settings?.max_payable_hours_per_user_per_day || 24}
-                    onChange={(e) => handleChange("max_payable_hours_per_user_per_day", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Ignore Muted/Background Playback</span>
-                  <Switch checked={settings?.ignore_muted_playback} onCheckedChange={() => handleToggle("ignore_muted_playback")} />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Rate Change History */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base">Rate Change History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {rateHistory.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {rateHistory.map((change) => (
-                      <div key={change.change_id} className="flex items-center justify-between p-2 bg-zinc-800/30 rounded text-sm">
-                        <div>
-                          <span className="text-zinc-400">{change.change_type.replace("_", " ")}</span>
-                          <span className="text-white ml-2">{change.old_value} → {change.new_value}</span>
-                        </div>
-                        <span className="text-zinc-500 text-xs">{change.effective_date}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-zinc-500 text-center py-4">No rate changes recorded</p>
-                )}
               </CardContent>
             </Card>
           </div>
@@ -621,210 +680,113 @@ export default function MonetizationSettingsPage() {
         {/* Payouts Tab */}
         <TabsContent value="payouts" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Payout Settings */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
                 <CardTitle className="text-white text-base flex items-center gap-2">
-                  <CreditCard size={18} className="text-emerald-400" /> Payout Settings
+                  <DollarSign size={18} className="text-emerald-400" /> Payout Settings
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Minimum Payout (TZS)</label>
+                  <label className="text-sm text-zinc-400 mb-1 block">Minimum Payout ({settings?.primary_currency || "TZS"})</label>
                   <Input
                     type="number"
-                    value={settings?.minimum_payout_threshold || 10000}
-                    onChange={(e) => handleChange("minimum_payout_threshold", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    data-testid="min-payout-input"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Payout Frequency</label>
-                  <Select value={settings?.payout_frequency || "monthly"} onValueChange={(v) => handleChange("payout_frequency", v)}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="bi_weekly">Bi-Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Payout Cut-off Day</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="28"
-                    value={settings?.payout_cutoff_day || 25}
-                    onChange={(e) => handleChange("payout_cutoff_day", parseInt(e.target.value))}
+                    value={settings?.min_payout_amount || 50000}
+                    onChange={(e) => handleChange("min_payout_amount", parseFloat(e.target.value))}
                     className="bg-zinc-950 border-zinc-800 text-white"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Payout Fee Handling</label>
-                  <Select value={settings?.payout_fee_handling || "platform_pays"} onValueChange={(v) => handleChange("payout_fee_handling", v)}>
+                  <label className="text-sm text-zinc-400 mb-1 block">Payout Schedule</label>
+                  <Select
+                    value={settings?.payout_schedule || "monthly"}
+                    onValueChange={(value) => handleChange("payout_schedule", value)}
+                  >
                     <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">
-                      <SelectItem value="platform_pays">Platform Pays</SelectItem>
-                      <SelectItem value="choir_pays">Choir Pays</SelectItem>
+                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                      <SelectItem value="weekly" className="text-white">Weekly</SelectItem>
+                      <SelectItem value="biweekly" className="text-white">Bi-Weekly</SelectItem>
+                      <SelectItem value="monthly" className="text-white">Monthly</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-zinc-400">Auto Payouts</span>
+                  <Switch
+                    checked={settings?.auto_payouts ?? true}
+                    onCheckedChange={() => handleToggle("auto_payouts")}
+                    className="data-[state=checked]:bg-emerald-600"
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Payout Methods */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
                 <CardTitle className="text-white text-base flex items-center gap-2">
-                  <CreditCard size={18} className="text-violet-400" /> Payout Methods
+                  <Shield size={18} className="text-amber-400" /> Emergency Controls
                 </CardTitle>
-                <CardDescription className="text-zinc-500">Enable/disable payment methods for choir payouts</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-emerald-600/20 flex items-center justify-center text-emerald-400 font-bold text-xs">M</div>
-                    <div>
-                      <p className="text-white font-medium">Mobile Money</p>
-                      <p className="text-xs text-zinc-500">M-Pesa, Airtel, Tigo</p>
-                    </div>
-                  </div>
-                  <Switch checked={settings?.payout_mobile_money_enabled} onCheckedChange={() => handleToggle("payout_mobile_money_enabled")} />
-                </div>
-                <div className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-violet-600/20 flex items-center justify-center text-violet-400 font-bold text-xs">B</div>
-                    <div>
-                      <p className="text-white font-medium">Bank Transfer</p>
-                      <p className="text-xs text-zinc-500">Direct bank deposits</p>
-                    </div>
-                  </div>
-                  <Switch checked={settings?.payout_bank_transfer_enabled} onCheckedChange={() => handleToggle("payout_bank_transfer_enabled")} />
-                </div>
-                <div className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-blue-600/20 flex items-center justify-center text-blue-400 font-bold text-xs">P</div>
-                    <div>
-                      <p className="text-white font-medium">PayPal</p>
-                      <p className="text-xs text-zinc-500">International payments</p>
-                    </div>
-                  </div>
-                  <Switch checked={settings?.payout_paypal_enabled} onCheckedChange={() => handleToggle("payout_paypal_enabled")} />
-                </div>
+                <p className="text-sm text-zinc-400">Use these controls in case of emergency to halt all payouts.</p>
+                {settings?.all_payouts_paused ? (
+                  <Button onClick={handleResumePayouts} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                    <Play size={16} className="mr-2" /> Resume All Payouts
+                  </Button>
+                ) : (
+                  <Button onClick={handlePausePayouts} variant="destructive" className="w-full">
+                    <Pause size={16} className="mr-2" /> Pause All Payouts
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        {/* Tax & Compliance Tab */}
-        <TabsContent value="tax" className="space-y-6">
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white text-base flex items-center gap-2">
-                <FileText size={18} className="text-amber-400" /> Tax & Compliance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">VAT / Digital Tax (%)</label>
-                  <Input
-                    type="number"
-                    value={settings?.vat_percentage || 18}
-                    onChange={(e) => handleChange("vat_percentage", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Withholding Tax (%)</label>
-                  <Input
-                    type="number"
-                    value={settings?.withholding_tax_percentage || 5}
-                    onChange={(e) => handleChange("withholding_tax_percentage", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
-                </div>
-                <div className="flex items-center justify-between pt-6">
-                  <span className="text-sm text-zinc-400">Tax Invoice Generation</span>
-                  <Switch checked={settings?.tax_invoice_generation_enabled} onCheckedChange={() => handleToggle("tax_invoice_generation_enabled")} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Safety Tab */}
         <TabsContent value="safety" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Alerts */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Bell size={18} className="text-amber-400" /> Alerts & Monitoring
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Shield size={18} className="text-amber-400" /> Fraud Prevention
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Revenue Drop Alert Threshold (%)</label>
-                  <Input
-                    type="number"
-                    value={settings?.revenue_drop_alert_threshold || 20}
-                    onChange={(e) => handleChange("revenue_drop_alert_threshold", parseFloat(e.target.value))}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                  />
+                  <span className="text-sm text-white">Fraud Detection</span>
+                  <p className="text-xs text-zinc-500">Automatically flag suspicious activity</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Unusual Listening Spike Alert</span>
-                  <Switch checked={settings?.unusual_spike_alert_enabled} onCheckedChange={() => handleToggle("unusual_spike_alert_enabled")} />
+                <Switch
+                  checked={settings?.fraud_detection_enabled ?? true}
+                  onCheckedChange={() => handleToggle("fraud_detection_enabled")}
+                  className="data-[state=checked]:bg-emerald-600"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-white">Auto-freeze Suspicious Accounts</span>
+                  <p className="text-xs text-zinc-500">Temporarily freeze accounts with anomalies</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Failed Payout Alert</span>
-                  <Switch checked={settings?.failed_payout_alert_enabled} onCheckedChange={() => handleToggle("failed_payout_alert_enabled")} />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Emergency Controls */}
-            <Card className="bg-zinc-900/50 border-zinc-800 border-red-500/30">
-              <CardHeader>
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Shield size={18} className="text-red-400" /> Emergency Controls
-                </CardTitle>
-                <CardDescription className="text-zinc-500">Use with caution - affects all transactions</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <div>
-                    <p className="text-white font-medium">Pause All Payouts</p>
-                    <p className="text-xs text-zinc-500">Stop all choir withdrawals</p>
-                  </div>
-                  {settings?.all_payouts_paused ? (
-                    <Button size="sm" onClick={handleResumePayouts} className="bg-emerald-600 hover:bg-emerald-700">
-                      <Play size={14} className="mr-1" /> Resume
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={handlePausePayouts} variant="outline" className="border-red-600 text-red-400 hover:bg-red-600/20">
-                      <Pause size={14} className="mr-1" /> Pause
-                    </Button>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Freeze All Choir Monetization</span>
-                  <Switch checked={settings?.choir_monetization_frozen} onCheckedChange={() => handleToggle("choir_monetization_frozen")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Emergency Rate Rollback</span>
-                  <Switch checked={settings?.emergency_rate_rollback_enabled} onCheckedChange={() => handleToggle("emergency_rate_rollback_enabled")} />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <Switch
+                  checked={settings?.auto_freeze_suspicious ?? false}
+                  onCheckedChange={() => handleToggle("auto_freeze_suspicious")}
+                  className="data-[state=checked]:bg-emerald-600"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Max Daily Streams per User</label>
+                <Input
+                  type="number"
+                  value={settings?.max_daily_streams_per_user || 1000}
+                  onChange={(e) => handleChange("max_daily_streams_per_user", parseInt(e.target.value))}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                />
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -832,72 +794,74 @@ export default function MonetizationSettingsPage() {
       <Dialog open={isPlanModalOpen} onOpenChange={setIsPlanModalOpen}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
           <DialogHeader>
-            <DialogTitle>{editingPlan ? "Edit Plan" : "Add Subscription Plan"}</DialogTitle>
+            <DialogTitle>{editingPlan ? "Edit Plan" : "Create Plan"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSavePlan}>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Plan Name (ID)</label>
-                  <Input
-                    value={planForm.name}
-                    onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                    placeholder="e.g., monthly"
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Display Name</label>
-                  <Input
-                    value={planForm.display_name}
-                    onChange={(e) => setPlanForm({ ...planForm, display_name: e.target.value })}
-                    placeholder="e.g., Monthly Premium"
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Price (TZS)</label>
-                  <Input
-                    type="number"
-                    value={planForm.price}
-                    onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Duration (days)</label>
-                  <Input
-                    type="number"
-                    value={planForm.duration_days}
-                    onChange={(e) => setPlanForm({ ...planForm, duration_days: e.target.value })}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    required
-                  />
-                </div>
-              </div>
+          <form onSubmit={handleSavePlan} className="space-y-4">
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block">Plan Name (internal)</label>
+              <Input
+                value={planForm.name}
+                onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                className="bg-zinc-950 border-zinc-800"
+                placeholder="premium_monthly"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block">Display Name</label>
+              <Input
+                value={planForm.display_name}
+                onChange={(e) => setPlanForm({ ...planForm, display_name: e.target.value })}
+                className="bg-zinc-950 border-zinc-800"
+                placeholder="Premium Monthly"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-zinc-400 mb-1 block">Features (comma-separated)</label>
+                <label className="text-sm text-zinc-400 mb-1 block">Price</label>
                 <Input
-                  value={planForm.features}
-                  onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })}
-                  placeholder="Unlimited streaming, Ad-free, Offline downloads"
-                  className="bg-zinc-950 border-zinc-800 text-white"
+                  type="number"
+                  value={planForm.price}
+                  onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800"
+                  required
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={planForm.is_active} onCheckedChange={(v) => setPlanForm({ ...planForm, is_active: v })} />
-                <span className="text-sm text-zinc-400">Active</span>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Duration (days)</label>
+                <Input
+                  type="number"
+                  value={planForm.duration_days}
+                  onChange={(e) => setPlanForm({ ...planForm, duration_days: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800"
+                  required
+                />
               </div>
             </div>
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block">Features (comma-separated)</label>
+              <Input
+                value={planForm.features}
+                onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })}
+                className="bg-zinc-950 border-zinc-800"
+                placeholder="Ad-free, Unlimited skips, High quality"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Active</span>
+              <Switch
+                checked={planForm.is_active}
+                onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
+                className="data-[state=checked]:bg-emerald-600"
+              />
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsPlanModalOpen(false)} className="border-zinc-700">Cancel</Button>
-              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
-                {editingPlan ? "Update" : "Create"} Plan
+              <Button type="button" variant="outline" onClick={() => setIsPlanModalOpen(false)} className="border-zinc-700">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-700">
+                {editingPlan ? "Update" : "Create"}
               </Button>
             </DialogFooter>
           </form>
