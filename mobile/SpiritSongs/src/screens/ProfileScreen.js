@@ -92,7 +92,7 @@ const SubscriptionCard = ({ plan, currentPlan, onSelect }) => {
 
 export default function ProfileScreen({ navigation }) {
   const { user, isAuthenticated, logout } = useAuth();
-  const { isPremium, features, subscriptionExpiry, refresh } = useSubscription();
+  const { isPremium, isTrial, trialInfo, features, subscriptionExpiry, subscriptionInfo, refresh, getTrialDaysRemaining, isTrialExpiringSoon } = useSubscription();
   const [currentPlan, setCurrentPlan] = useState(isPremium ? 'premium' : 'free');
   const [loading, setLoading] = useState(false);
 
@@ -108,6 +108,16 @@ export default function ProfileScreen({ navigation }) {
 
   const handleManageSubscription = () => {
     navigation.navigate('Subscription');
+  };
+
+  // Get membership status text
+  const getMembershipText = () => {
+    if (isTrial) {
+      const daysRemaining = getTrialDaysRemaining();
+      return `Free Trial (${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} left)`;
+    }
+    if (isPremium) return 'Premium Member';
+    return 'Free Member';
   };
 
   const handleLogout = () => {
