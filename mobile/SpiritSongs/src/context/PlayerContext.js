@@ -7,10 +7,8 @@ import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from
 
 const PlayerContext = createContext(null);
 
-// Sample audio for fallback/demo
 const SAMPLE_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 
-// Singleton sound reference to ensure only one audio plays at a time
 let globalSoundRef = null;
 
 export const PlayerProvider = ({ children }) => {
@@ -23,19 +21,19 @@ export const PlayerProvider = ({ children }) => {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState('off'); // off, all, one
+  const [repeat, setRepeat] = useState('off');
   const [error, setError] = useState(null);
   const [liked, setLiked] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [allAlbums, setAllAlbums] = useState([]); // For auto-play next album
+  const [allAlbums, setAllAlbums] = useState([]);
   
   const soundRef = useRef(null);
   const sessionIdRef = useRef(null);
   const isLoadingRef = useRef(false);
 
-  // Configure audio mode on mount - IMPORTANT for lock screen playback
+  // Configure audio for background/lock screen playback
   useEffect(() => {
     const setupAudio = async () => {
       try {
@@ -61,7 +59,6 @@ export const PlayerProvider = ({ children }) => {
     };
   }, []);
 
-  // Fetch all albums for auto-play next album feature
   const fetchAllAlbums = async () => {
     try {
       const homeData = await contentService.getHome();
@@ -77,11 +74,10 @@ export const PlayerProvider = ({ children }) => {
       });
       setAllAlbums(albums);
     } catch (error) {
-      console.log('Error fetching albums for auto-play:', error);
+      console.log('Error fetching albums:', error);
     }
   };
 
-  // Stop and unload any existing sound
   const stopAndUnloadSound = async () => {
     try {
       if (globalSoundRef) {
@@ -105,7 +101,6 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Playback status update handler
   const onPlaybackStatusUpdate = useCallback((status) => {
     if (status.isLoaded) {
       setPosition(status.positionMillis / 1000);
@@ -114,7 +109,6 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(status.isBuffering);
       setError(null);
       
-      // Handle song end - auto-play next
       if (status.didJustFinish && !status.isLooping) {
         handleSongEnd();
       }
@@ -125,12 +119,10 @@ export const PlayerProvider = ({ children }) => {
     }
   }, []);
 
-  // Handle song end - play next song in album, or next album
   const handleSongEnd = useCallback(async () => {
-    console.log('Song ended. Repeat mode:', repeat, 'Queue length:', queue.length, 'Index:', queueIndex);
+    console.log('Song ended. Repeat:', repeat, 'Queue:', queue.length, 'Index:', queueIndex);
     
     if (repeat === 'one') {
-      // Replay current song
       if (soundRef.current) {
         await soundRef.current.setPositionAsync(0);
         await soundRef.current.playAsync();
@@ -138,29 +130,20 @@ export const PlayerProvider = ({ children }) => {
       return;
     }
     
-    // Check if there are more songs in the queue
     if (queueIndex < queue.length - 1) {
-      // Play next song in queue/album
-      playNext();
+      playNextInternal();
     } else if (repeat === 'all') {
-      // Restart queue from beginning
       setQueueIndex(0);
       const item = queue[0];
       await loadAndPlaySong(item.song || item, item.album || currentAlbum);
     } else {
-      // End of album - try to play next album
       await playNextAlbum();
     }
   }, [repeat, queue, queueIndex, currentAlbum, allAlbums]);
 
-  // Play next album automatically
   const playNextAlbum = async () => {
-    if (!currentAlbum || allAlbums.length === 0) {
-      console.log('No more albums to play');
-      return;
-    }
+    if (!currentAlbum || allAlbums.length === 0) return;
     
-    // Find current album index
     const currentIndex = allAlbums.findIndex(a => a.album_id === currentAlbum.album_id);
     const nextIndex = currentIndex + 1;
     
@@ -169,7 +152,6 @@ export const PlayerProvider = ({ children }) => {
       console.log('Auto-playing next album:', nextAlbum.title);
       
       try {
-        // Fetch songs for next album
         const albumData = await contentService.getAlbum(nextAlbum.album_id);
         const songs = albumData.songs || [];
         
@@ -182,45 +164,33 @@ export const PlayerProvider = ({ children }) => {
       } catch (error) {
         console.error('Error loading next album:', error);
       }
-    } else {
-      console.log('Reached end of all albums');
     }
   };
 
   const loadAndPlaySong = async (song, album) => {
-    if (isLoadingRef.current) {
-      console.log('Already loading a song, skipping...');
-      return;
-    }
+    if (isLoadingRef.current) return;
     
     try {
       isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
       
-      console.log('Loading song:', song.title, 'Song ID:', song.song_id);
+      console.log('Loading:', song.title);
       
       await stopAndUnloadSound();
       
-      // End previous session
       if (sessionIdRef.current) {
-        try {
-          await sessionService.endSession(sessionIdRef.current);
-        } catch (e) {}
+        try { await sessionService.endSession(sessionIdRef.current); } catch (e) {}
         sessionIdRef.current = null;
       }
       
-      // Determine audio URL
       let audioUrl = null;
-      let isLocalFile = false;
       
-      // Check for local download first
+      // Check local first
       try {
         const localPath = await getLocalSongPath(song.song_id);
         if (localPath) {
-          console.log('Using downloaded file:', localPath);
           audioUrl = localPath;
-          isLocalFile = true;
           setIsDownloaded(true);
         } else {
           setIsDownloaded(false);
@@ -229,17 +199,10 @@ export const PlayerProvider = ({ children }) => {
         setIsDownloaded(false);
       }
       
-      // Remote URL if not local
       if (!audioUrl) {
-        if (song.audio_url) {
-          audioUrl = getAudioUrl(song.audio_url);
-        }
-        if (!audioUrl) {
-          audioUrl = SAMPLE_AUDIO;
-        }
+        audioUrl = song.audio_url ? getAudioUrl(song.audio_url) : SAMPLE_AUDIO;
       }
       
-      // Create and load sound
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
         { 
@@ -256,10 +219,10 @@ export const PlayerProvider = ({ children }) => {
       setCurrentSong(song);
       setCurrentAlbum(album);
       
-      // Check if song is liked
+      // Check liked status
       await checkIfLiked(song.song_id);
       
-      // Start listening session
+      // Start session
       try {
         const userId = await SecureStore.getItemAsync('user_id');
         const session = await sessionService.startSession(song.song_id, userId);
@@ -271,36 +234,18 @@ export const PlayerProvider = ({ children }) => {
       
     } catch (error) {
       console.error('Error loading song:', error);
-      setError(error.message || 'Failed to load audio');
+      setError(error.message);
       setIsLoading(false);
       isLoadingRef.current = false;
-      
-      // Fallback
-      try {
-        await stopAndUnloadSound();
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: SAMPLE_AUDIO },
-          { shouldPlay: true },
-          onPlaybackStatusUpdate
-        );
-        soundRef.current = sound;
-        globalSoundRef = sound;
-        setCurrentSong(song);
-        setCurrentAlbum(album);
-        setIsLoading(false);
-        isLoadingRef.current = false;
-      } catch (fallbackError) {
-        isLoadingRef.current = false;
-      }
     }
   };
 
-  // Check if current song is liked
   const checkIfLiked = async (songId) => {
     try {
-      const favorites = await SecureStore.getItemAsync('favorites');
-      if (favorites) {
-        const favList = JSON.parse(favorites);
+      // Check local storage
+      const localFavorites = await SecureStore.getItemAsync('local_favorites');
+      if (localFavorites) {
+        const favList = JSON.parse(localFavorites);
         setLiked(favList.includes(songId));
       } else {
         setLiked(false);
@@ -311,7 +256,6 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const playSong = async (song, album, songQueue = [], index = 0) => {
-    console.log('playSong called:', song?.title, 'albumId:', album?.album_id);
     setQueue(songQueue.length > 0 ? songQueue : [{ song, album }]);
     setQueueIndex(index);
     await loadAndPlaySong(song, album);
@@ -334,7 +278,7 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  const playNext = async () => {
+  const playNextInternal = async () => {
     if (queue.length === 0) return;
     
     let nextIndex;
@@ -348,7 +292,6 @@ export const PlayerProvider = ({ children }) => {
         if (repeat === 'all') {
           nextIndex = 0;
         } else {
-          // Auto-play next album
           await playNextAlbum();
           return;
         }
@@ -358,6 +301,10 @@ export const PlayerProvider = ({ children }) => {
     setQueueIndex(nextIndex);
     const item = queue[nextIndex];
     await loadAndPlaySong(item.song || item, item.album || currentAlbum);
+  };
+
+  const playNext = async () => {
+    await playNextInternal();
   };
 
   const playPrevious = async () => {
@@ -389,7 +336,6 @@ export const PlayerProvider = ({ children }) => {
   const cycleRepeat = () => {
     const newRepeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
     setRepeat(newRepeat);
-    
     if (soundRef.current) {
       soundRef.current.setIsLoopingAsync(newRepeat === 'one');
     }
@@ -399,58 +345,58 @@ export const PlayerProvider = ({ children }) => {
     setShuffle(prev => !prev);
   };
 
-  // Toggle like - saves to local storage AND syncs with backend
+  // FIXED: Toggle like with proper local storage AND backend sync
   const toggleLike = async () => {
     if (!currentSong) return;
     
     try {
-      let favorites = [];
-      const stored = await SecureStore.getItemAsync('favorites');
-      if (stored) {
-        favorites = JSON.parse(stored);
-      }
-      
+      const songId = currentSong.song_id;
       const newLiked = !liked;
       
+      // Get current local favorites
+      let localFavorites = [];
+      try {
+        const stored = await SecureStore.getItemAsync('local_favorites');
+        if (stored) localFavorites = JSON.parse(stored);
+      } catch (e) {}
+      
       if (newLiked) {
-        // Add to favorites
-        if (!favorites.includes(currentSong.song_id)) {
-          favorites.push(currentSong.song_id);
-        }
-        
-        // Sync with backend
-        try {
-          await libraryService.addFavorite(currentSong.song_id);
-        } catch (e) {
-          console.log('Backend sync error (non-critical):', e);
+        // Add to local favorites
+        if (!localFavorites.includes(songId)) {
+          localFavorites.push(songId);
         }
       } else {
-        // Remove from favorites
-        favorites = favorites.filter(id => id !== currentSong.song_id);
-        
-        // Sync with backend
-        try {
-          await libraryService.removeFavorite(currentSong.song_id);
-        } catch (e) {
-          console.log('Backend sync error (non-critical):', e);
-        }
+        // Remove from local favorites
+        localFavorites = localFavorites.filter(id => id !== songId);
       }
       
-      await SecureStore.setItemAsync('favorites', JSON.stringify(favorites));
+      // Save to local storage
+      await SecureStore.setItemAsync('local_favorites', JSON.stringify(localFavorites));
       setLiked(newLiked);
+      
+      // Sync with backend (non-blocking)
+      try {
+        if (newLiked) {
+          await libraryService.addFavorite(songId);
+        } else {
+          await libraryService.removeFavorite(songId);
+        }
+        console.log('Like synced to backend:', newLiked);
+      } catch (e) {
+        console.log('Backend sync failed (will retry later):', e.message);
+      }
       
     } catch (error) {
       console.error('Error toggling like:', error);
     }
   };
 
-  // Share song
   const shareSong = async () => {
     if (!currentSong) return;
     
     try {
       await Share.share({
-        message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!\n\nDownload the app to listen now.`,
+        message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!`,
         title: `${currentSong.title} - Spirit Songs`,
       });
     } catch (error) {
@@ -458,14 +404,13 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Download current song for offline listening
   const downloadCurrentSong = async () => {
     if (!currentSong || !currentAlbum) return;
     
     if (isDownloaded) {
       Alert.alert(
         'Remove Download',
-        'This will remove the offline version of this song.',
+        'Remove the offline version of this song?',
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -493,10 +438,10 @@ export const PlayerProvider = ({ children }) => {
         });
         setIsDownloaded(true);
         setIsDownloading(false);
-        Alert.alert('Downloaded!', 'Song is now available offline');
+        Alert.alert('Downloaded!', 'Song available offline');
       } catch (error) {
         setIsDownloading(false);
-        Alert.alert('Download Failed', error.message || 'Could not download song');
+        Alert.alert('Download Failed', error.message || 'Could not download');
       }
     }
   };
