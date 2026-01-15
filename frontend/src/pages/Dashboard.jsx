@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { 
   Users, Music2, Church, Heart, UserCheck, CheckCircle,
-  TrendingUp, DollarSign, Play
+  TrendingUp, DollarSign, Play, MapPin, Calendar, Smartphone, Globe
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from "recharts";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -16,17 +16,20 @@ const API = `${BACKEND_URL}/api`;
 export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [trends, setTrends] = useState(null);
+  const [demographics, setDemographics] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsRes, trendsRes] = await Promise.all([
+        const [analyticsRes, trendsRes, demographicsRes] = await Promise.all([
           axios.get(`${API}/analytics/overview`, { withCredentials: true }),
-          axios.get(`${API}/analytics/trends`, { withCredentials: true })
+          axios.get(`${API}/analytics/trends`, { withCredentials: true }),
+          axios.get(`${API}/analytics/user-demographics`, { withCredentials: true })
         ]);
         setAnalytics(analyticsRes.data);
         setTrends(trendsRes.data);
+        setDemographics(demographicsRes.data);
       } catch (error) {
         console.error("Error fetching analytics:", error);
       } finally {
@@ -36,7 +39,8 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
+  const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#ec4899'];
+  const DEVICE_COLORS = { 'ANDROID': '#3ddc84', 'IOS': '#000', 'WEB': '#3b82f6', 'Unknown': '#6b7280' };
 
   if (loading) {
     return (
