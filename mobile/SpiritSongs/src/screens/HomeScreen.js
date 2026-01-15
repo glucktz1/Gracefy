@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { contentService } from '../services/api';
+import { contentService, getThumbnailUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import MiniPlayer from '../components/MiniPlayer';
@@ -27,7 +27,7 @@ const QuickAccessCard = ({ item, onPress }) => (
   <TouchableOpacity style={styles.quickAccessCard} onPress={onPress} activeOpacity={0.7}>
     <View style={styles.quickAccessImage}>
       {item.thumbnail ? (
-        <Image source={{ uri: item.thumbnail }} style={styles.quickAccessImg} />
+        <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
       ) : (
         <LinearGradient colors={['#1DB954', '#191414']} style={styles.quickAccessGradient}>
           <Ionicons name="musical-notes" size={18} color="#fff" />
@@ -50,7 +50,7 @@ const AlbumCard = ({ album, onPress, size = 'medium' }) => {
     >
       <View style={[styles.albumImageContainer, { height: cardWidth }]}>
         {album.thumbnail ? (
-          <Image source={{ uri: album.thumbnail }} style={styles.albumImage} />
+          <Image source={{ uri: getThumbnailUrl(album.thumbnail) }} style={styles.albumImage} />
         ) : (
           <LinearGradient colors={['#535353', '#121212']} style={styles.albumPlaceholder}>
             <Ionicons name="musical-notes" size={cardWidth * 0.3} color="rgba(255,255,255,0.3)" />
@@ -63,20 +63,22 @@ const AlbumCard = ({ album, onPress, size = 'medium' }) => {
   );
 };
 
-// Mix Card - For "Your top mixes" section
+// Mix Card - For "Your top mixes" section - FULL WIDTH IMAGE
 const MixCard = ({ item, onPress }) => (
   <TouchableOpacity style={styles.mixCard} onPress={onPress} activeOpacity={0.8}>
+    {/* Full width background image */}
+    {item.thumbnail ? (
+      <Image 
+        source={{ uri: getThumbnailUrl(item.thumbnail) }} 
+        style={styles.mixBackgroundImage}
+        resizeMode="cover"
+      />
+    ) : null}
+    {/* Gradient overlay for text readability */}
     <LinearGradient 
-      colors={item.colors || ['#274a78', '#1e3264']} 
-      style={styles.mixGradient}
+      colors={['transparent', 'rgba(0,0,0,0.8)']} 
+      style={styles.mixGradientOverlay}
     >
-      {item.thumbnail ? (
-        <Image source={{ uri: item.thumbnail }} style={styles.mixImage} />
-      ) : (
-        <View style={styles.mixImagePlaceholder}>
-          <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.5)" />
-        </View>
-      )}
       <View style={styles.mixInfo}>
         <Text style={styles.mixTitle} numberOfLines={2}>{item.title || item.name}</Text>
         <Text style={styles.mixSubtitle} numberOfLines={1}>
@@ -92,7 +94,7 @@ const RecentCard = ({ item, onPress }) => (
   <TouchableOpacity style={styles.recentCard} onPress={onPress} activeOpacity={0.8}>
     <View style={styles.recentImageContainer}>
       {item.thumbnail ? (
-        <Image source={{ uri: item.thumbnail }} style={styles.recentImage} />
+        <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.recentImage} />
       ) : (
         <LinearGradient colors={['#535353', '#121212']} style={styles.recentImage}>
           <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.4)" />
@@ -170,7 +172,7 @@ export default function HomeScreen({ navigation }) {
   const burner = homeData?.burners?.[0];
   const quickAccess = categories.slice(0, 6);
   
-  // Create mock "Your top mixes" from albums
+  // Create "Your top mixes" from albums
   const topMixes = (homeData?.sections?.find(s => s.type === 'featured_albums')?.items || []).slice(0, 5);
   
   // Create "Recents" from random albums
@@ -193,9 +195,9 @@ export default function HomeScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Category Tabs */}
+        {/* Profile Button Row */}
         <View style={styles.headerSection}>
-          <View style={styles.headerRow}>
+          <View style={styles.profileRow}>
             <TouchableOpacity style={styles.profileButton}>
               <LinearGradient colors={['#b83280', '#ff6b6b']} style={styles.profileGradient}>
                 <Text style={styles.profileInitial}>
@@ -203,43 +205,55 @@ export default function HomeScreen({ navigation }) {
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
-            <CategoryTabs 
-              categories={categories.slice(0, 3)} 
-              activeCategory={activeCategory}
-              onSelect={setActiveCategory}
-            />
+            <Text style={styles.appTitle}>Spirit Songs</Text>
+            <TouchableOpacity style={styles.notificationBtn}>
+              <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Featured Burner Card */}
+        {/* Hero Section - INCREASED HEIGHT */}
         {burner && (
-          <TouchableOpacity style={styles.featuredCard} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.heroCard} activeOpacity={0.9}>
             <LinearGradient
-              colors={['#8b6914', '#3d2f0a']}
-              style={styles.featuredGradient}
+              colors={['#1e3a5f', '#0d253f', '#0a192f']}
+              style={styles.heroGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <View style={styles.featuredContent}>
-                <Text style={styles.featuredTitle} numberOfLines={2}>
+              <View style={styles.heroContent}>
+                <Text style={styles.heroLabel}>FEATURED</Text>
+                <Text style={styles.heroTitle} numberOfLines={2}>
                   {burner.headline || 'Discover Sacred Music'}
                 </Text>
-                <Text style={styles.featuredSubtitle} numberOfLines={2}>
-                  {burner.subtitle || 'Stream Christian songs and hymns'}
+                <Text style={styles.heroSubtitle} numberOfLines={3}>
+                  {burner.subtitle || 'Stream Christian songs, hymns, and worship music from around the world'}
                 </Text>
-                <View style={styles.featuredActions}>
-                  <TouchableOpacity style={styles.previewButton}>
-                    <Ionicons name="play" size={16} color="#000" />
-                    <Text style={styles.previewText}>Preview</Text>
+                <View style={styles.heroActions}>
+                  <TouchableOpacity style={styles.heroPlayButton}>
+                    <Ionicons name="play" size={18} color="#000" />
+                    <Text style={styles.heroPlayText}>Play Now</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.addButton}>
-                    <Ionicons name="add" size={24} color={COLORS.textPrimary} />
+                  <TouchableOpacity style={styles.heroAddButton}>
+                    <Ionicons name="heart-outline" size={24} color={COLORS.textPrimary} />
                   </TouchableOpacity>
                 </View>
+              </View>
+              <View style={styles.heroImageContainer}>
+                <Ionicons name="musical-notes" size={80} color="rgba(255,255,255,0.1)" />
               </View>
             </LinearGradient>
           </TouchableOpacity>
         )}
+
+        {/* Category Filter Tabs - NOW BELOW HERO */}
+        <View style={styles.filterSection}>
+          <CategoryTabs 
+            categories={categories.slice(0, 4)} 
+            activeCategory={activeCategory}
+            onSelect={setActiveCategory}
+          />
+        </View>
 
         {/* Greeting */}
         <Text style={styles.greeting}>{getGreeting()}</Text>
@@ -255,7 +269,7 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Your top mixes */}
+        {/* Your top mixes - FULL WIDTH IMAGES */}
         {topMixes.length > 0 && (
           <View style={styles.section}>
             <SectionHeader 
@@ -266,12 +280,9 @@ export default function HomeScreen({ navigation }) {
               horizontal
               data={topMixes}
               keyExtractor={(item, idx) => item.album_id || `mix-${idx}`}
-              renderItem={({ item, index }) => (
+              renderItem={({ item }) => (
                 <MixCard 
-                  item={{
-                    ...item,
-                    colors: index % 2 === 0 ? ['#274a78', '#1e3264'] : ['#503750', '#30223a']
-                  }}
+                  item={item}
                   onPress={() => navigation.navigate('Album', { albumId: item.album_id })}
                 />
               )}
@@ -381,77 +392,114 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingTop: 48,
+    paddingHorizontal: 16,
   },
-  headerRow: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 16,
+    justifyContent: 'space-between',
   },
   profileButton: {
-    marginRight: 8,
+    marginRight: 12,
   },
   profileGradient: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileInitial: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  appTitle: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  notificationBtn: {
+    padding: 4,
+  },
+  // Hero Section - INCREASED HEIGHT
+  heroCard: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  heroGradient: {
+    minHeight: 200, // Increased height
+    padding: 24,
+    flexDirection: 'row',
+  },
+  heroContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroLabel: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 8,
+    lineHeight: 30,
+  },
+  heroSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  heroActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  heroPlayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  heroPlayText: {
+    color: '#000',
     fontSize: 14,
     fontWeight: '700',
   },
-  featuredCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 8,
-    overflow: 'hidden',
+  heroAddButton: {
+    padding: 8,
   },
-  featuredGradient: {
-    padding: 16,
-  },
-  featuredContent: {
-    flex: 1,
-  },
-  featuredTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  featuredSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  featuredActions: {
-    flexDirection: 'row',
+  heroImageContainer: {
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    width: 80,
   },
-  previewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.textPrimary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  previewText: {
-    color: '#000',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  addButton: {
-    padding: 4,
+  // Filter Section - Below Hero
+  filterSection: {
+    marginTop: 20,
   },
   greeting: {
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    marginTop: 24,
+    marginTop: 20,
     marginBottom: 16,
     paddingHorizontal: 16,
   },
@@ -548,43 +596,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  // Mix Card - FULL WIDTH IMAGE
   mixCard: {
-    width: width * 0.4,
+    width: width * 0.42,
     height: 200,
     marginRight: 12,
     borderRadius: 8,
     overflow: 'hidden',
+    backgroundColor: COLORS.backgroundCard,
   },
-  mixGradient: {
+  mixBackgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  mixGradientOverlay: {
     flex: 1,
+    justifyContent: 'flex-end',
     padding: 12,
-    justifyContent: 'space-between',
-  },
-  mixImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 4,
-  },
-  mixImagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   mixInfo: {
-    marginTop: 8,
+    // Text at bottom over gradient
   },
   mixTitle: {
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   mixSubtitle: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 4,
   },
   recentCard: {
     width: width * 0.32,
