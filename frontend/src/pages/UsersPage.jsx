@@ -614,6 +614,40 @@ export default function UsersPage() {
     );
   }
 
+  // Export function
+  const handleExport = async () => {
+    try {
+      const allUsers = await axios.get(`${API}/admin/users?page=1&limit=10000`, { withCredentials: true });
+      const usersData = allUsers.data.users || [];
+      
+      const csvContent = [
+        ["User ID", "Name", "Email", "Phone", "Country", "Membership", "Status", "Register By", "Created At"].join(","),
+        ...usersData.map(u => [
+          u.user_id,
+          `"${(u.name || '').replace(/"/g, '""')}"`,
+          u.email || "",
+          u.phone || "",
+          u.country || "",
+          u.membership_type || "free",
+          u.status || "active",
+          u.register_by || "email",
+          u.created_at || ""
+        ].join(","))
+      ].join("\n");
+      
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Users exported successfully");
+    } catch (error) {
+      toast.error("Failed to export users");
+    }
+  };
+
   // Main Users List View
   return (
     <div className="page-container animate-fade-in" data-testid="users-page">
@@ -626,6 +660,8 @@ export default function UsersPage() {
           <Button
             variant="outline"
             className="border-zinc-700 text-zinc-300"
+            onClick={handleExport}
+            data-testid="export-users-btn"
           >
             <Download size={18} className="mr-2" />
             Export
@@ -644,6 +680,95 @@ export default function UsersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <Users size={20} className="text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stats.total?.toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">Total Users</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <CheckCircle size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stats.active?.toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">Active</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <Crown size={20} className="text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stats.premium?.toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">Premium</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-zinc-500/20 flex items-center justify-center">
+                  <User size={20} className="text-zinc-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stats.free?.toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">Free</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <Clock size={20} className="text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stats.trial_active?.toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">In Trial</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                  <Ban size={20} className="text-red-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stats.suspended?.toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">Suspended</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <Card className="bg-zinc-900/50 border-zinc-800 mb-6">
