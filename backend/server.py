@@ -6627,6 +6627,33 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_db_migration():
+    """Run database migrations on startup"""
+    # Migrate singers: convert 'followers' to 'followers_count' for consistency
+    result = await db.singers.update_many(
+        {"followers": {"$exists": True}, "followers_count": {"$exists": False}},
+        [{"$set": {"followers_count": {"$ifNull": ["$followers", 0]}}}]
+    )
+    if result.modified_count > 0:
+        logger.info(f"Migrated {result.modified_count} singer records: followers -> followers_count")
+    
+    # Set followers_count to 0 for records that don't have it
+    result2 = await db.singers.update_many(
+        {"followers_count": {"$exists": False}},
+        {"$set": {"followers_count": 0}}
+    )
+    if result2.modified_count > 0:
+        logger.info(f"Initialized followers_count for {result2.modified_count} singer records")
+    
+    # Same for churches
+    result3 = await db.churches.update_many(
+        {"followers_count": {"$exists": False}},
+        {"$set": {"followers_count": 0}}
+    )
+    if result3.modified_count > 0:
+        logger.info(f"Initialized followers_count for {result3.modified_count} church records")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
