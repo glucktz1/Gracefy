@@ -5,23 +5,27 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { libraryService, contentService, getThumbnailUrl } from '../services/api';
 import { getDownloadedSongs, removeDownload, clearAllDownloads, getDownloadsSize } from '../services/downloadService';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import MiniPlayer from '../components/MiniPlayer';
-import SongListItem from '../components/SongListItem';
 import PlaylistModal from '../components/PlaylistModal';
 import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
-// Quick Access Card Component - 2 columns layout
-const QuickAccessCard = ({ icon, iconColor, gradient, title, subtitle, onPress }) => (
-  <TouchableOpacity style={styles.quickAccessCard} onPress={onPress} activeOpacity={0.8}>
+// Quick Access Card
+const QuickAccessCard = ({ icon, gradient, title, subtitle, onPress, isActive }) => (
+  <TouchableOpacity 
+    style={[styles.quickAccessCard, isActive && styles.quickAccessCardActive]} 
+    onPress={onPress} 
+    activeOpacity={0.8}
+  >
     <LinearGradient colors={gradient} style={styles.quickAccessIcon}>
-      <Ionicons name={icon} size={24} color={iconColor || '#fff'} />
+      <Ionicons name={icon} size={22} color="#fff" />
     </LinearGradient>
     <View style={styles.quickAccessInfo}>
       <Text style={styles.quickAccessTitle} numberOfLines={1}>{title}</Text>
@@ -30,7 +34,40 @@ const QuickAccessCard = ({ icon, iconColor, gradient, title, subtitle, onPress }
   </TouchableOpacity>
 );
 
-// Playlist Card for grid
+// Song Card
+const SongCard = ({ song, onPress, onRemove, isCurrentSong, showRemove, isLiked }) => (
+  <TouchableOpacity 
+    style={[styles.songCard, isCurrentSong && styles.songCardActive]} 
+    onPress={onPress} 
+    activeOpacity={0.8}
+  >
+    <View style={styles.songArt}>
+      {song.thumbnail ? (
+        <Image source={{ uri: getThumbnailUrl(song.thumbnail) }} style={styles.songImg} />
+      ) : (
+        <LinearGradient colors={['#535353', '#121212']} style={styles.songImg}>
+          <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
+        </LinearGradient>
+      )}
+    </View>
+    <View style={styles.songInfo}>
+      <Text style={[styles.songName, isCurrentSong && styles.activeText]} numberOfLines={1}>
+        {song.title}
+      </Text>
+      <Text style={styles.songMeta} numberOfLines={1}>
+        {song.artist_name || 'Unknown Artist'}
+      </Text>
+    </View>
+    {isLiked && <Ionicons name="heart" size={18} color="#e91e63" style={styles.likeIcon} />}
+    {showRemove && (
+      <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(song)}>
+        <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
+      </TouchableOpacity>
+    )}
+  </TouchableOpacity>
+);
+
+// Playlist Card
 const PlaylistGridCard = ({ playlist, onPress }) => (
   <TouchableOpacity style={styles.playlistGridCard} onPress={onPress} activeOpacity={0.8}>
     <View style={styles.playlistGridArt}>
@@ -43,70 +80,10 @@ const PlaylistGridCard = ({ playlist, onPress }) => (
   </TouchableOpacity>
 );
 
-// Downloaded Song Card
-const DownloadedSongCard = ({ song, onPress, onRemove, isCurrentSong }) => (
-  <TouchableOpacity 
-    style={[styles.downloadedCard, isCurrentSong && styles.downloadedCardActive]} 
-    onPress={onPress} 
-    activeOpacity={0.8}
-  >
-    <View style={styles.downloadedArt}>
-      {song.thumbnail ? (
-        <Image source={{ uri: getThumbnailUrl(song.thumbnail) }} style={styles.downloadedImg} />
-      ) : (
-        <LinearGradient colors={['#535353', '#121212']} style={styles.downloadedImg}>
-          <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
-        </LinearGradient>
-      )}
-      <View style={styles.downloadedBadge}>
-        <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-      </View>
-    </View>
-    <View style={styles.downloadedInfo}>
-      <Text style={[styles.downloadedName, isCurrentSong && styles.activeText]} numberOfLines={1}>
-        {song.title}
-      </Text>
-      <Text style={styles.downloadedMeta} numberOfLines={1}>
-        {song.artist_name || 'Unknown Artist'}
-      </Text>
-    </View>
-    <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(song)}>
-      <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
-    </TouchableOpacity>
-  </TouchableOpacity>
-);
-
-// Liked Song Card
-const LikedSongCard = ({ song, onPress, isCurrentSong }) => (
-  <TouchableOpacity 
-    style={[styles.likedSongCard, isCurrentSong && styles.likedSongCardActive]} 
-    onPress={onPress} 
-    activeOpacity={0.8}
-  >
-    <View style={styles.likedSongArt}>
-      {song.thumbnail ? (
-        <Image source={{ uri: getThumbnailUrl(song.thumbnail) }} style={styles.likedSongImg} />
-      ) : (
-        <LinearGradient colors={['#535353', '#121212']} style={styles.likedSongImg}>
-          <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
-        </LinearGradient>
-      )}
-    </View>
-    <View style={styles.likedSongInfo}>
-      <Text style={[styles.likedSongName, isCurrentSong && styles.activeText]} numberOfLines={1}>
-        {song.title}
-      </Text>
-      <Text style={styles.likedSongMeta} numberOfLines={1}>
-        {song.artist_name || 'Unknown Artist'}
-      </Text>
-    </View>
-    <Ionicons name="heart" size={20} color="#e91e63" />
-  </TouchableOpacity>
-);
-
 export default function LibraryScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('library');
+  const [activeTab, setActiveTab] = useState('liked');
   const [library, setLibrary] = useState(null);
+  const [likedSongs, setLikedSongs] = useState([]);
   const [downloads, setDownloads] = useState([]);
   const [downloadsSize, setDownloadsSize] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -118,16 +95,53 @@ export default function LibraryScreen({ navigation }) {
 
   const fetchLibrary = useCallback(async () => {
     try {
-      // Fetch downloads regardless of auth status
+      // Get downloads
       const downloadedSongs = await getDownloadedSongs();
       setDownloads(downloadedSongs);
       
       const size = await getDownloadsSize();
       setDownloadsSize(size);
 
+      // Get liked songs from local storage
+      const localFavorites = await SecureStore.getItemAsync('local_favorites');
+      const favoriteIds = localFavorites ? JSON.parse(localFavorites) : [];
+      
+      // If authenticated, also get from backend and merge
       if (isAuthenticated) {
-        const data = await libraryService.getLibrary();
-        setLibrary(data);
+        try {
+          const data = await libraryService.getLibrary();
+          setLibrary(data);
+          
+          // Merge backend favorites with local
+          const backendFavIds = (data.favorites || []).map(f => f.item?.song_id || f.id);
+          const allFavIds = [...new Set([...favoriteIds, ...backendFavIds])];
+          
+          // Fetch song details for all favorites
+          const songs = [];
+          for (const favId of allFavIds) {
+            // First check if we have it in backend response
+            const backendFav = (data.favorites || []).find(f => f.item?.song_id === favId);
+            if (backendFav?.item) {
+              songs.push({
+                ...backendFav.item,
+                album: backendFav.album,
+              });
+            } else if (downloadedSongs.find(d => d.song_id === favId)) {
+              // Check downloads
+              songs.push(downloadedSongs.find(d => d.song_id === favId));
+            }
+          }
+          setLikedSongs(songs);
+        } catch (e) {
+          console.log('Library fetch error:', e);
+          // Use local favorites for downloaded songs
+          const songs = downloadedSongs.filter(d => favoriteIds.includes(d.song_id));
+          setLikedSongs(songs);
+        }
+      } else {
+        // Not authenticated - show liked from downloads only
+        const songs = downloadedSongs.filter(d => favoriteIds.includes(d.song_id));
+        setLikedSongs(songs);
       }
     } catch (error) {
       console.error('Error fetching library:', error);
@@ -167,12 +181,7 @@ export default function LibraryScreen({ navigation }) {
     
     const queue = downloads.map(s => ({
       song: s,
-      album: {
-        album_id: s.album_id,
-        title: s.album_title || 'Downloads',
-        artist_name: s.artist_name,
-        thumbnail: s.thumbnail,
-      }
+      album: { album_id: s.album_id, title: s.album_title || 'Downloads', artist_name: s.artist_name, thumbnail: s.thumbnail }
     }));
     
     playSong(song, album, queue, index);
@@ -180,21 +189,15 @@ export default function LibraryScreen({ navigation }) {
 
   const handlePlayLikedSong = (song, index) => {
     const album = {
-      album_id: song.album_id,
-      title: 'Liked Songs',
-      artist_name: song.artist_name,
-      thumbnail: song.thumbnail,
+      album_id: song.album_id || song.album?.album_id,
+      title: song.album?.title || 'Liked Songs',
+      artist_name: song.artist_name || song.album?.artist_name,
+      thumbnail: song.thumbnail || song.album?.thumbnail,
     };
     
-    const likedSongs = library?.favorites || [];
     const queue = likedSongs.map(s => ({
       song: s,
-      album: {
-        album_id: s.album_id,
-        title: 'Liked Songs',
-        artist_name: s.artist_name,
-        thumbnail: s.thumbnail,
-      }
+      album: { album_id: s.album_id, title: 'Liked Songs', artist_name: s.artist_name, thumbnail: s.thumbnail }
     }));
     
     playSong(song, album, queue, index);
@@ -227,7 +230,7 @@ export default function LibraryScreen({ navigation }) {
     
     Alert.alert(
       'Clear All Downloads',
-      'This will remove all downloaded songs. Are you sure?',
+      'Remove all downloaded songs?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -256,156 +259,13 @@ export default function LibraryScreen({ navigation }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const likedCount = library?.favorites?.length || 0;
+  const likedCount = likedSongs.length;
   const playlistsCount = library?.playlists?.length || 0;
-
-  // Auth required screen
-  if (!isAuthenticated && activeTab !== 'downloads') {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitleCentered}>Your Library</Text>
-        </View>
-        
-        <View style={styles.tabsRow}>
-          {['library', 'downloads'].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab === 'library' ? 'Library' : 'Downloads'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {activeTab === 'downloads' ? (
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentPadding}>
-            {renderDownloadsContent()}
-          </ScrollView>
-        ) : (
-          <View style={styles.authPrompt}>
-            <Ionicons name="library-outline" size={64} color={COLORS.textMuted} />
-            <Text style={styles.authTitle}>Your Library</Text>
-            <Text style={styles.authSubtitle}>
-              Log in to see your saved songs, playlists, and more
-            </Text>
-            <TouchableOpacity 
-              style={styles.loginButton}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.loginButtonText}>Log In</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
-      </View>
-    );
-  }
-
-  const renderDownloadsContent = () => (
-    <>
-      {downloads.length > 0 ? (
-        <>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionCount}>{downloads.length} songs • {formatSize(downloadsSize)}</Text>
-            <TouchableOpacity onPress={handleClearAllDownloads}>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          </View>
-          {downloads.map((song, index) => (
-            <DownloadedSongCard
-              key={song.song_id || index}
-              song={song}
-              onPress={() => handlePlayDownloaded(song, index)}
-              onRemove={handleRemoveDownload}
-              isCurrentSong={currentSong?.song_id === song.song_id}
-            />
-          ))}
-        </>
-      ) : (
-        <View style={styles.emptyState}>
-          <LinearGradient colors={['#1e88e5', '#4fc3f7']} style={styles.emptyIcon}>
-            <Ionicons name="download-outline" size={40} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.emptyTitle}>No Downloads</Text>
-          <Text style={styles.emptySubtitle}>Download songs to listen offline anytime</Text>
-        </View>
-      )}
-    </>
-  );
-
-  const renderLikedContent = () => {
-    const likedSongs = library?.favorites || [];
-    
-    return (
-      <>
-        {likedSongs.length > 0 ? (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionCount}>{likedSongs.length} songs</Text>
-            </View>
-            {likedSongs.map((song, index) => (
-              <LikedSongCard
-                key={song.song_id || song.id || index}
-                song={song}
-                onPress={() => handlePlayLikedSong(song, index)}
-                isCurrentSong={currentSong?.song_id === song.song_id}
-              />
-            ))}
-          </>
-        ) : (
-          <View style={styles.emptyState}>
-            <LinearGradient colors={['#e91e63', '#ff5722']} style={styles.emptyIcon}>
-              <Ionicons name="heart-outline" size={40} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>No Liked Songs</Text>
-            <Text style={styles.emptySubtitle}>Songs you like will appear here</Text>
-          </View>
-        )}
-      </>
-    );
-  };
-
-  const renderPlaylistsContent = () => {
-    const playlists = library?.playlists || [];
-    
-    return (
-      <>
-        {/* Create New Playlist */}
-        <TouchableOpacity style={styles.createPlaylistCard} onPress={handleCreatePlaylist}>
-          <View style={styles.createPlaylistIcon}>
-            <Ionicons name="add" size={32} color={COLORS.textPrimary} />
-          </View>
-          <Text style={styles.createPlaylistText}>Create Playlist</Text>
-        </TouchableOpacity>
-
-        {playlists.length > 0 ? (
-          <View style={styles.playlistsGrid}>
-            {playlists.map((playlist) => (
-              <PlaylistGridCard
-                key={playlist.playlist_id}
-                playlist={playlist}
-                onPress={() => navigation.navigate('Playlist', { playlistId: playlist.playlist_id })}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyStateSmall}>
-            <Text style={styles.emptySubtitleSmall}>Create playlists to organize your music</Text>
-          </View>
-        )}
-      </>
-    );
-  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color="#e91e63" />
       </View>
     );
   }
@@ -431,28 +291,19 @@ export default function LibraryScreen({ navigation }) {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[
-          styles.contentPadding,
-          currentSong && { paddingBottom: 140 }
-        ]}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-          />
-        }
+        contentContainerStyle={[styles.contentPadding, currentSong && { paddingBottom: 140 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#e91e63" />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick Access Grid - 2 columns x 4 rows (8 items) */}
+        {/* Quick Access Grid - 2 columns x 4 rows */}
         <View style={styles.quickAccessGrid}>
-          {/* Row 1 */}
           <QuickAccessCard
             icon="heart"
-            gradient={['#e91e63', '#ff5722']}
+            gradient={['#7c3aed', '#ec4899']}
             title="Liked Songs"
             subtitle={`${likedCount} songs`}
             onPress={() => setActiveTab('liked')}
+            isActive={activeTab === 'liked'}
           />
           <QuickAccessCard
             icon="download"
@@ -460,93 +311,148 @@ export default function LibraryScreen({ navigation }) {
             title="Downloads"
             subtitle={`${downloads.length} songs`}
             onPress={() => setActiveTab('downloads')}
+            isActive={activeTab === 'downloads'}
           />
-          
-          {/* Row 2 */}
           <QuickAccessCard
             icon="list"
             gradient={['#4CAF50', '#8BC34A']}
             title="Playlists"
             subtitle={`${playlistsCount} playlists`}
             onPress={() => setActiveTab('playlists')}
+            isActive={activeTab === 'playlists'}
           />
           <QuickAccessCard
             icon="time"
-            gradient={['#9c27b0', '#e040fb']}
-            title="Recently Played"
-            subtitle="Your history"
+            gradient={['#ff6b6b', '#ffa502']}
+            title="Recent"
+            subtitle="History"
             onPress={() => setActiveTab('recent')}
+            isActive={activeTab === 'recent'}
           />
-          
-          {/* Row 3 - Additional quick access from playlists */}
-          {library?.playlists?.slice(0, 2).map((playlist, idx) => (
+          {/* Additional items from playlists */}
+          {library?.playlists?.slice(0, 4).map((playlist, idx) => (
             <QuickAccessCard
               key={playlist.playlist_id}
               icon="musical-notes"
-              gradient={idx === 0 ? ['#FF9800', '#FFB74D'] : ['#00BCD4', '#4DD0E1']}
+              gradient={[
+                ['#FF9800', '#FFB74D'],
+                ['#00BCD4', '#4DD0E1'],
+                ['#9c27b0', '#e040fb'],
+                ['#795548', '#A1887F'],
+              ][idx] || ['#333', '#555']}
               title={playlist.name}
               subtitle={`${playlist.songs?.length || 0} songs`}
               onPress={() => navigation.navigate('Playlist', { playlistId: playlist.playlist_id })}
             />
           ))}
-          
-          {/* Fill remaining slots if needed */}
-          {(!library?.playlists || library.playlists.length < 2) && (
+        </View>
+
+        {/* Tab Content */}
+        <View style={styles.tabContent}>
+          {/* Liked Songs */}
+          {activeTab === 'liked' && (
             <>
-              {library?.playlists?.length < 1 && (
-                <QuickAccessCard
-                  icon="add-circle"
-                  gradient={['#607D8B', '#90A4AE']}
-                  title="New Playlist"
-                  subtitle="Create one"
-                  onPress={handleCreatePlaylist}
-                />
-              )}
-              {library?.playlists?.length < 2 && (
-                <QuickAccessCard
-                  icon="shuffle"
-                  gradient={['#795548', '#A1887F']}
-                  title="Shuffle All"
-                  subtitle="Mix it up"
-                  onPress={() => {/* shuffle all */}}
-                />
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Liked Songs</Text>
+                <Text style={styles.sectionCount}>{likedCount} songs</Text>
+              </View>
+              {likedSongs.length > 0 ? (
+                likedSongs.map((song, index) => (
+                  <SongCard
+                    key={song.song_id || index}
+                    song={song}
+                    onPress={() => handlePlayLikedSong(song, index)}
+                    isCurrentSong={currentSong?.song_id === song.song_id}
+                    isLiked={true}
+                  />
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <LinearGradient colors={['#7c3aed', '#ec4899']} style={styles.emptyIcon}>
+                    <Ionicons name="heart-outline" size={40} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.emptyTitle}>No Liked Songs</Text>
+                  <Text style={styles.emptySubtitle}>Tap the heart icon on any song to add it here</Text>
+                </View>
               )}
             </>
           )}
-        </View>
 
-        {/* Tab Selection */}
-        <View style={styles.tabsRow}>
-          {[
-            { id: 'liked', label: 'Liked Songs', icon: 'heart' },
-            { id: 'downloads', label: 'Downloads', icon: 'download' },
-            { id: 'playlists', label: 'Playlists', icon: 'list' },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.activeTab]}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Ionicons 
-                name={tab.icon} 
-                size={16} 
-                color={activeTab === tab.id ? '#000' : COLORS.textSecondary} 
-              />
-              <Text style={[styles.tabText, activeTab === tab.id && styles.activeTabText]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          {/* Downloads */}
+          {activeTab === 'downloads' && (
+            <>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Downloads</Text>
+                  <Text style={styles.sectionCount}>{downloads.length} songs • {formatSize(downloadsSize)}</Text>
+                </View>
+                {downloads.length > 0 && (
+                  <TouchableOpacity onPress={handleClearAllDownloads}>
+                    <Text style={styles.clearAllText}>Clear All</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {downloads.length > 0 ? (
+                downloads.map((song, index) => (
+                  <SongCard
+                    key={song.song_id || index}
+                    song={song}
+                    onPress={() => handlePlayDownloaded(song, index)}
+                    onRemove={handleRemoveDownload}
+                    isCurrentSong={currentSong?.song_id === song.song_id}
+                    showRemove={true}
+                  />
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <LinearGradient colors={['#1e88e5', '#4fc3f7']} style={styles.emptyIcon}>
+                    <Ionicons name="download-outline" size={40} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.emptyTitle}>No Downloads</Text>
+                  <Text style={styles.emptySubtitle}>Download songs to listen offline</Text>
+                </View>
+              )}
+            </>
+          )}
 
-        {/* Content based on active tab */}
-        <View style={styles.tabContent}>
-          {activeTab === 'liked' && renderLikedContent()}
-          {activeTab === 'downloads' && renderDownloadsContent()}
-          {activeTab === 'playlists' && renderPlaylistsContent()}
+          {/* Playlists */}
+          {activeTab === 'playlists' && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Playlists</Text>
+                <TouchableOpacity onPress={handleCreatePlaylist}>
+                  <Text style={styles.createText}>+ Create</Text>
+                </TouchableOpacity>
+              </View>
+              {(library?.playlists?.length || 0) > 0 ? (
+                <View style={styles.playlistsGrid}>
+                  {library.playlists.map((playlist) => (
+                    <PlaylistGridCard
+                      key={playlist.playlist_id}
+                      playlist={playlist}
+                      onPress={() => navigation.navigate('Playlist', { playlistId: playlist.playlist_id })}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <LinearGradient colors={['#4CAF50', '#8BC34A']} style={styles.emptyIcon}>
+                    <Ionicons name="list-outline" size={40} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.emptyTitle}>No Playlists</Text>
+                  <Text style={styles.emptySubtitle}>Create playlists to organize your music</Text>
+                  <TouchableOpacity style={styles.createBtn} onPress={handleCreatePlaylist}>
+                    <Text style={styles.createBtnText}>Create Playlist</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Recent */}
           {activeTab === 'recent' && (
             <View style={styles.emptyState}>
-              <LinearGradient colors={['#9c27b0', '#e040fb']} style={styles.emptyIcon}>
+              <LinearGradient colors={['#ff6b6b', '#ffa502']} style={styles.emptyIcon}>
                 <Ionicons name="time-outline" size={40} color="#fff" />
               </LinearGradient>
               <Text style={styles.emptyTitle}>Recently Played</Text>
@@ -591,17 +497,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  headerTitleCentered: {
-    color: COLORS.textPrimary,
-    fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-    paddingTop: 48,
-    paddingBottom: 16,
-  },
-  profileBtn: {
-    marginRight: 12,
-  },
+  profileBtn: {},
   profileGradient: {
     width: 36,
     height: 36,
@@ -619,6 +515,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontSize: 22,
     fontWeight: '700',
+    marginLeft: 12,
   },
   addBtn: {
     padding: 4,
@@ -634,172 +531,108 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 20,
-    marginHorizontal: -4,
   },
   quickAccessCard: {
     width: CARD_WIDTH,
-    height: 64,
+    height: 56,
     backgroundColor: '#1a1a2e',
-    borderRadius: 8,
+    borderRadius: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 4,
     overflow: 'hidden',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  quickAccessCardActive: {
+    borderWidth: 1,
+    borderColor: '#e91e63',
   },
   quickAccessIcon: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quickAccessInfo: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   quickAccessTitle: {
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   quickAccessSubtitle: {
     color: COLORS.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 2,
   },
-  // Tabs
-  tabsRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 8,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.textMuted,
-    gap: 6,
-  },
-  activeTab: {
-    backgroundColor: '#e91e63',
-    borderColor: '#e91e63',
-  },
-  tabText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: '#000',
-    fontWeight: '600',
-  },
+  // Tab Content
   tabContent: {
     flex: 1,
   },
-  // Section Header
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
+  sectionTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
   sectionCount: {
     color: COLORS.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
+    marginTop: 2,
   },
   clearAllText: {
     color: '#e91e63',
     fontSize: 14,
     fontWeight: '600',
   },
-  // Downloaded Song Card
-  downloadedCard: {
+  createText: {
+    color: '#e91e63',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Song Card
+  songCard: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 8,
     marginBottom: 4,
   },
-  downloadedCardActive: {
+  songCardActive: {
     backgroundColor: 'rgba(233, 30, 99, 0.1)',
   },
-  downloadedArt: {
-    width: 48,
-    height: 48,
-    borderRadius: 6,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  downloadedImg: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  downloadedBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    backgroundColor: '#0a0a1a',
-    borderRadius: 8,
-    padding: 1,
-  },
-  downloadedInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  downloadedName: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  downloadedMeta: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  removeBtn: {
-    padding: 10,
-  },
-  // Liked Song Card
-  likedSongCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  likedSongCardActive: {
-    backgroundColor: 'rgba(233, 30, 99, 0.1)',
-  },
-  likedSongArt: {
+  songArt: {
     width: 48,
     height: 48,
     borderRadius: 6,
     overflow: 'hidden',
   },
-  likedSongImg: {
+  songImg: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  likedSongInfo: {
+  songInfo: {
     flex: 1,
     marginLeft: 12,
   },
-  likedSongName: {
+  songName: {
     color: COLORS.textPrimary,
     fontSize: 15,
     fontWeight: '500',
   },
-  likedSongMeta: {
+  songMeta: {
     color: COLORS.textSecondary,
     fontSize: 12,
     marginTop: 2,
@@ -807,29 +640,13 @@ const styles = StyleSheet.create({
   activeText: {
     color: '#e91e63',
   },
+  likeIcon: {
+    marginRight: 8,
+  },
+  removeBtn: {
+    padding: 10,
+  },
   // Playlists Grid
-  createPlaylistCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  },
-  createPlaylistIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: '#282828',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  createPlaylistText: {
-    color: COLORS.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   playlistsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -885,43 +702,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  emptyStateSmall: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  emptySubtitleSmall: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
-  // Auth Prompt
-  authPrompt: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  authTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: 24,
-    marginBottom: 8,
-  },
-  authSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  loginButton: {
-    backgroundColor: COLORS.textPrimary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
+  createBtn: {
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 24,
+    marginTop: 20,
   },
-  loginButtonText: {
+  createBtnText: {
     color: '#000',
-    fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });
