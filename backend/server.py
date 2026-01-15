@@ -1736,6 +1736,412 @@ async def delete_church(church_id: str):
         raise HTTPException(status_code=404, detail="Church not found")
     return {"message": "Church deleted successfully"}
 
+@api_router.post("/churches/{church_id}/approve")
+async def approve_church(church_id: str, data: dict):
+    """Admin approves a church"""
+    approved_by = data.get("approved_by", "admin")
+    admin_notes = data.get("admin_notes", "")
+    
+    result = await db.churches.update_one(
+        {"church_id": church_id},
+        {"$set": {
+            "status": "approved",
+            "admin_notes": admin_notes,
+            "approved_by": approved_by,
+            "approved_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Church not found")
+    return {"message": "Church approved successfully"}
+
+@api_router.post("/churches/{church_id}/reject")
+async def reject_church(church_id: str, data: dict):
+    """Admin rejects a church"""
+    rejected_by = data.get("rejected_by", "admin")
+    admin_notes = data.get("admin_notes", "Rejected by admin")
+    
+    result = await db.churches.update_one(
+        {"church_id": church_id},
+        {"$set": {
+            "status": "rejected",
+            "admin_notes": admin_notes
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Church not found")
+    return {"message": "Church rejected"}
+
+@api_router.get("/churches/{church_id}/full")
+async def get_church_full_details(church_id: str):
+    """Get church with all details including announcements and prayer schedule"""
+    church = await db.churches.find_one({"church_id": church_id}, {"_id": 0})
+    if not church:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    # Get active announcements (not older than 2 weeks)
+    two_weeks_ago = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%d")
+    announcements = await db.church_announcements.find(
+        {"church_id": church_id, "date": {"$gte": two_weeks_ago}, "status": "active"},
+        {"_id": 0}
+    ).sort("date", -1).to_list(50)
+    
+    # Group announcements by date
+    announcements_by_date = {}
+    for ann in announcements:
+        date = ann.get("date")
+        if date not in announcements_by_date:
+            announcements_by_date[date] = []
+        announcements_by_date[date].append(ann)
+    
+    church["announcements"] = announcements_by_date
+    church["announcements_list"] = announcements
+    
+    return church
+
+# ============== CHURCH ANNOUNCEMENTS ==============
+
+@api_router.get("/churches/{church_id}/announcements")
+async def get_church_announcements(church_id: str, include_expired: bool = False):
+    """Get announcements for a church"""
+    query = {"church_id": church_id}
+    if not include_expired:
+        two_weeks_ago = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%d")
+        query["date"] = {"$gte": two_weeks_ago}
+        query["status"] = "active"
+    
+    announcements = await db.church_announcements.find(query, {"_id": 0}).sort("date", -1).to_list(100)
+    return {"announcements": announcements, "total": len(announcements)}
+
+@api_router.post("/churches/{church_id}/announcements")
+async def create_church_announcement(church_id: str, data: dict):
+    """Create a new church announcement"""
+    # Validate church exists
+    church = await db.churches.find_one({"church_id": church_id})
+    if not church:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    announcement = ChurchAnnouncement(
+        church_id=church_id,
+        church_name=church.get("name"),
+        date=data.get("date"),
+        title=data.get("title"),
+        announcement_type=data.get("announcement_type", "general"),
+        description=data.get("description"),
+        time=data.get("time"),
+        location=data.get("location"),
+        contact_person=data.get("contact_person"),
+        contact_phone=data.get("contact_phone"),
+        is_recurring=data.get("is_recurring", False),
+        recurrence_pattern=data.get("recurrence_pattern"),
+        created_by=data.get("created_by")
+    )
+    
+    # Set expiry to 2 weeks from announcement date
+    try:
+        ann_date = datetime.strptime(data.get("date"), "%Y-%m-%d")
+        announcement.expires_at = ann_date + timedelta(days=14)
+    except:
+        pass
+    
+    doc = announcement.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    if doc.get("expires_at"):
+        doc["expires_at"] = doc["expires_at"].isoformat()
+    
+    await db.church_announcements.insert_one(doc)
+    
+    # Notify followers
+    await notify_followers("church", church_id, "new_announcement", {
+        "church_name": church.get("name"),
+        "announcement_title": data.get("title"),
+        "announcement_type": data.get("announcement_type", "general")
+    })
+    
+    return {"announcement_id": doc["announcement_id"], "message": "Announcement created"}
+
+@api_router.put("/churches/{church_id}/announcements/{announcement_id}")
+async def update_church_announcement(church_id: str, announcement_id: str, data: dict):
+    """Update a church announcement"""
+    data.pop("_id", None)
+    data.pop("announcement_id", None)
+    data.pop("church_id", None)
+    
+    result = await db.church_announcements.update_one(
+        {"announcement_id": announcement_id, "church_id": church_id},
+        {"$set": data}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    return {"message": "Announcement updated"}
+
+@api_router.delete("/churches/{church_id}/announcements/{announcement_id}")
+async def delete_church_announcement(church_id: str, announcement_id: str):
+    """Delete a church announcement"""
+    result = await db.church_announcements.delete_one(
+        {"announcement_id": announcement_id, "church_id": church_id}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    return {"message": "Announcement deleted"}
+
+async def cleanup_old_announcements():
+    """Background task to delete announcements older than 2 weeks"""
+    two_weeks_ago = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%d")
+    result = await db.church_announcements.update_many(
+        {"date": {"$lt": two_weeks_ago}, "status": "active"},
+        {"$set": {"status": "archived"}}
+    )
+    return result.modified_count
+
+# ============== FOLLOW SYSTEM ==============
+
+@api_router.post("/user/follow")
+async def follow_entity(data: dict, request: Request):
+    """Follow a church, choir, or artist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    user = await db.app_users.find_one({"user_id": user_id})
+    
+    entity_type = data.get("entity_type")  # church, choir, artist
+    entity_id = data.get("entity_id")
+    
+    if not entity_type or not entity_id:
+        raise HTTPException(status_code=400, detail="entity_type and entity_id required")
+    
+    # Check if already following
+    existing = await db.user_follows.find_one({
+        "user_id": user_id,
+        "entity_type": entity_type,
+        "entity_id": entity_id
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Already following")
+    
+    # Get entity name
+    entity_name = ""
+    if entity_type == "church":
+        entity = await db.churches.find_one({"church_id": entity_id})
+        entity_name = entity.get("name") if entity else ""
+        # Increment followers count
+        await db.churches.update_one({"church_id": entity_id}, {"$inc": {"followers_count": 1}})
+    elif entity_type in ["choir", "artist"]:
+        entity = await db.singers.find_one({"singer_id": entity_id})
+        entity_name = entity.get("name") if entity else ""
+        await db.singers.update_one({"singer_id": entity_id}, {"$inc": {"followers_count": 1}})
+    
+    follow = UserFollow(
+        user_id=user_id,
+        user_name=user.get("name") if user else None,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        entity_name=entity_name
+    )
+    
+    doc = follow.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.user_follows.insert_one(doc)
+    
+    return {"message": f"Now following {entity_name}", "follow_id": doc["follow_id"]}
+
+@api_router.delete("/user/unfollow")
+async def unfollow_entity(data: dict, request: Request):
+    """Unfollow a church, choir, or artist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    entity_type = data.get("entity_type")
+    entity_id = data.get("entity_id")
+    
+    result = await db.user_follows.delete_one({
+        "user_id": user_id,
+        "entity_type": entity_type,
+        "entity_id": entity_id
+    })
+    
+    if result.deleted_count > 0:
+        # Decrement followers count
+        if entity_type == "church":
+            await db.churches.update_one({"church_id": entity_id}, {"$inc": {"followers_count": -1}})
+        elif entity_type in ["choir", "artist"]:
+            await db.singers.update_one({"singer_id": entity_id}, {"$inc": {"followers_count": -1}})
+    
+    return {"message": "Unfollowed successfully"}
+
+@api_router.get("/user/following")
+async def get_user_following(request: Request):
+    """Get all entities the user is following"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    follows = await db.user_follows.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    
+    # Group by type
+    result = {
+        "churches": [f for f in follows if f.get("entity_type") == "church"],
+        "choirs": [f for f in follows if f.get("entity_type") in ["choir", "artist"]],
+        "total": len(follows)
+    }
+    
+    return result
+
+@api_router.get("/user/is-following/{entity_type}/{entity_id}")
+async def check_is_following(entity_type: str, entity_id: str, request: Request):
+    """Check if user is following an entity"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return {"is_following": False}
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        return {"is_following": False}
+    
+    user_id = token_doc.get("user_id")
+    follow = await db.user_follows.find_one({
+        "user_id": user_id,
+        "entity_type": entity_type,
+        "entity_id": entity_id
+    })
+    
+    return {"is_following": follow is not None}
+
+async def notify_followers(entity_type: str, entity_id: str, notification_type: str, data: dict):
+    """Notify all followers of an entity about new content"""
+    followers = await db.user_follows.find({
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "notifications_enabled": True
+    }).to_list(10000)
+    
+    notifications = []
+    for follow in followers:
+        notification = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "user_id": follow.get("user_id"),
+            "type": notification_type,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "data": data,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        notifications.append(notification)
+    
+    if notifications:
+        await db.user_notifications.insert_many(notifications)
+    
+    return len(notifications)
+
+# ============== CHOIRS/ARTISTS FOR USER APP ==============
+
+@api_router.get("/choirs")
+async def get_choirs_list(status: Optional[str] = "approved", skip: int = 0, limit: int = 50):
+    """Get all approved choirs/artists for user app"""
+    query = {}
+    if status:
+        query["approval_status"] = status
+    
+    choirs = await db.singers.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    # Enrich with albums/songs count
+    for choir in choirs:
+        albums_count = await db.albums.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
+        songs_count = await db.songs.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
+        choir["albums_count"] = albums_count
+        choir["songs_count"] = songs_count
+    
+    total = await db.singers.count_documents(query)
+    return {"choirs": choirs, "total": total}
+
+@api_router.get("/choirs/{choir_id}")
+async def get_choir_details(choir_id: str):
+    """Get choir/artist details with albums and songs"""
+    choir = await db.singers.find_one({"singer_id": choir_id}, {"_id": 0})
+    if not choir:
+        raise HTTPException(status_code=404, detail="Choir/Artist not found")
+    
+    # Get albums by this choir
+    albums = await db.albums.find(
+        {"$or": [{"artist_id": choir_id}, {"choir_id": choir_id}], "status": "active"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    # Get all songs by this choir
+    all_songs = await db.songs.find(
+        {"$or": [{"artist_id": choir_id}, {"choir_id": choir_id}], "status": "active"},
+        {"_id": 0}
+    ).to_list(500)
+    
+    choir["albums"] = albums
+    choir["all_songs"] = all_songs
+    choir["albums_count"] = len(albums)
+    choir["songs_count"] = len(all_songs)
+    
+    return choir
+
+@api_router.get("/choirs/{choir_id}/songs")
+async def get_choir_songs(choir_id: str):
+    """Get all songs by a choir/artist"""
+    songs = await db.songs.find(
+        {"$or": [{"artist_id": choir_id}, {"choir_id": choir_id}], "status": "active"},
+        {"_id": 0}
+    ).to_list(500)
+    
+    # Get album info for each song
+    album_ids = list(set([s.get("album_id") for s in songs if s.get("album_id")]))
+    albums = await db.albums.find({"album_id": {"$in": album_ids}}, {"_id": 0}).to_list(100)
+    album_map = {a["album_id"]: a for a in albums}
+    
+    for song in songs:
+        album = album_map.get(song.get("album_id"), {})
+        song["album_title"] = album.get("title")
+        song["album_thumbnail"] = album.get("thumbnail")
+    
+    return {"songs": songs, "total": len(songs)}
+
+# ============== LAYOUT MANAGER - CHOIRS & CHURCHES ==============
+
+@api_router.get("/layout/choirs")
+async def get_choirs_for_layout():
+    """Get choirs/artists for layout manager selection"""
+    choirs = await db.singers.find(
+        {"approval_status": "approved"},
+        {"_id": 0, "singer_id": 1, "name": 1, "photo": 1, "thumbnail": 1, "type": 1, "followers_count": 1}
+    ).to_list(500)
+    return {"choirs": choirs, "total": len(choirs)}
+
+@api_router.get("/layout/churches")
+async def get_churches_for_layout():
+    """Get churches for layout manager selection"""
+    churches = await db.churches.find(
+        {"status": "approved"},
+        {"_id": 0, "church_id": 1, "name": 1, "thumbnail": 1, "location": 1, "followers_count": 1}
+    ).to_list(500)
+    return {"churches": churches, "total": len(churches)}
+
 # ============== RELIGIOUS LEADERS MANAGEMENT ==============
 
 @api_router.get("/leaders")
