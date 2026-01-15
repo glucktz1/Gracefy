@@ -65,11 +65,14 @@ const FEATURE_NAMES = {
 export const SubscriptionProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [isPremium, setIsPremium] = useState(false);
+  const [isTrial, setIsTrial] = useState(false);
+  const [trialInfo, setTrialInfo] = useState(null);
   const [features, setFeatures] = useState(DEFAULT_FREE_FEATURES);
   const [loading, setLoading] = useState(true);
   const [skipsUsed, setSkipsUsed] = useState(0);
   const [lastSkipReset, setLastSkipReset] = useState(Date.now());
   const [subscriptionExpiry, setSubscriptionExpiry] = useState(null);
+  const [subscriptionInfo, setSubscriptionInfo] = useState(null);
   const upgradeCallbackRef = useRef(null);
 
   // Set the callback for navigating to upgrade screen
@@ -87,13 +90,18 @@ export const SubscriptionProvider = ({ children }) => {
       const data = response.data;
       
       setIsPremium(data.is_premium || false);
+      setIsTrial(data.is_trial || false);
+      setTrialInfo(data.trial || null);
+      setSubscriptionInfo(data.subscription || null);
       setFeatures(data.features || (data.is_premium ? DEFAULT_PREMIUM_FEATURES : DEFAULT_FREE_FEATURES));
-      setSubscriptionExpiry(data.subscription_expiry || null);
+      setSubscriptionExpiry(data.subscription?.expires_at || data.trial?.expires_at || null);
       
     } catch (error) {
       console.log('Error fetching subscription status:', error.message);
       // Default to free tier on error
       setIsPremium(false);
+      setIsTrial(false);
+      setTrialInfo(null);
       setFeatures(DEFAULT_FREE_FEATURES);
     } finally {
       setLoading(false);
