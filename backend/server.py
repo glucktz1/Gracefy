@@ -431,7 +431,7 @@ class LayoutSection(BaseModel):
     section_id: str = Field(default_factory=lambda: f"section_{uuid.uuid4().hex[:12]}")
     name: str  # Internal name
     display_name: str  # Shown to users
-    section_type: str  # hero, quick_access, featured_albums, seasonal, trending, cta, custom
+    section_type: str  # hero, quick_access, featured_albums, seasonal, trending, cta, custom, choirs, churches, special_mixes
     description: Optional[str] = None
     
     # Platform targeting
@@ -442,8 +442,8 @@ class LayoutSection(BaseModel):
     sort_order: int = 0
     
     # Content assignment
-    content_type: Optional[str] = None  # categories, albums, songs, playlists, custom
-    content_ids: List[str] = []  # List of category_ids, album_ids, song_ids, etc.
+    content_type: Optional[str] = None  # categories, albums, songs, playlists, custom, choirs, churches, special_mixes
+    content_ids: List[str] = []  # List of category_ids, album_ids, song_ids, choir_ids, church_ids, etc.
     content_count: int = 10  # Max items to show
     content_source: str = "manual"  # manual, auto_trending, auto_recent, auto_popular
     
@@ -453,7 +453,7 @@ class LayoutSection(BaseModel):
     background_gradient: Optional[str] = None
     
     # Link to specific content
-    link_type: Optional[str] = None  # album, category, playlist, external, page
+    link_type: Optional[str] = None  # album, category, playlist, external, page, choir, church
     link_target: Optional[str] = None  # album_id, category_id, URL, page_name
     
     # Schedule
