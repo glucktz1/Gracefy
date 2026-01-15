@@ -315,12 +315,142 @@ export default function MonetizationSettingsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-zinc-900 border border-zinc-800 flex-wrap h-auto p-1">
           <TabsTrigger value="general" className="data-[state=active]:bg-violet-600">General</TabsTrigger>
+          <TabsTrigger value="trial" className="data-[state=active]:bg-violet-600">Free Trial</TabsTrigger>
           <TabsTrigger value="features" className="data-[state=active]:bg-violet-600">Feature Controls</TabsTrigger>
           <TabsTrigger value="subscriptions" className="data-[state=active]:bg-violet-600">Subscriptions</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">Content Rates</TabsTrigger>
           <TabsTrigger value="payouts" className="data-[state=active]:bg-violet-600">Payouts</TabsTrigger>
           <TabsTrigger value="safety" className="data-[state=active]:bg-violet-600">Safety</TabsTrigger>
         </TabsList>
+
+        {/* Free Trial Tab */}
+        <TabsContent value="trial" className="space-y-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Free Trial Settings</h2>
+              <p className="text-sm text-zinc-400">Configure free trial period for new users</p>
+            </div>
+            <Button onClick={handleSaveTrialSettings} disabled={savingTrial} className="bg-emerald-600 hover:bg-emerald-700">
+              <Save size={16} className="mr-2" /> {savingTrial ? "Saving..." : "Save Trial Settings"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Trial Configuration */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <Clock size={18} className="text-emerald-400" /> Trial Configuration
+                </CardTitle>
+                <CardDescription>Set up the free trial period for new users</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-white font-medium">Enable Free Trial</span>
+                    <p className="text-xs text-zinc-500">New users get premium features for free</p>
+                  </div>
+                  <Switch
+                    checked={trialSettings.free_trial_enabled}
+                    onCheckedChange={(checked) => setTrialSettings(prev => ({ ...prev, free_trial_enabled: checked }))}
+                    className="data-[state=checked]:bg-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Trial Duration (days)</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="90"
+                    value={trialSettings.free_trial_days}
+                    onChange={(e) => setTrialSettings(prev => ({ ...prev, free_trial_days: parseInt(e.target.value) || 7 }))}
+                    className="bg-zinc-950 border-zinc-800 text-white"
+                    disabled={!trialSettings.free_trial_enabled}
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">Users get {trialSettings.free_trial_days} days of premium access</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Trial Stats */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <TrendingDown size={18} className="text-blue-400" /> Trial Statistics
+                </CardTitle>
+                <CardDescription>Overview of trial usage and conversions</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-zinc-950 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-emerald-400">{trialStats?.active_trials || 0}</div>
+                    <div className="text-xs text-zinc-500">Active Trials</div>
+                  </div>
+                  <div className="bg-zinc-950 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-amber-400">{trialStats?.expired_trials || 0}</div>
+                    <div className="text-xs text-zinc-500">Expired Trials</div>
+                  </div>
+                  <div className="bg-zinc-950 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-violet-400">{trialStats?.converted_trials || 0}</div>
+                    <div className="text-xs text-zinc-500">Converted to Paid</div>
+                  </div>
+                  <div className="bg-zinc-950 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-400">{trialStats?.conversion_rate || 0}%</div>
+                    <div className="text-xs text-zinc-500">Conversion Rate</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Trial Features Info */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Unlock size={18} className="text-violet-400" /> What Trial Users Get
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>Unlimited skips</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>Full song playback</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>Offline downloads</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>Create playlists</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>No ads</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>High quality audio</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>Choose any song</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  <span>Background play</span>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-500 mt-4">
+                Trial users get full premium access. After the trial expires, they revert to free tier unless they subscribe.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Feature Controls Tab - NEW */}
         <TabsContent value="features" className="space-y-6">
