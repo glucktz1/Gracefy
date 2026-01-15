@@ -2421,6 +2421,18 @@ async def register_user(data: dict):
     
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     
+    # Check if free trial is enabled
+    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    trial_enabled = settings.get("free_trial_enabled", True) if settings else True
+    trial_days = settings.get("free_trial_days", 7) if settings else 7
+    
+    # Calculate trial expiry
+    trial_expires_at = None
+    trial_status = None
+    if trial_enabled and trial_days > 0:
+        trial_expires_at = (datetime.now(timezone.utc) + timedelta(days=trial_days)).isoformat()
+        trial_status = "active"
+    
     user = {
         "user_id": f"user_{uuid.uuid4().hex[:12]}",
         "email": email,
@@ -2430,6 +2442,12 @@ async def register_user(data: dict):
         "picture": None,
         "subscription_type": "free",  # free, premium
         "subscription_expires": None,
+        "trial": {
+            "status": trial_status,  # active, expired, converted, null
+            "started_at": datetime.now(timezone.utc).isoformat() if trial_enabled else None,
+            "expires_at": trial_expires_at,
+            "days_granted": trial_days if trial_enabled else 0,
+        } if trial_enabled else None,
         "favorites": [],
         "playlists": [],
         "recently_played": [],
@@ -2451,7 +2469,13 @@ async def register_user(data: dict):
         "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
     })
     
-    return {"user": user, "token": token}
+    return {
+        "user": user, 
+        "token": token,
+        "trial_started": trial_enabled,
+        "trial_days": trial_days if trial_enabled else 0,
+        "trial_expires_at": trial_expires_at
+    }
 
 @api_router.post("/user/login")
 async def login_user(data: dict):
