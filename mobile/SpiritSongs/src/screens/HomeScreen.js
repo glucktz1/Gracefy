@@ -9,123 +9,293 @@ import { contentService, getThumbnailUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import MiniPlayer from '../components/MiniPlayer';
-import CategoryTabs from '../components/CategoryTabs';
 import { COLORS } from '../config';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Format greeting based on time
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-};
+// ============ SECTION COMPONENTS ============
 
-// Quick Access Card - Compact horizontal cards like Spotify
-const QuickAccessCard = ({ item, onPress }) => (
-  <TouchableOpacity style={styles.quickAccessCard} onPress={onPress} activeOpacity={0.7}>
-    <View style={styles.quickAccessImage}>
-      {item.thumbnail ? (
-        <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
-      ) : (
-        <LinearGradient colors={['#1DB954', '#191414']} style={styles.quickAccessGradient}>
-          <Ionicons name="musical-notes" size={18} color="#fff" />
-        </LinearGradient>
-      )}
-    </View>
-    <Text style={styles.quickAccessText} numberOfLines={2}>{item.name || item.title}</Text>
-  </TouchableOpacity>
-);
-
-// Album Card - Square cards
-const AlbumCard = ({ album, onPress, size = 'medium' }) => {
-  const cardWidth = size === 'large' ? width * 0.55 : size === 'small' ? width * 0.36 : width * 0.42;
+// Hero Carousel - Large featured banner
+const HeroSection = ({ item, onPress }) => {
+  if (!item) return null;
   
   return (
-    <TouchableOpacity 
-      style={[styles.albumCard, { width: cardWidth }]} 
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View style={[styles.albumImageContainer, { height: cardWidth }]}>
-        {album.thumbnail ? (
-          <Image source={{ uri: getThumbnailUrl(album.thumbnail) }} style={styles.albumImage} />
-        ) : (
-          <LinearGradient colors={['#535353', '#121212']} style={styles.albumPlaceholder}>
-            <Ionicons name="musical-notes" size={cardWidth * 0.3} color="rgba(255,255,255,0.3)" />
-          </LinearGradient>
-        )}
+    <TouchableOpacity style={styles.heroSection} onPress={onPress} activeOpacity={0.95}>
+      {item.thumbnail ? (
+        <Image 
+          source={{ uri: getThumbnailUrl(item.thumbnail) }} 
+          style={styles.heroImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <LinearGradient colors={['#1e3a5f', '#0a192f']} style={styles.heroImage} />
+      )}
+      <LinearGradient 
+        colors={['transparent', 'rgba(0,0,0,0.9)']} 
+        style={styles.heroOverlay}
+      >
+        <View style={styles.heroBadge}>
+          <Text style={styles.heroBadgeText}>FEATURED</Text>
+        </View>
+        <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.headline}</Text>
+        <Text style={styles.heroSubtitle} numberOfLines={2}>
+          {item.artist_name || item.subtitle || 'Stream now on Spirit Songs'}
+        </Text>
+        <View style={styles.heroActions}>
+          <TouchableOpacity style={styles.heroPlayBtn}>
+            <Ionicons name="play" size={18} color="#000" />
+            <Text style={styles.heroPlayText}>Play Now</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.heroInfoBtn}>
+            <Ionicons name="information-circle-outline" size={20} color="#fff" />
+            <Text style={styles.heroInfoText}>More Info</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+      {/* Play count badge */}
+      <View style={styles.heroPlaysBadge}>
+        <Text style={styles.heroPlaysText}>2M</Text>
       </View>
-      <Text style={styles.albumTitle} numberOfLines={1}>{album.title}</Text>
-      <Text style={styles.albumArtist} numberOfLines={1}>{album.artist_name || 'Various Artists'}</Text>
     </TouchableOpacity>
   );
 };
 
-// Mix Card - For "Your top mixes" section - FULL WIDTH IMAGE
-const MixCard = ({ item, onPress }) => (
-  <TouchableOpacity style={styles.mixCard} onPress={onPress} activeOpacity={0.8}>
-    {/* Full width background image */}
-    {item.thumbnail ? (
-      <Image 
-        source={{ uri: getThumbnailUrl(item.thumbnail) }} 
-        style={styles.mixBackgroundImage}
-        resizeMode="cover"
-      />
-    ) : null}
-    {/* Gradient overlay for text readability */}
-    <LinearGradient 
-      colors={['transparent', 'rgba(0,0,0,0.8)']} 
-      style={styles.mixGradientOverlay}
-    >
-      <View style={styles.mixInfo}>
-        <Text style={styles.mixTitle} numberOfLines={2}>{item.title || item.name}</Text>
-        <Text style={styles.mixSubtitle} numberOfLines={1}>
-          {item.artist_name || item.description || 'Mix'}
-        </Text>
+// Horizontal Scroll - Small square tiles (like "Continue Playing")
+const HorizontalSmallTiles = ({ title, items, onItemPress, onSeeAll }) => {
+  if (!items || items.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
       </View>
-    </LinearGradient>
-  </TouchableOpacity>
-);
-
-// Recently Played Card - Compact cards
-const RecentCard = ({ item, onPress }) => (
-  <TouchableOpacity style={styles.recentCard} onPress={onPress} activeOpacity={0.8}>
-    <View style={styles.recentImageContainer}>
-      {item.thumbnail ? (
-        <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.recentImage} />
-      ) : (
-        <LinearGradient colors={['#535353', '#121212']} style={styles.recentImage}>
-          <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.4)" />
-        </LinearGradient>
-      )}
+      <FlatList
+        horizontal
+        data={items}
+        keyExtractor={(item, idx) => item.album_id || item.song_id || `small-${idx}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.smallTile} onPress={() => onItemPress(item)} activeOpacity={0.8}>
+            <View style={styles.smallTileImage}>
+              {item.thumbnail ? (
+                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.smallTileImg} />
+              ) : (
+                <LinearGradient colors={['#333', '#111']} style={styles.smallTileImg}>
+                  <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.3)" />
+                </LinearGradient>
+              )}
+            </View>
+            <Text style={styles.smallTileTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.smallTileSubtitle} numberOfLines={1}>{item.artist_name || '2M Plays'}</Text>
+          </TouchableOpacity>
+        )}
+      />
     </View>
-    <Text style={styles.recentTitle} numberOfLines={2}>{item.title || item.name}</Text>
-    <Text style={styles.recentSubtitle} numberOfLines={1}>
-      {item.artist_name || item.type || 'Album'}
-    </Text>
-  </TouchableOpacity>
-);
+  );
+};
 
-// Section Header
-const SectionHeader = ({ title, subtitle, onSeeAll }) => (
-  <View style={styles.sectionHeader}>
-    <View>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+// Vertical List with thumbnails (like "Completed mini series")
+const VerticalListSection = ({ title, items, onItemPress, onSeeAll }) => {
+  if (!items || items.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
+      </View>
+      <View style={styles.verticalListContainer}>
+        {items.slice(0, 4).map((item, idx) => (
+          <TouchableOpacity 
+            key={item.album_id || item.song_id || idx} 
+            style={styles.verticalListItem}
+            onPress={() => onItemPress(item)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.verticalListThumb}>
+              {item.thumbnail ? (
+                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.verticalListImg} />
+              ) : (
+                <LinearGradient colors={['#333', '#111']} style={styles.verticalListImg}>
+                  <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
+                </LinearGradient>
+              )}
+            </View>
+            <View style={styles.verticalListInfo}>
+              <Text style={styles.verticalListTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={styles.verticalListSubtitle} numberOfLines={1}>
+                {item.songs_count ? `${item.songs_count} songs` : '2M Plays'}
+              </Text>
+            </View>
+            <View style={styles.verticalListThumbRight}>
+              {items[idx + 4]?.thumbnail ? (
+                <Image source={{ uri: getThumbnailUrl(items[idx + 4].thumbnail) }} style={styles.verticalListImg} />
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
-    {onSeeAll && (
-      <TouchableOpacity onPress={onSeeAll}>
-        <Text style={styles.seeAll}>Show all</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-);
+  );
+};
+
+// 2x2 Grid Layout (like "Contemporary Romance")
+const GridSection = ({ title, items, onItemPress, onSeeAll }) => {
+  if (!items || items.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
+      </View>
+      <View style={styles.gridContainer}>
+        {items.slice(0, 4).map((item, idx) => (
+          <TouchableOpacity 
+            key={item.album_id || idx} 
+            style={styles.gridItem}
+            onPress={() => onItemPress(item)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.gridItemImage}>
+              {item.thumbnail ? (
+                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.gridItemImg} />
+              ) : (
+                <LinearGradient colors={['#333', '#111']} style={styles.gridItemImg}>
+                  <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.3)" />
+                </LinearGradient>
+              )}
+            </View>
+            <Text style={styles.gridItemTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.gridItemSubtitle} numberOfLines={1}>{item.artist_name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+// List with description and rating (like "New Releases")
+const DescriptionListSection = ({ title, items, onItemPress, onSeeAll }) => {
+  if (!items || items.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
+      </View>
+      {items.slice(0, 3).map((item, idx) => (
+        <TouchableOpacity 
+          key={item.album_id || idx} 
+          style={styles.descListItem}
+          onPress={() => onItemPress(item)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.descListThumb}>
+            {item.thumbnail ? (
+              <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.descListImg} />
+            ) : (
+              <LinearGradient colors={['#333', '#111']} style={styles.descListImg}>
+                <Ionicons name="musical-notes" size={28} color="rgba(255,255,255,0.3)" />
+              </LinearGradient>
+            )}
+            <TouchableOpacity style={styles.descListPlayBtn}>
+              <Ionicons name="play" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.descListInfo}>
+            <Text style={styles.descListTitle} numberOfLines={1}>{item.title}</Text>
+            <View style={styles.descListMeta}>
+              <Ionicons name="play" size={12} color={COLORS.textMuted} />
+              <Text style={styles.descListPlays}>{item.total_plays || '366K'}</Text>
+            </View>
+            <Text style={styles.descListDesc} numberOfLines={2}>
+              {item.description || `${item.artist_name || 'Various Artists'} - Stream and enjoy the best collection`}
+            </Text>
+          </View>
+          <View style={styles.descListRating}>
+            <Ionicons name="star" size={14} color="#FFD700" />
+            <Text style={styles.descListRatingText}>4.5</Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
+
+// Large vertical cards (like "Bestselling Stories")
+const LargeCardsSection = ({ title, items, onItemPress, onSeeAll }) => {
+  if (!items || items.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
+      </View>
+      <FlatList
+        horizontal
+        data={items}
+        keyExtractor={(item, idx) => item.album_id || `large-${idx}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.largeCard} onPress={() => onItemPress(item)} activeOpacity={0.8}>
+            <View style={styles.largeCardImage}>
+              {item.thumbnail ? (
+                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.largeCardImg} />
+              ) : (
+                <LinearGradient colors={['#1e3a5f', '#0a192f']} style={styles.largeCardImg}>
+                  <Ionicons name="musical-notes" size={40} color="rgba(255,255,255,0.3)" />
+                </LinearGradient>
+              )}
+            </View>
+            <Text style={styles.largeCardTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.largeCardSubtitle} numberOfLines={1}>2M Plays</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+};
+
+// Category Filter Tabs
+const FilterTabs = ({ categories, activeCategory, onSelect }) => {
+  const allTabs = [
+    { category_id: 'all', name: 'For you' },
+    ...categories.slice(0, 5)
+  ];
+  
+  return (
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filterContainer}
+    >
+      {allTabs.map((cat) => (
+        <TouchableOpacity
+          key={cat.category_id}
+          style={[styles.filterTab, activeCategory === cat.category_id && styles.filterTabActive]}
+          onPress={() => onSelect(cat.category_id)}
+        >
+          <Text style={[styles.filterTabText, activeCategory === cat.category_id && styles.filterTabTextActive]}>
+            {cat.name}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+};
+
+// ============ MAIN HOME SCREEN ============
 
 export default function HomeScreen({ navigation }) {
   const [homeData, setHomeData] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [allAlbums, setAllAlbums] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,6 +310,15 @@ export default function HomeScreen({ navigation }) {
       ]);
       setHomeData(home);
       setCategories(cats.categories || []);
+      
+      // Collect all albums for filtering
+      const albums = [];
+      home?.sections?.forEach(section => {
+        if (section.items) {
+          albums.push(...section.items);
+        }
+      });
+      setAllAlbums(albums);
     } catch (error) {
       console.error('Error fetching home data:', error);
     } finally {
@@ -157,6 +336,19 @@ export default function HomeScreen({ navigation }) {
     fetchData();
   };
 
+  // Filter albums by category
+  const getFilteredItems = useCallback(() => {
+    if (activeCategory === 'all') return allAlbums;
+    return allAlbums.filter(album => 
+      album.category_id === activeCategory || 
+      album.category?.toLowerCase() === categories.find(c => c.category_id === activeCategory)?.name?.toLowerCase()
+    );
+  }, [activeCategory, allAlbums, categories]);
+
+  const handleAlbumPress = (album) => {
+    navigation.navigate('Album', { albumId: album.album_id });
+  };
+
   const handleNowPlaying = () => {
     navigation.navigate('NowPlaying');
   };
@@ -169,18 +361,22 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  // Get sections data
   const burner = homeData?.burners?.[0];
-  const quickAccess = categories.slice(0, 6);
+  const sections = homeData?.sections || [];
+  const featuredAlbums = sections.find(s => s.type === 'featured_albums')?.items || [];
+  const filteredItems = getFilteredItems();
   
-  // Create "Your top mixes" from albums
-  const topMixes = (homeData?.sections?.find(s => s.type === 'featured_albums')?.items || []).slice(0, 5);
-  
-  // Create "Recents" from random albums
-  const recents = (homeData?.sections?.find(s => s.type !== 'featured_albums' && s.type !== 'hero')?.items || []).slice(0, 8);
+  // Split albums into different layout groups
+  const continuePlayingItems = featuredAlbums.slice(0, 6);
+  const completedSeriesItems = allAlbums.slice(0, 8);
+  const gridItems = activeCategory === 'all' ? allAlbums.slice(2, 6) : filteredItems.slice(0, 4);
+  const newReleasesItems = allAlbums.slice(4, 7);
+  const bestsellingItems = allAlbums.slice(0, 6);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       <ScrollView
         style={styles.scrollView}
@@ -190,181 +386,142 @@ export default function HomeScreen({ navigation }) {
             refreshing={refreshing} 
             onRefresh={onRefresh} 
             tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
           />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Button Row */}
-        <View style={styles.headerSection}>
-          <View style={styles.profileRow}>
-            <TouchableOpacity style={styles.profileButton}>
-              <LinearGradient colors={['#b83280', '#ff6b6b']} style={styles.profileGradient}>
-                <Text style={styles.profileInitial}>
-                  {user?.name?.charAt(0)?.toUpperCase() || 'S'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <Text style={styles.appTitle}>Spirit Songs</Text>
-            <TouchableOpacity style={styles.notificationBtn}>
-              <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Hero Section - INCREASED HEIGHT */}
-        {burner && (
-          <TouchableOpacity style={styles.heroCard} activeOpacity={0.9}>
-            <LinearGradient
-              colors={['#1e3a5f', '#0d253f', '#0a192f']}
-              style={styles.heroGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={styles.heroContent}>
-                <Text style={styles.heroLabel}>FEATURED</Text>
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {burner.headline || 'Discover Sacred Music'}
-                </Text>
-                <Text style={styles.heroSubtitle} numberOfLines={3}>
-                  {burner.subtitle || 'Stream Christian songs, hymns, and worship music from around the world'}
-                </Text>
-                <View style={styles.heroActions}>
-                  <TouchableOpacity style={styles.heroPlayButton}>
-                    <Ionicons name="play" size={18} color="#000" />
-                    <Text style={styles.heroPlayText}>Play Now</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.heroAddButton}>
-                    <Ionicons name="heart-outline" size={24} color={COLORS.textPrimary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.heroImageContainer}>
-                <Ionicons name="musical-notes" size={80} color="rgba(255,255,255,0.1)" />
-              </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.profileBtn}>
+            <LinearGradient colors={['#e91e63', '#9c27b0']} style={styles.profileGradient}>
+              <Text style={styles.profileInitial}>{user?.name?.charAt(0)?.toUpperCase() || 'S'}</Text>
             </LinearGradient>
           </TouchableOpacity>
-        )}
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="search-outline" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="settings-outline" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        {/* Category Filter Tabs - NOW BELOW HERO */}
-        <View style={styles.filterSection}>
-          <CategoryTabs 
-            categories={categories.slice(0, 4)} 
-            activeCategory={activeCategory}
-            onSelect={setActiveCategory}
+        {/* Filter Tabs - At top like reference */}
+        <FilterTabs 
+          categories={categories}
+          activeCategory={activeCategory}
+          onSelect={setActiveCategory}
+        />
+
+        {/* Hero Section */}
+        <HeroSection 
+          item={burner || featuredAlbums[0]} 
+          onPress={() => featuredAlbums[0] && handleAlbumPress(featuredAlbums[0])}
+        />
+
+        {/* Continue Playing - Horizontal small tiles */}
+        <HorizontalSmallTiles
+          title="Continue Playing"
+          items={continuePlayingItems}
+          onItemPress={handleAlbumPress}
+          onSeeAll={() => {}}
+        />
+
+        {/* Completed mini series - Vertical list */}
+        <VerticalListSection
+          title="Completed mini series"
+          items={completedSeriesItems}
+          onItemPress={handleAlbumPress}
+          onSeeAll={() => {}}
+        />
+
+        {/* Show filtered content when category selected */}
+        {activeCategory !== 'all' && filteredItems.length > 0 && (
+          <GridSection
+            title={categories.find(c => c.category_id === activeCategory)?.name || 'Results'}
+            items={filteredItems}
+            onItemPress={handleAlbumPress}
+            onSeeAll={() => {}}
           />
-        </View>
-
-        {/* Greeting */}
-        <Text style={styles.greeting}>{getGreeting()}</Text>
-
-        {/* Quick Access Grid */}
-        <View style={styles.quickAccessGrid}>
-          {quickAccess.map((item, index) => (
-            <QuickAccessCard 
-              key={item.category_id || index}
-              item={item}
-              onPress={() => navigation.navigate('Category', { category: item })}
-            />
-          ))}
-        </View>
-
-        {/* Your top mixes - FULL WIDTH IMAGES */}
-        {topMixes.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader 
-              title="Your top mixes"
-              onSeeAll={() => {}}
-            />
-            <FlatList
-              horizontal
-              data={topMixes}
-              keyExtractor={(item, idx) => item.album_id || `mix-${idx}`}
-              renderItem={({ item }) => (
-                <MixCard 
-                  item={item}
-                  onPress={() => navigation.navigate('Album', { albumId: item.album_id })}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            />
-          </View>
         )}
 
-        {/* Recents */}
-        {recents.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader 
-              title="Recents"
-              onSeeAll={() => navigation.navigate('Library')}
-            />
-            <FlatList
-              horizontal
-              data={recents}
-              keyExtractor={(item, idx) => item.album_id || `recent-${idx}`}
-              renderItem={({ item }) => (
-                <RecentCard 
-                  item={item}
-                  onPress={() => navigation.navigate('Album', { albumId: item.album_id })}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            />
-          </View>
-        )}
+        {/* Contemporary content - 2x2 Grid */}
+        <GridSection
+          title="Contemporary Collection"
+          items={gridItems}
+          onItemPress={handleAlbumPress}
+          onSeeAll={() => {}}
+        />
 
-        {/* Dynamic Sections */}
-        {homeData?.sections?.map((section, idx) => {
-          if (section.type === 'hero' || section.type === 'quick_access' || section.type === 'featured_albums') return null;
+        {/* New Releases - List with descriptions */}
+        <DescriptionListSection
+          title="New Releases"
+          items={newReleasesItems}
+          onItemPress={handleAlbumPress}
+          onSeeAll={() => {}}
+        />
+
+        {/* Bestselling Stories - Large vertical cards */}
+        <LargeCardsSection
+          title="Bestselling Stories"
+          items={bestsellingItems}
+          onItemPress={handleAlbumPress}
+          onSeeAll={() => {}}
+        />
+
+        {/* Dynamic sections from admin */}
+        {sections.map((section, idx) => {
+          if (section.type === 'hero' || section.type === 'featured_albums') return null;
           const items = section.items || [];
           if (items.length === 0) return null;
 
-          return (
-            <View key={section.section_id || idx} style={styles.section}>
-              <SectionHeader 
+          // Alternate layouts based on section index
+          if (idx % 3 === 0) {
+            return (
+              <HorizontalSmallTiles
+                key={section.section_id || idx}
                 title={section.title}
-                subtitle={section.description}
-                onSeeAll={items.length > 5 ? () => {} : null}
+                items={items}
+                onItemPress={handleAlbumPress}
               />
-              <FlatList
-                horizontal
-                data={items.slice(0, 10)}
-                keyExtractor={(item) => item.album_id}
-                renderItem={({ item }) => (
-                  <AlbumCard 
-                    album={item}
-                    size={idx % 2 === 0 ? 'medium' : 'small'}
-                    onPress={() => navigation.navigate('Album', { albumId: item.album_id })}
-                  />
-                )}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
+            );
+          } else if (idx % 3 === 1) {
+            return (
+              <GridSection
+                key={section.section_id || idx}
+                title={section.title}
+                items={items}
+                onItemPress={handleAlbumPress}
               />
-            </View>
-          );
+            );
+          } else {
+            return (
+              <LargeCardsSection
+                key={section.section_id || idx}
+                title={section.title}
+                items={items}
+                onItemPress={handleAlbumPress}
+              />
+            );
+          }
         })}
 
-        {/* Additional Promotional Cards */}
-        {homeData?.burners?.length > 1 && (
-          <View style={styles.promosSection}>
-            {homeData.burners.slice(1, 3).map((b, idx) => (
-              <TouchableOpacity key={b.burner_id || idx} style={styles.promoCard}>
-                <LinearGradient
-                  colors={idx === 0 ? ['#1e3a5f', '#0a192f'] : ['#3d1a5f', '#1a0a2f']}
-                  style={styles.promoGradient}
-                >
-                  <Text style={styles.promoTitle}>{b.headline}</Text>
-                  <Text style={styles.promoSubtitle}>{b.subtitle}</Text>
-                  <TouchableOpacity style={styles.promoCta}>
-                    <Text style={styles.promoCtaText}>{b.cta_text || 'Explore'}</Text>
-                  </TouchableOpacity>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
+        {/* Subscription Banner */}
+        <View style={styles.subscriptionBanner}>
+          <View style={styles.subscriptionInfo}>
+            <Text style={styles.subscriptionTitle}>Subscription</Text>
+            <View style={styles.subscriptionPlan}>
+              <Text style={styles.subscriptionPlanName}>Advanced</Text>
+            </View>
           </View>
-        )}
+          <TouchableOpacity style={styles.subscriptionPrice}>
+            <Text style={styles.subscriptionPriceText}>$ 9.99 / month</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Mini Player */}
@@ -376,11 +533,11 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -390,18 +547,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  headerSection: {
-    paddingTop: 48,
-    paddingHorizontal: 16,
-  },
-  profileRow: {
+  // Header
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: 48,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  profileButton: {
-    marginRight: 12,
-  },
+  profileBtn: {},
   profileGradient: {
     width: 36,
     height: 36,
@@ -414,134 +569,126 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  appTitle: {
-    flex: 1,
-    color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '700',
+  headerRight: {
+    flexDirection: 'row',
+    gap: 16,
   },
-  notificationBtn: {
+  headerIcon: {
     padding: 4,
   },
-  // Hero Section - INCREASED HEIGHT
-  heroCard: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+  // Filter Tabs
+  filterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
   },
-  heroGradient: {
-    minHeight: 200, // Increased height
-    padding: 24,
-    flexDirection: 'row',
+  filterTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    marginRight: 8,
   },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'center',
+  filterTabActive: {
+    backgroundColor: '#e91e63',
   },
-  heroLabel: {
-    color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 8,
-    lineHeight: 30,
-  },
-  heroSubtitle: {
+  filterTabText: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    marginBottom: 20,
-    lineHeight: 20,
+    fontWeight: '500',
+  },
+  filterTabTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  // Hero Section
+  heroSection: {
+    height: 280,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  heroOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: 16,
+  },
+  heroBadge: {
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  heroBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginBottom: 16,
   },
   heroActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
-  heroPlayButton: {
+  heroPlayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#e91e63',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
   },
   heroPlayText: {
     color: '#000',
+    fontWeight: '700',
     fontSize: 14,
-    fontWeight: '700',
   },
-  heroAddButton: {
-    padding: 8,
-  },
-  heroImageContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-  },
-  // Filter Section - Below Hero
-  filterSection: {
-    marginTop: 20,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginTop: 20,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-  },
-  quickAccessGrid: {
+  heroInfoBtn: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 24,
+    alignItems: 'center',
+    gap: 6,
+    padding: 10,
   },
-  quickAccessCard: {
-    width: (width - 40) / 2,
-    height: 56,
-    backgroundColor: COLORS.backgroundCard,
+  heroInfoText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  heroPlaysBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
   },
-  quickAccessImage: {
-    width: 56,
-    height: 56,
+  heroPlaysText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 16,
   },
-  quickAccessImg: {
-    width: '100%',
-    height: '100%',
-  },
-  quickAccessGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickAccessText: {
-    flex: 1,
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-    fontSize: 12,
-    paddingHorizontal: 8,
-  },
-  section: {
-    marginBottom: 24,
+  // Section Common
+  sectionContainer: {
+    marginTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -551,147 +698,261 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 22,
+    color: '#fff',
+    fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
   },
   seeAll: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
+    color: '#e91e63',
+    fontSize: 13,
     fontWeight: '600',
   },
   horizontalList: {
     paddingHorizontal: 16,
   },
-  albumCard: {
+  // Small Tiles (Continue Playing)
+  smallTile: {
+    width: 100,
     marginRight: 12,
   },
-  albumImageContainer: {
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  albumImage: {
-    width: '100%',
-    height: '100%',
-  },
-  albumPlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  albumTitle: {
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  albumArtist: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  // Mix Card - FULL WIDTH IMAGE
-  mixCard: {
-    width: width * 0.42,
-    height: 200,
-    marginRight: 12,
+  smallTileImage: {
+    width: 100,
+    height: 100,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: COLORS.backgroundCard,
-  },
-  mixBackgroundImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-  },
-  mixGradientOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: 12,
-  },
-  mixInfo: {
-    // Text at bottom over gradient
-  },
-  mixTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  mixSubtitle: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  recentCard: {
-    width: width * 0.32,
-    marginRight: 12,
-  },
-  recentImageContainer: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 4,
-    overflow: 'hidden',
     marginBottom: 8,
   },
-  recentImage: {
+  smallTileImg: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  recentTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '500',
+  smallTileTitle: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  recentSubtitle: {
-    color: COLORS.textSecondary,
+  smallTileSubtitle: {
+    color: COLORS.textMuted,
     fontSize: 11,
     marginTop: 2,
   },
-  promosSection: {
+  // Vertical List (Completed mini series)
+  verticalListContainer: {
     paddingHorizontal: 16,
-    gap: 12,
-    marginTop: 8,
   },
-  promoCard: {
-    borderRadius: 8,
+  verticalListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  verticalListThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 4,
     overflow: 'hidden',
   },
-  promoGradient: {
-    padding: 20,
+  verticalListImg: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  promoTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
+  verticalListInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
-  promoSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
+  verticalListTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  verticalListSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  verticalListThumbRight: {
+    width: 56,
+    height: 56,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginLeft: 8,
+  },
+  // Grid (Contemporary)
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+  },
+  gridItem: {
+    width: (width - 36) / 2,
+    marginHorizontal: 4,
     marginBottom: 16,
   },
-  promoCta: {
-    backgroundColor: COLORS.textPrimary,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 20,
+  gridItemImage: {
+    width: '100%',
+    aspectRatio: 16 / 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  gridItemImg: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridItemTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  gridItemSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  // Description List (New Releases)
+  descListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  descListThumb: {
+    width: 70,
+    height: 70,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  descListImg: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  descListPlayBtn: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -12 }, { translateY: -12 }],
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  descListInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  descListTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  descListMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  descListPlays: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  descListDesc: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  descListRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  descListRatingText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  // Large Cards (Bestselling)
+  largeCard: {
+    width: width * 0.42,
+    marginRight: 12,
+  },
+  largeCardImage: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  largeCardImg: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  largeCardTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  largeCardSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  // Subscription Banner
+  subscriptionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+  },
+  subscriptionInfo: {},
+  subscriptionTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  subscriptionPlan: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginTop: 6,
+  },
+  subscriptionPlanName: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  subscriptionPrice: {
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
   },
-  promoCtaText: {
-    color: '#000',
-    fontWeight: '700',
+  subscriptionPriceText: {
+    color: '#fff',
     fontSize: 13,
+    fontWeight: '700',
   },
 });
