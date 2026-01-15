@@ -117,7 +117,7 @@ export default function AlbumScreen({ route, navigation }) {
           {/* Album Art */}
           <View style={styles.artContainer}>
             {album.thumbnail ? (
-              <Image source={{ uri: album.thumbnail }} style={styles.albumArt} />
+              <Image source={{ uri: getThumbnailUrl(album.thumbnail) }} style={styles.albumArt} />
             ) : (
               <LinearGradient colors={['#535353', '#121212']} style={styles.albumArt}>
                 <Ionicons name="musical-notes" size={80} color="rgba(255,255,255,0.3)" />
