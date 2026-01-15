@@ -123,9 +123,19 @@ export default function UsersPage() {
     }
   }, [currentPage, searchQuery, membershipFilter, statusFilter, registerByFilter]);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/admin/users/stats/summary`, { withCredentials: true });
+      setStats(response.data);
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchStats();
+  }, [fetchUsers, fetchStats]);
 
   const fetchUserDetails = async (userId) => {
     try {
