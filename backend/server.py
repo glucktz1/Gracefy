@@ -7397,7 +7397,6 @@ async def get_admin_users(
         elif membership_type == "vip":
             query["subscription_type"] = "vip"
         elif membership_type == "free":
-            query["$or"] = query.get("$or", [])
             query["subscription_type"] = {"$in": ["free", None]}
     
     # Status filter
@@ -7408,10 +7407,8 @@ async def get_admin_users(
     if register_by:
         if register_by == "phone":
             query["phone"] = {"$ne": None, "$exists": True}
-            query["email"] = None
         elif register_by == "email":
             query["email"] = {"$ne": None, "$exists": True}
-            query["phone"] = None
         elif register_by == "google":
             query["register_by"] = "google"
     
