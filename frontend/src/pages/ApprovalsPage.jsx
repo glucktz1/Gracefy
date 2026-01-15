@@ -600,7 +600,7 @@ export default function ApprovalsPage() {
             <div className="empty-state">
               <Bell className="empty-state-icon text-zinc-500" />
               <p className="empty-state-title">No notifications</p>
-              <p className="empty-state-text">You're all caught up</p>
+              <p className="empty-state-text">You&apos;re all caught up</p>
             </div>
           ) : (
             <div className="space-y-3">
