@@ -331,6 +331,8 @@ function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/choir/login" element={<ChoirLoginPage />} />
       <Route path="/choir/dashboard" element={<ChoirDashboard />} />
+      <Route path="/church/login" element={<ChurchLeaderLoginPage />} />
+      <Route path="/church/dashboard" element={<ChurchLeaderDashboard />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><EnhancedAnalyticsPage /></ProtectedRoute>} />
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
