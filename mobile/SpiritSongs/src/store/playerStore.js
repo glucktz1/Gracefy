@@ -174,7 +174,7 @@ export const usePlayerStore = create(
       }
     },
 
-    // Skip to next track
+    // Skip to next track - Always continue playing (never stop)
     skipToNext: async () => {
       const { queue, queueIndex, repeatMode, shuffleEnabled } = get();
       if (queue.length === 0) return;
@@ -186,11 +186,8 @@ export const usePlayerStore = create(
       } else {
         nextIndex = queueIndex + 1;
         if (nextIndex >= queue.length) {
-          if (repeatMode === 'all') {
-            nextIndex = 0;
-          } else {
-            return; // End of queue
-          }
+          // Always loop back for continuous playback
+          nextIndex = 0;
         }
       }
       
