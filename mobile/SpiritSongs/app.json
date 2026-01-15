@@ -31,7 +31,9 @@
       "package": "com.spiritsongs.app",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -45,6 +47,12 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "de5860e0-e37e-4d42-bf0e-b81a4b9b05d9"
+      }
+    },
+    "owner": "glucktz20"
   }
 }
