@@ -477,7 +477,7 @@ export default function ApprovalsPage() {
                           <div className="mt-2 text-xs space-y-1">
                             <p className="text-zinc-400">Changes requested:</p>
                             {req.updated_data?.title !== req.original_data?.title && (
-                              <p className="text-amber-400">Title: "{req.original_data?.title}" → "{req.updated_data?.title}"</p>
+                              <p className="text-amber-400">Title: &quot;{req.original_data?.title}&quot; → &quot;{req.updated_data?.title}&quot;</p>
                             )}
                             {req.updated_data?.description !== req.original_data?.description && (
                               <p className="text-amber-400">Description updated</p>
