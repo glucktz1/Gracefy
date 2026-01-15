@@ -364,18 +364,18 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - ✅ **Album loading optimization**: Caching for faster repeat loads
 
 ## Next Tasks (Priority Order)
-1. **P0 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
-2. **P1 - Mobile App Advanced Features**: Offline downloads, playlist management
-3. **P1 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
-4. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
-5. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
-6. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
+1. **P0 - Build & Test APK v1.0.3**: Build new APK with EAS and test all fixed features
+2. **P1 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
+3. **P1 - Mobile App Testing**: Verify all features work on physical device
+4. **P2 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
+5. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
+6. **P2 - Real M-Pesa Integration**: Implement actual mobile money payouts
+7. **P2 - Google OAuth for Users**: Add Google OAuth option to user streaming app
 
 ## Future/Backlog
 - Audio Rooms (Clubhouse-style)
 - Christian Community features (Facebook-like)
 - Push notifications
-- Offline mode / Downloads for mobile app
 - Backend refactoring (break down server.py into modular structure)
 
 ## Testing Status
