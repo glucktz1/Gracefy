@@ -162,12 +162,18 @@ export default function ProfileScreen({ navigation }) {
             <>
               <Text style={styles.userName}>{user?.name || 'User'}</Text>
               <Text style={styles.userEmail}>{user?.email || user?.phone || 'No email'}</Text>
-              <View style={styles.membershipBadge}>
-                <Ionicons name="star" size={14} color="#FFD700" />
-                <Text style={styles.membershipText}>
-                  {currentPlan === 'free' ? 'Free Member' : `${SUBSCRIPTION_PLANS.find(p => p.id === currentPlan)?.name} Member`}
+              <TouchableOpacity 
+                style={[styles.membershipBadge, isPremium && styles.premiumBadge]}
+                onPress={handleManageSubscription}
+              >
+                <Ionicons name={isPremium ? 'star' : 'star-outline'} size={14} color={isPremium ? '#FFD700' : '#888'} />
+                <Text style={[styles.membershipText, isPremium && styles.premiumText]}>
+                  {isPremium ? 'Premium Member' : 'Free Member'}
                 </Text>
-              </View>
+                {!isPremium && (
+                  <Text style={styles.upgradeText}>Upgrade</Text>
+                )}
+              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -179,6 +185,33 @@ export default function ProfileScreen({ navigation }) {
             </>
           )}
         </View>
+
+        {/* Premium Banner for Free Users */}
+        {isAuthenticated && !isPremium && (
+          <TouchableOpacity 
+            style={styles.premiumBanner}
+            onPress={handleManageSubscription}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#e91e63', '#9c27b0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.premiumBannerGradient}
+            >
+              <View style={styles.premiumBannerContent}>
+                <Ionicons name="musical-notes" size={28} color="#fff" />
+                <View style={styles.premiumBannerText}>
+                  <Text style={styles.premiumBannerTitle}>Go Premium</Text>
+                  <Text style={styles.premiumBannerSubtitle}>
+                    Unlimited songs, no ads, offline mode
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.7)" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* Stats Section */}
         {isAuthenticated && (
