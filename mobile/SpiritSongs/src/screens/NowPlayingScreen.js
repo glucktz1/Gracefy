@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, TouchableOpacity, Image, StyleSheet, Dimensions,
-  Animated, PanResponder, Share, ScrollView, Modal
+  Animated, Share, ScrollView, Modal, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
-import { libraryService } from '../services/api';
+import { getThumbnailUrl } from '../services/api';
 import AnimatedBars from '../components/AnimatedBars';
 import SongListItem from '../components/SongListItem';
 import PlaylistModal from '../components/PlaylistModal';
@@ -27,27 +27,20 @@ const NowPlayingScreen = ({ navigation }) => {
     queueIndex,
     shuffle, 
     repeat,
+    liked,
     togglePlay, 
     playNext, 
     playPrevious, 
     seekTo,
-    setShuffle,
+    toggleShuffle,
     cycleRepeat,
+    toggleLike,
   } = usePlayer();
   
-  const { isFavorite, addFavorite, removeFavorite, isAuthenticated } = useAuth();
-  const [liked, setLiked] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   
-  const slideAnim = useRef(new Animated.Value(0)).current;
   const albumRotate = useRef(new Animated.Value(0)).current;
-  
-  useEffect(() => {
-    if (currentSong) {
-      setLiked(isFavorite(currentSong.song_id));
-    }
-  }, [currentSong?.song_id]);
 
   // Album art rotation animation when playing
   useEffect(() => {
@@ -76,33 +69,20 @@ const NowPlayingScreen = ({ navigation }) => {
     outputRange: ['0deg', '360deg'],
   });
 
-  const handleLike = async () => {
-    if (!isAuthenticated || !currentSong) return;
-    
-    try {
-      if (liked) {
-        await libraryService.removeFromFavorites(currentSong.song_id);
-        removeFavorite(currentSong.song_id);
-        setLiked(false);
-      } else {
-        await libraryService.addToFavorites('song', currentSong.song_id);
-        addFavorite('song', currentSong.song_id);
-        setLiked(true);
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
-  };
-
   const handleShare = async () => {
     if (!currentSong) return;
     try {
       await Share.share({
-        message: `Check out "${currentSong.title}" on Spirit Songs!`,
+        message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!\n\nDownload the app to listen now.`,
+        title: `${currentSong.title} - Spirit Songs`,
       });
     } catch (error) {
       console.error('Error sharing:', error);
     }
+  };
+
+  const handleAddToPlaylist = () => {
+    setShowPlaylistModal(true);
   };
 
   const formatTime = (seconds) => {
@@ -124,7 +104,9 @@ const NowPlayingScreen = ({ navigation }) => {
   if (!currentSong) {
     return (
       <View style={styles.emptyContainer}>
+        <Ionicons name="musical-notes-outline" size={80} color={COLORS.textMuted} />
         <Text style={styles.emptyText}>No song playing</Text>
+        <Text style={styles.emptyHint}>Select a song to start listening</Text>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -135,10 +117,12 @@ const NowPlayingScreen = ({ navigation }) => {
     );
   }
 
+  const thumbnailUrl = getThumbnailUrl(currentSong.thumbnail || currentAlbum?.thumbnail);
+
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1e3a5f', '#121212', '#121212']}
+        colors={['#1a1a2e', '#0a0a1a', '#0a0a1a']}
         style={styles.gradient}
       >
         {/* Header */}
@@ -160,9 +144,9 @@ const NowPlayingScreen = ({ navigation }) => {
         {/* Album Art */}
         <View style={styles.artContainer}>
           <Animated.View style={[styles.artWrapper, { transform: [{ rotate: spin }] }]}>
-            {currentSong.thumbnail || currentAlbum?.thumbnail ? (
+            {thumbnailUrl ? (
               <Image 
-                source={{ uri: currentSong.thumbnail || currentAlbum?.thumbnail }} 
+                source={{ uri: thumbnailUrl }} 
                 style={styles.albumArt}
               />
             ) : (
@@ -191,11 +175,11 @@ const NowPlayingScreen = ({ navigation }) => {
                 {currentSong.artist_name || currentAlbum?.artist_name || 'Unknown Artist'}
               </Text>
             </View>
-            <TouchableOpacity onPress={handleLike} style={styles.likeButton}>
+            <TouchableOpacity onPress={toggleLike} style={styles.likeButton}>
               <Ionicons 
                 name={liked ? 'heart' : 'heart-outline'} 
                 size={28} 
-                color={liked ? COLORS.primary : COLORS.textPrimary} 
+                color={liked ? '#e91e63' : COLORS.textPrimary} 
               />
             </TouchableOpacity>
           </View>
@@ -222,13 +206,13 @@ const NowPlayingScreen = ({ navigation }) => {
         {/* Main Controls */}
         <View style={styles.controls}>
           <TouchableOpacity 
-            onPress={() => setShuffle(!shuffle)} 
+            onPress={toggleShuffle} 
             style={styles.controlBtn}
           >
             <Ionicons 
               name="shuffle" 
               size={24} 
-              color={shuffle ? COLORS.primary : COLORS.textSecondary} 
+              color={shuffle ? '#e91e63' : COLORS.textSecondary} 
             />
           </TouchableOpacity>
 
@@ -260,7 +244,7 @@ const NowPlayingScreen = ({ navigation }) => {
             <Ionicons 
               name={repeat === 'one' ? 'repeat' : 'repeat'} 
               size={24} 
-              color={repeat !== 'off' ? COLORS.primary : COLORS.textSecondary} 
+              color={repeat !== 'off' ? '#e91e63' : COLORS.textSecondary} 
             />
             {repeat === 'one' && (
               <View style={styles.repeatOneBadge}>
@@ -272,17 +256,19 @@ const NowPlayingScreen = ({ navigation }) => {
 
         {/* Secondary Actions */}
         <View style={styles.secondaryActions}>
-          <TouchableOpacity 
-            style={styles.secondaryBtn}
-            onPress={() => setShowPlaylistModal(true)}
-          >
-            <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handleAddToPlaylist}>
+            <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
             <Text style={styles.secondaryText}>Add to Playlist</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleShare}>
-            <Ionicons name="share-outline" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="share-social-outline" size={28} color={COLORS.textSecondary} />
             <Text style={styles.secondaryText}>Share</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryBtn}>
+            <Ionicons name="download-outline" size={28} color={COLORS.textSecondary} />
+            <Text style={styles.secondaryText}>Download</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -344,7 +330,7 @@ const NowPlayingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
   },
   gradient: {
     flex: 1,
@@ -352,23 +338,31 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
   },
   emptyText: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyHint: {
     color: COLORS.textSecondary,
-    fontSize: 16,
-    marginBottom: 20,
+    fontSize: 14,
+    marginTop: 8,
   },
   backButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#e91e63',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
+    marginTop: 24,
   },
   backButtonText: {
-    color: '#000',
+    color: '#fff',
     fontWeight: '600',
   },
   header: {
@@ -460,13 +454,13 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 4,
-    backgroundColor: COLORS.backgroundElevated,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
     overflow: 'visible',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: COLORS.textPrimary,
+    backgroundColor: '#e91e63',
     borderRadius: 2,
   },
   progressKnob: {
@@ -475,7 +469,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.textPrimary,
+    backgroundColor: '#e91e63',
     marginLeft: -6,
   },
   timeRow: {
@@ -503,7 +497,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.textPrimary,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 8,
@@ -515,19 +509,20 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#e91e63',
     justifyContent: 'center',
     alignItems: 'center',
   },
   repeatOneText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 9,
     fontWeight: '700',
   },
   secondaryActions: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 48,
+    gap: 40,
+    paddingHorizontal: 32,
   },
   secondaryBtn: {
     alignItems: 'center',
@@ -535,11 +530,11 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
   },
   queueContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
     paddingTop: 48,
   },
   queueHeader: {
@@ -549,7 +544,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   queueTitle: {
     color: COLORS.textPrimary,
@@ -558,7 +553,7 @@ const styles = StyleSheet.create({
   },
   nowPlayingSection: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
     paddingBottom: 8,
   },
   queueSectionTitle: {
