@@ -16,6 +16,8 @@ const SongListItem = ({
   showIndex = true,
   showThumbnail = false,
   onAddToPlaylist,
+  onSongPress, // Custom handler for subscription checks
+  showLockIcon = false, // Show lock for free users
 }) => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { isFavorite, addFavorite, removeFavorite, isAuthenticated } = useAuth();
@@ -26,6 +28,12 @@ const SongListItem = ({
   const isCurrentlyPlaying = isCurrentSong && isPlaying;
 
   const handlePlay = () => {
+    // If custom handler provided, use it for subscription checks
+    if (onSongPress) {
+      onSongPress(song, index);
+      return;
+    }
+    
     const songQueue = queue.length > 0 ? queue : [{ song, album }];
     playSong(song, album, songQueue, index);
   };
