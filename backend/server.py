@@ -1720,6 +1720,104 @@ async def resume_payouts():
     )
     return {"message": "Payouts resumed"}
 
+# ============== SUBSCRIPTION FEATURE CONTROLS ==============
+
+DEFAULT_FEATURE_CONTROLS = {
+    "free": {
+        "play_songs": "preview",  # preview, limited, full
+        "preview_duration_seconds": 30,
+        "album_playback": "shuffle_only",  # shuffle_only, sequential
+        "song_selection": False,  # Can choose specific song
+        "skips_per_hour": 6,
+        "shuffle_control": False,  # Can toggle shuffle
+        "show_ads": True,
+        "premium_content_access": False,
+        "downloads_allowed": False,
+        "create_playlists": False,
+        "add_to_favorites": True,
+        "audio_quality": "standard",  # standard, high, lossless
+        "background_play": "limited",  # limited, full
+        "offline_mode": False,
+    },
+    "premium": {
+        "play_songs": "full",
+        "preview_duration_seconds": 0,  # No limit
+        "album_playback": "all",  # Can play in order or shuffle
+        "song_selection": True,
+        "skips_per_hour": -1,  # Unlimited
+        "shuffle_control": True,
+        "show_ads": False,
+        "premium_content_access": True,
+        "downloads_allowed": True,
+        "create_playlists": True,
+        "add_to_favorites": True,
+        "audio_quality": "high",
+        "background_play": "full",
+        "offline_mode": True,
+    }
+}
+
+@api_router.get("/monetization/feature-controls")
+async def get_feature_controls():
+    """Get subscription feature controls for free vs paid users"""
+    controls = await db.subscription_feature_controls.find_one({"_id": "feature_controls"})
+    if not controls:
+        # Return defaults
+        return {"controls": DEFAULT_FEATURE_CONTROLS}
+    del controls["_id"]
+    return {"controls": controls.get("controls", DEFAULT_FEATURE_CONTROLS)}
+
+@api_router.put("/monetization/feature-controls")
+async def update_feature_controls(data: dict):
+    """Update subscription feature controls"""
+    controls = data.get("controls", {})
+    await db.subscription_feature_controls.update_one(
+        {"_id": "feature_controls"},
+        {"$set": {"controls": controls, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Feature controls updated", "controls": controls}
+
+@api_router.get("/user/subscription-status")
+async def get_user_subscription_status(request: Request):
+    """Get user's subscription status and applicable feature controls"""
+    auth_header = request.headers.get("Authorization", "")
+    user_id = None
+    is_premium = False
+    
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        token_doc = await db.user_tokens.find_one({"token": token})
+        if token_doc:
+            user_id = token_doc.get("user_id")
+            # Check if user has active subscription
+            user = await db.app_users.find_one({"user_id": user_id})
+            if user:
+                subscription = user.get("subscription", {})
+                if subscription.get("status") == "active":
+                    expires_at = subscription.get("expires_at")
+                    if expires_at:
+                        try:
+                            exp_date = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                            if exp_date > datetime.now(timezone.utc):
+                                is_premium = True
+                        except:
+                            pass
+    
+    # Get feature controls
+    controls_doc = await db.subscription_feature_controls.find_one({"_id": "feature_controls"})
+    all_controls = controls_doc.get("controls", DEFAULT_FEATURE_CONTROLS) if controls_doc else DEFAULT_FEATURE_CONTROLS
+    
+    tier = "premium" if is_premium else "free"
+    user_controls = all_controls.get(tier, all_controls.get("free", DEFAULT_FEATURE_CONTROLS["free"]))
+    
+    return {
+        "user_id": user_id,
+        "is_premium": is_premium,
+        "subscription_tier": tier,
+        "features": user_controls
+    }
+
 # ============== LISTENING SESSIONS (for tracking) ==============
 
 @api_router.post("/listening/start")
