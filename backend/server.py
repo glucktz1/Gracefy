@@ -4183,6 +4183,477 @@ async def update_choir_account(account_id: str, updates: dict):
         raise HTTPException(status_code=404, detail="Account not found")
     return {"message": "Account updated"}
 
+# ============== CHURCH LEADER AUTHENTICATION ==============
+
+@api_router.post("/church-leader/register")
+async def church_leader_register(data: dict):
+    """Church leader self-registration (requires approval)"""
+    import hashlib
+    
+    church_id = data.get("church_id")
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    phone = data.get("phone")
+    
+    if not all([church_id, name, email, password]):
+        raise HTTPException(status_code=400, detail="church_id, name, email, and password are required")
+    
+    # Check if church exists
+    church = await db.churches.find_one({"church_id": church_id}, {"_id": 0})
+    if not church:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    # Check if account already exists
+    existing = await db.church_leader_accounts.find_one({"$or": [{"church_id": church_id}, {"email": email}]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Account already exists for this church or email")
+    
+    # Hash password
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    account = ChurchLeaderAccount(
+        church_id=church_id,
+        church_name=church["name"],
+        name=name,
+        email=email,
+        password_hash=password_hash,
+        phone=phone,
+        role="leader",
+        status="pending"  # Requires admin approval
+    )
+    doc = account.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.church_leader_accounts.insert_one(doc)
+    
+    return {"account_id": doc["account_id"], "message": "Registration submitted - pending admin approval"}
+
+@api_router.post("/church-leader/create")
+async def admin_create_church_leader(data: dict):
+    """Admin creates church leader account (auto-approved)"""
+    import hashlib
+    
+    church_id = data.get("church_id")
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    phone = data.get("phone")
+    
+    if not all([church_id, name, email, password]):
+        raise HTTPException(status_code=400, detail="church_id, name, email, and password are required")
+    
+    # Check if church exists
+    church = await db.churches.find_one({"church_id": church_id}, {"_id": 0})
+    if not church:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    # Check if account already exists
+    existing = await db.church_leader_accounts.find_one({"$or": [{"church_id": church_id}, {"email": email}]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Account already exists for this church or email")
+    
+    # Hash password
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    account = ChurchLeaderAccount(
+        church_id=church_id,
+        church_name=church["name"],
+        name=name,
+        email=email,
+        password_hash=password_hash,
+        phone=phone,
+        role="admin_created",
+        status="approved",
+        approved_by="admin",
+        approved_at=datetime.now(timezone.utc).isoformat()
+    )
+    doc = account.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.church_leader_accounts.insert_one(doc)
+    
+    return {"account_id": doc["account_id"], "message": "Church leader account created successfully"}
+
+@api_router.post("/church-leader/login")
+async def church_leader_login(data: dict, response: Response):
+    """Church leader login"""
+    import hashlib
+    
+    email = data.get("email")
+    password = data.get("password")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    account = await db.church_leader_accounts.find_one({
+        "email": email,
+        "password_hash": password_hash
+    }, {"_id": 0})
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if account["status"] != "approved":
+        raise HTTPException(status_code=403, detail="Account pending approval")
+    
+    # Create session
+    session_token = f"church_{uuid.uuid4().hex}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    session_doc = {
+        "session_id": f"sess_{uuid.uuid4().hex}",
+        "account_id": account["account_id"],
+        "church_id": account["church_id"],
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.church_leader_sessions.insert_one(session_doc)
+    
+    response.set_cookie(
+        key="church_leader_session",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=7 * 24 * 60 * 60
+    )
+    
+    return {
+        "church_id": account["church_id"],
+        "church_name": account["church_name"],
+        "name": account["name"],
+        "email": account["email"],
+        "session_token": session_token
+    }
+
+@api_router.get("/church-leader/me")
+async def get_church_leader_profile(request: Request):
+    """Get current church leader profile"""
+    session_token = request.cookies.get("church_leader_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.church_leader_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    account = await db.church_leader_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0, "password_hash": 0})
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    # Get church details
+    church = await db.churches.find_one({"church_id": account["church_id"]}, {"_id": 0})
+    
+    return {
+        "account_id": account["account_id"],
+        "church_id": account["church_id"],
+        "church_name": account["church_name"],
+        "name": account["name"],
+        "email": account["email"],
+        "phone": account.get("phone"),
+        "status": account["status"],
+        "church": church
+    }
+
+@api_router.post("/church-leader/logout")
+async def church_leader_logout(request: Request, response: Response):
+    """Church leader logout"""
+    session_token = request.cookies.get("church_leader_session")
+    if session_token:
+        await db.church_leader_sessions.delete_one({"session_token": session_token})
+    response.delete_cookie(key="church_leader_session", path="/")
+    return {"message": "Logged out successfully"}
+
+@api_router.get("/church-leader/my-announcements")
+async def get_my_church_announcements(request: Request):
+    """Get announcements for current church leader's church"""
+    session_token = request.cookies.get("church_leader_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.church_leader_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    announcements = await db.church_announcements.find(
+        {"church_id": session["church_id"]},
+        {"_id": 0}
+    ).sort("date", -1).to_list(100)
+    
+    return {"announcements": announcements}
+
+@api_router.post("/church-leader/announcements")
+async def create_announcement_by_leader(data: dict, request: Request):
+    """Church leader creates announcement"""
+    session_token = request.cookies.get("church_leader_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.church_leader_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    account = await db.church_leader_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0})
+    
+    announcement = ChurchAnnouncement(
+        church_id=session["church_id"],
+        church_name=account["church_name"],
+        date=data.get("date"),
+        title=data.get("title"),
+        announcement_type=data.get("announcement_type", "general"),
+        description=data.get("description"),
+        time=data.get("time"),
+        location=data.get("location"),
+        contact_person=data.get("contact_person"),
+        contact_phone=data.get("contact_phone"),
+        is_recurring=data.get("is_recurring", False),
+        recurrence_pattern=data.get("recurrence_pattern"),
+        created_by=account["name"]
+    )
+    
+    # Set expiry to 2 weeks from announcement date
+    try:
+        ann_date = datetime.strptime(data.get("date"), "%Y-%m-%d")
+        announcement.expires_at = ann_date + timedelta(days=14)
+    except:
+        pass
+    
+    doc = announcement.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    if doc.get("expires_at"):
+        doc["expires_at"] = doc["expires_at"].isoformat()
+    
+    await db.church_announcements.insert_one(doc)
+    
+    # Notify followers
+    await notify_followers("church", session["church_id"], "new_announcement", {
+        "church_name": account["church_name"],
+        "announcement_title": data.get("title"),
+        "announcement_type": data.get("announcement_type", "general")
+    })
+    
+    return {"announcement_id": doc["announcement_id"], "message": "Announcement created"}
+
+@api_router.get("/church-leader/accounts")
+async def get_all_church_leader_accounts():
+    """Get all church leader accounts (admin view)"""
+    accounts = await db.church_leader_accounts.find({}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return {"accounts": accounts}
+
+@api_router.put("/church-leader/account/{account_id}/approve")
+async def approve_church_leader_account(account_id: str, data: dict):
+    """Approve church leader account"""
+    result = await db.church_leader_accounts.update_one(
+        {"account_id": account_id},
+        {"$set": {
+            "status": "approved",
+            "approved_by": data.get("approved_by", "admin"),
+            "approved_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"message": "Account approved"}
+
+@api_router.put("/church-leader/account/{account_id}/reject")
+async def reject_church_leader_account(account_id: str, data: dict):
+    """Reject church leader account"""
+    result = await db.church_leader_accounts.update_one(
+        {"account_id": account_id},
+        {"$set": {"status": "rejected", "admin_notes": data.get("admin_notes")}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"message": "Account rejected"}
+
+# ============== CHOIR CONTENT EDITING ==============
+
+@api_router.post("/choir/albums/{album_id}/edit-request")
+async def request_album_edit(album_id: str, data: dict, request: Request):
+    """Choir requests to edit an album - requires admin approval"""
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    # Get album and verify ownership
+    album = await db.albums.find_one({"album_id": album_id}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    if album.get("singer_id") != session["choir_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this album")
+    
+    account = await db.choir_accounts.find_one({"choir_id": session["choir_id"]}, {"_id": 0})
+    
+    # Create edit request
+    edit_request = ContentEditRequest(
+        choir_id=session["choir_id"],
+        choir_name=account["choir_name"],
+        content_type="album",
+        content_id=album_id,
+        original_data=album,
+        updated_data=data
+    )
+    doc = edit_request.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.content_edit_requests.insert_one(doc)
+    
+    return {"request_id": doc["request_id"], "message": "Edit request submitted for approval"}
+
+@api_router.post("/choir/songs/{song_id}/edit-request")
+async def request_song_edit(song_id: str, data: dict, request: Request):
+    """Choir requests to edit a song - requires admin approval"""
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    # Get song and verify ownership
+    song = await db.songs.find_one({"song_id": song_id}, {"_id": 0})
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    if song.get("singer_id") != session["choir_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this song")
+    
+    account = await db.choir_accounts.find_one({"choir_id": session["choir_id"]}, {"_id": 0})
+    
+    # Create edit request
+    edit_request = ContentEditRequest(
+        choir_id=session["choir_id"],
+        choir_name=account["choir_name"],
+        content_type="song",
+        content_id=song_id,
+        original_data=song,
+        updated_data=data
+    )
+    doc = edit_request.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.content_edit_requests.insert_one(doc)
+    
+    return {"request_id": doc["request_id"], "message": "Edit request submitted for approval"}
+
+@api_router.get("/choir/my-edit-requests")
+async def get_my_edit_requests(request: Request):
+    """Get choir's content edit requests"""
+    session_token = request.cookies.get("choir_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.choir_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    requests = await db.content_edit_requests.find(
+        {"choir_id": session["choir_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    return {"requests": requests}
+
+@api_router.get("/admin/content-edit-requests")
+async def get_all_content_edit_requests(status: Optional[str] = None):
+    """Get all content edit requests (admin view)"""
+    query = {}
+    if status:
+        query["status"] = status
+    
+    requests = await db.content_edit_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"requests": requests}
+
+@api_router.post("/admin/content-edit-requests/{request_id}/approve")
+async def approve_content_edit(request_id: str, data: dict):
+    """Approve content edit request and apply changes"""
+    edit_req = await db.content_edit_requests.find_one({"request_id": request_id}, {"_id": 0})
+    if not edit_req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    if edit_req["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Request already processed")
+    
+    # Apply the changes
+    content_type = edit_req["content_type"]
+    content_id = edit_req["content_id"]
+    updated_data = edit_req["updated_data"]
+    
+    # Remove fields that shouldn't be overwritten
+    updated_data.pop("_id", None)
+    updated_data.pop("album_id", None)
+    updated_data.pop("song_id", None)
+    updated_data.pop("singer_id", None)
+    updated_data.pop("choir_id", None)
+    
+    if content_type == "album":
+        await db.albums.update_one({"album_id": content_id}, {"$set": updated_data})
+    elif content_type == "song":
+        await db.songs.update_one({"song_id": content_id}, {"$set": updated_data})
+    
+    # Update request status
+    await db.content_edit_requests.update_one(
+        {"request_id": request_id},
+        {"$set": {
+            "status": "approved",
+            "processed_by": data.get("processed_by", "admin"),
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "admin_notes": data.get("admin_notes")
+        }}
+    )
+    
+    return {"message": f"{content_type.capitalize()} updated successfully"}
+
+@api_router.post("/admin/content-edit-requests/{request_id}/reject")
+async def reject_content_edit(request_id: str, data: dict):
+    """Reject content edit request"""
+    result = await db.content_edit_requests.update_one(
+        {"request_id": request_id},
+        {"$set": {
+            "status": "rejected",
+            "processed_by": data.get("processed_by", "admin"),
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "admin_notes": data.get("admin_notes")
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return {"message": "Edit request rejected"}
+
 # ============== CHOIR REVENUE ANALYTICS ==============
 
 @api_router.get("/choir/revenue/{choir_id}")
