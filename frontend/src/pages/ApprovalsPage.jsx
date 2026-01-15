@@ -173,6 +173,12 @@ export default function ApprovalsPage() {
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">
             <Music2 size={14} className="mr-1" /> Content ({contentRequests.length})
           </TabsTrigger>
+          <TabsTrigger value="edits" className="data-[state=active]:bg-violet-600">
+            <Edit2 size={14} className="mr-1" /> Edits ({contentEditRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="church-leaders" className="data-[state=active]:bg-violet-600">
+            <Key size={14} className="mr-1" /> Leaders ({churchLeaderAccounts.length})
+          </TabsTrigger>
           <TabsTrigger value="payment" className="data-[state=active]:bg-violet-600">
             <CreditCard size={14} className="mr-1" /> Payment ({paymentRequests.length})
           </TabsTrigger>
