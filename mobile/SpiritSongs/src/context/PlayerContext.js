@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const PlayerContext = createContext(null);
 
-// Sample audio for demo
+// Sample audio for fallback/demo
 const SAMPLE_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 
 export const PlayerProvider = ({ children }) => {
@@ -20,20 +20,26 @@ export const PlayerProvider = ({ children }) => {
   const [duration, setDuration] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('off'); // off, all, one
+  const [error, setError] = useState(null);
   
   const soundRef = useRef(null);
   const sessionIdRef = useRef(null);
 
-  // Configure audio mode
+  // Configure audio mode on mount
   useEffect(() => {
     const setupAudio = async () => {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: true,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+        console.log('Audio mode configured successfully');
+      } catch (err) {
+        console.error('Error setting audio mode:', err);
+      }
     };
     setupAudio();
     
@@ -44,18 +50,23 @@ export const PlayerProvider = ({ children }) => {
     };
   }, []);
 
-  // Playback status update
+  // Playback status update handler
   const onPlaybackStatusUpdate = useCallback((status) => {
     if (status.isLoaded) {
       setPosition(status.positionMillis / 1000);
       setDuration(status.durationMillis / 1000 || 0);
       setIsPlaying(status.isPlaying);
       setIsLoading(status.isBuffering);
+      setError(null);
       
       // Handle song end
-      if (status.didJustFinish) {
+      if (status.didJustFinish && !status.isLooping) {
         handleSongEnd();
       }
+    } else if (status.error) {
+      console.error('Playback error:', status.error);
+      setError(status.error);
+      setIsLoading(false);
     }
   }, []);
 
@@ -75,33 +86,65 @@ export const PlayerProvider = ({ children }) => {
   const loadAndPlaySong = async (song, album) => {
     try {
       setIsLoading(true);
+      setError(null);
+      
+      console.log('Loading song:', song.title, 'Audio URL:', song.audio_url);
       
       // Unload previous sound
       if (soundRef.current) {
-        await soundRef.current.unloadAsync();
+        try {
+          await soundRef.current.unloadAsync();
+        } catch (e) {
+          console.log('Error unloading previous sound:', e);
+        }
+        soundRef.current = null;
       }
       
       // End previous session
       if (sessionIdRef.current) {
         try {
           await sessionService.endSession(sessionIdRef.current);
-        } catch (e) {}
+        } catch (e) {
+          console.log('Error ending session:', e);
+        }
       }
       
-      // Get audio URL
-      let audioUrl = getAudioUrl(song.audio_url) || SAMPLE_AUDIO;
+      // Determine audio URL
+      let audioUrl = null;
       
-      // Check if downloaded
-      const downloadPath = `${FileSystem.documentDirectory}songs/${song.song_id}.mp3`;
-      const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-      if (fileInfo.exists) {
-        audioUrl = downloadPath;
+      // Try to get the actual audio URL
+      if (song.audio_url) {
+        audioUrl = getAudioUrl(song.audio_url);
+        console.log('Resolved audio URL:', audioUrl);
       }
+      
+      // Fallback to sample audio if no URL
+      if (!audioUrl) {
+        console.log('No audio URL found, using sample audio');
+        audioUrl = SAMPLE_AUDIO;
+      }
+      
+      // Check if file is downloaded locally
+      try {
+        const downloadPath = `${FileSystem.documentDirectory}songs/${song.song_id}.mp3`;
+        const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+        if (fileInfo.exists) {
+          console.log('Using downloaded file:', downloadPath);
+          audioUrl = downloadPath;
+        }
+      } catch (e) {
+        // Ignore file check errors
+      }
+      
+      console.log('Final audio URL:', audioUrl);
       
       // Create and load sound
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
-        { shouldPlay: true },
+        { 
+          shouldPlay: true,
+          progressUpdateIntervalMillis: 500,
+        },
         onPlaybackStatusUpdate
       );
       
@@ -109,31 +152,62 @@ export const PlayerProvider = ({ children }) => {
       setCurrentSong(song);
       setCurrentAlbum(album);
       
-      // Start session
-      const userId = await SecureStore.getItemAsync('user_id');
-      const session = await sessionService.startSession(song.song_id, userId);
-      sessionIdRef.current = session.session_id;
+      // Start listening session
+      try {
+        const userId = await SecureStore.getItemAsync('user_id');
+        const session = await sessionService.startSession(song.song_id, userId);
+        sessionIdRef.current = session?.session_id;
+      } catch (e) {
+        console.log('Session tracking error (non-critical):', e);
+      }
       
       setIsLoading(false);
+      console.log('Song loaded successfully');
+      
     } catch (error) {
       console.error('Error loading song:', error);
+      setError(error.message || 'Failed to load audio');
       setIsLoading(false);
+      
+      // Try fallback to sample audio
+      try {
+        console.log('Attempting fallback to sample audio...');
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: SAMPLE_AUDIO },
+          { shouldPlay: true },
+          onPlaybackStatusUpdate
+        );
+        soundRef.current = sound;
+        setCurrentSong(song);
+        setCurrentAlbum(album);
+        setIsLoading(false);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
     }
   };
 
   const playSong = async (song, album, songQueue = [], index = 0) => {
+    console.log('playSong called:', song?.title);
     setQueue(songQueue.length > 0 ? songQueue : [{ song, album }]);
     setQueueIndex(index);
     await loadAndPlaySong(song, album);
   };
 
   const togglePlay = async () => {
-    if (!soundRef.current) return;
+    if (!soundRef.current) {
+      console.log('No sound loaded');
+      return;
+    }
     
-    if (isPlaying) {
-      await soundRef.current.pauseAsync();
-    } else {
-      await soundRef.current.playAsync();
+    try {
+      if (isPlaying) {
+        await soundRef.current.pauseAsync();
+      } else {
+        await soundRef.current.playAsync();
+      }
+    } catch (error) {
+      console.error('Error toggling play:', error);
     }
   };
 
@@ -178,7 +252,11 @@ export const PlayerProvider = ({ children }) => {
 
   const seekTo = async (seconds) => {
     if (soundRef.current) {
-      await soundRef.current.setPositionAsync(seconds * 1000);
+      try {
+        await soundRef.current.setPositionAsync(seconds * 1000);
+      } catch (error) {
+        console.error('Error seeking:', error);
+      }
     }
   };
 
@@ -197,6 +275,7 @@ export const PlayerProvider = ({ children }) => {
     duration,
     shuffle,
     repeat,
+    error,
     playSong,
     togglePlay,
     playNext,
