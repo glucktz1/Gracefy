@@ -229,8 +229,23 @@ export const SubscriptionProvider = ({ children }) => {
     return features.audio_quality || 'standard';
   };
 
+  // Get trial days remaining
+  const getTrialDaysRemaining = () => {
+    if (!trialInfo || trialInfo.status !== 'active') return 0;
+    return trialInfo.days_remaining || 0;
+  };
+
+  // Check if trial is expiring soon (within 2 days)
+  const isTrialExpiringSoon = () => {
+    if (!isTrial || !trialInfo) return false;
+    return trialInfo.days_remaining <= 2;
+  };
+
   const value = {
     isPremium,
+    isTrial,
+    trialInfo,
+    subscriptionInfo,
     features,
     loading,
     subscriptionExpiry,
@@ -248,6 +263,8 @@ export const SubscriptionProvider = ({ children }) => {
     isPremiumContent,
     getPlaybackMode,
     isShuffleForced,
+    getTrialDaysRemaining,
+    isTrialExpiringSoon,
   };
 
   return (
