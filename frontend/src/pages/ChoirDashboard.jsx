@@ -85,6 +85,15 @@ export default function ChoirDashboard() {
   const [songAudioFile, setSongAudioFile] = useState(null);
   const [uploadingAudio, setUploadingAudio] = useState(false);
 
+  // Edit request states
+  const [isEditAlbumModalOpen, setIsEditAlbumModalOpen] = useState(false);
+  const [isEditSongModalOpen, setIsEditSongModalOpen] = useState(false);
+  const [editAlbumForm, setEditAlbumForm] = useState({ title: "", description: "", category_id: "" });
+  const [editSongForm, setEditSongForm] = useState({ title: "", duration_formatted: "", lyrics: "" });
+  const [editingAlbum, setEditingAlbum] = useState(null);
+  const [editingSong, setEditingSong] = useState(null);
+  const [myEditRequests, setMyEditRequests] = useState([]);
+
   const choirId = localStorage.getItem("choir_id");
   const sessionToken = localStorage.getItem("choir_session");
 
