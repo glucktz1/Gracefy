@@ -292,6 +292,185 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* User Demographics Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <Users size={20} className="text-violet-400" />
+          User Demographics
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Device Type */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+                <Smartphone size={16} className="text-blue-400" />
+                Device Type
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={demographics?.device?.data || []}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={65}
+                    dataKey="value"
+                    nameKey="name"
+                    paddingAngle={3}
+                  >
+                    {(demographics?.device?.data || []).map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={DEVICE_COLORS[entry.name] || COLORS[index % COLORS.length]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#18181b', 
+                      border: '1px solid #27272a',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }} 
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-3 mt-2">
+                {(demographics?.device?.data || []).map((item, index) => (
+                  <div key={index} className="flex items-center gap-1">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: DEVICE_COLORS[item.name] || COLORS[index] }}
+                    />
+                    <span className="text-xs text-zinc-400">{item.name}: {item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Gender Distribution */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+                <Users size={16} className="text-pink-400" />
+                Gender
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={demographics?.gender?.data || []}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={65}
+                    dataKey="value"
+                    nameKey="name"
+                    paddingAngle={3}
+                  >
+                    {(demographics?.gender?.data || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#3b82f6', '#ec4899', '#8b5cf6', '#6b7280'][index]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#18181b', 
+                      border: '1px solid #27272a',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }} 
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-3 mt-2">
+                {(demographics?.gender?.data || []).map((item, index) => (
+                  <div key={index} className="flex items-center gap-1">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: ['#3b82f6', '#ec4899', '#8b5cf6', '#6b7280'][index] }}
+                    />
+                    <span className="text-xs text-zinc-400">{item.name}: {item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Age Distribution */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+                <Calendar size={16} className="text-amber-400" />
+                Age Groups
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={demographics?.age?.data || []} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                  <XAxis type="number" stroke="#71717a" fontSize={10} />
+                  <YAxis dataKey="name" type="category" stroke="#71717a" fontSize={10} width={40} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#18181b', 
+                      border: '1px solid #27272a',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }} 
+                  />
+                  <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Location Distribution */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+                <MapPin size={16} className="text-emerald-400" />
+                Top Locations
+              </CardTitle>
+              <CardDescription className="text-xs text-zinc-500">
+                {demographics?.location?.total_locations || 0} countries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {(demographics?.location?.data || []).slice(0, 8).map((item, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 text-xs text-zinc-500">{index + 1}.</span>
+                      <span className="text-sm text-zinc-300">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full"
+                          style={{ 
+                            width: `${Math.min(100, (item.value / (demographics?.total_users || 1)) * 100)}%` 
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-zinc-400 w-8 text-right">{item.value}</span>
+                    </div>
+                  </div>
+                ))}
+                {(!demographics?.location?.data || demographics.location.data.length === 0) && (
+                  <div className="text-center text-zinc-500 text-sm py-4">
+                    No location data yet
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
