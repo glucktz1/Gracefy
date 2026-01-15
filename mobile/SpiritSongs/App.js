@@ -19,6 +19,7 @@ import AlbumScreen from './src/screens/AlbumScreen';
 import CategoryScreen from './src/screens/CategoryScreen';
 import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 // Config
 import { COLORS } from './src/config';
@@ -33,7 +34,7 @@ function TabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: COLORS.textPrimary,
+        tabBarActiveTintColor: '#e91e63',
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ focused, color, size }) => {
@@ -64,13 +65,14 @@ function MainNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: COLORS.background },
+        contentStyle: { backgroundColor: '#0a0a1a' },
         animation: 'slide_from_right',
       }}
     >
       <Stack.Screen name="Tabs" component={TabNavigator} />
       <Stack.Screen name="Album" component={AlbumScreen} />
       <Stack.Screen name="Category" component={CategoryScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen 
         name="NowPlaying" 
         component={NowPlayingScreen}
@@ -109,10 +111,10 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
   },
   tabBar: {
-    backgroundColor: COLORS.background,
+    backgroundColor: '#0a0a1a',
     borderTopWidth: 0,
     elevation: 0,
     height: Platform.OS === 'ios' ? 84 : 60,
