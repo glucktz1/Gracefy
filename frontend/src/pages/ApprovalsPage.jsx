@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { 
   CheckCircle, Church, UserCheck, MessageSquare, Check, X, 
-  Music2, CreditCard, Bell, Phone, Building, Crown, Gift
+  Music2, CreditCard, Bell, Phone, Building, Crown, Gift, Edit2, Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
