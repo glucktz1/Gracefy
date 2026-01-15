@@ -384,6 +384,21 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 
 ### Phase 5.5 - Monetization & Feature Gates (January 15, 2026)
 
+**Free Trial System:**
+- ✅ Backend trial management with configurable duration (admin sets days)
+- ✅ Automatic trial activation on user registration
+- ✅ Trial status tracking (active, expired, converted)
+- ✅ Trial expiry detection and automatic status update
+- ✅ Admin panel "Free Trial" tab with enable/disable toggle and duration setting
+- ✅ Trial statistics dashboard (active trials, expired, converted, conversion rate)
+- ✅ Mobile app displays trial status with countdown
+- ✅ Trial expiring warning (2 days or less remaining)
+
+**New Backend Endpoints for Trials:**
+- ✅ GET `/api/monetization/trial-settings` - Get trial configuration
+- ✅ PUT `/api/monetization/trial-settings` - Update trial settings (admin)
+- ✅ GET `/api/monetization/trial-stats` - Get trial usage statistics
+
 **Backend - Monetization Feature Controls:**
 - ✅ GET `/api/monetization/feature-controls` - Get free vs paid feature settings
 - ✅ PUT `/api/monetization/feature-controls` - Update feature controls (admin)
