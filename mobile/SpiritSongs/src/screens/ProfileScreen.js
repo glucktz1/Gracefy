@@ -383,8 +383,69 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 6,
   },
+  premiumBadge: {
+    backgroundColor: 'rgba(233, 30, 99, 0.2)',
+    borderWidth: 1,
+    borderColor: '#e91e63',
+  },
   membershipText: {
     color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  premiumText: {
+    color: '#e91e63',
+  },
+  upgradeText: {
+    color: '#e91e63',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  premiumBanner: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  premiumBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  premiumBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  premiumBannerText: {
+    flex: 1,
+  },
+  premiumBannerTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  premiumBannerSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+  },
+  premiumIndicator: {
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  premiumIndicatorText: {
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  upgradeIndicator: {
+    color: '#e91e63',
     fontSize: 13,
     fontWeight: '600',
   },
