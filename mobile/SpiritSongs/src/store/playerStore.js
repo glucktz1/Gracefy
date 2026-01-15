@@ -398,6 +398,9 @@ export const usePlayerControls = () => usePlayerStore((state) => ({
   toggleMute: state.toggleMute,
   loadTrack: state.loadTrack,
   addToQueue: state.addToQueue,
+  savePlaybackState: state.savePlaybackState,
+  restorePlayback: state.restorePlayback,
+  getLastPlayback: state.getLastPlayback,
 }));
 
 export default usePlayerStore;
