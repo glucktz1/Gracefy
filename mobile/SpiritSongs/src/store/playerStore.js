@@ -347,7 +347,13 @@ export const usePlayerStore = create(
           duration: status.durationMillis || 0,
         });
         
-        // Handle track completion
+        // Save playback state every 10 seconds
+        const positionSec = Math.floor((status.positionMillis || 0) / 1000);
+        if (positionSec > 0 && positionSec % 10 === 0) {
+          get().savePlaybackState();
+        }
+        
+        // Handle track completion - Always continue to next
         if (status.didJustFinish && !status.isLooping) {
           const { repeatMode } = get();
           if (repeatMode === 'one') {
@@ -360,6 +366,8 @@ export const usePlayerStore = create(
       } else if (status.error) {
         console.error('Playback error:', status.error);
         set({ error: status.error, isPlaying: false });
+        // On error, skip to next track
+        get().skipToNext();
       }
     },
   }))
