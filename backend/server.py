@@ -3642,13 +3642,38 @@ async def get_user_home():
                 mix["album_id"] = mix["mix_id"]
                 mix["is_special_mix"] = True
             section_data["items"] = mixes
+        
+        elif section["section_type"] == "choirs":
+            # Get approved choirs/artists
+            choirs = await db.singers.find(
+                {"approval_status": "approved"},
+                {"_id": 0}
+            ).sort("followers_count", -1).limit(section.get("content_count", 10)).to_list(10)
+            # Enrich with albums/songs count
+            for choir in choirs:
+                albums_count = await db.albums.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
+                songs_count = await db.songs.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
+                choir["albums_count"] = albums_count
+                choir["songs_count"] = songs_count
+                choir["entity_type"] = "choir"
+            section_data["items"] = choirs
+        
+        elif section["section_type"] == "churches":
+            # Get approved churches
+            churches = await db.churches.find(
+                {"status": "approved"},
+                {"_id": 0}
+            ).sort("followers_count", -1).limit(section.get("content_count", 10)).to_list(10)
+            for church in churches:
+                church["entity_type"] = "church"
+            section_data["items"] = churches
             
         elif section["section_type"] == "hero":
             section_data["background"] = section.get("background_gradient") or section.get("background_color")
             section_data["items"] = []
             
         else:
-            # For other types, get albums, categories, or special mixes
+            # For other types, get albums, categories, choirs, churches, or special mixes
             if section.get("content_ids"):
                 content_type = section.get("content_type", "albums")
                 if content_type == "albums":
@@ -3669,6 +3694,20 @@ async def get_user_home():
                     for mix in items:
                         mix["album_id"] = mix["mix_id"]
                         mix["is_special_mix"] = True
+                elif content_type == "choirs":
+                    items = await db.singers.find(
+                        {"singer_id": {"$in": section["content_ids"]}},
+                        {"_id": 0}
+                    ).to_list(20)
+                    for choir in items:
+                        choir["entity_type"] = "choir"
+                elif content_type == "churches":
+                    items = await db.churches.find(
+                        {"church_id": {"$in": section["content_ids"]}},
+                        {"_id": 0}
+                    ).to_list(20)
+                    for church in items:
+                        church["entity_type"] = "church"
                 else:
                     items = []
                 section_data["items"] = items
