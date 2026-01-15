@@ -173,12 +173,24 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.userName}>{user?.name || 'User'}</Text>
               <Text style={styles.userEmail}>{user?.email || user?.phone || 'No email'}</Text>
               <TouchableOpacity 
-                style={[styles.membershipBadge, isPremium && styles.premiumBadge]}
+                style={[
+                  styles.membershipBadge, 
+                  isPremium && styles.premiumBadge,
+                  isTrial && styles.trialBadge
+                ]}
                 onPress={handleManageSubscription}
               >
-                <Ionicons name={isPremium ? 'star' : 'star-outline'} size={14} color={isPremium ? '#FFD700' : '#888'} />
-                <Text style={[styles.membershipText, isPremium && styles.premiumText]}>
-                  {isPremium ? 'Premium Member' : 'Free Member'}
+                <Ionicons 
+                  name={isPremium ? 'star' : 'star-outline'} 
+                  size={14} 
+                  color={isTrial ? '#FF9800' : (isPremium ? '#FFD700' : '#888')} 
+                />
+                <Text style={[
+                  styles.membershipText, 
+                  isPremium && styles.premiumText,
+                  isTrial && styles.trialText
+                ]}>
+                  {getMembershipText()}
                 </Text>
                 {!isPremium && (
                   <Text style={styles.upgradeText}>Upgrade</Text>
@@ -196,7 +208,27 @@ export default function ProfileScreen({ navigation }) {
           )}
         </View>
 
-        {/* Premium Banner for Free Users */}
+        {/* Trial Expiring Warning */}
+        {isAuthenticated && isTrial && isTrialExpiringSoon() && (
+          <TouchableOpacity 
+            style={styles.trialWarningBanner}
+            onPress={handleManageSubscription}
+            activeOpacity={0.8}
+          >
+            <View style={styles.trialWarningContent}>
+              <Ionicons name="warning" size={24} color="#FF9800" />
+              <View style={styles.trialWarningText}>
+                <Text style={styles.trialWarningTitle}>Trial Ending Soon!</Text>
+                <Text style={styles.trialWarningSubtitle}>
+                  {getTrialDaysRemaining()} day{getTrialDaysRemaining() !== 1 ? 's' : ''} left - Subscribe now to keep premium features
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#FF9800" />
+          </TouchableOpacity>
+        )}
+
+        {/* Premium Banner for Free Users (non-trial) */}
         {isAuthenticated && !isPremium && (
           <TouchableOpacity 
             style={styles.premiumBanner}
