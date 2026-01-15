@@ -277,6 +277,41 @@ export const usePlayerStore = create(
       });
     },
 
+    // Save playback state (for resume on app restart)
+    savePlaybackState: () => {
+      const { currentTrack, queue, queueIndex, position } = get();
+      if (currentTrack) {
+        const playbackState = {
+          track: currentTrack,
+          queue,
+          queueIndex,
+          position,
+          timestamp: Date.now(),
+        };
+        set({ lastPlayback: playbackState });
+        return playbackState;
+      }
+      return null;
+    },
+
+    // Get last playback state
+    getLastPlayback: () => {
+      const { lastPlayback } = get();
+      return lastPlayback;
+    },
+
+    // Restore playback from saved state
+    restorePlayback: async (playbackState) => {
+      if (playbackState && playbackState.track) {
+        await get().loadTrack(playbackState.track, playbackState.queue || [], playbackState.queueIndex || 0);
+        if (playbackState.position > 0) {
+          await get().seekTo(playbackState.position);
+        }
+        return true;
+      }
+      return false;
+    },
+
     // Reset player
     reset: async () => {
       const { sound } = get();
