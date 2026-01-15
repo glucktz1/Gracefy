@@ -17,22 +17,28 @@ export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState({ churches: [], leaders: [], posts: [], total: 0 });
   const [contentRequests, setContentRequests] = useState([]);
   const [paymentRequests, setPaymentRequests] = useState([]);
+  const [contentEditRequests, setContentEditRequests] = useState([]);
+  const [churchLeaderAccounts, setChurchLeaderAccounts] = useState([]);
   const [notifications, setNotifications] = useState({ notifications: [], unread_count: 0 });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
 
   const fetchApprovals = async () => {
     try {
-      const [approvalsRes, contentRes, paymentRes, notifRes] = await Promise.all([
+      const [approvalsRes, contentRes, paymentRes, notifRes, editReqRes, leaderAccRes] = await Promise.all([
         axios.get(`${API}/approvals`, { withCredentials: true }),
         axios.get(`${API}/admin/content-requests?status=pending`, { withCredentials: true }),
         axios.get(`${API}/admin/payment-requests?status=pending`, { withCredentials: true }),
-        axios.get(`${API}/admin/notifications?unread_only=true`, { withCredentials: true })
+        axios.get(`${API}/admin/notifications?unread_only=true`, { withCredentials: true }),
+        axios.get(`${API}/admin/content-edit-requests?status=pending`, { withCredentials: true }).catch(() => ({ data: { requests: [] } })),
+        axios.get(`${API}/church-leader/accounts`, { withCredentials: true }).catch(() => ({ data: { accounts: [] } }))
       ]);
       setApprovals(approvalsRes.data);
       setContentRequests(contentRes.data.requests || []);
       setPaymentRequests(paymentRes.data.requests || []);
       setNotifications(notifRes.data);
+      setContentEditRequests(editReqRes.data.requests || []);
+      setChurchLeaderAccounts((leaderAccRes.data.accounts || []).filter(a => a.status === "pending"));
     } catch (error) {
       console.error("Error fetching approvals:", error);
       toast.error("Failed to load pending approvals");
