@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { getThumbnailUrl } from '../services/api';
 import AnimatedBars from '../components/AnimatedBars';
 import SongListItem from '../components/SongListItem';
@@ -41,11 +42,84 @@ const NowPlayingScreen = ({ navigation }) => {
     shareSong,
     downloadCurrentSong,
   } = usePlayer();
+
+  const { 
+    isPremium, 
+    canPerformAction, 
+    canSkip, 
+    useSkip, 
+    getRemainingSkips,
+    showUpgradePrompt,
+    isShuffleForced,
+    features,
+  } = useSubscription();
   
   const [showQueue, setShowQueue] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [previewEnded, setPreviewEnded] = useState(false);
   
   const albumRotate = useRef(new Animated.Value(0)).current;
+
+  // Navigate to subscription screen
+  const goToSubscription = (feature) => {
+    navigation.navigate('Subscription', { lockedFeature: feature });
+  };
+
+  // Handle skip with subscription check
+  const handleSkip = async (direction) => {
+    if (!isPremium) {
+      // Check if user has skips available
+      if (!canSkip()) {
+        const remaining = getRemainingSkips();
+        Alert.alert(
+          'Skip Limit Reached',
+          `You've used all your skips for this hour. Upgrade to Premium for unlimited skips!`,
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'Upgrade', onPress: () => goToSubscription('skip') }
+          ]
+        );
+        return;
+      }
+      // Use a skip
+      useSkip();
+    }
+    
+    if (direction === 'next') {
+      await playNext();
+    } else {
+      await playPrevious();
+    }
+  };
+
+  // Handle shuffle toggle with subscription check
+  const handleShuffleToggle = () => {
+    if (!isPremium && isShuffleForced()) {
+      showUpgradePrompt('shuffle_control', goToSubscription);
+      return;
+    }
+    toggleShuffle();
+  };
+
+  // Handle download with subscription check
+  const handleDownload = () => {
+    if (!canPerformAction('download')) {
+      showUpgradePrompt('download', goToSubscription);
+      return;
+    }
+    if (downloadCurrentSong) {
+      downloadCurrentSong();
+    }
+  };
+
+  // Handle add to playlist with subscription check
+  const handleAddToPlaylist = () => {
+    if (!canPerformAction('create_playlist')) {
+      showUpgradePrompt('create_playlist', goToSubscription);
+      return;
+    }
+    setShowPlaylistModal(true);
+  };
 
   // Album art rotation animation when playing
   useEffect(() => {
