@@ -493,10 +493,44 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 **Database Migration:**
 - ✅ Auto-migration on startup: 'followers' -> 'followers_count' for consistency
 
+### Phase 5.10 - Admin Users Page Enhancement (January 15, 2026)
+
+**Backend - Admin Users Management Endpoints:**
+- ✅ GET `/api/admin/users` - List app users with pagination, search, and filters
+  - Search by name, email, phone, user_id
+  - Filter by membership_type (free, premium, vip)
+  - Filter by status (active, suspended)
+  - Filter by register_by (phone, email, google)
+- ✅ GET `/api/admin/users/stats/summary` - User statistics summary
+  - Total, active, suspended, premium, free, trial_active counts
+  - Registration method breakdown (phone, email, google)
+- ✅ GET `/api/admin/users/{user_id}` - Detailed user profile
+- ✅ GET `/api/admin/users/{user_id}/listening-history` - User's listening history with song/album details
+- ✅ GET `/api/admin/users/{user_id}/transactions` - User's payment transactions
+- ✅ POST `/api/admin/users` - Create new user (admin action, returns 201)
+- ✅ PUT `/api/admin/users/{user_id}` - Update user details
+- ✅ DELETE `/api/admin/users/{user_id}` - Delete user and related data
+
+**Frontend - UsersPage (`/users`):**
+- ✅ Stats summary cards: Total, Active, Premium, Free, In Trial, Suspended
+- ✅ Search bar with real-time search across name/email/phone/user_id
+- ✅ Filter dropdowns: Register By, Membership Type, Status
+- ✅ Users table with columns: User ID, Email/Phone, Membership, Country, Register By, Plan, Expiry, Last Active, Status
+- ✅ Clickable rows to view user detail
+- ✅ User detail view with tabs: Profile, Membership, Listening History, Transactions, Devices
+- ✅ Add User modal for creating new users
+- ✅ Edit User modal for updating user details
+- ✅ Export to CSV functionality
+- ✅ Pagination with page size options
+
+**Testing:**
+- ✅ 22/22 backend tests passed (100%)
+- Test file: `/app/tests/test_admin_users_management.py`
+
 ## Next Tasks (Priority Order)
 1. **P1 - Native Mobile App - Church/Choir UI**: Implement screens to display detailed church/choir profiles, prayer schedules, announcements, location maps
 2. **P1 - Native Mobile App - Follow Button**: Implement follow/unfollow functionality in the mobile app
-3. **P1 - Build & Test New APK**: Build APK with Church/Choir features and test on device
+3. **P1 - Build & Test New APK**: Build APK with Church/Choir features and test on device (v1.0.8 currently in queue)
 4. **P1 - Choir Album/Song Editing**: Allow choirs to edit their existing albums/songs (pending admin approval)
 5. **P2 - Google Meet Integration**: Auto-generate meeting links for Live Seminars
 6. **P2 - Real SMS Integration**: Integrate Africa's Talking or Twilio for actual SMS
