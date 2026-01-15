@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.spiritsongs.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSAppleMusicUsageDescription": "This app needs access to play music in the background."
       }
     },
@@ -43,11 +45,6 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "e0c9a34f-60e0-e37e-4d42-bf0e-b81a4b9b05d9"
-      }
-    }
+    ]
   }
 }
