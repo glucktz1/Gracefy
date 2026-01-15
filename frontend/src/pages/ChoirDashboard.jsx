@@ -1092,6 +1092,119 @@ export default function ChoirDashboard() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Album Modal */}
+      <Dialog open={isEditAlbumModalOpen} onOpenChange={setIsEditAlbumModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 size={18} className="text-violet-400" />
+              Edit Album
+            </DialogTitle>
+            <DialogDescription>
+              Submit changes for admin approval. Original content remains until approved.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitAlbumEdit}>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Album Title *</label>
+                <Input 
+                  value={editAlbumForm.title} 
+                  onChange={(e) => setEditAlbumForm({ ...editAlbumForm, title: e.target.value })} 
+                  className="bg-zinc-950 border-zinc-800 text-white" 
+                  required 
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Description</label>
+                <Textarea 
+                  value={editAlbumForm.description} 
+                  onChange={(e) => setEditAlbumForm({ ...editAlbumForm, description: e.target.value })} 
+                  className="bg-zinc-950 border-zinc-800 text-white" 
+                  rows={3} 
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Category</label>
+                <Select value={editAlbumForm.category_id} onValueChange={(v) => setEditAlbumForm({ ...editAlbumForm, category_id: v })}>
+                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.category_id} value={cat.category_id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditAlbumModalOpen(false)} className="border-zinc-700">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-700">
+                Submit Edit Request
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Song Modal */}
+      <Dialog open={isEditSongModalOpen} onOpenChange={setIsEditSongModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 size={18} className="text-violet-400" />
+              Edit Song
+            </DialogTitle>
+            <DialogDescription>
+              {editingSong?.album_title && `Album: ${editingSong.album_title}`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitSongEdit}>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Song Title *</label>
+                <Input 
+                  value={editSongForm.title} 
+                  onChange={(e) => setEditSongForm({ ...editSongForm, title: e.target.value })} 
+                  className="bg-zinc-950 border-zinc-800 text-white" 
+                  required 
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Duration (e.g., 3:45)</label>
+                <Input 
+                  value={editSongForm.duration_formatted} 
+                  onChange={(e) => setEditSongForm({ ...editSongForm, duration_formatted: e.target.value })} 
+                  className="bg-zinc-950 border-zinc-800 text-white" 
+                  placeholder="3:45"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Lyrics</label>
+                <Textarea 
+                  value={editSongForm.lyrics} 
+                  onChange={(e) => setEditSongForm({ ...editSongForm, lyrics: e.target.value })} 
+                  className="bg-zinc-950 border-zinc-800 text-white" 
+                  rows={4}
+                  placeholder="Enter song lyrics..."
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditSongModalOpen(false)} className="border-zinc-700">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-700">
+                Submit Edit Request
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
