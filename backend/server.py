@@ -7633,7 +7633,8 @@ async def create_admin_user(data: dict):
     
     await db.app_users.insert_one(user)
     
-    return {"user_id": user["user_id"], "message": "User created successfully"}
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=201, content={"user_id": user["user_id"], "message": "User created successfully"})
 
 @api_router.get("/admin/users/stats/summary")
 async def get_users_stats_summary():
