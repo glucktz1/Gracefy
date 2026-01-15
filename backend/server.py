@@ -686,6 +686,38 @@ class PriestNotification(BaseModel):
     read: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class ChurchLeaderAccount(BaseModel):
+    """Church leader account for login and church management"""
+    model_config = ConfigDict(extra="ignore")
+    account_id: str = Field(default_factory=lambda: f"church_acc_{uuid.uuid4().hex[:12]}")
+    church_id: str  # Links to churches collection
+    church_name: str
+    name: str  # Leader's name
+    email: str
+    password_hash: str
+    phone: Optional[str] = None
+    role: str = "leader"  # leader, admin_created
+    status: str = "pending"  # pending, approved, suspended
+    approved_by: Optional[str] = None
+    approved_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ContentEditRequest(BaseModel):
+    """Request to edit existing content (albums/songs) - requires admin approval"""
+    model_config = ConfigDict(extra="ignore")
+    request_id: str = Field(default_factory=lambda: f"edit_{uuid.uuid4().hex[:12]}")
+    choir_id: str
+    choir_name: str
+    content_type: str  # album, song
+    content_id: str  # album_id or song_id
+    original_data: dict  # Snapshot of current data
+    updated_data: dict  # Proposed changes
+    status: str = "pending"  # pending, approved, rejected
+    admin_notes: Optional[str] = None
+    processed_by: Optional[str] = None
+    processed_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class SMSNotification(BaseModel):
     """SMS notification log for external integration"""
     model_config = ConfigDict(extra="ignore")
