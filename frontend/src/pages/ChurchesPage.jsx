@@ -343,12 +343,22 @@ export default function ChurchesPage() {
           <Card key={church.church_id} className="bg-zinc-900/50 border-zinc-800">
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
-                {/* Thumbnail */}
-                <div className="w-20 h-20 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {/* Thumbnail with Priest Photo Overlay */}
+                <div className="relative w-20 h-20 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {church.thumbnail ? (
                     <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
                   ) : (
                     <Church size={32} className="text-zinc-600" />
+                  )}
+                  {/* Priest/Leader small circle photo at bottom-right */}
+                  {church.leader_name && (
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-zinc-950 border-2 border-zinc-800 overflow-hidden flex items-center justify-center" title={`${church.leader_title || 'Leader'}: ${church.leader_name}`}>
+                      {church.leader_photo ? (
+                        <img src={church.leader_photo} alt={church.leader_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={14} className="text-zinc-500" />
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -370,7 +380,7 @@ export default function ChurchesPage() {
                     )}
                     {church.leader_name && (
                       <span className="flex items-center gap-1">
-                        <User size={12} /> {church.leader_title}: {church.leader_name}
+                        <User size={12} /> {church.leader_title || "Leader"}: {church.leader_name}
                       </span>
                     )}
                     <span className="flex items-center gap-1">
