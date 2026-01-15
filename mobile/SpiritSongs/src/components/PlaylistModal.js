@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { libraryService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
@@ -17,19 +18,26 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creating, setCreating] = useState(false);
   const [addingTo, setAddingTo] = useState(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (visible) {
-      fetchPlaylists();
+      if (isAuthenticated) {
+        fetchPlaylists();
+      } else {
+        setPlaylists([]);
+        setLoading(false);
+      }
       setShowCreateInput(false);
       setNewPlaylistName('');
     }
-  }, [visible]);
+  }, [visible, isAuthenticated]);
 
   const fetchPlaylists = async () => {
     setLoading(true);
     try {
       const data = await libraryService.getLibrary();
+      console.log('Library data:', data);
       setPlaylists(data.playlists || []);
     } catch (error) {
       console.error('Error fetching playlists:', error);
@@ -44,15 +52,22 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
       Alert.alert('Error', 'No song selected');
       return;
     }
+
+    if (!isAuthenticated) {
+      Alert.alert('Login Required', 'Please log in to add songs to playlists');
+      onClose();
+      return;
+    }
     
     setAddingTo(playlistId);
     try {
+      console.log('Adding song to playlist:', playlistId, song.song_id);
       await libraryService.addToPlaylist(playlistId, song.song_id);
       Alert.alert('Added!', `"${song.title}" added to playlist`);
       onClose();
     } catch (error) {
       console.error('Error adding to playlist:', error);
-      Alert.alert('Error', 'Could not add song to playlist. Please try again.');
+      Alert.alert('Error', error.response?.data?.detail || 'Could not add song to playlist');
     } finally {
       setAddingTo(null);
     }
@@ -64,19 +79,33 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
       Alert.alert('Error', 'Please enter a playlist name');
       return;
     }
+
+    if (!isAuthenticated) {
+      Alert.alert('Login Required', 'Please log in to create playlists');
+      onClose();
+      return;
+    }
     
     Keyboard.dismiss();
     setCreating(true);
     
     try {
+      console.log('Creating playlist:', trimmedName);
       const result = await libraryService.createPlaylist(trimmedName);
+      console.log('Create playlist result:', result);
+      
+      if (!result || !result.playlist) {
+        throw new Error('Invalid response from server');
+      }
       
       // If we have a song, add it to the new playlist
-      if (song?.song_id && result?.playlist?.playlist_id) {
+      if (song?.song_id && result.playlist.playlist_id) {
         try {
+          console.log('Adding song to new playlist:', result.playlist.playlist_id);
           await libraryService.addToPlaylist(result.playlist.playlist_id, song.song_id);
           Alert.alert('Success!', `Created "${trimmedName}" and added "${song.title}"`);
         } catch (addError) {
+          console.error('Error adding song:', addError);
           Alert.alert('Playlist Created', `Created "${trimmedName}" but couldn't add the song.`);
         }
       } else {
@@ -90,21 +119,36 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
         onPlaylistCreated(result.playlist);
       }
       
-      fetchPlaylists();
       onClose();
     } catch (error) {
       console.error('Error creating playlist:', error);
-      Alert.alert('Error', 'Could not create playlist. Please try again.');
+      const errorMsg = error.response?.data?.detail || error.message || 'Could not create playlist';
+      Alert.alert('Error', errorMsg);
     } finally {
       setCreating(false);
     }
   };
 
+  const renderNotLoggedIn = () => (
+    <View style={styles.notLoggedIn}>
+      <Ionicons name="lock-closed-outline" size={48} color={COLORS.textMuted} />
+      <Text style={styles.notLoggedInTitle}>Login Required</Text>
+      <Text style={styles.notLoggedInText}>Please log in to create and manage playlists</Text>
+      <TouchableOpacity style={styles.loginBtn} onPress={onClose}>
+        <Text style={styles.loginBtnText}>Close</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderContent = () => {
+    if (!isAuthenticated) {
+      return renderNotLoggedIn();
+    }
+
     if (loading) {
       return (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#e91e63" />
           <Text style={styles.loaderText}>Loading playlists...</Text>
         </View>
       );
@@ -146,7 +190,7 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
               {creating ? (
                 <ActivityIndicator size="small" color="#000" />
               ) : (
-                <Text style={styles.confirmBtnText}>Create & Add</Text>
+                <Text style={styles.confirmBtnText}>Create</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -189,14 +233,14 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
           </View>
           <View style={styles.createNewInfo}>
             <Text style={styles.createNewText}>Create New Playlist</Text>
-            <Text style={styles.createNewSubtext}>Add "{song?.title}" to a new playlist</Text>
+            {song && <Text style={styles.createNewSubtext}>Add "{song.title?.substring(0, 25)}..." to a new playlist</Text>}
           </View>
           <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
         </TouchableOpacity>
 
         <View style={styles.divider} />
         
-        <Text style={styles.sectionTitle}>Your Playlists</Text>
+        <Text style={styles.sectionTitle}>Your Playlists ({playlists.length})</Text>
 
         {/* Existing Playlists */}
         <FlatList
@@ -219,11 +263,11 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
               <View style={styles.playlistInfo}>
                 <Text style={styles.playlistName}>{item.name}</Text>
                 <Text style={styles.playlistCount}>
-                  {item.songs?.length || item.song_count || 0} songs
+                  {item.songs?.length || 0} songs
                 </Text>
               </View>
               {addingTo === item.playlist_id ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <ActivityIndicator size="small" color="#e91e63" />
               ) : (
                 <View style={styles.addIconContainer}>
                   <Ionicons name="add-circle" size={28} color="#e91e63" />
@@ -330,6 +374,35 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     flex: 1,
+  },
+  // Not logged in
+  notLoggedIn: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 32,
+  },
+  notLoggedInTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  notLoggedInText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  loginBtn: {
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  loginBtnText: {
+    color: '#000',
+    fontWeight: '600',
   },
   // Empty state
   emptyState: {
@@ -500,7 +573,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 24,
-    minWidth: 120,
+    minWidth: 100,
     alignItems: 'center',
   },
   disabledBtn: {
