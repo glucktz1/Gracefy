@@ -368,6 +368,41 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - ✅ **Profile tab in bottom navigation**: Easy access to user profile and subscription
 - ✅ **Album loading optimization**: Caching for faster repeat loads
 
+### Phase 5.7 - Enhanced Admin Features (January 15, 2026)
+
+**Permission-Based UI Rendering:**
+- ✅ Sidebar items mapped to required permissions
+- ✅ Navigation filtered based on user's assigned role permissions
+- ✅ Permissions fetched on admin login via `/api/rbac/users/{id}/permissions`
+- ✅ Fallback to full permissions for existing admins
+
+**Dashboard User Demographics:**
+- ✅ New endpoint: GET `/api/analytics/user-demographics`
+- ✅ Device Type distribution (Android, iOS, Web)
+- ✅ Gender distribution chart
+- ✅ Age groups bar chart (0-17, 18-24, 25-34, 35-44, 45-54, 55+)
+- ✅ Top locations with progress bars
+- ✅ Visual charts using Recharts (PieChart, BarChart)
+
+**Special Mixes (Curated Albums):**
+- ✅ New collection: `special_mixes` for admin-curated albums
+- ✅ Backend endpoints:
+  - GET `/api/special-mixes` - List all special mixes
+  - GET `/api/special-mixes/{mix_id}` - Get mix with songs
+  - POST `/api/special-mixes` - Create mix from songs across albums
+  - PUT `/api/special-mixes/{mix_id}` - Update mix
+  - DELETE `/api/special-mixes/{mix_id}` - Delete mix
+  - GET `/api/albums/all-songs` - Get all songs grouped by album for selection
+- ✅ Admin UI: `/special-mixes` page with:
+  - Mix cards with thumbnail, title, song count, duration
+  - Create/Edit modal with song picker from all albums
+  - Drag-and-drop song reordering
+  - Monetization type and featured flag
+- ✅ Layout Manager Integration:
+  - New section type: `special_mixes`
+  - Special mixes can be added to home screen via Layout Manager
+  - Mixes displayed with `is_special_mix: true` flag for mobile app
+
 ### Phase 5.6 - Role-Based Access Control (January 15, 2026)
 
 **System Roles Implemented (9 roles):**
