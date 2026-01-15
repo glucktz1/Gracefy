@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { contentService } from '../services/api';
+import { contentService, getThumbnailUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import SongListItem from '../components/SongListItem';
 import MiniPlayer from '../components/MiniPlayer';
