@@ -1784,15 +1784,19 @@ async def get_user_subscription_status(request: Request):
     auth_header = request.headers.get("Authorization", "")
     user_id = None
     is_premium = False
+    is_trial = False
+    trial_info = None
+    subscription_info = None
     
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
         token_doc = await db.user_tokens.find_one({"token": token})
         if token_doc:
             user_id = token_doc.get("user_id")
-            # Check if user has active subscription
+            # Check if user has active subscription or trial
             user = await db.app_users.find_one({"user_id": user_id})
             if user:
+                # Check paid subscription first
                 subscription = user.get("subscription", {})
                 if subscription.get("status") == "active":
                     expires_at = subscription.get("expires_at")
@@ -1801,8 +1805,46 @@ async def get_user_subscription_status(request: Request):
                             exp_date = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
                             if exp_date > datetime.now(timezone.utc):
                                 is_premium = True
+                                subscription_info = {
+                                    "type": "paid",
+                                    "plan": subscription.get("plan_name", "Premium"),
+                                    "expires_at": expires_at,
+                                    "days_remaining": (exp_date - datetime.now(timezone.utc)).days
+                                }
                         except:
                             pass
+                
+                # If not premium, check trial status
+                if not is_premium:
+                    trial = user.get("trial", {})
+                    if trial and trial.get("status") == "active":
+                        trial_expires = trial.get("expires_at")
+                        if trial_expires:
+                            try:
+                                exp_date = datetime.fromisoformat(trial_expires.replace("Z", "+00:00"))
+                                if exp_date > datetime.now(timezone.utc):
+                                    is_premium = True
+                                    is_trial = True
+                                    days_remaining = (exp_date - datetime.now(timezone.utc)).days
+                                    trial_info = {
+                                        "status": "active",
+                                        "started_at": trial.get("started_at"),
+                                        "expires_at": trial_expires,
+                                        "days_remaining": days_remaining,
+                                        "days_granted": trial.get("days_granted", 7)
+                                    }
+                                else:
+                                    # Trial expired - update user record
+                                    await db.app_users.update_one(
+                                        {"user_id": user_id},
+                                        {"$set": {"trial.status": "expired"}}
+                                    )
+                                    trial_info = {
+                                        "status": "expired",
+                                        "expired_at": trial_expires
+                                    }
+                            except:
+                                pass
     
     # Get feature controls
     controls_doc = await db.subscription_feature_controls.find_one({"_id": "feature_controls"})
@@ -1811,11 +1853,22 @@ async def get_user_subscription_status(request: Request):
     tier = "premium" if is_premium else "free"
     user_controls = all_controls.get(tier, all_controls.get("free", DEFAULT_FEATURE_CONTROLS["free"]))
     
+    # Get trial settings for display
+    settings = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    trial_settings = {
+        "enabled": settings.get("free_trial_enabled", True) if settings else True,
+        "days": settings.get("free_trial_days", 7) if settings else 7
+    }
+    
     return {
         "user_id": user_id,
         "is_premium": is_premium,
+        "is_trial": is_trial,
         "subscription_tier": tier,
-        "features": user_controls
+        "features": user_controls,
+        "subscription": subscription_info,
+        "trial": trial_info,
+        "trial_settings": trial_settings
     }
 
 # ============== LISTENING SESSIONS (for tracking) ==============
