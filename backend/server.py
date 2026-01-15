@@ -1083,6 +1083,295 @@ async def get_trends():
         ]
     }
 
+@api_router.get("/analytics/user-demographics")
+async def get_user_demographics():
+    """Get user demographics statistics - location, age, gender, device type"""
+    
+    # Get app users for demographics
+    app_users = await db.app_users.find({}, {"_id": 0}).to_list(10000)
+    
+    # Process demographics
+    location_stats = {}
+    age_stats = {"0-17": 0, "18-24": 0, "25-34": 0, "35-44": 0, "45-54": 0, "55+": 0, "unknown": 0}
+    gender_stats = {"male": 0, "female": 0, "other": 0, "unknown": 0}
+    device_stats = {"android": 0, "ios": 0, "web": 0, "unknown": 0}
+    
+    from datetime import datetime
+    current_year = datetime.now().year
+    
+    for user in app_users:
+        # Location
+        location = user.get("location") or user.get("country") or "Unknown"
+        location_stats[location] = location_stats.get(location, 0) + 1
+        
+        # Age calculation
+        birth_year = user.get("birth_year")
+        if birth_year:
+            age = current_year - int(birth_year)
+            if age < 18:
+                age_stats["0-17"] += 1
+            elif age < 25:
+                age_stats["18-24"] += 1
+            elif age < 35:
+                age_stats["25-34"] += 1
+            elif age < 45:
+                age_stats["35-44"] += 1
+            elif age < 55:
+                age_stats["45-54"] += 1
+            else:
+                age_stats["55+"] += 1
+        else:
+            age_stats["unknown"] += 1
+        
+        # Gender
+        gender = (user.get("gender") or "unknown").lower()
+        if gender in gender_stats:
+            gender_stats[gender] += 1
+        else:
+            gender_stats["unknown"] += 1
+        
+        # Device type
+        device = (user.get("device_type") or user.get("last_device") or "unknown").lower()
+        if "android" in device:
+            device_stats["android"] += 1
+        elif "ios" in device or "iphone" in device or "ipad" in device:
+            device_stats["ios"] += 1
+        elif "web" in device or "browser" in device:
+            device_stats["web"] += 1
+        else:
+            device_stats["unknown"] += 1
+    
+    # Sort locations by count and get top 10
+    top_locations = sorted(location_stats.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    # Format for charts
+    location_chart = [{"name": loc, "value": count} for loc, count in top_locations]
+    age_chart = [{"name": age_range, "value": count} for age_range, count in age_stats.items() if count > 0]
+    gender_chart = [{"name": gender.capitalize(), "value": count} for gender, count in gender_stats.items() if count > 0]
+    device_chart = [{"name": device.upper() if device != "unknown" else "Unknown", "value": count} for device, count in device_stats.items() if count > 0]
+    
+    total_users = len(app_users)
+    
+    return {
+        "total_users": total_users,
+        "location": {
+            "data": location_chart,
+            "total_locations": len(location_stats)
+        },
+        "age": {
+            "data": age_chart,
+            "breakdown": age_stats
+        },
+        "gender": {
+            "data": gender_chart,
+            "breakdown": gender_stats
+        },
+        "device": {
+            "data": device_chart,
+            "breakdown": device_stats
+        }
+    }
+
+# ============== SPECIAL MIX ALBUMS ==============
+
+@api_router.get("/special-mixes")
+async def get_special_mixes():
+    """Get all special mix albums"""
+    mixes = await db.special_mixes.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"mixes": mixes, "total": len(mixes)}
+
+@api_router.get("/special-mixes/{mix_id}")
+async def get_special_mix(mix_id: str):
+    """Get a specific special mix with its songs"""
+    mix = await db.special_mixes.find_one({"mix_id": mix_id}, {"_id": 0})
+    if not mix:
+        raise HTTPException(status_code=404, detail="Special mix not found")
+    
+    # Get full song details
+    song_ids = [s.get("song_id") for s in mix.get("songs", [])]
+    songs = await db.songs.find({"song_id": {"$in": song_ids}}, {"_id": 0}).to_list(100)
+    song_map = {s["song_id"]: s for s in songs}
+    
+    # Enrich mix songs with full details
+    enriched_songs = []
+    for s in mix.get("songs", []):
+        song_data = song_map.get(s.get("song_id"), {})
+        enriched_songs.append({**s, **song_data})
+    
+    mix["songs"] = enriched_songs
+    return mix
+
+@api_router.post("/special-mixes")
+async def create_special_mix(data: dict):
+    """Create a new special mix album from songs across different albums"""
+    title = data.get("title")
+    description = data.get("description", "")
+    songs = data.get("songs", [])  # List of {song_id, album_id, order}
+    thumbnail = data.get("thumbnail")
+    category_id = data.get("category_id")
+    category_name = data.get("category_name")
+    monetization_type = data.get("monetization_type", "standard")
+    is_featured = data.get("is_featured", False)
+    created_by = data.get("created_by", "admin")
+    
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+    if not songs or len(songs) == 0:
+        raise HTTPException(status_code=400, detail="At least one song is required")
+    
+    # Validate songs exist and get their details
+    song_ids = [s.get("song_id") for s in songs]
+    existing_songs = await db.songs.find({"song_id": {"$in": song_ids}}, {"_id": 0}).to_list(100)
+    existing_ids = {s["song_id"] for s in existing_songs}
+    
+    invalid_songs = [sid for sid in song_ids if sid not in existing_ids]
+    if invalid_songs:
+        raise HTTPException(status_code=400, detail=f"Invalid song IDs: {invalid_songs}")
+    
+    # Build song list with details
+    song_map = {s["song_id"]: s for s in existing_songs}
+    mix_songs = []
+    for i, s in enumerate(songs):
+        song_data = song_map.get(s.get("song_id"), {})
+        mix_songs.append({
+            "song_id": s.get("song_id"),
+            "album_id": s.get("album_id") or song_data.get("album_id"),
+            "title": song_data.get("title"),
+            "artist_name": song_data.get("artist_name"),
+            "duration": song_data.get("duration"),
+            "duration_formatted": song_data.get("duration_formatted"),
+            "audio_url": song_data.get("audio_url"),
+            "order": s.get("order", i + 1)
+        })
+    
+    # Calculate total duration
+    total_duration = sum(s.get("duration", 0) for s in mix_songs if s.get("duration"))
+    
+    mix_id = f"mix_{uuid.uuid4().hex[:12]}"
+    mix = {
+        "mix_id": mix_id,
+        "title": title,
+        "description": description,
+        "thumbnail": thumbnail,
+        "category_id": category_id,
+        "category_name": category_name,
+        "monetization_type": monetization_type,
+        "is_featured": is_featured,
+        "songs": mix_songs,
+        "songs_count": len(mix_songs),
+        "total_duration": total_duration,
+        "total_plays": 0,
+        "status": "active",
+        "created_by": created_by,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": None
+    }
+    
+    await db.special_mixes.insert_one(mix)
+    
+    return {"message": "Special mix created successfully", "mix_id": mix_id, "mix": {k: v for k, v in mix.items() if k != "_id"}}
+
+@api_router.put("/special-mixes/{mix_id}")
+async def update_special_mix(mix_id: str, data: dict):
+    """Update a special mix album"""
+    update_fields = {}
+    
+    if "title" in data:
+        update_fields["title"] = data["title"]
+    if "description" in data:
+        update_fields["description"] = data["description"]
+    if "thumbnail" in data:
+        update_fields["thumbnail"] = data["thumbnail"]
+    if "category_id" in data:
+        update_fields["category_id"] = data["category_id"]
+    if "category_name" in data:
+        update_fields["category_name"] = data["category_name"]
+    if "monetization_type" in data:
+        update_fields["monetization_type"] = data["monetization_type"]
+    if "is_featured" in data:
+        update_fields["is_featured"] = data["is_featured"]
+    if "status" in data:
+        update_fields["status"] = data["status"]
+    
+    # Handle song updates
+    if "songs" in data:
+        songs = data["songs"]
+        song_ids = [s.get("song_id") for s in songs]
+        existing_songs = await db.songs.find({"song_id": {"$in": song_ids}}, {"_id": 0}).to_list(100)
+        song_map = {s["song_id"]: s for s in existing_songs}
+        
+        mix_songs = []
+        for i, s in enumerate(songs):
+            song_data = song_map.get(s.get("song_id"), {})
+            mix_songs.append({
+                "song_id": s.get("song_id"),
+                "album_id": s.get("album_id") or song_data.get("album_id"),
+                "title": song_data.get("title"),
+                "artist_name": song_data.get("artist_name"),
+                "duration": song_data.get("duration"),
+                "duration_formatted": song_data.get("duration_formatted"),
+                "audio_url": song_data.get("audio_url"),
+                "order": s.get("order", i + 1)
+            })
+        
+        update_fields["songs"] = mix_songs
+        update_fields["songs_count"] = len(mix_songs)
+        update_fields["total_duration"] = sum(s.get("duration", 0) for s in mix_songs if s.get("duration"))
+    
+    update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.special_mixes.update_one({"mix_id": mix_id}, {"$set": update_fields})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Special mix not found")
+    
+    return {"message": "Special mix updated successfully"}
+
+@api_router.delete("/special-mixes/{mix_id}")
+async def delete_special_mix(mix_id: str):
+    """Delete a special mix album"""
+    result = await db.special_mixes.delete_one({"mix_id": mix_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Special mix not found")
+    return {"message": "Special mix deleted successfully"}
+
+@api_router.get("/special-mixes/{mix_id}/songs")
+async def get_special_mix_songs(mix_id: str):
+    """Get songs in a special mix for playback"""
+    mix = await db.special_mixes.find_one({"mix_id": mix_id}, {"_id": 0})
+    if not mix:
+        raise HTTPException(status_code=404, detail="Special mix not found")
+    
+    return {
+        "mix_id": mix_id,
+        "title": mix.get("title"),
+        "songs": mix.get("songs", [])
+    }
+
+@api_router.get("/albums/all-songs")
+async def get_all_songs_for_mix():
+    """Get all songs from all albums for creating special mixes"""
+    albums = await db.albums.find({"status": "active"}, {"_id": 0}).to_list(500)
+    songs = await db.songs.find({"status": "active"}, {"_id": 0}).to_list(5000)
+    
+    # Group songs by album
+    album_map = {a["album_id"]: a for a in albums}
+    songs_by_album = {}
+    
+    for song in songs:
+        album_id = song.get("album_id")
+        if album_id not in songs_by_album:
+            album_info = album_map.get(album_id, {})
+            songs_by_album[album_id] = {
+                "album_id": album_id,
+                "album_title": album_info.get("title", "Unknown Album"),
+                "album_thumbnail": album_info.get("thumbnail"),
+                "artist_name": album_info.get("artist_name"),
+                "songs": []
+            }
+        songs_by_album[album_id]["songs"].append(song)
+    
+    return {"albums": list(songs_by_album.values()), "total_songs": len(songs)}
+
 # ============== USERS MANAGEMENT ==============
 
 @api_router.get("/users")
