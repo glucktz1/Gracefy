@@ -520,6 +520,11 @@ export default function ChurchesPage() {
                       <DropdownMenuItem onClick={() => openAnnouncementModal(church)} className="text-zinc-300">
                         <Bell size={14} className="mr-2" /> Add Announcement
                       </DropdownMenuItem>
+                      {church.status === "approved" && (
+                        <DropdownMenuItem onClick={() => openLeaderAccountModal(church)} className="text-violet-400">
+                          <Key size={14} className="mr-2" /> Create Leader Account
+                        </DropdownMenuItem>
+                      )}
                       {church.google_maps_url && (
                         <DropdownMenuItem onClick={() => window.open(church.google_maps_url, '_blank')} className="text-zinc-300">
                           <ExternalLink size={14} className="mr-2" /> View on Map
