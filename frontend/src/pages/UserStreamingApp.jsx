@@ -1026,11 +1026,28 @@ export default function UserStreamingApp() {
               )}
 
               <div className="px-4 lg:px-6 pt-6 space-y-8">
-                {/* Greeting + Quick Access Grid (right below hero) */}
+                {/* Quick Access Grid - 8 tiles, no header, user items first */}
                 <section>
-                  <h2 className="text-xl md:text-2xl font-bold mb-4">{greeting}</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {quickAccessItems.slice(0, 6).map((item, i) => (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {/* User items first */}
+                    <QuickAccessCard 
+                      item={{ type: 'liked_songs', name: 'Liked Songs' }} 
+                      onClick={() => { setView('library'); setLibraryTab && setLibraryTab('liked'); }}
+                    />
+                    <QuickAccessCard 
+                      item={{ type: 'playlists', name: 'Playlists' }} 
+                      onClick={() => { setView('library'); setLibraryTab && setLibraryTab('playlists'); }}
+                    />
+                    <QuickAccessCard 
+                      item={{ type: 'downloads', name: 'Downloads' }} 
+                      onClick={() => { setView('library'); setLibraryTab && setLibraryTab('downloads'); }}
+                    />
+                    <QuickAccessCard 
+                      item={{ type: 'library', name: 'My Library' }} 
+                      onClick={() => setView('library')}
+                    />
+                    {/* Admin configured items (up to 4 more) */}
+                    {quickAccessItems.slice(0, 4).map((item, i) => (
                       <QuickAccessCard 
                         key={item.category_id || item.album_id || i} 
                         item={item} 
