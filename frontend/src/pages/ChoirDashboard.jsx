@@ -750,6 +750,36 @@ export default function ChoirDashboard() {
               </Card>
             </div>
 
+            {/* Edit Requests */}
+            {myEditRequests.length > 0 && (
+              <Card className="bg-zinc-900/50 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-white text-base flex items-center gap-2">
+                    <FileText size={18} className="text-violet-400" />
+                    Edit Requests
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {myEditRequests.map((req) => (
+                      <div key={req.request_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                        <div>
+                          <p className="text-white font-medium">{req.updated_data?.title || req.original_data?.title}</p>
+                          <p className="text-xs text-zinc-500">
+                            {req.content_type === "album" ? "Album" : "Song"} Edit • {new Date(req.created_at).toLocaleDateString()}
+                          </p>
+                          {req.admin_notes && (
+                            <p className="text-xs text-amber-400 mt-1">{req.admin_notes}</p>
+                          )}
+                        </div>
+                        {getStatusBadge(req.status)}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Payment Details Status */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
