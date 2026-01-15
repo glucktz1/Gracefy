@@ -136,7 +136,7 @@ export default function ApprovalsPage() {
     }
   };
 
-  const totalPending = approvals.total + contentRequests.length + paymentRequests.length;
+  const totalPending = approvals.total + contentRequests.length + paymentRequests.length + contentEditRequests.length + churchLeaderAccounts.length;
 
   if (loading) {
     return (
