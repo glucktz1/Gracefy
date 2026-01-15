@@ -694,25 +694,120 @@ export default function ChurchesPage() {
 
             {/* Images */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide">Images</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide">Images (Upload)</h3>
+              <div className="grid grid-cols-3 gap-4">
+                {/* Thumbnail Upload */}
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Thumbnail URL</label>
-                  <Input
-                    value={formData.thumbnail}
-                    onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    placeholder="https://..."
-                  />
+                  <label className="text-sm text-zinc-400 mb-2 block">Church Thumbnail</label>
+                  <div className="relative">
+                    <div 
+                      className={`w-full h-24 rounded-lg border-2 border-dashed ${formData.thumbnail ? 'border-violet-500' : 'border-zinc-700'} bg-zinc-950 flex items-center justify-center overflow-hidden cursor-pointer hover:border-violet-400 transition-colors`}
+                      onClick={() => document.getElementById('thumbnail-upload').click()}
+                    >
+                      {uploadingImage.thumbnail ? (
+                        <div className="animate-spin w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full" />
+                      ) : formData.thumbnail ? (
+                        <img src={formData.thumbnail} alt="Thumbnail" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center">
+                          <Upload size={20} className="mx-auto text-zinc-500 mb-1" />
+                          <span className="text-xs text-zinc-500">Click to upload</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      id="thumbnail-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e.target.files[0], 'thumbnail')}
+                    />
+                    {formData.thumbnail && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, thumbnail: "" })}
+                        className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 hover:bg-red-700"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Cover Image Upload */}
                 <div>
-                  <label className="text-sm text-zinc-400 mb-1 block">Cover Image URL</label>
-                  <Input
-                    value={formData.cover_image}
-                    onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
-                    className="bg-zinc-950 border-zinc-800 text-white"
-                    placeholder="https://..."
-                  />
+                  <label className="text-sm text-zinc-400 mb-2 block">Cover Image</label>
+                  <div className="relative">
+                    <div 
+                      className={`w-full h-24 rounded-lg border-2 border-dashed ${formData.cover_image ? 'border-violet-500' : 'border-zinc-700'} bg-zinc-950 flex items-center justify-center overflow-hidden cursor-pointer hover:border-violet-400 transition-colors`}
+                      onClick={() => document.getElementById('cover-upload').click()}
+                    >
+                      {uploadingImage.cover ? (
+                        <div className="animate-spin w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full" />
+                      ) : formData.cover_image ? (
+                        <img src={formData.cover_image} alt="Cover" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center">
+                          <Upload size={20} className="mx-auto text-zinc-500 mb-1" />
+                          <span className="text-xs text-zinc-500">Click to upload</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      id="cover-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e.target.files[0], 'cover')}
+                    />
+                    {formData.cover_image && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, cover_image: "" })}
+                        className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 hover:bg-red-700"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Leader Photo Upload */}
+                <div>
+                  <label className="text-sm text-zinc-400 mb-2 block">Leader Photo</label>
+                  <div className="relative">
+                    <div 
+                      className={`w-full h-24 rounded-lg border-2 border-dashed ${formData.leader_photo ? 'border-violet-500' : 'border-zinc-700'} bg-zinc-950 flex items-center justify-center overflow-hidden cursor-pointer hover:border-violet-400 transition-colors`}
+                      onClick={() => document.getElementById('leader-upload').click()}
+                    >
+                      {uploadingImage.leader ? (
+                        <div className="animate-spin w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full" />
+                      ) : formData.leader_photo ? (
+                        <img src={formData.leader_photo} alt="Leader" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center">
+                          <User size={20} className="mx-auto text-zinc-500 mb-1" />
+                          <span className="text-xs text-zinc-500">Leader photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      id="leader-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e.target.files[0], 'leader')}
+                    />
+                    {formData.leader_photo && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, leader_photo: "" })}
+                        className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 hover:bg-red-700"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
