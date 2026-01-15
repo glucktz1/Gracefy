@@ -241,6 +241,18 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
           
+          <TouchableOpacity style={styles.menuItem} onPress={handleManageSubscription}>
+            <Ionicons name="card-outline" size={24} color="#e91e63" />
+            <Text style={styles.menuText}>Subscription</Text>
+            {isPremium ? (
+              <View style={styles.premiumIndicator}>
+                <Text style={styles.premiumIndicatorText}>Active</Text>
+              </View>
+            ) : (
+              <Text style={styles.upgradeIndicator}>Upgrade</Text>
+            )}
+          </TouchableOpacity>
+          
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Library')}>
             <Ionicons name="heart-outline" size={24} color={COLORS.textPrimary} />
             <Text style={styles.menuText}>Liked Songs</Text>
