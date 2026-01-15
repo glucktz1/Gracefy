@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { contentService, getThumbnailUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { downloadSong, isSongDownloaded } from '../services/downloadService';
 import SongListItem from '../components/SongListItem';
 import MiniPlayer from '../components/MiniPlayer';
@@ -30,6 +31,19 @@ export default function AlbumScreen({ route, navigation }) {
   const [retryCount, setRetryCount] = useState(0);
   
   const { playSong, currentSong, isPlaying, togglePlay } = usePlayer();
+  const { 
+    isPremium, 
+    canPerformAction, 
+    showUpgradePrompt,
+    isShuffleForced,
+    isPremiumContent,
+    features,
+  } = useSubscription();
+
+  // Navigate to subscription screen
+  const goToSubscription = (feature) => {
+    navigation.navigate('Subscription', { lockedFeature: feature });
+  };
 
   useEffect(() => {
     if (albumId) {
