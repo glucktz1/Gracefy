@@ -3,7 +3,7 @@ import axios from "axios";
 import { 
   Church, Plus, Edit2, Trash2, MoreVertical, MapPin, Clock, Bell, 
   User, Phone, Mail, Globe, Image, Check, X, Calendar, Users,
-  ExternalLink, ChevronDown, ChevronRight
+  ExternalLink, ChevronDown, ChevronRight, Upload, Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
