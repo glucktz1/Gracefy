@@ -392,6 +392,8 @@ export default function AlbumScreen({ route, navigation }) {
                 queue={songQueue}
                 showIndex={true}
                 onAddToPlaylist={handleAddToPlaylist}
+                onSongPress={handleSongSelect}
+                showLockIcon={!isPremium && !features.song_selection}
               />
             ))
           ) : (
