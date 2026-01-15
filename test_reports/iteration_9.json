@@ -1,0 +1,122 @@
+{
+  "summary": "Church CRUD, Announcements, Follow System, and Layout Sections testing complete. Backend: 40/40 tests passed (100%). All church management endpoints working correctly - CRUD operations, approval/rejection workflow, announcements CRUD, user follow/unfollow system with authentication, and layout sections supporting 'choirs' and 'churches' types.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/singers",
+        "issue": "Some singer records in database have 'followers' field instead of 'followers_count'. The Singer model defines 'followers_count' but old records may have 'followers'. This is a data inconsistency.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "GET /api/churches - List all churches",
+    "GET /api/churches?status=pending - Filter by status",
+    "POST /api/churches - Create new church with all fields (name, denomination, location, address, city, country, direction, lat/lng, google_maps_url, bio, leader info, images, prayer_schedule, contact info)",
+    "GET /api/churches/{church_id} - Get single church with all fields",
+    "GET /api/churches/invalid_id - Returns 404",
+    "PUT /api/churches/{church_id} - Update church details",
+    "PUT /api/churches/invalid_id - Returns 404",
+    "POST /api/churches/{church_id}/approve - Admin approve church (sets status=approved, approved_by, admin_notes)",
+    "POST /api/churches/{church_id}/reject - Admin reject church (sets status=rejected, admin_notes)",
+    "POST /api/churches/invalid_id/approve - Returns 404",
+    "DELETE /api/churches/{church_id} - Delete church",
+    "DELETE /api/churches/invalid_id - Returns 404",
+    "GET /api/churches/{church_id}/full - Get church with announcements",
+    "GET /api/churches/{church_id}/announcements - List announcements",
+    "POST /api/churches/{church_id}/announcements - Create announcement (date, title, type, description, time, location, contact info, recurring)",
+    "PUT /api/churches/{church_id}/announcements/{announcement_id} - Update announcement",
+    "DELETE /api/churches/{church_id}/announcements/{announcement_id} - Delete announcement",
+    "POST /api/churches/invalid_id/announcements - Returns 404",
+    "POST /api/user/register - Register test user",
+    "POST /api/user/login - Login and get token",
+    "POST /api/user/follow - Follow a church (requires auth, increments followers_count)",
+    "POST /api/user/follow - Follow a choir (requires auth, increments followers_count)",
+    "POST /api/user/follow - Already following returns 400",
+    "GET /api/user/is-following/{entity_type}/{entity_id} - Check if following (returns true)",
+    "GET /api/user/is-following - Not following returns is_following=false",
+    "GET /api/user/following - Get user's followed entities (grouped by churches/choirs)",
+    "DELETE /api/user/unfollow - Unfollow entity (requires auth, decrements followers_count)",
+    "POST /api/user/follow without auth - Returns 401",
+    "GET /api/user/following without auth - Returns 401",
+    "GET /api/singers - List singers/choirs",
+    "GET /api/singers?type=choir - Filter by type",
+    "GET /api/layout/sections - Get all layout sections",
+    "POST /api/layout/sections - Create section with type 'choirs'",
+    "POST /api/layout/sections - Create section with type 'churches'",
+    "Verify followers_count incremented on church after follow",
+    "Verify followers_count incremented on singer after follow",
+    "Verify is_following=false after unfollow"
+  ],
+  "test_report_links": [
+    "/app/tests/test_church_follow_system.py",
+    "/app/test_reports/pytest/church_follow_results.xml"
+  ],
+  "action_items": [
+    "Consider adding migration to update old singer records from 'followers' to 'followers_count' field for consistency"
+  ],
+  "critical_code_review_comments": [
+    "Church model correctly includes all required fields: images (thumbnail, cover_image, gallery_images), prayer_schedule (structured list), location details (lat/lng, google_maps_url), leader info, contact info",
+    "Church approval workflow correctly sets status, approved_by, approved_at, admin_notes",
+    "ChurchAnnouncement model includes auto-expiry (expires_at set to 2 weeks from date)",
+    "UserFollow model correctly tracks user_id, entity_type (church/choir/artist), entity_id with notifications_enabled flag",
+    "Follow/unfollow endpoints correctly increment/decrement followers_count on churches and singers",
+    "Layout sections support 'choirs' and 'churches' as section_type and content_type",
+    "SMS notifications are MOCKED - they log to database instead of sending real SMS"
+  ],
+  "updated_files": [
+    "/app/tests/test_church_follow_system.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (40/40 tests passed)",
+    "frontend": "N/A (backend only testing requested)"
+  },
+  "test_credentials": {
+    "test_user_email": "Dynamically generated TEST_church_*_follow_user@example.com",
+    "test_user_password": "TestPass123!"
+  },
+  "seed_data_creation": "Test churches, singers, announcements, and user follows created during pytest run with TEST_church_* prefix. Cleanup runs after tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "mocked_apis": {
+    "SMS_notifications": "MOCKED - SMS notifications log to database (sms_notifications collection) instead of sending real SMS. Provider field shows 'mock' and status shows 'mock_sent'"
+  },
+  "features_verified": {
+    "church_crud": {
+      "create": "POST /api/churches - Creates church with all fields, default status='pending'",
+      "read": "GET /api/churches, GET /api/churches/{id}, GET /api/churches/{id}/full",
+      "update": "PUT /api/churches/{id}",
+      "delete": "DELETE /api/churches/{id}",
+      "filter": "GET /api/churches?status=pending|approved|rejected"
+    },
+    "church_approval": {
+      "approve": "POST /api/churches/{id}/approve - Sets status='approved', approved_by, approved_at, admin_notes",
+      "reject": "POST /api/churches/{id}/reject - Sets status='rejected', admin_notes"
+    },
+    "church_announcements": {
+      "create": "POST /api/churches/{id}/announcements",
+      "list": "GET /api/churches/{id}/announcements",
+      "update": "PUT /api/churches/{id}/announcements/{ann_id}",
+      "delete": "DELETE /api/churches/{id}/announcements/{ann_id}",
+      "types": "general, offering, baptism, adoration, wedding, funeral, meeting, event, other"
+    },
+    "follow_system": {
+      "follow": "POST /api/user/follow - Requires Bearer token, entity_type (church/choir/artist), entity_id",
+      "unfollow": "DELETE /api/user/unfollow - Requires Bearer token",
+      "check": "GET /api/user/is-following/{entity_type}/{entity_id}",
+      "list": "GET /api/user/following - Returns {churches: [], choirs: [], total: n}",
+      "followers_count": "Automatically incremented/decremented on follow/unfollow"
+    },
+    "layout_sections": {
+      "section_types": "hero, quick_access, featured_albums, seasonal, trending, cta, custom, choirs, churches, special_mixes",
+      "content_types": "categories, albums, songs, playlists, custom, choirs, churches, special_mixes"
+    }
+  },
+  "context_for_next_testing_agent": "Church and Follow system fully tested and working. All CRUD operations for churches and announcements verified. Follow system requires user authentication via Bearer token from /api/user/login. Layout sections support 'choirs' and 'churches' types. SMS notifications are MOCKED. Test file: /app/tests/test_church_follow_system.py. Previous iterations (1-8) context preserved."
+}
