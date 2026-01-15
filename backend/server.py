@@ -4504,7 +4504,9 @@ async def request_album_edit(album_id: str, data: dict, request: Request):
     if not album:
         raise HTTPException(status_code=404, detail="Album not found")
     
-    if album.get("singer_id") != session["choir_id"]:
+    # Check ownership using both singer_id and artist_id (for backwards compatibility)
+    album_owner = album.get("singer_id") or album.get("artist_id")
+    if album_owner != session["choir_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to edit this album")
     
     account = await db.choir_accounts.find_one({"choir_id": session["choir_id"]}, {"_id": 0})
