@@ -3,7 +3,8 @@ import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { sessionService, getAudioUrl } from '../services/api';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { Platform, Alert, Share } from 'react-native';
+import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from '../services/downloadService';
 
 const PlayerContext = createContext(null);
 
@@ -26,6 +27,9 @@ export const PlayerProvider = ({ children }) => {
   const [repeat, setRepeat] = useState('off'); // off, all, one
   const [error, setError] = useState(null);
   const [liked, setLiked] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const soundRef = useRef(null);
   const sessionIdRef = useRef(null);
@@ -126,7 +130,7 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       
-      console.log('Loading song:', song.title, 'Audio URL:', song.audio_url);
+      console.log('Loading song:', song.title, 'Song ID:', song.song_id);
       
       // CRITICAL: Stop and unload any existing sound FIRST
       await stopAndUnloadSound();
@@ -141,34 +145,41 @@ export const PlayerProvider = ({ children }) => {
         sessionIdRef.current = null;
       }
       
-      // Determine audio URL
+      // Determine audio URL - First check for local download
       let audioUrl = null;
+      let isLocalFile = false;
       
-      // Try to get the actual audio URL
-      if (song.audio_url) {
-        audioUrl = getAudioUrl(song.audio_url);
-        console.log('Resolved audio URL:', audioUrl);
-      }
-      
-      // Fallback to sample audio if no URL
-      if (!audioUrl) {
-        console.log('No audio URL found, using sample audio');
-        audioUrl = SAMPLE_AUDIO;
-      }
-      
-      // Check if file is downloaded locally
+      // Check if file is downloaded locally FIRST (highest priority)
       try {
-        const downloadPath = `${FileSystem.documentDirectory}songs/${song.song_id}.mp3`;
-        const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-        if (fileInfo.exists) {
-          console.log('Using downloaded file:', downloadPath);
-          audioUrl = downloadPath;
+        const localPath = await getLocalSongPath(song.song_id);
+        if (localPath) {
+          console.log('Using downloaded file:', localPath);
+          audioUrl = localPath;
+          isLocalFile = true;
+          setIsDownloaded(true);
+        } else {
+          setIsDownloaded(false);
         }
       } catch (e) {
-        // Ignore file check errors
+        console.log('Error checking local file:', e);
+        setIsDownloaded(false);
       }
       
-      console.log('Final audio URL:', audioUrl);
+      // If not local, try to get the remote audio URL
+      if (!audioUrl) {
+        if (song.audio_url) {
+          audioUrl = getAudioUrl(song.audio_url);
+          console.log('Resolved remote audio URL:', audioUrl);
+        }
+        
+        // Fallback to sample audio if no URL
+        if (!audioUrl) {
+          console.log('No audio URL found, using sample audio');
+          audioUrl = SAMPLE_AUDIO;
+        }
+      }
+      
+      console.log('Final audio URL:', audioUrl, 'isLocal:', isLocalFile);
       
       // Create and load sound with background playback support
       const { sound } = await Audio.Sound.createAsync(
@@ -240,7 +251,7 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const playSong = async (song, album, songQueue = [], index = 0) => {
-    console.log('playSong called:', song?.title);
+    console.log('playSong called:', song?.title, 'albumId:', album?.album_id);
     setQueue(songQueue.length > 0 ? songQueue : [{ song, album }]);
     setQueueIndex(index);
     await loadAndPlaySong(song, album);
@@ -363,6 +374,66 @@ export const PlayerProvider = ({ children }) => {
     console.log('Adding song to playlist:', playlistId);
   };
 
+  // Share song
+  const shareSong = async () => {
+    if (!currentSong) return;
+    
+    try {
+      await Share.share({
+        message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!\n\nDownload the app to listen now.`,
+        title: `${currentSong.title} - Spirit Songs`,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  // Download current song for offline listening
+  const downloadCurrentSong = async () => {
+    if (!currentSong || !currentAlbum) return;
+    
+    if (isDownloaded) {
+      // Remove download
+      Alert.alert(
+        'Remove Download',
+        'This will remove the offline version of this song.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await removeDownload(currentSong.song_id);
+                setIsDownloaded(false);
+                Alert.alert('Removed', 'Song removed from downloads');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to remove download');
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      // Download the song
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      
+      try {
+        await downloadSong(currentSong, currentAlbum, (progress) => {
+          setDownloadProgress(progress);
+        });
+        setIsDownloaded(true);
+        setIsDownloading(false);
+        Alert.alert('Downloaded', 'Song is now available offline');
+      } catch (error) {
+        console.error('Download error:', error);
+        setIsDownloading(false);
+        Alert.alert('Download Failed', error.message || 'Could not download song');
+      }
+    }
+  };
+
   const value = {
     currentSong,
     currentAlbum,
@@ -376,6 +447,9 @@ export const PlayerProvider = ({ children }) => {
     repeat,
     error,
     liked,
+    isDownloaded,
+    isDownloading,
+    downloadProgress,
     playSong,
     togglePlay,
     playNext,
@@ -386,6 +460,8 @@ export const PlayerProvider = ({ children }) => {
     cycleRepeat,
     toggleLike,
     addToPlaylist,
+    shareSong,
+    downloadCurrentSong,
   };
 
   return (
