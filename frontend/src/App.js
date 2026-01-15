@@ -30,12 +30,13 @@ import MonetizationSettingsPage from "@/pages/MonetizationSettingsPage";
 import LayoutManagementPage from "@/pages/LayoutManagementPage";
 import EnhancedAnalyticsPage from "@/pages/EnhancedAnalyticsPage";
 import UserStreamingApp from "@/pages/UserStreamingApp";
+import RoleManagementPage from "@/pages/RoleManagementPage";
 
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
-  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity
+  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
