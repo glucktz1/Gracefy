@@ -294,7 +294,7 @@ const NowPlayingScreen = ({ navigation }) => {
         {/* Main Controls */}
         <View style={styles.controls}>
           <TouchableOpacity 
-            onPress={toggleShuffle} 
+            onPress={handleShuffleToggle} 
             style={styles.controlBtn}
           >
             <Ionicons 
@@ -302,9 +302,12 @@ const NowPlayingScreen = ({ navigation }) => {
               size={24} 
               color={shuffle ? '#e91e63' : COLORS.textSecondary} 
             />
+            {!isPremium && isShuffleForced() && (
+              <Ionicons name="lock-closed" size={10} color="#FF9800" style={styles.lockBadge} />
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={playPrevious} style={styles.controlBtn}>
+          <TouchableOpacity onPress={() => handleSkip('prev')} style={styles.controlBtn}>
             <Ionicons name="play-skip-back" size={32} color={COLORS.textPrimary} />
           </TouchableOpacity>
 
@@ -324,8 +327,13 @@ const NowPlayingScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={playNext} style={styles.controlBtn}>
+          <TouchableOpacity onPress={() => handleSkip('next')} style={styles.controlBtn}>
             <Ionicons name="play-skip-forward" size={32} color={COLORS.textPrimary} />
+            {!isPremium && (
+              <View style={styles.skipCountBadge}>
+                <Text style={styles.skipCountText}>{getRemainingSkips()}</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={cycleRepeat} style={styles.controlBtn}>
@@ -341,6 +349,19 @@ const NowPlayingScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Skip Counter for Free Users */}
+        {!isPremium && (
+          <View style={styles.skipInfoBar}>
+            <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+            <Text style={styles.skipInfoText}>
+              {getRemainingSkips()} skips left this hour
+            </Text>
+            <TouchableOpacity onPress={() => goToSubscription('skip')}>
+              <Text style={styles.upgradeLink}>Upgrade</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Secondary Actions */}
         <View style={styles.secondaryActions}>
