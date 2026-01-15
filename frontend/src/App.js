@@ -115,7 +115,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4">
             <ul className="space-y-1 px-3">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <li key={item.path}>
                   <NavLink
                     to={item.path}
