@@ -4547,7 +4547,9 @@ async def request_song_edit(song_id: str, data: dict, request: Request):
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
     
-    if song.get("singer_id") != session["choir_id"]:
+    # Check ownership using both singer_id and artist_id (for backwards compatibility)
+    song_owner = song.get("singer_id") or song.get("artist_id")
+    if song_owner != session["choir_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to edit this song")
     
     account = await db.choir_accounts.find_one({"choir_id": session["choir_id"]}, {"_id": 0})
