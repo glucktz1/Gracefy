@@ -451,6 +451,105 @@ export default function ApprovalsPage() {
           )}
         </TabsContent>
 
+        {/* Content Edits Tab */}
+        <TabsContent value="edits">
+          {contentEditRequests.length === 0 ? (
+            <div className="empty-state">
+              <Edit2 className="empty-state-icon text-violet-500" />
+              <p className="empty-state-title">No pending edit requests</p>
+              <p className="empty-state-text">All content edit requests have been processed</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {contentEditRequests.map((req) => (
+                <Card key={req.request_id} className="bg-zinc-900/50 border-zinc-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-violet-600/20 flex items-center justify-center">
+                          <Edit2 size={24} className="text-violet-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white">
+                            {req.content_type === "album" ? "Album" : "Song"} Edit: {req.updated_data?.title || req.original_data?.title}
+                          </h4>
+                          <p className="text-sm text-zinc-500">{req.choir_name}</p>
+                          <div className="mt-2 text-xs space-y-1">
+                            <p className="text-zinc-400">Changes requested:</p>
+                            {req.updated_data?.title !== req.original_data?.title && (
+                              <p className="text-amber-400">Title: "{req.original_data?.title}" → "{req.updated_data?.title}"</p>
+                            )}
+                            {req.updated_data?.description !== req.original_data?.description && (
+                              <p className="text-amber-400">Description updated</p>
+                            )}
+                            {req.updated_data?.lyrics !== req.original_data?.lyrics && (
+                              <p className="text-amber-400">Lyrics updated</p>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-600 mt-2">
+                            Submitted: {new Date(req.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleContentEditAction(req.request_id, "approved")} className="bg-emerald-600 hover:bg-emerald-700">
+                          <Check size={16} className="mr-1" /> Apply Edit
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleContentEditAction(req.request_id, "rejected")} className="border-red-600 text-red-400 hover:bg-red-600/20">
+                          <X size={16} className="mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Church Leaders Tab */}
+        <TabsContent value="church-leaders">
+          {churchLeaderAccounts.length === 0 ? (
+            <div className="empty-state">
+              <Key className="empty-state-icon text-violet-500" />
+              <p className="empty-state-title">No pending church leader accounts</p>
+              <p className="empty-state-text">All church leader account requests have been processed</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {churchLeaderAccounts.map((account) => (
+                <Card key={account.account_id} className="bg-zinc-900/50 border-zinc-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-amber-600/20 flex items-center justify-center">
+                          <Church size={24} className="text-amber-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white">{account.name}</h4>
+                          <p className="text-sm text-zinc-400">{account.church_name}</p>
+                          <p className="text-xs text-zinc-500">{account.email} • {account.phone || "No phone"}</p>
+                          <p className="text-xs text-zinc-600 mt-1">
+                            Registered: {new Date(account.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleChurchLeaderAction(account.account_id, "approved")} className="bg-emerald-600 hover:bg-emerald-700">
+                          <Check size={16} className="mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleChurchLeaderAction(account.account_id, "rejected")} className="border-red-600 text-red-400 hover:bg-red-600/20">
+                          <X size={16} className="mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         {/* Payment Tab */}
         <TabsContent value="payment">
           {paymentRequests.length === 0 ? (
