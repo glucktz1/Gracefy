@@ -3644,17 +3644,60 @@ async def get_user_home():
         section_data = {
             "section_id": section["section_id"],
             "type": section["section_type"],
-            "title": section["display_name"],
-            "description": section.get("description", "")
+            "title": section.get("display_name") or section.get("title", ""),
+            "description": section.get("description", ""),
+            "section_type": section["section_type"]
         }
         
-        # Populate content based on type
-        if section["section_type"] == "quick_access":
+        # Check if section has custom content_ids - prioritize those
+        if section.get("content_ids") and len(section["content_ids"]) > 0:
+            content_type = section.get("content_type", "albums")
+            items = []
+            
+            if content_type == "albums":
+                items = await db.albums.find(
+                    {"album_id": {"$in": section["content_ids"]}, "status": {"$ne": "deleted"}},
+                    {"_id": 0}
+                ).to_list(50)
+            elif content_type == "categories":
+                items = await db.categories.find(
+                    {"category_id": {"$in": section["content_ids"]}},
+                    {"_id": 0}
+                ).to_list(50)
+            elif content_type == "special_mixes":
+                items = await db.special_mixes.find(
+                    {"mix_id": {"$in": section["content_ids"]}},
+                    {"_id": 0}
+                ).to_list(50)
+                for mix in items:
+                    mix["album_id"] = mix["mix_id"]
+                    mix["is_special_mix"] = True
+            elif content_type == "choirs":
+                items = await db.singers.find(
+                    {"singer_id": {"$in": section["content_ids"]}},
+                    {"_id": 0}
+                ).to_list(50)
+                for choir in items:
+                    choir["entity_type"] = "choir"
+            elif content_type == "churches":
+                items = await db.churches.find(
+                    {"church_id": {"$in": section["content_ids"]}},
+                    {"_id": 0}
+                ).to_list(50)
+                for church in items:
+                    church["entity_type"] = "church"
+            
+            section_data["items"] = items
+            section_data["content_type"] = content_type
+            
+        # Otherwise, use section_type to determine default content
+        elif section["section_type"] == "quick_access":
             categories = await db.categories.find(
                 {"status": "active"},
                 {"_id": 0}
             ).limit(section.get("content_count", 6)).to_list(6)
             section_data["items"] = categories
+            section_data["content_type"] = "categories"
             
         elif section["section_type"] in ["featured_albums", "trending"]:
             albums = await db.albums.find(
@@ -3662,26 +3705,24 @@ async def get_user_home():
                 {"_id": 0}
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
             section_data["items"] = albums
+            section_data["content_type"] = "albums"
         
         elif section["section_type"] == "special_mixes":
-            # Get special mix albums
             mixes = await db.special_mixes.find(
                 {"status": "active"},
                 {"_id": 0}
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
-            # Transform to album-like structure for consistency
             for mix in mixes:
                 mix["album_id"] = mix["mix_id"]
                 mix["is_special_mix"] = True
             section_data["items"] = mixes
+            section_data["content_type"] = "special_mixes"
         
         elif section["section_type"] == "choirs":
-            # Get approved choirs/artists
             choirs = await db.singers.find(
-                {"approval_status": "approved"},
+                {},
                 {"_id": 0}
             ).sort("followers_count", -1).limit(section.get("content_count", 10)).to_list(10)
-            # Enrich with albums/songs count
             for choir in choirs:
                 albums_count = await db.albums.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
                 songs_count = await db.songs.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
@@ -3689,9 +3730,9 @@ async def get_user_home():
                 choir["songs_count"] = songs_count
                 choir["entity_type"] = "choir"
             section_data["items"] = choirs
+            section_data["content_type"] = "choirs"
         
         elif section["section_type"] == "churches":
-            # Get approved churches
             churches = await db.churches.find(
                 {"status": "approved"},
                 {"_id": 0}
@@ -3699,52 +3740,33 @@ async def get_user_home():
             for church in churches:
                 church["entity_type"] = "church"
             section_data["items"] = churches
+            section_data["content_type"] = "churches"
             
         elif section["section_type"] == "hero":
             section_data["background"] = section.get("background_gradient") or section.get("background_color")
-            section_data["items"] = []
-            
-        else:
-            # For other types, get albums, categories, choirs, churches, or special mixes
+            # For hero, also fetch albums if content_ids exist
             if section.get("content_ids"):
-                content_type = section.get("content_type", "albums")
-                if content_type == "albums":
-                    items = await db.albums.find(
-                        {"album_id": {"$in": section["content_ids"]}},
-                        {"_id": 0}
-                    ).to_list(20)
-                elif content_type == "categories":
-                    items = await db.categories.find(
-                        {"category_id": {"$in": section["content_ids"]}},
-                        {"_id": 0}
-                    ).to_list(20)
-                elif content_type == "special_mixes":
-                    items = await db.special_mixes.find(
-                        {"mix_id": {"$in": section["content_ids"]}},
-                        {"_id": 0}
-                    ).to_list(20)
-                    for mix in items:
-                        mix["album_id"] = mix["mix_id"]
-                        mix["is_special_mix"] = True
-                elif content_type == "choirs":
-                    items = await db.singers.find(
-                        {"singer_id": {"$in": section["content_ids"]}},
-                        {"_id": 0}
-                    ).to_list(20)
-                    for choir in items:
-                        choir["entity_type"] = "choir"
-                elif content_type == "churches":
-                    items = await db.churches.find(
-                        {"church_id": {"$in": section["content_ids"]}},
-                        {"_id": 0}
-                    ).to_list(20)
-                    for church in items:
-                        church["entity_type"] = "church"
-                else:
-                    items = []
+                items = await db.albums.find(
+                    {"album_id": {"$in": section["content_ids"]}},
+                    {"_id": 0}
+                ).to_list(10)
                 section_data["items"] = items
             else:
                 section_data["items"] = []
+            section_data["content_type"] = "albums"
+            
+        elif section["section_type"] == "seasonal":
+            # Seasonal sections - fetch albums
+            albums = await db.albums.find(
+                {"status": "active"},
+                {"_id": 0}
+            ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            section_data["items"] = albums
+            section_data["content_type"] = "albums"
+            
+        else:
+            section_data["items"] = []
+            section_data["content_type"] = "unknown"
         
         home_data.append(section_data)
     
