@@ -9,17 +9,38 @@ const getBaseUrl = () => {
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 20000, // 20 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Add auth token to requests
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('user_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const token = await SecureStore.getItemAsync('user_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {
+    console.log('Error getting token:', e);
   }
   return config;
 });
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.log('API Error:', error.message, error.config?.url);
+    if (error.code === 'ECONNABORTED') {
+      error.message = 'Request timed out. Please try again.';
+    } else if (!error.response) {
+      error.message = 'Network error. Please check your connection.';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth Services
 export const authService = {
