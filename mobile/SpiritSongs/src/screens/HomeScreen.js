@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image, RefreshControl,
   StyleSheet, Dimensions, FlatList, StatusBar, ActivityIndicator
@@ -59,47 +59,7 @@ const HeroSection = ({ item, onPress }) => {
   );
 };
 
-// Quick Access Grid - 2x4 layout (Liked songs, Playlists, Admin content)
-const QuickAccessGrid = ({ items, onItemPress, likedSongsCount, playlistsCount }) => {
-  // Build quick access items
-  const quickItems = [
-    { id: 'liked', name: 'Liked Songs', icon: 'heart', color: '#e91e63', count: likedSongsCount },
-    { id: 'playlists', name: 'Your Playlists', icon: 'list', color: '#4CAF50', count: playlistsCount },
-    ...items.slice(0, 6).map(item => ({
-      ...item,
-      id: item.album_id || item.category_id || item.id,
-      name: item.title || item.name,
-    }))
-  ].slice(0, 8);
-
-  return (
-    <View style={styles.quickAccessContainer}>
-      {quickItems.map((item, idx) => (
-        <TouchableOpacity 
-          key={item.id || idx}
-          style={styles.quickAccessCard}
-          onPress={() => onItemPress(item)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.quickAccessImage, item.color && { backgroundColor: item.color }]}>
-            {item.icon ? (
-              <Ionicons name={item.icon} size={20} color="#fff" />
-            ) : item.thumbnail ? (
-              <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
-            ) : (
-              <LinearGradient colors={['#333', '#111']} style={styles.quickAccessImg}>
-                <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.5)" />
-              </LinearGradient>
-            )}
-          </View>
-          <Text style={styles.quickAccessText} numberOfLines={2}>{item.name}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
-
-// Category Filter Tabs
+// Category Filter Tabs - NOW BELOW HERO
 const FilterTabs = ({ categories, activeCategory, onSelect }) => {
   const allTabs = [
     { category_id: 'all', name: 'For you' },
@@ -124,6 +84,72 @@ const FilterTabs = ({ categories, activeCategory, onSelect }) => {
         </TouchableOpacity>
       ))}
     </ScrollView>
+  );
+};
+
+// Quick Access Grid - 2x4 layout (Liked songs, Playlists, Admin content) - RESTORED
+const QuickAccessGrid = ({ items, onItemPress, likedSongsCount, playlistsCount, navigation }) => {
+  // Build quick access items: 2 fixed (liked, playlists) + up to 6 from admin
+  const quickItems = [
+    { 
+      id: 'liked', 
+      name: 'Liked Songs', 
+      icon: 'heart', 
+      color: '#e91e63', 
+      count: likedSongsCount,
+      isSpecial: true 
+    },
+    { 
+      id: 'playlists', 
+      name: 'Your Playlists', 
+      icon: 'list', 
+      color: '#4CAF50', 
+      count: playlistsCount,
+      isSpecial: true 
+    },
+    ...items.slice(0, 6).map(item => ({
+      ...item,
+      id: item.album_id || item.category_id || item.id,
+      name: item.title || item.name,
+    }))
+  ].slice(0, 8); // Maximum 8 items (4 per row)
+
+  const handlePress = (item) => {
+    if (item.id === 'liked') {
+      navigation.navigate('Library');
+    } else if (item.id === 'playlists') {
+      navigation.navigate('Library');
+    } else if (item.album_id) {
+      navigation.navigate('Album', { albumId: item.album_id });
+    } else if (item.category_id) {
+      navigation.navigate('Category', { category: item });
+    }
+  };
+
+  return (
+    <View style={styles.quickAccessContainer}>
+      {quickItems.map((item, idx) => (
+        <TouchableOpacity 
+          key={item.id || idx}
+          style={styles.quickAccessCard}
+          onPress={() => handlePress(item)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.quickAccessImage, item.color && { backgroundColor: item.color }]}>
+            {item.icon ? (
+              <Ionicons name={item.icon} size={20} color="#fff" />
+            ) : item.thumbnail ? (
+              <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
+            ) : (
+              <LinearGradient colors={['#333', '#111']} style={styles.quickAccessImg}>
+                <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.5)" />
+              </LinearGradient>
+            )}
+          </View>
+          <Text style={styles.quickAccessText} numberOfLines={2}>{item.name}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 };
 
@@ -200,7 +226,7 @@ const VerticalListSection = ({ title, items, onItemPress, onSeeAll }) => {
                 {item.songs_count ? `${item.songs_count} songs` : item.artist_name || '2M Plays'}
               </Text>
             </View>
-            <TouchableOpacity style={styles.verticalListPlay}>
+            <TouchableOpacity style={styles.verticalListPlay} onPress={() => onItemPress(item)}>
               <Ionicons name="play-circle" size={32} color="#e91e63" />
             </TouchableOpacity>
           </TouchableOpacity>
@@ -358,7 +384,7 @@ export default function HomeScreen({ navigation }) {
       setHomeData(home);
       setCategories(cats.categories || []);
       
-      // Collect all albums
+      // Collect all albums from sections
       const albums = [];
       home?.sections?.forEach(section => {
         if (section.items) {
@@ -373,7 +399,9 @@ export default function HomeScreen({ navigation }) {
           const library = await libraryService.getLibrary();
           setLikedSongsCount(library?.favorites?.length || 0);
           setPlaylistsCount(library?.playlists?.length || 0);
-        } catch (e) {}
+        } catch (e) {
+          console.log('Library fetch error:', e);
+        }
       }
     } catch (error) {
       console.error('Error fetching home data:', error);
@@ -402,9 +430,10 @@ export default function HomeScreen({ navigation }) {
     );
   }, [activeCategory, allAlbums, categories]);
 
-  // FIXED: Navigate to album with proper params
-  const handleAlbumPress = (item) => {
-    console.log('Album pressed:', item);
+  // FIXED: Navigate to album with proper params - ensuring album_id is always passed
+  const handleAlbumPress = useCallback((item) => {
+    console.log('Album pressed:', item?.title, 'album_id:', item?.album_id);
+    
     if (item.album_id) {
       navigation.navigate('Album', { albumId: item.album_id });
     } else if (item.id === 'liked') {
@@ -413,28 +442,18 @@ export default function HomeScreen({ navigation }) {
       navigation.navigate('Library');
     } else if (item.category_id) {
       navigation.navigate('Category', { category: item });
+    } else {
+      console.warn('No valid navigation target for item:', item);
     }
-  };
+  }, [navigation]);
 
-  const handleQuickAccessPress = (item) => {
-    if (item.id === 'liked') {
-      navigation.navigate('Library');
-    } else if (item.id === 'playlists') {
-      navigation.navigate('Library');
-    } else if (item.album_id) {
-      navigation.navigate('Album', { albumId: item.album_id });
-    } else if (item.category_id) {
-      navigation.navigate('Category', { category: item });
-    }
-  };
-
-  const handleNowPlaying = () => {
+  const handleNowPlaying = useCallback(() => {
     navigation.navigate('NowPlaying');
-  };
+  }, [navigation]);
 
-  const handleProfilePress = () => {
+  const handleProfilePress = useCallback(() => {
     navigation.navigate('Profile');
-  };
+  }, [navigation]);
 
   if (loading) {
     return (
@@ -500,22 +519,28 @@ export default function HomeScreen({ navigation }) {
         {/* Hero Section */}
         <HeroSection 
           item={burner || featuredAlbums[0]} 
-          onPress={() => featuredAlbums[0] && handleAlbumPress(featuredAlbums[0])}
+          onPress={() => {
+            const targetAlbum = burner || featuredAlbums[0];
+            if (targetAlbum?.album_id) {
+              handleAlbumPress(targetAlbum);
+            }
+          }}
         />
 
-        {/* Filter Tabs - BELOW HERO */}
+        {/* Filter Tabs - BELOW HERO (as requested) */}
         <FilterTabs 
           categories={categories}
           activeCategory={activeCategory}
           onSelect={setActiveCategory}
         />
 
-        {/* Quick Access Grid - 8 items (4 per row) */}
+        {/* Quick Access Grid - 8 items (4 per row) - RESTORED */}
         <QuickAccessGrid 
           items={quickAccessItems}
-          onItemPress={handleQuickAccessPress}
+          onItemPress={handleAlbumPress}
           likedSongsCount={likedSongsCount}
           playlistsCount={playlistsCount}
+          navigation={navigation}
         />
 
         {/* Continue Playing - Horizontal small tiles */}
