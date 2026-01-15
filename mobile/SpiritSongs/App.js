@@ -21,6 +21,7 @@ import CategoryScreen from './src/screens/CategoryScreen';
 import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import SubscriptionScreen from './src/screens/SubscriptionScreen';
 
 // Config
 import { COLORS } from './src/config';
@@ -75,6 +76,11 @@ function MainNavigator() {
       <Stack.Screen name="Album" component={AlbumScreen} />
       <Stack.Screen name="Category" component={CategoryScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen 
+        name="Subscription" 
+        component={SubscriptionScreen}
+        options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+      />
       <Stack.Screen 
         name="NowPlaying" 
         component={NowPlayingScreen}
