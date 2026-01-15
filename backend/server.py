@@ -181,7 +181,11 @@ class Singer(BaseModel):
     model_config = ConfigDict(extra="ignore")
     singer_id: str = Field(default_factory=lambda: f"sing_{uuid.uuid4().hex[:12]}")
     name: str
-    type: str = "solo"  # solo, choir, band
+    type: str = "choir"  # solo, choir, band, artist
+    # Images
+    photo: Optional[str] = None
+    cover_image: Optional[str] = None
+    thumbnail: Optional[str] = None  # For grid display
     # Choir-specific fields
     denomination: Optional[str] = None  # roman_catholic, lutheran, anglican, etc.
     church_id: Optional[str] = None
@@ -195,14 +199,30 @@ class Singer(BaseModel):
     # Parish Priest/Leader details
     parish_priest_name: Optional[str] = None
     parish_priest_phone: Optional[str] = None
+    # Contact info
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    social_links: Optional[dict] = None  # {facebook, instagram, youtube, etc.}
     # General info
     bio: Optional[str] = None
-    photo: Optional[str] = None
-    followers: int = 0
+    location: Optional[str] = None
+    country: Optional[str] = None
+    founded_year: Optional[int] = None
+    members_count: Optional[int] = None
+    # Stats
+    followers_count: int = 0
+    total_plays: int = 0
+    albums_count: int = 0
+    songs_count: int = 0
+    # Admin
     status: str = "active"  # active, inactive, suspended, pending_approval
     approval_status: str = "pending"  # pending, approved, rejected
     admin_notes: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
 
 class LiveSeminar(BaseModel):
     model_config = ConfigDict(extra="ignore")
