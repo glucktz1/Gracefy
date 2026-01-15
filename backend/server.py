@@ -92,15 +92,75 @@ class Church(BaseModel):
     model_config = ConfigDict(extra="ignore")
     church_id: str = Field(default_factory=lambda: f"ch_{uuid.uuid4().hex[:12]}")
     name: str
+    denomination: Optional[str] = None  # roman_catholic, lutheran, anglican, pentecostal, etc.
     location: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     direction: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_maps_url: Optional[str] = None
     bio: Optional[str] = None
-    priest_name: Optional[str] = None
-    priest_photo: Optional[str] = None
-    prayer_schedule: Optional[List[dict]] = None
-    announcements: Optional[List[dict]] = None
+    # Leader/Parish Priest info
+    leader_name: Optional[str] = None
+    leader_title: Optional[str] = None  # Parish Priest, Pastor, Reverend, etc.
+    leader_phone: Optional[str] = None
+    leader_email: Optional[str] = None
+    leader_photo: Optional[str] = None
+    # Images
     thumbnail: Optional[str] = None
+    cover_image: Optional[str] = None
+    gallery_images: Optional[List[str]] = None
+    # Prayer schedule (structured)
+    prayer_schedule: Optional[List[dict]] = None  # [{day, time, service_type, description}]
+    # Contact info
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    # Social
+    followers_count: int = 0
+    # Admin
+    submitted_by: Optional[str] = None
+    submitted_by_email: Optional[str] = None
     status: str = "pending"  # pending, approved, rejected, suspended
+    admin_notes: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+class ChurchAnnouncement(BaseModel):
+    """Church announcements that auto-delete after 2 weeks"""
+    model_config = ConfigDict(extra="ignore")
+    announcement_id: str = Field(default_factory=lambda: f"ann_{uuid.uuid4().hex[:12]}")
+    church_id: str
+    church_name: Optional[str] = None
+    date: str  # YYYY-MM-DD format
+    title: str
+    announcement_type: str = "general"  # general, offering, baptism, adoration, wedding, funeral, meeting, event, other
+    description: Optional[str] = None
+    time: Optional[str] = None  # If event has specific time
+    location: Optional[str] = None  # If different from church
+    contact_person: Optional[str] = None
+    contact_phone: Optional[str] = None
+    is_recurring: bool = False
+    recurrence_pattern: Optional[str] = None  # weekly, monthly
+    status: str = "active"  # active, archived
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None  # Auto-set to 2 weeks from date
+
+class UserFollow(BaseModel):
+    """Track user follows for churches and choirs/artists"""
+    model_config = ConfigDict(extra="ignore")
+    follow_id: str = Field(default_factory=lambda: f"fol_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    user_name: Optional[str] = None
+    entity_type: str  # church, choir, artist, religious_leader
+    entity_id: str
+    entity_name: Optional[str] = None
+    notifications_enabled: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ReligiousLeader(BaseModel):
