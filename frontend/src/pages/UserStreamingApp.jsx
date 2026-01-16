@@ -1015,6 +1015,109 @@ export default function UserStreamingApp() {
 
   const isFavorite = (id) => favorites.some(f => f.id === id);
 
+  // Handler for Like (song)
+  const handleLikeSong = (song) => {
+    toggleFavorite('song', song.song_id);
+  };
+
+  // Handler for Add to Playlist
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState(null);
+  const [userPlaylists, setUserPlaylists] = useState([]);
+  
+  const handleAddToPlaylist = async (song) => {
+    if (!token) {
+      setShowAuth(true);
+      return;
+    }
+    setSelectedSongForPlaylist(song);
+    // Fetch user's playlists
+    try {
+      const res = await axios.get(`${API}/user/library`, { headers: { Authorization: `Bearer ${token}` }});
+      setUserPlaylists(res.data.playlists || []);
+    } catch (e) {
+      console.log("Could not fetch playlists");
+    }
+    setShowPlaylistModal(true);
+  };
+
+  const addSongToPlaylist = async (playlistId) => {
+    try {
+      await axios.post(`${API}/user/playlist/${playlistId}/add`, 
+        { song_id: selectedSongForPlaylist.song_id },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+      toast.success("Added to playlist!");
+      setShowPlaylistModal(false);
+    } catch (e) {
+      toast.error("Failed to add to playlist");
+    }
+  };
+
+  const createNewPlaylist = async (name) => {
+    try {
+      const res = await axios.post(`${API}/user/playlist/create`,
+        { name, description: "" },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+      if (selectedSongForPlaylist) {
+        await addSongToPlaylist(res.data.playlist_id);
+      } else {
+        toast.success("Playlist created!");
+        setShowPlaylistModal(false);
+      }
+    } catch (e) {
+      toast.error("Failed to create playlist");
+    }
+  };
+
+  // Handler for Download
+  const handleDownloadSong = async (song) => {
+    if (!token) {
+      setShowAuth(true);
+      return;
+    }
+    
+    // For web, we'll open the audio URL in a new tab or trigger download
+    if (song.audio_url) {
+      const link = document.createElement('a');
+      link.href = song.audio_url;
+      link.download = `${song.title}.mp3`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Download started!");
+    } else {
+      toast.error("This song is not available for download");
+    }
+  };
+
+  // Handler for Share
+  const handleShareSong = async (song, album) => {
+    const shareText = `🎵 Listen to "${song.title}" by ${album?.artist_name || 'Spirit Songs'} on Spirit Songs!`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: song.title,
+          text: shareText,
+          url: window.location.href
+        });
+      } catch (e) {
+        // User cancelled or error
+      }
+    } else {
+      // Fallback - copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText);
+        toast.success("Link copied to clipboard!");
+      } catch (e) {
+        toast.error("Failed to share");
+      }
+    }
+  };
+
   const handlePlaySong = (song, album, allSongs, index) => {
     const queue = allSongs.map(s => ({ song: s, album }));
     player.playSong(song, album, queue, index);
