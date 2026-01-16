@@ -163,12 +163,6 @@ const NowPlayingScreen = ({ navigation }) => {
     }
   };
 
-  const handleDownload = () => {
-    if (downloadCurrentSong) {
-      downloadCurrentSong();
-    }
-  };
-
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
