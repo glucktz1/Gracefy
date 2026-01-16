@@ -954,50 +954,171 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
           <X size={24} />
         </button>
 
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-1">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
-          <p className="text-sm text-zinc-400">Sign in to save your music</p>
-        </div>
+        {/* Forgot Password Mode */}
+        {forgotPasswordMode ? (
+          <>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-1">Reset Password</h2>
+              <p className="text-sm text-zinc-400">
+                {forgotStep === 1 && "Enter your email or phone to receive a reset code"}
+                {forgotStep === 2 && "Enter the 6-digit code we sent you"}
+                {forgotStep === 3 && "Create your new password"}
+              </p>
+            </div>
 
-        {/* Login Method Tabs */}
-        {!otpStep && (
-          <div className="flex gap-2 mb-4">
-            <button 
-              onClick={() => setLoginMethod('email')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
-                loginMethod === 'email' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Mail size={16} />
-              Email
-            </button>
-            <button 
-              onClick={() => setLoginMethod('phone')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
-                loginMethod === 'phone' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Phone size={16} />
-              Phone OTP
-            </button>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {/* Phone OTP Login */}
-          {loginMethod === 'phone' ? (
-            <>
-              {!otpStep ? (
+            <div className="space-y-3">
+              {forgotStep === 1 && (
                 <>
                   <Input 
-                    value={authForm.phone} 
-                    onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })} 
-                    placeholder="Phone number (e.g., +255...)" 
+                    value={forgotIdentifier} 
+                    onChange={(e) => setForgotIdentifier(e.target.value)} 
+                    placeholder="Email or phone number" 
                     className="bg-zinc-800 border-zinc-700"
-                    data-testid="phone-input"
+                    data-testid="forgot-identifier-input"
                   />
                   <Button 
-                    onClick={handleSendOtp} 
+                    onClick={handleSendResetOtp} 
+                    disabled={forgotLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Reset Code'
+                    )}
+                  </Button>
+                </>
+              )}
+
+              {forgotStep === 2 && (
+                <>
+                  <p className="text-sm text-zinc-400 text-center">Code sent to {forgotIdentifier}</p>
+                  
+                  {forgotDevOtp && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-center">
+                      <p className="text-xs text-amber-500 mb-1">Development Mode - Code:</p>
+                      <p className="text-2xl font-mono font-bold text-amber-400 tracking-widest">{forgotDevOtp}</p>
+                    </div>
+                  )}
+                  
+                  <Input 
+                    value={forgotOtp} 
+                    onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                    placeholder="Enter 6-digit code"
+                    className="bg-zinc-800 border-zinc-700 text-center text-xl tracking-widest"
+                    maxLength={6}
+                    data-testid="forgot-otp-input"
+                  />
+                  <Button 
+                    onClick={handleVerifyResetOtp} 
+                    disabled={forgotLoading || forgotOtp.length !== 6}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify Code'
+                    )}
+                  </Button>
+                </>
+              )}
+
+              {forgotStep === 3 && (
+                <>
+                  <Input 
+                    type="password"
+                    value={newPassword} 
+                    onChange={(e) => setNewPassword(e.target.value)} 
+                    placeholder="New password (min 6 characters)" 
+                    className="bg-zinc-800 border-zinc-700"
+                    data-testid="new-password-input"
+                  />
+                  <Input 
+                    type="password"
+                    value={confirmNewPassword} 
+                    onChange={(e) => setConfirmNewPassword(e.target.value)} 
+                    placeholder="Confirm new password" 
+                    className="bg-zinc-800 border-zinc-700"
+                    data-testid="confirm-new-password-input"
+                  />
+                  <Button 
+                    onClick={handleResetPassword} 
+                    disabled={forgotLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      'Reset Password'
+                    )}
+                  </Button>
+                </>
+              )}
+
+              <button 
+                onClick={resetForgotPassword}
+                className="w-full text-sm text-zinc-400 hover:text-white py-2"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </>
+        ) : (
+          /* Normal Login/Register Mode */
+          <>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-1">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
+              <p className="text-sm text-zinc-400">Sign in to save your music</p>
+            </div>
+
+            {/* Login Method Tabs */}
+            {!otpStep && (
+              <div className="flex gap-2 mb-4">
+                <button 
+                  onClick={() => setLoginMethod('email')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                    loginMethod === 'email' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Mail size={16} />
+                  Email
+                </button>
+                <button 
+                  onClick={() => setLoginMethod('phone')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                    loginMethod === 'phone' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Phone size={16} />
+                  Phone OTP
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Phone OTP Login */}
+              {loginMethod === 'phone' ? (
+                <>
+                  {!otpStep ? (
+                    <>
+                      <Input 
+                        value={authForm.phone} 
+                        onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })} 
+                        placeholder="Phone number (e.g., +255...)" 
+                        className="bg-zinc-800 border-zinc-700"
+                        data-testid="phone-input"
+                      />
+                      <Button 
+                        onClick={handleSendOtp} 
                     disabled={sendingOtp}
                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
                     data-testid="send-otp-btn"
