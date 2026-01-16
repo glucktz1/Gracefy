@@ -120,6 +120,19 @@ export default function ApprovalsPage() {
     }
   };
 
+  const handleChoirRegistrationAction = async (choirId, status, reason = "") => {
+    try {
+      const endpoint = status === "approved"
+        ? `${API}/admin/choir/${choirId}/approve`
+        : `${API}/admin/choir/${choirId}/reject`;
+      await axios.post(endpoint, { reason }, { withCredentials: true });
+      toast.success(status === "approved" ? "Choir registration approved" : "Choir registration rejected");
+      fetchApprovals();
+    } catch (error) {
+      toast.error("Failed to process choir registration");
+    }
+  };
+
   const markNotificationRead = async (notificationId) => {
     try {
       await axios.put(`${API}/admin/notifications/${notificationId}/read`, {}, { withCredentials: true });
@@ -139,7 +152,7 @@ export default function ApprovalsPage() {
     }
   };
 
-  const totalPending = approvals.total + contentRequests.length + paymentRequests.length + contentEditRequests.length + churchLeaderAccounts.length;
+  const totalPending = approvals.total + contentRequests.length + paymentRequests.length + contentEditRequests.length + churchLeaderAccounts.length + choirRegistrations.length;
 
   if (loading) {
     return (
