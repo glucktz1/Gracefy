@@ -71,6 +71,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/users", icon: Users, label: "Users", permissions: ["user_management"] },
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
     { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
+    { path: "/leader-content", icon: BookOpen, label: "Leader Content", permissions: ["content_moderation", "content_approval"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
     { path: "/leaders", icon: UserCheck, label: "Religious Leaders", permissions: ["user_management"] },
     { path: "/singers", icon: Mic2, label: "Singers & Choirs", permissions: ["user_management"] },
