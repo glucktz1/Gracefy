@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { contentService, getThumbnailUrl, libraryService } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
-import MiniPlayer from '../components/MiniPlayer';
 import { COLORS } from '../config';
 
 const { width, height } = Dimensions.get('window');
@@ -647,9 +646,6 @@ export default function HomeScreen({ navigation }) {
           }
         })}
       </ScrollView>
-
-      {/* Mini Player */}
-      {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
     </View>
   );
 }
