@@ -434,6 +434,22 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#e91e63" />
+        <Text style={{ color: '#fff', marginTop: 10 }}>Loading content...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons name="alert-circle" size={48} color="#e91e63" />
+        <Text style={{ color: '#fff', marginTop: 10, textAlign: 'center' }}>{error}</Text>
+        <TouchableOpacity 
+          style={{ marginTop: 20, padding: 12, backgroundColor: '#e91e63', borderRadius: 8 }}
+          onPress={onRefresh}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600' }}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
