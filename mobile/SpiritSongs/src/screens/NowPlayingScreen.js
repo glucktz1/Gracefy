@@ -692,14 +692,14 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   queueList: {
-705|    flex: 1,
-706|  },
-707|  queueEmpty: {
-708|    color: COLORS.textMuted,
-709|    fontSize: 14,
-710|    textAlign: 'center',
-711|    padding: 32,
-712|  },
+    flex: 1,
+  },
+  queueEmpty: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+    padding: 32,
+  },
   lockBadge: {
     position: 'absolute',
     bottom: 8,
