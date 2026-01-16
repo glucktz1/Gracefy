@@ -36,12 +36,13 @@ import ChurchLeaderLoginPage from "@/pages/ChurchLeaderLoginPage";
 import ChurchLeaderDashboard from "@/pages/ChurchLeaderDashboard";
 import AdminSettingsPage from "@/pages/AdminSettingsPage";
 import ChoirRegistrationPage from "@/pages/ChoirRegistrationPage";
+import ContentManagementPage from "@/pages/ContentManagementPage";
 
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
-  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc
+  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
