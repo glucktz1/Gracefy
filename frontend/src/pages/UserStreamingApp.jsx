@@ -1637,48 +1637,18 @@ export default function UserStreamingApp() {
 
       {/* Auth Modal */}
       {showAuth && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl max-w-md w-full p-6 relative">
-            <button onClick={() => setShowAuth(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white">
-              <X size={24} />
-            </button>
-
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold mb-1">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
-              <p className="text-sm text-zinc-400">Sign in to save your music</p>
-            </div>
-
-            <div className="space-y-3">
-              {authMode === 'register' && (
-                <Input value={authForm.name} onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })} placeholder="Your name" className="bg-zinc-800 border-zinc-700" />
-              )}
-              <Input value={authForm.email} onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })} placeholder="Email address" type="email" className="bg-zinc-800 border-zinc-700" />
-              <Input value={authForm.phone} onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })} placeholder="Or phone number" className="bg-zinc-800 border-zinc-700" />
-              <Input value={authForm.password} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} placeholder="Password" type="password" className="bg-zinc-800 border-zinc-700" />
-
-              <Button onClick={authMode === 'login' ? handleLogin : handleRegister} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5">
-                {authMode === 'login' ? 'Sign In' : 'Create Account'}
-              </Button>
-
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-700" /></div>
-                <div className="relative flex justify-center text-xs"><span className="bg-zinc-900 px-2 text-zinc-500">or</span></div>
-              </div>
-
-              <Button variant="outline" className="w-full border-zinc-700 py-5">
-                <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4 mr-2" />
-                Continue with Google
-              </Button>
-            </div>
-
-            <p className="text-center text-sm text-zinc-400 mt-4">
-              {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-              <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-emerald-400 hover:underline">
-                {authMode === 'login' ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
-          </div>
-        </div>
+        <AuthModal 
+          showAuth={showAuth}
+          setShowAuth={setShowAuth}
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          authForm={authForm}
+          setAuthForm={setAuthForm}
+          handleLogin={handleLogin}
+          handleRegister={handleRegister}
+          setToken={setToken}
+          setUser={setUser}
+        />
       )}
 
       {/* Playlist Modal */}
