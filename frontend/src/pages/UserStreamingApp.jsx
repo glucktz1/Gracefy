@@ -1186,6 +1186,16 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
               <Input value={authForm.email} onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })} placeholder="Email address" type="email" className="bg-zinc-800 border-zinc-700" />
               <Input value={authForm.password} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} placeholder="Password" type="password" className="bg-zinc-800 border-zinc-700" />
 
+              {authMode === 'login' && (
+                <button 
+                  onClick={() => setForgotPasswordMode(true)}
+                  className="text-sm text-emerald-400 hover:underline text-right w-full"
+                  data-testid="forgot-password-link"
+                >
+                  Forgot password?
+                </button>
+              )}
+
               <Button onClick={authMode === 'login' ? handleLogin : handleRegister} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5">
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
               </Button>
@@ -1205,15 +1215,17 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
               </Button>
             </>
           )}
-        </div>
+            </div>
 
-        {loginMethod === 'email' && !otpStep && (
-          <p className="text-center text-sm text-zinc-400 mt-4">
-            {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-            <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-emerald-400 hover:underline">
-              {authMode === 'login' ? 'Sign up' : 'Sign in'}
-            </button>
-          </p>
+            {loginMethod === 'email' && !otpStep && (
+              <p className="text-center text-sm text-zinc-400 mt-4">
+                {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-emerald-400 hover:underline">
+                  {authMode === 'login' ? 'Sign up' : 'Sign in'}
+                </button>
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>
