@@ -383,6 +383,25 @@ const useAudioPlayer = () => {
     playFromQueue(prevIndex);
   }, [queue, queueIndex, currentTime, playFromQueue]);
 
+  // Setup MediaSession action handlers for background playback controls
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => {
+        audioRef.current.play();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        audioRef.current.pause();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', prevSong);
+      navigator.mediaSession.setActionHandler('nexttrack', nextSong);
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      });
+    }
+  }, [nextSong, prevSong]);
+
   const seekTo = useCallback((value) => {
     audioRef.current.currentTime = value;
     setCurrentTime(value);
