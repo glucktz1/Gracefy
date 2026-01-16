@@ -540,6 +540,14 @@ export default function HomeScreen({ navigation }) {
           navigation={navigation}
         />
 
+        {/* Debug info - remove after fixing */}
+        {__DEV__ && (
+          <View style={{ padding: 16, backgroundColor: '#1a1a1a', margin: 8, borderRadius: 8 }}>
+            <Text style={{ color: '#fff', fontSize: 12 }}>Debug: sections={sections.length}, albums={allAlbums.length}</Text>
+            <Text style={{ color: '#fff', fontSize: 12 }}>Featured: {featuredAlbums.length}, Continue: {continuePlayingItems.length}</Text>
+          </View>
+        )}
+
         {/* Continue Playing - Horizontal small tiles */}
         <HorizontalSmallTiles
           title="Continue Playing"
