@@ -7665,6 +7665,525 @@ async def get_users_stats_summary():
         }
     }
 
+# ============== ADMIN APP SETTINGS ==============
+
+@api_router.get("/admin/settings")
+async def get_admin_settings():
+    """Get all admin app settings"""
+    settings = await db.app_settings.find_one({}, {"_id": 0})
+    if not settings:
+        # Return default settings
+        settings = {
+            "billing_enabled": True,
+            "free_user_daily_song_limit": 10,
+            "free_user_max_devices": 1,
+            "premium_user_max_devices": 3,
+            "login_methods": {
+                "email_password": True,
+                "phone_otp": True,
+                "google": True
+            },
+            "play_count_replay_limit": 2,
+            "min_play_duration_seconds": 30,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.app_settings.insert_one(settings)
+    return settings
+
+@api_router.put("/admin/settings")
+async def update_admin_settings(updates: dict):
+    """Update admin app settings"""
+    updates.pop("_id", None)
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    existing = await db.app_settings.find_one({})
+    if existing:
+        await db.app_settings.update_one({}, {"$set": updates})
+    else:
+        await db.app_settings.insert_one(updates)
+    
+    return {"message": "Settings updated", "settings": updates}
+
+# ============== PLAY COUNT TRACKING ==============
+
+@api_router.post("/listening/track-play")
+async def track_song_play(data: dict):
+    """Track song play with replay limits (max 2 counts per user per song)"""
+    song_id = data.get("song_id")
+    user_id = data.get("user_id", "anonymous")
+    duration_seconds = data.get("duration_seconds", 0)
+    
+    if not song_id:
+        raise HTTPException(status_code=400, detail="song_id required")
+    
+    # Get settings
+    settings = await db.app_settings.find_one({}, {"_id": 0})
+    min_duration = settings.get("min_play_duration_seconds", 30) if settings else 30
+    replay_limit = settings.get("play_count_replay_limit", 2) if settings else 2
+    
+    # Don't count if duration too short
+    if duration_seconds < min_duration:
+        return {"counted": False, "reason": "duration_too_short"}
+    
+    # Check user's play count for this song today
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    user_plays_today = await db.play_counts.count_documents({
+        "song_id": song_id,
+        "user_id": user_id,
+        "counted_at": {"$gte": today_start.isoformat()}
+    })
+    
+    if user_plays_today >= replay_limit:
+        return {"counted": False, "reason": "replay_limit_reached", "limit": replay_limit}
+    
+    # Record the play
+    await db.play_counts.insert_one({
+        "song_id": song_id,
+        "user_id": user_id,
+        "duration_seconds": duration_seconds,
+        "counted_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    # Update song stream count
+    await db.songs.update_one(
+        {"song_id": song_id},
+        {"$inc": {"stream_count": 1}}
+    )
+    
+    # Update album stream count
+    song = await db.songs.find_one({"song_id": song_id})
+    if song and song.get("album_id"):
+        await db.albums.update_one(
+            {"album_id": song["album_id"]},
+            {"$inc": {"stream_count": 1}}
+        )
+    
+    return {"counted": True, "user_plays_today": user_plays_today + 1}
+
+@api_router.get("/user/daily-plays")
+async def get_user_daily_plays(user_id: str):
+    """Get user's play counts for today"""
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    plays = await db.play_counts.count_documents({
+        "user_id": user_id,
+        "counted_at": {"$gte": today_start.isoformat()}
+    })
+    
+    # Get settings
+    settings = await db.app_settings.find_one({}, {"_id": 0})
+    limit = settings.get("free_user_daily_song_limit", 10) if settings else 10
+    
+    return {
+        "plays_today": plays,
+        "daily_limit": limit,
+        "remaining": max(0, limit - plays)
+    }
+
+# ============== CHOIR/ARTIST SELF-REGISTRATION ==============
+
+@api_router.post("/choir/register")
+async def choir_self_register(data: dict):
+    """Self-register as a choir/artist - requires admin approval"""
+    name = data.get("name")
+    email = data.get("email")
+    phone = data.get("phone")
+    description = data.get("description", "")
+    choir_type = data.get("type", "choir")  # choir, artist, band
+    password = data.get("password")
+    
+    if not name or not email:
+        raise HTTPException(status_code=400, detail="Name and email are required")
+    
+    # Check if email already exists
+    existing = await db.choir_accounts.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    import hashlib
+    password_hash = hashlib.sha256(password.encode()).hexdigest() if password else None
+    
+    choir_id = f"choir_{uuid.uuid4().hex[:12]}"
+    
+    # Create choir account (pending approval)
+    choir_account = {
+        "choir_id": choir_id,
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "password_hash": password_hash,
+        "description": description,
+        "type": choir_type,
+        "status": "pending",  # pending, approved, rejected
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "approved_at": None,
+        "approved_by": None
+    }
+    
+    await db.choir_accounts.insert_one(choir_account)
+    
+    # Also create a singer entry (inactive until approved)
+    singer = {
+        "singer_id": choir_id,
+        "name": name,
+        "description": description,
+        "type": choir_type,
+        "thumbnail": None,
+        "followers_count": 0,
+        "albums_count": 0,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.singers.insert_one(singer)
+    
+    return {
+        "choir_id": choir_id,
+        "status": "pending",
+        "message": "Registration submitted. Awaiting admin approval."
+    }
+
+@api_router.post("/choir/{choir_id}/submit-song")
+async def choir_submit_song(choir_id: str, data: dict):
+    """Choir submits a new song - pending approval"""
+    # Verify choir account exists and is approved OR pending
+    choir = await db.choir_accounts.find_one({"choir_id": choir_id})
+    if not choir:
+        raise HTTPException(status_code=404, detail="Choir account not found")
+    
+    title = data.get("title")
+    album_id = data.get("album_id")
+    duration = data.get("duration", 0)
+    audio_url = data.get("audio_url")
+    lyrics = data.get("lyrics")
+    track_number = data.get("track_number", 1)
+    
+    if not title:
+        raise HTTPException(status_code=400, detail="Song title is required")
+    
+    song_id = f"song_{uuid.uuid4().hex[:12]}"
+    
+    song_submission = {
+        "submission_id": f"sub_{uuid.uuid4().hex[:12]}",
+        "song_id": song_id,
+        "choir_id": choir_id,
+        "title": title,
+        "album_id": album_id,
+        "duration": duration,
+        "audio_url": audio_url,
+        "lyrics": lyrics,
+        "track_number": track_number,
+        "status": "pending",  # pending, approved, rejected
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": None,
+        "reviewed_by": None,
+        "rejection_reason": None
+    }
+    
+    await db.song_submissions.insert_one(song_submission)
+    
+    return {
+        "submission_id": song_submission["submission_id"],
+        "song_id": song_id,
+        "status": "pending",
+        "message": "Song submitted. Will be visible after admin approval."
+    }
+
+@api_router.get("/admin/choir-registrations")
+async def get_pending_choir_registrations():
+    """Get all pending choir registrations"""
+    registrations = await db.choir_accounts.find(
+        {"status": "pending"},
+        {"_id": 0, "password_hash": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    return {"registrations": registrations}
+
+@api_router.post("/admin/choir/{choir_id}/approve")
+async def approve_choir_registration(choir_id: str, data: dict = None):
+    """Approve a choir registration"""
+    approved_by = data.get("approved_by", "admin") if data else "admin"
+    
+    # Update choir account
+    result = await db.choir_accounts.update_one(
+        {"choir_id": choir_id, "status": "pending"},
+        {"$set": {
+            "status": "approved",
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "approved_by": approved_by
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pending registration not found")
+    
+    # Activate the singer entry
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {"status": "active"}}
+    )
+    
+    return {"message": "Choir registration approved", "choir_id": choir_id}
+
+@api_router.post("/admin/choir/{choir_id}/reject")
+async def reject_choir_registration(choir_id: str, data: dict):
+    """Reject a choir registration"""
+    reason = data.get("reason", "")
+    rejected_by = data.get("rejected_by", "admin")
+    
+    result = await db.choir_accounts.update_one(
+        {"choir_id": choir_id, "status": "pending"},
+        {"$set": {
+            "status": "rejected",
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
+            "rejected_by": rejected_by,
+            "rejection_reason": reason
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pending registration not found")
+    
+    # Also reject the singer entry
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {"status": "rejected"}}
+    )
+    
+    return {"message": "Choir registration rejected", "choir_id": choir_id}
+
+@api_router.get("/admin/song-submissions")
+async def get_pending_song_submissions():
+    """Get all pending song submissions"""
+    submissions = await db.song_submissions.find(
+        {"status": "pending"},
+        {"_id": 0}
+    ).sort("submitted_at", -1).to_list(100)
+    
+    # Enrich with choir names
+    for sub in submissions:
+        choir = await db.choir_accounts.find_one({"choir_id": sub["choir_id"]}, {"_id": 0, "name": 1})
+        sub["choir_name"] = choir["name"] if choir else "Unknown"
+    
+    return {"submissions": submissions}
+
+@api_router.post("/admin/song-submission/{submission_id}/approve")
+async def approve_song_submission(submission_id: str, data: dict = None):
+    """Approve a song submission - creates the actual song"""
+    approved_by = data.get("approved_by", "admin") if data else "admin"
+    
+    submission = await db.song_submissions.find_one({"submission_id": submission_id, "status": "pending"})
+    if not submission:
+        raise HTTPException(status_code=404, detail="Pending submission not found")
+    
+    # Create the actual song
+    song = {
+        "song_id": submission["song_id"],
+        "title": submission["title"],
+        "album_id": submission["album_id"],
+        "duration": submission["duration"],
+        "audio_url": submission["audio_url"],
+        "lyrics": submission.get("lyrics"),
+        "track_number": submission.get("track_number", 1),
+        "stream_count": 0,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.songs.insert_one(song)
+    
+    # Update submission status
+    await db.song_submissions.update_one(
+        {"submission_id": submission_id},
+        {"$set": {
+            "status": "approved",
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "reviewed_by": approved_by
+        }}
+    )
+    
+    return {"message": "Song approved and published", "song_id": submission["song_id"]}
+
+@api_router.post("/admin/song-submission/{submission_id}/reject")
+async def reject_song_submission(submission_id: str, data: dict):
+    """Reject a song submission"""
+    reason = data.get("reason", "")
+    rejected_by = data.get("rejected_by", "admin")
+    
+    result = await db.song_submissions.update_one(
+        {"submission_id": submission_id, "status": "pending"},
+        {"$set": {
+            "status": "rejected",
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "reviewed_by": rejected_by,
+            "rejection_reason": reason
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pending submission not found")
+    
+    return {"message": "Song submission rejected"}
+
+# ============== PHONE OTP LOGIN ==============
+
+@api_router.post("/auth/send-otp")
+async def send_otp(data: dict):
+    """Send OTP to phone number for login"""
+    phone = data.get("phone")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number required")
+    
+    # Check if login method is enabled
+    settings = await db.app_settings.find_one({}, {"_id": 0})
+    if settings and not settings.get("login_methods", {}).get("phone_otp", True):
+        raise HTTPException(status_code=403, detail="Phone OTP login is disabled")
+    
+    # Generate OTP
+    import random
+    otp = str(random.randint(100000, 999999))
+    
+    # Store OTP with expiry (5 minutes)
+    await db.otp_codes.update_one(
+        {"phone": phone},
+        {"$set": {
+            "otp": otp,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+            "verified": False
+        }},
+        upsert=True
+    )
+    
+    # TODO: Send SMS via Twilio/Africa's Talking
+    # For now, return OTP in development (MOCKED)
+    logger.info(f"OTP for {phone}: {otp}")
+    
+    return {
+        "message": "OTP sent successfully",
+        "phone": phone,
+        # MOCKED - Remove in production
+        "otp_dev": otp
+    }
+
+@api_router.post("/auth/verify-otp")
+async def verify_otp(data: dict):
+    """Verify OTP and login/register user"""
+    phone = data.get("phone")
+    otp = data.get("otp")
+    
+    if not phone or not otp:
+        raise HTTPException(status_code=400, detail="Phone and OTP required")
+    
+    # Find and verify OTP
+    otp_record = await db.otp_codes.find_one({"phone": phone})
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="OTP not found. Please request a new one.")
+    
+    if otp_record.get("verified"):
+        raise HTTPException(status_code=400, detail="OTP already used")
+    
+    if otp_record["otp"] != otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(otp_record["expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+    
+    # Mark OTP as verified
+    await db.otp_codes.update_one({"phone": phone}, {"$set": {"verified": True}})
+    
+    # Find or create user
+    user = await db.app_users.find_one({"phone": phone})
+    
+    if not user:
+        # Create new user
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        user = {
+            "user_id": user_id,
+            "phone": phone,
+            "name": f"User_{phone[-4:]}",
+            "email": None,
+            "subscription_type": "free",
+            "register_by": "phone",
+            "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.app_users.insert_one(user)
+    
+    # Generate token
+    import jwt
+    token = jwt.encode({
+        "user_id": user["user_id"],
+        "phone": phone,
+        "exp": datetime.now(timezone.utc) + timedelta(days=30)
+    }, os.environ.get("JWT_SECRET", "spirit-songs-secret"), algorithm="HS256")
+    
+    return {
+        "token": token,
+        "user": {
+            "user_id": user["user_id"],
+            "phone": phone,
+            "name": user.get("name"),
+            "subscription_type": user.get("subscription_type", "free"),
+            "is_new_user": user.get("created_at") == datetime.now(timezone.utc).date().isoformat()
+        }
+    }
+
+# ============== HERO BANNER MANAGEMENT ==============
+
+@api_router.post("/layout/hero-banner")
+async def create_hero_banner(data: dict):
+    """Create a hero banner with link to content"""
+    banner_id = f"banner_{uuid.uuid4().hex[:12]}"
+    
+    banner = {
+        "banner_id": banner_id,
+        "type": data.get("type", "banner"),  # banner, album, song
+        "title": data.get("title"),
+        "subtitle": data.get("subtitle"),
+        "image_url": data.get("image_url"),
+        "link_type": data.get("link_type", "album"),  # album, song, external
+        "link_id": data.get("link_id"),  # album_id or song_id
+        "external_url": data.get("external_url"),
+        "is_active": data.get("is_active", True),
+        "order": data.get("order", 0),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.hero_banners.insert_one(banner)
+    return {"banner_id": banner_id, "message": "Banner created"}
+
+@api_router.get("/layout/hero-banners")
+async def get_hero_banners(active_only: bool = False):
+    """Get all hero banners"""
+    query = {"is_active": True} if active_only else {}
+    banners = await db.hero_banners.find(query, {"_id": 0}).sort("order", 1).to_list(20)
+    return {"banners": banners}
+
+@api_router.put("/layout/hero-banner/{banner_id}")
+async def update_hero_banner(banner_id: str, data: dict):
+    """Update a hero banner"""
+    data.pop("_id", None)
+    data.pop("banner_id", None)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.hero_banners.update_one({"banner_id": banner_id}, {"$set": data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Banner not found")
+    
+    return {"message": "Banner updated"}
+
+@api_router.delete("/layout/hero-banner/{banner_id}")
+async def delete_hero_banner(banner_id: str):
+    """Delete a hero banner"""
+    result = await db.hero_banners.delete_one({"banner_id": banner_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Banner not found")
+    
+    return {"message": "Banner deleted"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
