@@ -248,6 +248,16 @@ export default function LibraryScreen({ navigation }) {
     );
   };
 
+  const handlePlayAllDownloads = () => {
+    if (downloads.length === 0) return;
+    handlePlayDownloaded(downloads[0], 0);
+  };
+
+  const handlePlayAllLiked = () => {
+    if (likedSongs.length === 0) return;
+    handlePlayLikedSong(likedSongs[0], 0);
+  };
+
   const handleNowPlaying = () => {
     navigation.navigate('NowPlaying');
   };
