@@ -124,8 +124,12 @@ const NowPlayingScreen = ({ navigation }) => {
     toggleShuffle();
   };
 
-  // Handle download with subscription check
+  // Handle download with auth and subscription check
   const handleDownload = () => {
+    if (!isAuthenticated) {
+      promptLogin('download songs');
+      return;
+    }
     if (!canPerformAction('download')) {
       showUpgradePrompt('download', goToSubscription);
       return;
@@ -135,8 +139,12 @@ const NowPlayingScreen = ({ navigation }) => {
     }
   };
 
-  // Handle add to playlist with subscription check
+  // Handle add to playlist with auth and subscription check
   const handleAddToPlaylist = () => {
+    if (!isAuthenticated) {
+      promptLogin('add songs to playlists');
+      return;
+    }
     if (!canPerformAction('create_playlist')) {
       showUpgradePrompt('create_playlist', goToSubscription);
       return;
