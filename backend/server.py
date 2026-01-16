@@ -7673,7 +7673,7 @@ async def get_admin_settings():
     settings = await db.app_settings.find_one({}, {"_id": 0})
     if not settings:
         # Return default settings
-        settings = {
+        default_settings = {
             "billing_enabled": True,
             "free_user_daily_song_limit": 10,
             "free_user_max_devices": 1,
@@ -7687,7 +7687,8 @@ async def get_admin_settings():
             "min_play_duration_seconds": 30,
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
-        await db.app_settings.insert_one(settings)
+        await db.app_settings.insert_one(default_settings)
+        return default_settings
     return settings
 
 @api_router.put("/admin/settings")
