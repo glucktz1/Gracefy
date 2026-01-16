@@ -1209,7 +1209,16 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 <div className="relative flex justify-center text-xs"><span className="bg-zinc-900 px-2 text-zinc-500">or</span></div>
               </div>
 
-              <Button variant="outline" className="w-full border-zinc-700 py-5">
+              <Button 
+                variant="outline" 
+                className="w-full border-zinc-700 py-5"
+                onClick={() => {
+                  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+                  const redirectUrl = window.location.origin + '/app';
+                  window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+                }}
+                data-testid="google-login-btn"
+              >
                 <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4 mr-2" />
                 Continue with Google
               </Button>
@@ -1225,6 +1234,16 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 </button>
               </p>
             )}
+
+            {/* Choir Registration Link */}
+            <div className="text-center mt-4 pt-4 border-t border-zinc-800">
+              <p className="text-xs text-zinc-500">
+                Are you a choir or artist?{' '}
+                <a href="/choir-register" className="text-violet-400 hover:underline">
+                  Register here
+                </a>
+              </p>
+            </div>
           </>
         )}
       </div>
