@@ -339,20 +339,28 @@ export default function HomeScreen({ navigation }) {
 
   const fetchData = useCallback(async () => {
     try {
+      console.log('Fetching home data...');
       const [home, cats] = await Promise.all([
         contentService.getHome(),
         contentService.getCategories(),
       ]);
+      console.log('Home data received:', home?.sections?.length, 'sections');
+      console.log('Categories received:', cats?.categories?.length, 'categories');
+      
       setHomeData(home);
       setCategories(cats.categories || []);
       
       // Collect all albums from sections
       const albums = [];
       home?.sections?.forEach(section => {
+        console.log(`Processing section: ${section.title} with ${section.items?.length || 0} items`);
         if (section.items) {
-          albums.push(...section.items);
+          // Only add items that are albums (have album_id)
+          const albumItems = section.items.filter(item => item.album_id);
+          albums.push(...albumItems);
         }
       });
+      console.log('Total albums collected:', albums.length);
       setAllAlbums(albums);
 
       // Fetch library stats if authenticated
