@@ -775,6 +775,220 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
   );
 };
 
+// Auth Modal with Phone OTP support
+const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, setAuthForm, handleLogin, handleRegister, setToken, setUser }) => {
+  const [loginMethod, setLoginMethod] = useState('email'); // email, phone
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [devOtp, setDevOtp] = useState(''); // For development display
+
+  const handleSendOtp = async () => {
+    if (!authForm.phone || authForm.phone.length < 9) {
+      toast.error("Please enter a valid phone number");
+      return;
+    }
+    setSendingOtp(true);
+    try {
+      const res = await axios.post(`${API}/auth/send-otp`, { phone: authForm.phone });
+      toast.success("OTP sent to your phone!");
+      setOtpStep(true);
+      // For development - show the OTP (remove in production)
+      if (res.data.otp_dev) {
+        setDevOtp(res.data.otp_dev);
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to send OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      toast.error("Please enter a valid 6-digit OTP");
+      return;
+    }
+    setVerifyingOtp(true);
+    try {
+      const res = await axios.post(`${API}/auth/verify-otp`, { phone: authForm.phone, otp });
+      setToken(res.data.token);
+      setUser(res.data.user);
+      localStorage.setItem('user_token', res.data.token);
+      localStorage.setItem('user_id', res.data.user.user_id);
+      setShowAuth(false);
+      toast.success("Welcome to Spirit Songs!");
+      // Reset state
+      setOtpStep(false);
+      setOtp('');
+      setDevOtp('');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Invalid OTP");
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const resetModal = () => {
+    setOtpStep(false);
+    setOtp('');
+    setDevOtp('');
+    setLoginMethod('email');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+      <div className="bg-zinc-900 rounded-2xl max-w-md w-full p-6 relative">
+        <button onClick={() => { setShowAuth(false); resetModal(); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white">
+          <X size={24} />
+        </button>
+
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold mb-1">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
+          <p className="text-sm text-zinc-400">Sign in to save your music</p>
+        </div>
+
+        {/* Login Method Tabs */}
+        {!otpStep && (
+          <div className="flex gap-2 mb-4">
+            <button 
+              onClick={() => setLoginMethod('email')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                loginMethod === 'email' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Mail size={16} />
+              Email
+            </button>
+            <button 
+              onClick={() => setLoginMethod('phone')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                loginMethod === 'phone' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Phone size={16} />
+              Phone OTP
+            </button>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {/* Phone OTP Login */}
+          {loginMethod === 'phone' ? (
+            <>
+              {!otpStep ? (
+                <>
+                  <Input 
+                    value={authForm.phone} 
+                    onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })} 
+                    placeholder="Phone number (e.g., +255...)" 
+                    className="bg-zinc-800 border-zinc-700"
+                    data-testid="phone-input"
+                  />
+                  <Button 
+                    onClick={handleSendOtp} 
+                    disabled={sendingOtp}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    data-testid="send-otp-btn"
+                  >
+                    {sendingOtp ? (
+                      <>
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                        Sending OTP...
+                      </>
+                    ) : (
+                      'Send OTP'
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-zinc-400 text-center">Enter the 6-digit code sent to {authForm.phone}</p>
+                  
+                  {/* Dev OTP Display (REMOVE IN PRODUCTION) */}
+                  {devOtp && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-center">
+                      <p className="text-xs text-amber-500 mb-1">Development Mode - OTP:</p>
+                      <p className="text-2xl font-mono font-bold text-amber-400 tracking-widest">{devOtp}</p>
+                    </div>
+                  )}
+                  
+                  <Input 
+                    value={otp} 
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                    placeholder="Enter 6-digit OTP"
+                    className="bg-zinc-800 border-zinc-700 text-center text-xl tracking-widest"
+                    maxLength={6}
+                    data-testid="otp-input"
+                  />
+                  <Button 
+                    onClick={handleVerifyOtp} 
+                    disabled={verifyingOtp || otp.length !== 6}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    data-testid="verify-otp-btn"
+                  >
+                    {verifyingOtp ? (
+                      <>
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify & Sign In'
+                    )}
+                  </Button>
+                  <button 
+                    onClick={() => { setOtpStep(false); setOtp(''); setDevOtp(''); }}
+                    className="w-full text-sm text-zinc-400 hover:text-white py-2"
+                  >
+                    Use different number
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            /* Email/Password Login */
+            <>
+              {authMode === 'register' && (
+                <Input value={authForm.name} onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })} placeholder="Your name" className="bg-zinc-800 border-zinc-700" />
+              )}
+              <Input value={authForm.email} onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })} placeholder="Email address" type="email" className="bg-zinc-800 border-zinc-700" />
+              <Input value={authForm.password} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} placeholder="Password" type="password" className="bg-zinc-800 border-zinc-700" />
+
+              <Button onClick={authMode === 'login' ? handleLogin : handleRegister} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5">
+                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+              </Button>
+            </>
+          )}
+
+          {loginMethod === 'email' && !otpStep && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-700" /></div>
+                <div className="relative flex justify-center text-xs"><span className="bg-zinc-900 px-2 text-zinc-500">or</span></div>
+              </div>
+
+              <Button variant="outline" className="w-full border-zinc-700 py-5">
+                <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4 mr-2" />
+                Continue with Google
+              </Button>
+            </>
+          )}
+        </div>
+
+        {loginMethod === 'email' && !otpStep && (
+          <p className="text-center text-sm text-zinc-400 mt-4">
+            {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+            <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-emerald-400 hover:underline">
+              {authMode === 'login' ? 'Sign up' : 'Sign in'}
+            </button>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ==================== MAIN APP ====================
 export default function UserStreamingApp() {
   const [user, setUser] = useState(null);
