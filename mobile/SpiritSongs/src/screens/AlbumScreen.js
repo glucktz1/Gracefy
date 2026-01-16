@@ -10,7 +10,6 @@ import { usePlayer } from '../context/PlayerContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { downloadSong, isSongDownloaded } from '../services/downloadService';
 import SongListItem from '../components/SongListItem';
-import MiniPlayer from '../components/MiniPlayer';
 import PlaylistModal from '../components/PlaylistModal';
 import { COLORS } from '../config';
 
@@ -451,9 +450,6 @@ export default function AlbumScreen({ route, navigation }) {
           </Text>
         </View>
       </ScrollView>
-
-      {/* Mini Player */}
-      {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
 
       {/* Playlist Modal */}
       <PlaylistModal 
