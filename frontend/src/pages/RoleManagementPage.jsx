@@ -66,7 +66,7 @@ export default function RoleManagementPage() {
   
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [expandedRole, setExpandedRole] = useState(null);
 
   const fetchData = async () => {
