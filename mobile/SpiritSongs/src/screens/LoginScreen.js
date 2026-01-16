@@ -436,6 +436,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  creatorLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    gap: 8,
+  },
+  creatorLinkText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+  },
+  creatorLinkHighlight: {
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
   footer: {
     color: COLORS.textMuted,
     fontSize: 12,
