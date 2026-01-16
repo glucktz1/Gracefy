@@ -697,6 +697,37 @@ export default function ContentManagementPage() {
                 className="bg-zinc-950 border-zinc-700"
               />
             </div>
+            <div>
+              <label className="text-sm text-zinc-400 mb-1.5 block">Thumbnail (Optional)</label>
+              <div className="flex gap-3">
+                <Input
+                  value={seriesForm.thumbnail_url}
+                  onChange={(e) => setSeriesForm({ ...seriesForm, thumbnail_url: e.target.value })}
+                  placeholder="Thumbnail URL or upload"
+                  className="bg-zinc-950 border-zinc-700 flex-1"
+                />
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const url = await handleFileUpload(e.target.files?.[0], "image");
+                      if (url) setSeriesForm({ ...seriesForm, thumbnail_url: url });
+                    }}
+                  />
+                  <Button type="button" variant="outline" className="border-zinc-700" disabled={uploading}>
+                    <Image size={14} className="mr-1" /> 
+                    {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload"}
+                  </Button>
+                </label>
+              </div>
+              {seriesForm.thumbnail_url && (
+                <div className="mt-2">
+                  <img src={seriesForm.thumbnail_url} alt="Preview" className="w-16 h-16 rounded object-cover" />
+                </div>
+              )}
+            </div>
           </div>
           
           <DialogFooter>
