@@ -612,7 +612,7 @@ export default function ContentManagementPage() {
                   <Input
                     value={containerForm.thumbnail_url}
                     onChange={(e) => setContainerForm({ ...containerForm, thumbnail_url: e.target.value })}
-                    placeholder="Image URL"
+                    placeholder="Image URL or upload"
                     className="bg-zinc-950 border-zinc-700 flex-1"
                   />
                   <label className="cursor-pointer">
@@ -626,10 +626,17 @@ export default function ContentManagementPage() {
                       }}
                     />
                     <Button type="button" variant="outline" className="border-zinc-700" disabled={uploading}>
-                      <Upload size={14} className="mr-1" /> {uploading ? "..." : "Upload"}
+                      <Upload size={14} className="mr-1" /> 
+                      {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload"}
                     </Button>
                   </label>
                 </div>
+                {containerForm.thumbnail_url && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img src={containerForm.thumbnail_url} alt="Preview" className="w-16 h-16 rounded object-cover" />
+                    <span className="text-xs text-zinc-500">Thumbnail preview</span>
+                  </div>
+                )}
               </div>
               
               <div className="col-span-2">
