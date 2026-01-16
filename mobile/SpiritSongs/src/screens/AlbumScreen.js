@@ -211,6 +211,31 @@ export default function AlbumScreen({ route, navigation }) {
     setShowPlaylistModal(true);
   }, [canPerformAction, showUpgradePrompt, goToSubscription]);
 
+  const handleDownloadSong = useCallback(async (song) => {
+    // Check if user can download
+    if (!canPerformAction('download')) {
+      showUpgradePrompt('download', goToSubscription);
+      return;
+    }
+    
+    try {
+      const isDownloaded = await isSongDownloaded(song.song_id);
+      if (isDownloaded) {
+        Alert.alert('Already Downloaded', 'This song is already available offline.');
+        return;
+      }
+      
+      await downloadSong(song, album, (progress) => {
+        console.log(`Download progress: ${Math.round(progress * 100)}%`);
+      });
+      
+      Alert.alert('Download Complete', `"${song.title}" is now available offline.`);
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Download Failed', 'Could not download this song. Please try again.');
+    }
+  }, [album, canPerformAction, showUpgradePrompt, goToSubscription]);
+
   const handleDownloadAll = async () => {
     // Check if user can download
     if (!canPerformAction('download')) {
