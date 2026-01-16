@@ -131,12 +131,13 @@ MiniPlayer.HEIGHT = 64;
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 60, // Above tab bar
+    bottom: Platform.OS === 'ios' ? 84 : 64, // Above tab bar
     left: 0,
     right: 0,
     height: 64,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
+    zIndex: 1000,
   },
   background: {
     ...StyleSheet.absoluteFillObject,
