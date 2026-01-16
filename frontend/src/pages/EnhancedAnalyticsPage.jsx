@@ -418,6 +418,70 @@ export default function EnhancedAnalyticsPage() {
 
         {/* Content Tab */}
         <TabsContent value="content" className="space-y-6">
+          {/* Album Performance */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Disc size={18} className="text-emerald-400" />
+                Album Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {analytics?.albums?.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-zinc-800">
+                        <th className="text-left text-xs text-zinc-500 pb-3 font-medium">#</th>
+                        <th className="text-left text-xs text-zinc-500 pb-3 font-medium">Album</th>
+                        <th className="text-left text-xs text-zinc-500 pb-3 font-medium">Artist</th>
+                        <th className="text-right text-xs text-zinc-500 pb-3 font-medium">Plays</th>
+                        <th className="text-right text-xs text-zinc-500 pb-3 font-medium">Minutes Streamed</th>
+                        <th className="text-right text-xs text-zinc-500 pb-3 font-medium">Hours</th>
+                        <th className="text-right text-xs text-zinc-500 pb-3 font-medium">Avg/Play</th>
+                        <th className="text-right text-xs text-zinc-500 pb-3 font-medium">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.albums.map((album, index) => (
+                        <tr key={album.album_id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                          <td className="py-3 pr-3">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              index === 0 ? 'bg-amber-500 text-black' :
+                              index === 1 ? 'bg-zinc-400 text-black' :
+                              index === 2 ? 'bg-amber-700 text-white' :
+                              'bg-zinc-700 text-white'
+                            }`}>
+                              {index + 1}
+                            </span>
+                          </td>
+                          <td className="py-3">
+                            <p className="font-medium text-white text-sm">{album.title}</p>
+                            <Badge variant="outline" className="text-[10px] mt-1 border-zinc-700">
+                              {album.monetization_type || 'standard'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 text-sm text-zinc-400">{album.artist_name || 'Unknown'}</td>
+                          <td className="py-3 text-right font-semibold text-violet-400">{album.total_plays?.toLocaleString()}</td>
+                          <td className="py-3 text-right">
+                            <span className="font-bold text-emerald-400 text-lg">{album.minutes_streamed?.toLocaleString()}</span>
+                            <span className="text-zinc-500 text-xs ml-1">min</span>
+                          </td>
+                          <td className="py-3 text-right text-zinc-400 text-sm">{album.total_hours}h</td>
+                          <td className="py-3 text-right text-zinc-500 text-sm">{album.avg_minutes_per_play} min</td>
+                          <td className="py-3 text-right font-semibold text-amber-400">TZS {album.revenue?.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-zinc-500 text-center py-8">No album performance data available</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top Songs */}
           <Card className="bg-zinc-900/50 border-zinc-800">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center gap-2">
