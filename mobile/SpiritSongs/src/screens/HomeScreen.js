@@ -555,6 +555,16 @@ export default function HomeScreen({ navigation }) {
           onItemPress={handleAlbumPress}
         />
 
+        {/* Fallback when no content */}
+        {allAlbums.length === 0 && featuredAlbums.length === 0 && (
+          <View style={{ padding: 32, alignItems: 'center' }}>
+            <Ionicons name="musical-notes" size={48} color="#666" />
+            <Text style={{ color: '#888', marginTop: 12, textAlign: 'center' }}>
+              No content available yet.{'\n'}Pull down to refresh.
+            </Text>
+          </View>
+        )}
+
         {/* Show filtered content when category selected */}
         {activeCategory !== 'all' && filteredItems.length > 0 && (
           <GridSection
