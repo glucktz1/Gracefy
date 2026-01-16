@@ -377,18 +377,18 @@ const NowPlayingScreen = ({ navigation }) => {
                 <Text style={styles.secondaryText}>{Math.round(downloadProgress * 100)}%</Text>
               </>
             ) : (
-              <View style={styles.secondaryIconWrapper}>
-                <Ionicons 
-                  name={isDownloaded ? 'checkmark-circle' : 'download-outline'} 
-                  size={28} 
-                  color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
-                />
-                {!canPerformAction('download') && !isDownloaded && (
-                  <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
-                )}
-              </View>
-            )}
-            <Text style={[styles.secondaryText, isDownloaded && { color: '#4CAF50' }]}>
+              <>
+                <View style={styles.secondaryIconWrapper}>
+                  <Ionicons 
+                    name={isDownloaded ? 'checkmark-circle' : 'download-outline'} 
+                    size={28} 
+                    color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
+                  />
+                  {!canPerformAction('download') && !isDownloaded && (
+                    <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
+                  )}
+                </View>
+                <Text style={[styles.secondaryText, isDownloaded && { color: '#4CAF50' }]}>
                   {isDownloaded ? 'Downloaded' : 'Download'}
                 </Text>
               </>
