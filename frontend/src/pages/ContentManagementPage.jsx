@@ -103,30 +103,47 @@ export default function ContentManagementPage() {
     }
   };
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const handleFileUpload = async (file, type = "image") => {
     if (!file) return null;
     
-    const maxSize = type === "audio" ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxSize = type === "audio" ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error(`File too large. Max ${type === "audio" ? "50MB" : "5MB"}`);
+      toast.error(`File too large. Max ${type === "audio" ? "100MB" : "5MB"}`);
       return null;
     }
     
     setUploading(true);
+    setUploadProgress(0);
+    
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await axios.post(`${API}/upload`, formData, {
+      
+      // Use dedicated content upload endpoints for Supabase storage
+      const endpoint = type === "audio" 
+        ? `${API}/content/upload-audio` 
+        : `${API}/content/upload-thumbnail`;
+      
+      const res = await axios.post(endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        withCredentials: true
+        withCredentials: true,
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percent);
+        }
       });
-      toast.success("File uploaded!");
+      
+      toast.success(`${type === "audio" ? "Audio" : "Image"} uploaded successfully!`);
       return res.data.url;
     } catch (error) {
-      toast.error("Upload failed");
+      console.error("Upload error:", error);
+      toast.error(error.response?.data?.detail || "Upload failed");
       return null;
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
