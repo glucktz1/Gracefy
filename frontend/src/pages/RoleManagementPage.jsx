@@ -51,6 +51,12 @@ export default function RoleManagementPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("roles");
   
+  // Category Permissions State
+  const [categoryPermissions, setCategoryPermissions] = useState([]);
+  const [editedPermissions, setEditedPermissions] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [savingPermissions, setSavingPermissions] = useState(false);
+  
   // Role Modal
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
@@ -71,18 +77,31 @@ export default function RoleManagementPage() {
 
   const fetchData = async () => {
     try {
-      const [rolesRes, permsRes, usersRes, logsRes, statsRes] = await Promise.all([
+      const [rolesRes, permsRes, usersRes, logsRes, statsRes, catPermsRes] = await Promise.all([
         axios.get(`${API}/rbac/roles`, { withCredentials: true }),
         axios.get(`${API}/rbac/permissions`, { withCredentials: true }),
         axios.get(`${API}/rbac/users`, { withCredentials: true }),
         axios.get(`${API}/rbac/audit-log?limit=50`, { withCredentials: true }),
-        axios.get(`${API}/rbac/stats`, { withCredentials: true })
+        axios.get(`${API}/rbac/stats`, { withCredentials: true }),
+        axios.get(`${API}/admin/category-permissions`, { withCredentials: true })
       ]);
       setRoles(rolesRes.data);
       setPermissions(permsRes.data.permissions || []);
       setUsers(usersRes.data.users || []);
       setAuditLogs(logsRes.data.logs || []);
       setStats(statsRes.data);
+      
+      // Initialize category permissions
+      const catPerms = catPermsRes.data.categories || [];
+      setCategoryPermissions(catPerms);
+      
+      // Initialize edited permissions with current values
+      const initialEdited = {};
+      catPerms.forEach(cat => {
+        initialEdited[cat.role_id] = [...(cat.permissions || [])];
+      });
+      setEditedPermissions(initialEdited);
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.error("Error fetching RBAC data:", error);
       toast.error("Failed to load role management data");
@@ -94,6 +113,66 @@ export default function RoleManagementPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle permission toggle
+  const handlePermissionToggle = (roleId, permissionId) => {
+    setEditedPermissions(prev => {
+      const current = prev[roleId] || [];
+      const updated = current.includes(permissionId)
+        ? current.filter(p => p !== permissionId)
+        : [...current, permissionId];
+      return { ...prev, [roleId]: updated };
+    });
+    setHasUnsavedChanges(true);
+  };
+
+  // Save all permission changes
+  const handleSavePermissions = async () => {
+    setSavingPermissions(true);
+    try {
+      // Find categories that have changed
+      const changedCategories = categoryPermissions.filter(cat => {
+        const original = cat.permissions || [];
+        const edited = editedPermissions[cat.role_id] || [];
+        return JSON.stringify(original.sort()) !== JSON.stringify(edited.sort());
+      });
+
+      // Update each changed category
+      for (const cat of changedCategories) {
+        await axios.put(
+          `${API}/admin/category-permissions/${cat.role_id}`,
+          { permissions: editedPermissions[cat.role_id] },
+          { withCredentials: true }
+        );
+      }
+
+      toast.success(`Updated permissions for ${changedCategories.length} categor${changedCategories.length === 1 ? 'y' : 'ies'}`);
+      setHasUnsavedChanges(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error("Error saving permissions:", error);
+      toast.error(error.response?.data?.detail || "Failed to save permissions");
+    } finally {
+      setSavingPermissions(false);
+    }
+  };
+
+  // Reset permissions for a category
+  const handleResetPermissions = async (roleId) => {
+    if (!window.confirm(`Reset permissions for this category to system defaults?`)) return;
+    
+    try {
+      await axios.post(
+        `${API}/admin/category-permissions/${roleId}/reset`,
+        {},
+        { withCredentials: true }
+      );
+      toast.success("Permissions reset to defaults");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to reset permissions");
+    }
+  };
 
   // Group permissions by category
   const groupedPermissions = permissions.reduce((acc, perm) => {
