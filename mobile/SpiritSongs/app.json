@@ -2,7 +2,7 @@
   "expo": {
     "name": "Spirit Songs",
     "slug": "SpiritSongs",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -17,7 +17,9 @@
       "bundleIdentifier": "com.spiritsongs.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio"
+          "audio",
+          "fetch",
+          "remote-notification"
         ],
         "NSAppleMusicUsageDescription": "This app needs access to play music in the background."
       }
@@ -31,6 +33,7 @@
       "package": "com.spiritsongs.app",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WAKE_LOCK",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
