@@ -7,7 +7,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { contentService } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
-import MiniPlayer from '../components/MiniPlayer';
 import SongListItem from '../components/SongListItem';
 import { COLORS } from '../config';
 
@@ -219,9 +218,6 @@ export default function SearchScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      {/* Mini Player */}
-      {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
     </View>
   );
 }
