@@ -1270,7 +1270,7 @@ export default function UserStreamingApp() {
   const [categoryAlbums, setCategoryAlbums] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [quickAccessItems, setQuickAccessItems] = useState([]);
-  const [libraryTab, setLibraryTab] = useState('playlists');
+  const [libraryTab, setLibraryTab] = useState('all');
 
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
