@@ -8132,6 +8132,173 @@ async def verify_otp(data: dict):
         }
     }
 
+# ============== FORGOT PASSWORD ==============
+
+@api_router.post("/auth/forgot-password/send")
+async def send_password_reset(data: dict):
+    """Send password reset OTP via email or phone"""
+    email = data.get("email")
+    phone = data.get("phone")
+    
+    if not email and not phone:
+        raise HTTPException(status_code=400, detail="Email or phone is required")
+    
+    # Check if user exists
+    if email:
+        user = await db.app_users.find_one({"email": email})
+        if not user:
+            # Also check choir accounts
+            user = await db.choir_accounts.find_one({"email": email})
+        identifier = email
+        identifier_type = "email"
+    else:
+        user = await db.app_users.find_one({"phone": phone})
+        identifier = phone
+        identifier_type = "phone"
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this credential")
+    
+    # Generate 6-digit OTP
+    otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    
+    # Store OTP with expiration
+    await db.password_reset_otps.update_one(
+        {"identifier": identifier},
+        {
+            "$set": {
+                "identifier": identifier,
+                "identifier_type": identifier_type,
+                "otp": otp,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(),
+                "verified": False,
+                "used": False
+            }
+        },
+        upsert=True
+    )
+    
+    # MOCK: Log SMS/Email (in production, send actual SMS/email)
+    await db.sms_logs.insert_one({
+        "type": f"password_reset_{identifier_type}",
+        "recipient": identifier,
+        "message": f"Your Spirit Songs password reset code is: {otp}",
+        "status": "mock_sent",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {
+        "message": f"Reset code sent to your {identifier_type}",
+        "identifier": identifier,
+        "identifier_type": identifier_type,
+        "otp_dev": otp  # Remove in production - for testing only
+    }
+
+@api_router.post("/auth/forgot-password/verify")
+async def verify_reset_otp(data: dict):
+    """Verify password reset OTP"""
+    identifier = data.get("identifier")  # email or phone
+    otp = data.get("otp")
+    
+    if not identifier or not otp:
+        raise HTTPException(status_code=400, detail="Identifier and OTP are required")
+    
+    # Find OTP record
+    otp_record = await db.password_reset_otps.find_one({
+        "identifier": identifier,
+        "otp": otp,
+        "used": False
+    })
+    
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
+    
+    # Check expiration
+    expires_at = datetime.fromisoformat(otp_record["expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset code has expired")
+    
+    # Mark as verified (but not yet used)
+    await db.password_reset_otps.update_one(
+        {"identifier": identifier},
+        {"$set": {"verified": True}}
+    )
+    
+    # Generate a temporary reset token
+    import jwt
+    reset_token = jwt.encode({
+        "identifier": identifier,
+        "purpose": "password_reset",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=30)
+    }, os.environ.get("JWT_SECRET", "spirit-songs-secret"), algorithm="HS256")
+    
+    return {
+        "message": "OTP verified successfully",
+        "reset_token": reset_token
+    }
+
+@api_router.post("/auth/forgot-password/reset")
+async def reset_password(data: dict):
+    """Reset password with verified token"""
+    reset_token = data.get("reset_token")
+    new_password = data.get("new_password")
+    
+    if not reset_token or not new_password:
+        raise HTTPException(status_code=400, detail="Reset token and new password are required")
+    
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    # Verify reset token
+    import jwt
+    try:
+        payload = jwt.decode(reset_token, os.environ.get("JWT_SECRET", "spirit-songs-secret"), algorithms=["HS256"])
+        if payload.get("purpose") != "password_reset":
+            raise HTTPException(status_code=400, detail="Invalid reset token")
+        identifier = payload["identifier"]
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+    
+    # Check if OTP was verified and not used
+    otp_record = await db.password_reset_otps.find_one({
+        "identifier": identifier,
+        "verified": True,
+        "used": False
+    })
+    
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Invalid or already used reset code")
+    
+    # Hash new password
+    import hashlib
+    password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+    
+    # Update password in app_users or choir_accounts
+    user_updated = await db.app_users.update_one(
+        {"$or": [{"email": identifier}, {"phone": identifier}]},
+        {"$set": {"password_hash": password_hash, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if user_updated.matched_count == 0:
+        # Try choir accounts
+        choir_updated = await db.choir_accounts.update_one(
+            {"email": identifier},
+            {"$set": {"password_hash": password_hash, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        if choir_updated.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Mark OTP as used
+    await db.password_reset_otps.update_one(
+        {"identifier": identifier},
+        {"$set": {"used": True}}
+    )
+    
+    return {"message": "Password reset successfully"}
+
 # ============== HERO BANNER MANAGEMENT ==============
 
 @api_router.post("/layout/hero-banner")
