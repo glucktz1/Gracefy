@@ -1736,6 +1736,350 @@ async def bulk_delete_albums(data: dict):
     result = await db.albums.delete_many({"album_id": {"$in": album_ids}})
     return {"message": f"{result.deleted_count} albums deleted"}
 
+# ============== LEADER CONTENT MANAGEMENT ==============
+
+@api_router.get("/content-containers")
+async def get_content_containers(
+    content_type: Optional[str] = None,
+    category_id: Optional[str] = None,
+    leader_id: Optional[str] = None,
+    status: str = "all",
+    skip: int = 0,
+    limit: int = 50
+):
+    """Get all content containers with filtering"""
+    query = {}
+    if content_type:
+        query["content_type"] = content_type
+    if category_id:
+        query["category_id"] = category_id
+    if leader_id:
+        query["leader_id"] = leader_id
+    if status != "all":
+        query["status"] = status
+    
+    containers = await db.content_containers.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.content_containers.count_documents(query)
+    
+    # Get leader info for each container
+    for container in containers:
+        if container.get("leader_id"):
+            leader = await db.leaders.find_one({"leader_id": container["leader_id"]}, {"_id": 0, "name": 1})
+            container["leader_name"] = leader.get("name") if leader else container.get("leader_name")
+    
+    return {"containers": containers, "total": total}
+
+@api_router.get("/content-containers/{container_id}")
+async def get_content_container(container_id: str):
+    """Get single content container with all series and episodes"""
+    container = await db.content_containers.find_one({"container_id": container_id}, {"_id": 0})
+    if not container:
+        raise HTTPException(status_code=404, detail="Content container not found")
+    
+    # Get all series in this container
+    series_list = await db.content_series.find(
+        {"container_id": container_id}, 
+        {"_id": 0}
+    ).sort("series_number", 1).to_list(100)
+    
+    # Get episodes for each series
+    for series in series_list:
+        episodes = await db.content_episodes.find(
+            {"series_id": series["series_id"]},
+            {"_id": 0}
+        ).sort("episode_number", 1).to_list(100)
+        series["episodes"] = episodes
+    
+    return {"container": container, "series": series_list}
+
+@api_router.post("/content-containers")
+async def create_content_container(data: dict):
+    """Create a new content container"""
+    container = ContentContainer(**data)
+    doc = container.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.content_containers.insert_one(doc)
+    return {"container_id": doc["container_id"], "message": "Content container created successfully"}
+
+@api_router.put("/content-containers/{container_id}")
+async def update_content_container(container_id: str, updates: dict):
+    """Update content container"""
+    updates.pop("_id", None)
+    updates.pop("container_id", None)
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.content_containers.update_one(
+        {"container_id": container_id},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Container not found")
+    return {"message": "Content container updated successfully"}
+
+@api_router.delete("/content-containers/{container_id}")
+async def delete_content_container(container_id: str):
+    """Delete content container with all series and episodes"""
+    # Delete all episodes
+    await db.content_episodes.delete_many({"container_id": container_id})
+    # Delete all series
+    await db.content_series.delete_many({"container_id": container_id})
+    # Delete container
+    result = await db.content_containers.delete_one({"container_id": container_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Container not found")
+    return {"message": "Content container and all content deleted successfully"}
+
+# Content Series endpoints
+@api_router.get("/content-series")
+async def get_content_series(container_id: Optional[str] = None):
+    """Get all series, optionally filtered by container"""
+    query = {}
+    if container_id:
+        query["container_id"] = container_id
+    series = await db.content_series.find(query, {"_id": 0}).sort("series_number", 1).to_list(100)
+    return {"series": series}
+
+@api_router.post("/content-series")
+async def create_content_series(data: dict):
+    """Create a new series within a container"""
+    # Get next series number
+    existing = await db.content_series.count_documents({"container_id": data.get("container_id")})
+    data["series_number"] = data.get("series_number", existing + 1)
+    
+    series = ContentSeries(**data)
+    doc = series.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.content_series.insert_one(doc)
+    
+    # Update container series count
+    await db.content_containers.update_one(
+        {"container_id": data["container_id"]},
+        {"$inc": {"total_series": 1}}
+    )
+    
+    return {"series_id": doc["series_id"], "message": "Series created successfully"}
+
+@api_router.put("/content-series/{series_id}")
+async def update_content_series(series_id: str, updates: dict):
+    """Update series"""
+    updates.pop("_id", None)
+    updates.pop("series_id", None)
+    result = await db.content_series.update_one({"series_id": series_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Series not found")
+    return {"message": "Series updated successfully"}
+
+@api_router.delete("/content-series/{series_id}")
+async def delete_content_series(series_id: str):
+    """Delete series and its episodes"""
+    series = await db.content_series.find_one({"series_id": series_id}, {"_id": 0})
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    
+    # Delete episodes
+    await db.content_episodes.delete_many({"series_id": series_id})
+    # Delete series
+    await db.content_series.delete_one({"series_id": series_id})
+    
+    # Update container counts
+    await db.content_containers.update_one(
+        {"container_id": series["container_id"]},
+        {"$inc": {"total_series": -1}}
+    )
+    
+    return {"message": "Series and episodes deleted successfully"}
+
+# Content Episodes endpoints
+@api_router.get("/content-episodes")
+async def get_content_episodes(series_id: Optional[str] = None, container_id: Optional[str] = None):
+    """Get all episodes"""
+    query = {}
+    if series_id:
+        query["series_id"] = series_id
+    if container_id:
+        query["container_id"] = container_id
+    episodes = await db.content_episodes.find(query, {"_id": 0}).sort("episode_number", 1).to_list(500)
+    return {"episodes": episodes}
+
+@api_router.post("/content-episodes")
+async def create_content_episode(data: dict):
+    """Create a new episode within a series"""
+    # Get next episode number
+    existing = await db.content_episodes.count_documents({"series_id": data.get("series_id")})
+    data["episode_number"] = data.get("episode_number", existing + 1)
+    
+    episode = ContentEpisode(**data)
+    doc = episode.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.content_episodes.insert_one(doc)
+    
+    # Update series and container episode counts
+    series = await db.content_series.find_one({"series_id": data["series_id"]}, {"_id": 0})
+    if series:
+        duration_mins = doc.get("duration_seconds", 0) // 60
+        await db.content_series.update_one(
+            {"series_id": data["series_id"]},
+            {"$inc": {"total_episodes": 1, "total_duration_minutes": duration_mins}}
+        )
+        await db.content_containers.update_one(
+            {"container_id": series["container_id"]},
+            {"$inc": {"total_episodes": 1, "total_duration_minutes": duration_mins}}
+        )
+    
+    return {"episode_id": doc["episode_id"], "message": "Episode created successfully"}
+
+@api_router.post("/content-episodes/bulk")
+async def create_content_episodes_bulk(data: dict):
+    """Create multiple episodes at once"""
+    episodes_data = data.get("episodes", [])
+    series_id = data.get("series_id")
+    container_id = data.get("container_id")
+    
+    if not episodes_data:
+        raise HTTPException(status_code=400, detail="No episodes provided")
+    
+    created_ids = []
+    total_duration = 0
+    
+    for idx, ep_data in enumerate(episodes_data):
+        ep_data["series_id"] = series_id
+        ep_data["container_id"] = container_id
+        ep_data["episode_number"] = idx + 1
+        
+        episode = ContentEpisode(**ep_data)
+        doc = episode.model_dump()
+        doc["created_at"] = doc["created_at"].isoformat()
+        await db.content_episodes.insert_one(doc)
+        created_ids.append(doc["episode_id"])
+        total_duration += doc.get("duration_seconds", 0) // 60
+    
+    # Update counts
+    await db.content_series.update_one(
+        {"series_id": series_id},
+        {"$inc": {"total_episodes": len(created_ids), "total_duration_minutes": total_duration}}
+    )
+    await db.content_containers.update_one(
+        {"container_id": container_id},
+        {"$inc": {"total_episodes": len(created_ids), "total_duration_minutes": total_duration}}
+    )
+    
+    return {"episode_ids": created_ids, "message": f"{len(created_ids)} episodes created successfully"}
+
+@api_router.put("/content-episodes/{episode_id}")
+async def update_content_episode(episode_id: str, updates: dict):
+    """Update episode"""
+    updates.pop("_id", None)
+    updates.pop("episode_id", None)
+    result = await db.content_episodes.update_one({"episode_id": episode_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    return {"message": "Episode updated successfully"}
+
+@api_router.delete("/content-episodes/{episode_id}")
+async def delete_content_episode(episode_id: str):
+    """Delete episode"""
+    episode = await db.content_episodes.find_one({"episode_id": episode_id}, {"_id": 0})
+    if not episode:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    
+    duration_mins = episode.get("duration_seconds", 0) // 60
+    
+    await db.content_episodes.delete_one({"episode_id": episode_id})
+    
+    # Update counts
+    await db.content_series.update_one(
+        {"series_id": episode["series_id"]},
+        {"$inc": {"total_episodes": -1, "total_duration_minutes": -duration_mins}}
+    )
+    await db.content_containers.update_one(
+        {"container_id": episode["container_id"]},
+        {"$inc": {"total_episodes": -1, "total_duration_minutes": -duration_mins}}
+    )
+    
+    return {"message": "Episode deleted successfully"}
+
+# Content streaming/tracking
+@api_router.post("/content-episodes/{episode_id}/play")
+async def track_episode_play(episode_id: str, data: dict = {}):
+    """Track episode play for analytics"""
+    user_id = data.get("user_id")
+    
+    # Update episode play count
+    await db.content_episodes.update_one(
+        {"episode_id": episode_id},
+        {"$inc": {"play_count": 1}}
+    )
+    
+    # Get episode to update series and container
+    episode = await db.content_episodes.find_one({"episode_id": episode_id}, {"_id": 0})
+    if episode:
+        await db.content_series.update_one(
+            {"series_id": episode["series_id"]},
+            {"$inc": {"play_count": 1}}
+        )
+        await db.content_containers.update_one(
+            {"container_id": episode["container_id"]},
+            {"$inc": {"play_count": 1}}
+        )
+        
+        # Log stream for revenue tracking (similar to songs)
+        await db.content_streams.insert_one({
+            "stream_id": f"cstream_{uuid.uuid4().hex[:12]}",
+            "episode_id": episode_id,
+            "series_id": episode["series_id"],
+            "container_id": episode["container_id"],
+            "user_id": user_id,
+            "duration_seconds": episode.get("duration_seconds", 0),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    
+    return {"message": "Play tracked"}
+
+# User-facing content endpoints
+@api_router.get("/user/content")
+async def get_user_content(
+    content_type: Optional[str] = None,
+    category_id: Optional[str] = None,
+    featured: bool = False,
+    skip: int = 0,
+    limit: int = 20
+):
+    """Get content for user streaming app"""
+    query = {"status": "active"}
+    if content_type:
+        query["content_type"] = content_type
+    if category_id:
+        query["category_id"] = category_id
+    if featured:
+        query["is_featured"] = True
+    
+    containers = await db.content_containers.find(query, {"_id": 0}).sort([("is_featured", -1), ("created_at", -1)]).skip(skip).limit(limit).to_list(limit)
+    return {"content": containers}
+
+@api_router.get("/user/content/{container_id}")
+async def get_user_content_detail(container_id: str):
+    """Get content detail for user streaming"""
+    container = await db.content_containers.find_one(
+        {"container_id": container_id, "status": "active"}, 
+        {"_id": 0}
+    )
+    if not container:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    series_list = await db.content_series.find(
+        {"container_id": container_id, "status": "active"},
+        {"_id": 0}
+    ).sort("series_number", 1).to_list(100)
+    
+    for series in series_list:
+        episodes = await db.content_episodes.find(
+            {"series_id": series["series_id"], "status": "active"},
+            {"_id": 0}
+        ).sort("episode_number", 1).to_list(100)
+        series["episodes"] = episodes
+    
+    return {"container": container, "series": series_list}
+
 # ============== SONGS MANAGEMENT ==============
 
 @api_router.get("/songs")
