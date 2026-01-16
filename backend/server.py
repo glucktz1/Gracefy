@@ -1239,6 +1239,15 @@ async def get_analytics_overview():
     pending_approvals += await db.religious_leaders.count_documents({"status": "pending"})
     pending_approvals += await db.community_posts.count_documents({"status": "pending"})
     
+    # Get leader content stats
+    total_content_containers = await db.content_containers.count_documents({})
+    total_content_episodes = await db.content_episodes.count_documents({})
+    
+    # Content duration in minutes
+    content_duration_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$total_duration_minutes"}}}]
+    content_duration_result = await db.content_containers.aggregate(content_duration_pipeline).to_list(1)
+    total_content_minutes = content_duration_result[0]["total"] if content_duration_result else 0
+    
     # Get total raised amount
     pipeline = [{"$group": {"_id": None, "total": {"$sum": "$raised_amount"}}}]
     donation_result = await db.donation_campaigns.aggregate(pipeline).to_list(1)
@@ -1254,7 +1263,10 @@ async def get_analytics_overview():
         "total_leaders": total_leaders,
         "total_donations": total_donations,
         "pending_approvals": pending_approvals,
-        "total_raised": total_raised
+        "total_raised": total_raised,
+        "total_content_containers": total_content_containers,
+        "total_content_episodes": total_content_episodes,
+        "total_content_minutes": total_content_minutes
     }
 
 @api_router.get("/analytics/trends")
