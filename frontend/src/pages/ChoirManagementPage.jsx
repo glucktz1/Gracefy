@@ -173,6 +173,37 @@ export default function ChoirManagementPage() {
     setIsEditModalOpen(true);
   };
 
+  const openPasswordReset = (choir) => {
+    setSelectedChoir(choir);
+    setNewPassword("");
+    setIsPasswordResetOpen(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
+    setResettingPassword(true);
+    try {
+      // Try choir_accounts first, then singers collection
+      const choirId = selectedChoir.choir_id || selectedChoir.singer_id;
+      await axios.put(`${API}/admin/choir/${choirId}/reset-password`, 
+        { new_password: newPassword }, 
+        { withCredentials: true }
+      );
+      toast.success("Password reset successfully!");
+      setIsPasswordResetOpen(false);
+      setNewPassword("");
+      setSelectedChoir(null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to reset password");
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const filteredChoirs = choirs.filter(choir => {
     const matchesSearch = choir.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          choir.denomination?.toLowerCase().includes(searchTerm.toLowerCase());
