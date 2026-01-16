@@ -131,12 +131,15 @@ export const PlayerProvider = ({ children }) => {
     }
     
     if (queueIndex < queue.length - 1) {
+      // Play next song in queue
       playNextInternal();
     } else if (repeat === 'all') {
+      // Loop back to start of queue
       setQueueIndex(0);
       const item = queue[0];
       await loadAndPlaySong(item.song || item, item.album || currentAlbum);
     } else {
+      // Continue to next album even when repeat is 'off' (continuous playback)
       await playNextAlbum();
     }
   }, [repeat, queue, queueIndex, currentAlbum, allAlbums]);
