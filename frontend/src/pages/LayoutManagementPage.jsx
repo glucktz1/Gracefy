@@ -431,6 +431,9 @@ export default function LayoutManagementPage() {
           <TabsTrigger value="burners" className="data-[state=active]:bg-violet-600">
             <Megaphone size={14} className="mr-2" /> Burners ({burners.length})
           </TabsTrigger>
+          <TabsTrigger value="banners" className="data-[state=active]:bg-violet-600">
+            <Image size={14} className="mr-2" /> Hero Banners
+          </TabsTrigger>
           <TabsTrigger value="preview" className="data-[state=active]:bg-violet-600">
             <Eye size={14} className="mr-2" /> Preview
           </TabsTrigger>
