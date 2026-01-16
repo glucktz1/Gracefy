@@ -802,6 +802,17 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [devOtp, setDevOtp] = useState(''); // For development display
+  
+  // Forgot Password State
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: enter email/phone, 2: enter OTP, 3: new password
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [forgotDevOtp, setForgotDevOtp] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleSendOtp = async () => {
     if (!authForm.phone || authForm.phone.length < 9) {
@@ -849,11 +860,91 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
     }
   };
 
+  // Forgot Password Handlers
+  const handleSendResetOtp = async () => {
+    if (!forgotIdentifier) {
+      toast.error("Please enter your email or phone");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const isPhone = forgotIdentifier.startsWith('+') || /^\d+$/.test(forgotIdentifier);
+      const payload = isPhone ? { phone: forgotIdentifier } : { email: forgotIdentifier };
+      const res = await axios.post(`${API}/auth/forgot-password/send`, payload);
+      toast.success(res.data.message);
+      setForgotStep(2);
+      if (res.data.otp_dev) {
+        setForgotDevOtp(res.data.otp_dev);
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to send reset code");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyResetOtp = async () => {
+    if (!forgotOtp || forgotOtp.length !== 6) {
+      toast.error("Please enter a valid 6-digit code");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await axios.post(`${API}/auth/forgot-password/verify`, {
+        identifier: forgotIdentifier,
+        otp: forgotOtp
+      });
+      toast.success("Code verified!");
+      setResetToken(res.data.reset_token);
+      setForgotStep(3);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Invalid or expired code");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await axios.post(`${API}/auth/forgot-password/reset`, {
+        reset_token: resetToken,
+        new_password: newPassword
+      });
+      toast.success("Password reset successfully! Please sign in.");
+      resetForgotPassword();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to reset password");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const resetForgotPassword = () => {
+    setForgotPasswordMode(false);
+    setForgotStep(1);
+    setForgotIdentifier('');
+    setForgotOtp('');
+    setResetToken('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setForgotDevOtp('');
+  };
+
   const resetModal = () => {
     setOtpStep(false);
     setOtp('');
     setDevOtp('');
     setLoginMethod('email');
+    resetForgotPassword();
   };
 
   return (
