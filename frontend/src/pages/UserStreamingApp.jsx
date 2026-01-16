@@ -2056,11 +2056,181 @@ export default function UserStreamingApp() {
           {/* LIBRARY VIEW */}
           {view === 'library' && library && (
             <div className="space-y-6">
-              <h1 className="text-2xl font-bold">Your Library</h1>
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">Your Library</h1>
+              </div>
 
-              {library.recently_played?.length > 0 && (
+              {/* Library Tabs */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setLibraryTab('all')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                    libraryTab === 'all' ? 'bg-white text-black' : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setLibraryTab('liked')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
+                    libraryTab === 'liked' ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                  }`}
+                >
+                  <Heart size={16} fill={libraryTab === 'liked' ? 'currentColor' : 'none'} /> Liked Songs
+                </button>
+                <button
+                  onClick={() => setLibraryTab('playlists')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
+                    libraryTab === 'playlists' ? 'bg-white text-black' : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                  }`}
+                >
+                  <ListMusic size={16} /> Playlists
+                </button>
+                <button
+                  onClick={() => setLibraryTab('downloads')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
+                    libraryTab === 'downloads' ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                  }`}
+                >
+                  <Download size={16} /> Downloads
+                </button>
+              </div>
+
+              {/* Liked Songs Section */}
+              {(libraryTab === 'all' || libraryTab === 'liked') && library.favorites?.filter(f => f.type === 'song').length > 0 && (
+                <section className="bg-gradient-to-br from-violet-900/30 to-fuchsia-900/20 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                        <Heart size={24} className="text-white" fill="currentColor" />
+                      </div>
+                      <div>
+                        <h2 className="font-bold text-lg">Liked Songs</h2>
+                        <p className="text-sm text-zinc-400">{library.favorites.filter(f => f.type === 'song').length} songs</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const likedSongs = library.favorites.filter(f => f.type === 'song');
+                        if (likedSongs.length > 0) {
+                          const songs = likedSongs.map(f => f.item);
+                          handlePlaySong(songs[0], likedSongs[0].album, songs, 0);
+                        }
+                      }}
+                      className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 hover:scale-105 transition-all flex items-center justify-center shadow-lg"
+                      data-testid="play-all-liked"
+                    >
+                      <Play size={24} className="text-black ml-1" fill="currentColor" />
+                    </button>
+                  </div>
+                  <div className="space-y-1 max-h-80 overflow-y-auto">
+                    {library.favorites.filter(f => f.type === 'song').slice(0, libraryTab === 'liked' ? 50 : 5).map((fav, i) => (
+                      <ListItem 
+                        key={fav.item.song_id}
+                        item={{...fav.item, album: fav.album}}
+                        index={i}
+                        onPlay={() => {
+                          const songs = library.favorites.filter(f => f.type === 'song').map(f => f.item);
+                          handlePlaySong(fav.item, fav.album, songs, i);
+                        }}
+                        isActive={player.currentSong?.song_id === fav.item.song_id}
+                        isPlaying={player.isPlaying}
+                        onLike={handleLikeSong}
+                        onAddToPlaylist={handleAddToPlaylist}
+                        onDownload={handleDownloadSong}
+                        isLiked={true}
+                      />
+                    ))}
+                  </div>
+                  {libraryTab === 'all' && library.favorites.filter(f => f.type === 'song').length > 5 && (
+                    <button 
+                      onClick={() => setLibraryTab('liked')}
+                      className="mt-3 text-sm text-zinc-400 hover:text-white transition-colors"
+                    >
+                      View all {library.favorites.filter(f => f.type === 'song').length} songs →
+                    </button>
+                  )}
+                </section>
+              )}
+
+              {/* Playlists Section */}
+              {(libraryTab === 'all' || libraryTab === 'playlists') && library.playlists?.length > 0 && (
                 <section>
-                  <SectionHeader title="Recently Played" />
+                  <SectionHeader title="Your Playlists" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {library.playlists.map(playlist => (
+                      <button 
+                        key={playlist.playlist_id} 
+                        className="p-3 bg-zinc-900/40 hover:bg-zinc-800/60 rounded-lg text-left transition-all group"
+                        onClick={async () => {
+                          // Fetch playlist songs and play
+                          try {
+                            const res = await axios.get(`${API}/user/playlist/${playlist.playlist_id}`, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (res.data.songs?.length > 0) {
+                              const songs = res.data.songs.map(s => s.song);
+                              handlePlaySong(songs[0], res.data.songs[0].album, songs, 0);
+                            } else {
+                              toast.info('This playlist is empty');
+                            }
+                          } catch (e) {
+                            toast.error('Could not load playlist');
+                          }
+                        }}
+                      >
+                        <div className="aspect-square rounded bg-gradient-to-br from-violet-600 to-emerald-600 mb-3 flex items-center justify-center relative overflow-hidden">
+                          <ListMusic size={40} className="text-white/70" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play size={32} className="text-white" fill="currentColor" />
+                          </div>
+                        </div>
+                        <h3 className="font-semibold text-sm truncate">{playlist.name}</h3>
+                        <p className="text-xs text-zinc-500">{playlist.songs?.length || 0} songs</p>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Downloads Section (placeholder - actual downloads are device-specific) */}
+              {(libraryTab === 'all' || libraryTab === 'downloads') && (
+                <section className="bg-gradient-to-br from-emerald-900/20 to-teal-900/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                      <Download size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-lg">Downloads</h2>
+                      <p className="text-sm text-zinc-400">Available offline</p>
+                    </div>
+                  </div>
+                  <div className="text-center py-8 text-zinc-500">
+                    <Download size={48} className="mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">Downloads are available in the mobile app</p>
+                    <p className="text-xs mt-2">Download songs for offline listening on your device</p>
+                  </div>
+                </section>
+              )}
+
+              {/* Recently Played */}
+              {libraryTab === 'all' && library.recently_played?.length > 0 && (
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <SectionHeader title="Recently Played" />
+                    {library.recently_played.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const songs = library.recently_played.map(r => r.song);
+                          handlePlaySong(songs[0], library.recently_played[0].album, songs, 0);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                        data-testid="play-all-recent"
+                      >
+                        <Play size={14} fill="currentColor" /> Play All
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-1">
                     {library.recently_played.slice(0, 10).map(({ song, album }, i) => (
                       <ListItem 
@@ -2080,21 +2250,27 @@ export default function UserStreamingApp() {
                 </section>
               )}
 
-              {library.playlists?.length > 0 && (
-                <section>
-                  <SectionHeader title="Your Playlists" />
-                  <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
-                    {library.playlists.map(playlist => (
-                      <div key={playlist.playlist_id} className="w-40 flex-shrink-0 p-3 bg-zinc-900/40 rounded-lg">
-                        <div className="aspect-square rounded bg-gradient-to-br from-violet-600 to-emerald-600 mb-3 flex items-center justify-center">
-                          <ListMusic size={40} className="text-white/70" />
-                        </div>
-                        <h3 className="font-semibold text-sm truncate">{playlist.name}</h3>
-                        <p className="text-xs text-zinc-500">{playlist.songs?.length || 0} songs</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+              {/* Empty State */}
+              {libraryTab !== 'all' && (
+                (libraryTab === 'liked' && library.favorites?.filter(f => f.type === 'song').length === 0) ||
+                (libraryTab === 'playlists' && library.playlists?.length === 0)
+              ) && (
+                <div className="text-center py-16">
+                  {libraryTab === 'liked' && (
+                    <>
+                      <Heart size={64} className="mx-auto mb-4 text-zinc-700" />
+                      <h3 className="text-xl font-semibold mb-2">No Liked Songs Yet</h3>
+                      <p className="text-zinc-500">Tap the heart icon on any song to add it to your liked songs</p>
+                    </>
+                  )}
+                  {libraryTab === 'playlists' && (
+                    <>
+                      <ListMusic size={64} className="mx-auto mb-4 text-zinc-700" />
+                      <h3 className="text-xl font-semibold mb-2">No Playlists Yet</h3>
+                      <p className="text-zinc-500">Create a playlist to organize your favorite music</p>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}
