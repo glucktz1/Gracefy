@@ -384,6 +384,7 @@ export default function HomeScreen({ navigation }) {
       
     } catch (error) {
       console.error('Error fetching home data:', error);
+      setError(error.message || 'Failed to load content');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -396,6 +397,7 @@ export default function HomeScreen({ navigation }) {
 
   const onRefresh = () => {
     setRefreshing(true);
+    setError(null);
     fetchData();
   };
 
