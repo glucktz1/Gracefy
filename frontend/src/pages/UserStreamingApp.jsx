@@ -1367,6 +1367,32 @@ export default function UserStreamingApp() {
     }
   }, [token]);
 
+  // Handle Google OAuth callback
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('session_id=')) {
+      const sessionId = hash.split('session_id=')[1]?.split('&')[0];
+      if (sessionId) {
+        // Clear the hash from URL
+        window.history.replaceState(null, '', window.location.pathname);
+        
+        // Process the session
+        axios.post(`${API}/user/auth/google-callback`, { session_id: sessionId })
+          .then(res => {
+            setToken(res.data.token);
+            setUser(res.data.user);
+            localStorage.setItem('user_token', res.data.token);
+            localStorage.setItem('user_id', res.data.user.user_id);
+            toast.success(`Welcome, ${res.data.user.name}!`);
+          })
+          .catch(e => {
+            console.error("Google auth error:", e);
+            toast.error("Google sign-in failed. Please try again.");
+          });
+      }
+    }
+  }, []);
+
   // Search
   useEffect(() => {
     if (searchQuery.length < 2) {
