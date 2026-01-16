@@ -10,7 +10,6 @@ import { libraryService, contentService, getThumbnailUrl } from '../services/api
 import { getDownloadedSongs, removeDownload, clearAllDownloads, getDownloadsSize } from '../services/downloadService';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
-import MiniPlayer from '../components/MiniPlayer';
 import PlaylistModal from '../components/PlaylistModal';
 import { COLORS } from '../config';
 
@@ -461,9 +460,6 @@ export default function LibraryScreen({ navigation }) {
           )}
         </View>
       </ScrollView>
-
-      {/* Mini Player */}
-      {currentSong && <MiniPlayer navigation={navigation} onPress={handleNowPlaying} />}
 
       {/* Playlist Modal */}
       <PlaylistModal 
