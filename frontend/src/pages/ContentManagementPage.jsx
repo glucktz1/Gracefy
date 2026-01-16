@@ -650,7 +650,7 @@ export default function ContentManagementPage() {
           <DialogHeader>
             <DialogTitle>Add Series/Lesson</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Add a new series to "{selectedContainer?.title}"
+              Add a new series to &quot;{selectedContainer?.title}&quot;
             </DialogDescription>
           </DialogHeader>
           
