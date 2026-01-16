@@ -389,8 +389,17 @@ export default function AlbumScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
           <View style={styles.rightActions}>
+            {/* Repeat Button */}
+            <TouchableOpacity style={styles.shuffleBtn} onPress={cycleRepeat}>
+              <Ionicons 
+                name={repeat === 'one' ? 'repeat-one' : 'repeat'} 
+                size={24} 
+                color={repeat !== 'off' ? '#e91e63' : COLORS.textSecondary} 
+              />
+            </TouchableOpacity>
+            {/* Shuffle Button */}
             <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffle}>
-              <Ionicons name="shuffle" size={24} color="#e91e63" />
+              <Ionicons name="shuffle" size={24} color={shuffle ? '#e91e63' : COLORS.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.playBtn} 
