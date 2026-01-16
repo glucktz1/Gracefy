@@ -372,7 +372,7 @@ export default function RoleManagementPage() {
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="">All Roles</SelectItem>
+                  <SelectItem value="all">All Roles</SelectItem>
                   {roles.all_roles?.map(role => (
                     <SelectItem key={role.role_id} value={role.role_id}>{role.name}</SelectItem>
                   ))}
