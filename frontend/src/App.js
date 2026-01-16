@@ -357,6 +357,7 @@ function AppRouter() {
       <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
       <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
       <Route path="/albums" element={<ProtectedRoute><AlbumsPage /></ProtectedRoute>} />
+      <Route path="/leader-content" element={<ProtectedRoute><ContentManagementPage /></ProtectedRoute>} />
       <Route path="/churches" element={<ProtectedRoute><ChurchesPage /></ProtectedRoute>} />
       <Route path="/leaders" element={<ProtectedRoute><LeadersPage /></ProtectedRoute>} />
       <Route path="/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
