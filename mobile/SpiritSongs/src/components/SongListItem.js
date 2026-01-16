@@ -16,6 +16,7 @@ const SongListItem = ({
   showIndex = true,
   showThumbnail = false,
   onAddToPlaylist,
+  onDownload,
   onSongPress, // Custom handler for subscription checks
   showLockIcon = false, // Show lock for free users
 }) => {
@@ -23,6 +24,7 @@ const SongListItem = ({
   const { isFavorite, addFavorite, removeFavorite, isAuthenticated } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
   const [liked, setLiked] = useState(isFavorite(song.song_id));
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const isCurrentSong = currentSong?.song_id === song.song_id;
   const isCurrentlyPlaying = isCurrentSong && isPlaying;
