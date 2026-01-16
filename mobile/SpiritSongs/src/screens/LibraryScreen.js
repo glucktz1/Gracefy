@@ -362,8 +362,16 @@ export default function LibraryScreen({ navigation }) {
           {activeTab === 'liked' && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Liked Songs</Text>
-                <Text style={styles.sectionCount}>{likedCount} songs</Text>
+                <View>
+                  <Text style={styles.sectionTitle}>Liked Songs</Text>
+                  <Text style={styles.sectionCount}>{likedCount} songs</Text>
+                </View>
+                {likedSongs.length > 0 && (
+                  <TouchableOpacity style={styles.playAllBtn} onPress={handlePlayAllLiked}>
+                    <Ionicons name="play" size={20} color="#000" />
+                    <Text style={styles.playAllText}>Play All</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               {likedSongs.length > 0 ? (
                 likedSongs.map((song, index) => (
