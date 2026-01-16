@@ -915,3 +915,43 @@ To build an APK for testing on physical devices:
 **Testing:**
 - ✅ 16/16 tests passed (100%)
 - ✅ Test file: `/app/tests/test_choir_registration_mobile.py`
+
+### Phase 6.2 - Mobile Bug Fixes (January 17, 2026)
+
+**Duplicate MiniPlayer Fix:**
+- ✅ Removed MiniPlayer from HomeScreen.js
+- ✅ Removed MiniPlayer from SearchScreen.js
+- ✅ Removed MiniPlayer from LibraryScreen.js
+- ✅ Removed MiniPlayer from CategoryScreen.js
+- ✅ Removed MiniPlayer from AlbumScreen.js
+- ✅ MiniPlayer now only renders once in App.js AppContainer
+
+**Download Directory Fix:**
+- ✅ Updated ensureDownloadsDir with 3 retry attempts
+- ✅ Added fallback to cache directory if document directory fails
+- ✅ Better error logging for debugging
+
+**Playlist Functionality:**
+- ✅ Created PlaylistDetailScreen.js for viewing playlist contents
+- ✅ Correctly parses {song, album} response from API
+- ✅ Shows songs with artwork, title, artist
+- ✅ Play All and Shuffle buttons
+- ✅ Long press to remove songs
+
+**Play All Buttons:**
+- ✅ Added to LibraryScreen for Liked Songs section
+- ✅ Added to LibraryScreen for Downloads section
+- ✅ handlePlayAllDownloads() function
+- ✅ handlePlayAllLiked() function
+
+**Navigation:**
+- ✅ Added Playlist route to App.js
+- ✅ Navigation from LibraryScreen to PlaylistDetailScreen
+
+**Testing:**
+- ✅ 17/17 API tests passed (100%)
+- ✅ Test file: `/app/tests/test_user_playlist_api.py`
+
+**Known Limitation:**
+- ⚠️ Lock screen media controls require new mobile build to test
+- ⚠️ All mobile UI changes require new build to verify on device
