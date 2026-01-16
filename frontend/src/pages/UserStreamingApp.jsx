@@ -490,24 +490,58 @@ const WideAlbumCard = ({ album, onOpen }) => (
 );
 
 // Compact List Item
-const ListItem = ({ item, index, onPlay, isActive, isPlaying }) => (
-  <button
-    onClick={onPlay}
-    className={`w-full flex items-center gap-3 p-2 rounded-md hover:bg-zinc-800/60 transition-colors group ${isActive ? 'bg-zinc-800/60' : ''}`}
-  >
-    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 relative">
-      {item.thumbnail || item.album?.thumbnail ? (
-        <img src={item.thumbnail || item.album?.thumbnail} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
-          <Music2 size={16} className="text-zinc-500" />
-        </div>
+const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPlaylist, onDownload, isLiked }) => (
+  <div className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-zinc-800/60 transition-colors group">
+    <button
+      onClick={onPlay}
+      className="flex items-center gap-3 flex-1 min-w-0"
+    >
+      <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 relative">
+        {item.thumbnail || item.album?.thumbnail ? (
+          <img src={item.thumbnail || item.album?.thumbnail} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
+            <Music2 size={16} className="text-zinc-500" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 text-left">
+        <p className={`font-medium text-sm truncate ${isActive ? 'text-emerald-400' : ''}`}>{item.title}</p>
+        <p className="text-xs text-zinc-500 truncate">{item.artist_name || item.album?.artist_name}</p>
+      </div>
+    </button>
+    
+    {/* Song actions */}
+    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {onLike && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onLike(item); }}
+          className="p-2 hover:bg-zinc-700 rounded-full"
+          title={isLiked ? "Remove from Liked Songs" : "Add to Liked Songs"}
+        >
+          <Heart size={18} className={isLiked ? "text-emerald-400 fill-emerald-400" : "text-zinc-400"} />
+        </button>
+      )}
+      {onAddToPlaylist && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onAddToPlaylist(item); }}
+          className="p-2 hover:bg-zinc-700 rounded-full"
+          title="Add to Playlist"
+        >
+          <Plus size={18} className="text-zinc-400" />
+        </button>
+      )}
+      {onDownload && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDownload(item); }}
+          className="p-2 hover:bg-zinc-700 rounded-full"
+          title="Download"
+        >
+          <Download size={18} className="text-zinc-400" />
+        </button>
       )}
     </div>
-    <div className="flex-1 min-w-0 text-left">
-      <p className={`font-medium text-sm truncate ${isActive ? 'text-emerald-400' : ''}`}>{item.title}</p>
-      <p className="text-xs text-zinc-500 truncate">{item.artist_name || item.album?.artist_name}</p>
-    </div>
+    
     {isActive && isPlaying && (
       <div className="flex items-end gap-0.5 h-4 mr-2">
         <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '40%'}} />
@@ -515,7 +549,7 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying }) => (
         <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '60%', animationDelay: '0.3s'}} />
       </div>
     )}
-  </button>
+  </div>
 );
 
 // Artist Card (Circular)
