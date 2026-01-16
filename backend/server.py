@@ -8254,7 +8254,7 @@ async def send_otp(data: dict):
     }
 
 @api_router.post("/auth/verify-otp")
-async def verify_otp(data: dict):
+async def verify_user_otp(data: dict):
     """Verify OTP and login/register user"""
     phone = data.get("phone")
     otp = data.get("otp")
