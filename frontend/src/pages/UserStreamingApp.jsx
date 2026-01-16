@@ -649,8 +649,13 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
 
       {/* Main Controls */}
       <div className="flex items-center justify-between px-8 mb-8">
-        <button onClick={() => player.setShuffle(!player.shuffle)} className={player.shuffle ? 'text-emerald-400' : 'text-zinc-400'}>
+        <button 
+          onClick={() => player.setShuffle(!player.shuffle)} 
+          className={`relative ${player.shuffle ? 'text-emerald-400' : 'text-zinc-400'}`}
+          title={player.shuffle ? 'Shuffle on' : 'Shuffle off'}
+        >
           <Shuffle size={22} />
+          {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />}
         </button>
         <button onClick={player.prevSong} className="text-white">
           <SkipBack size={32} fill="white" />
@@ -671,10 +676,24 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
         <button onClick={player.nextSong} className="text-white">
           <SkipForward size={32} fill="white" />
         </button>
-        <button onClick={player.cycleRepeat} className={player.repeat !== 'off' ? 'text-emerald-400' : 'text-zinc-400'}>
+        <button 
+          onClick={player.cycleRepeat} 
+          className={`relative ${player.repeat !== 'off' ? 'text-emerald-400' : 'text-zinc-400'}`}
+          title={player.repeat === 'off' ? 'Repeat off' : player.repeat === 'all' ? 'Repeat all' : 'Repeat one'}
+        >
           {player.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
+          {player.repeat !== 'off' && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />}
         </button>
       </div>
+
+      {/* Repeat Mode Indicator */}
+      {player.repeat !== 'off' && (
+        <div className="flex justify-center mb-4">
+          <span className="text-xs text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full">
+            {player.repeat === 'all' ? '🔁 Repeat All' : '🔂 Repeat One'}
+          </span>
+        </div>
+      )}
 
       {/* Bottom Actions */}
       <div className="flex items-center justify-between px-8 pb-8">
