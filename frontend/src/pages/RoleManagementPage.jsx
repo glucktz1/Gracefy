@@ -557,12 +557,12 @@ export default function RoleManagementPage() {
               </div>
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Base on System Role</label>
-                <Select value={roleForm.based_on} onValueChange={handleBasedOnChange}>
+                <Select value={roleForm.based_on || "none"} onValueChange={handleBasedOnChange}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
                     <SelectValue placeholder="Select a base role" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {roles.system_roles.map(role => (
                       <SelectItem key={role.role_id} value={role.role_id}>{role.name}</SelectItem>
                     ))}
