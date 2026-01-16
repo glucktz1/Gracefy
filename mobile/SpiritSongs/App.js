@@ -24,6 +24,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
+import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
@@ -99,6 +100,11 @@ function MainNavigator() {
       <Stack.Screen 
         name="ChoirRegistration" 
         component={ChoirRegistrationScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen 
+        name="Playlist" 
+        component={PlaylistDetailScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>
