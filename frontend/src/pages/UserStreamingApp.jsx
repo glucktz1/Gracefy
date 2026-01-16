@@ -4,7 +4,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1,
   Heart, MoreHorizontal, ChevronLeft, ChevronRight, Home, Search, Library,
   Plus, Minus, Clock, Music2, Mic2, ListMusic, X, Share2, Download, Maximize2,
-  BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc
+  BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
