@@ -437,22 +437,52 @@ export default function RoleManagementPage() {
 
         {/* Permissions Matrix Tab */}
         <TabsContent value="permissions" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Category Permissions Management</h2>
+              <p className="text-sm text-zinc-400">Toggle permissions on/off for each user category</p>
+            </div>
+            {hasUnsavedChanges && (
+              <div className="flex items-center gap-3">
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse">
+                  Unsaved Changes
+                </Badge>
+                <Button 
+                  onClick={handleSavePermissions} 
+                  disabled={savingPermissions}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <Save size={16} className="mr-2" />
+                  {savingPermissions ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            )}
+          </div>
+
           <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-white">Permissions Matrix</CardTitle>
-              <CardDescription>View which permissions are assigned to each role</CardDescription>
+            <CardHeader className="border-b border-zinc-800">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Shield size={20} className="text-violet-400" />
+                Permissions Matrix
+              </CardTitle>
+              <CardDescription>Click checkboxes to enable/disable permissions for each user category. Changes are saved when you click &quot;Save Changes&quot;.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full" data-testid="permissions-matrix-table">
                   <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className="text-left p-3 text-zinc-400 font-medium sticky left-0 bg-zinc-900 min-w-48">Permission</th>
-                      {roles.system_roles.slice(0, 7).map(role => (
-                        <th key={role.role_id} className="p-3 text-center min-w-24">
+                    <tr className="border-b border-zinc-800 bg-zinc-950/80">
+                      <th className="text-left p-3 text-zinc-400 font-medium sticky left-0 bg-zinc-950 min-w-52 z-10">Permission</th>
+                      {categoryPermissions.map(cat => (
+                        <th key={cat.role_id} className="p-3 text-center min-w-28">
                           <div className="flex flex-col items-center gap-1">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }}></div>
-                            <span className="text-xs text-zinc-300">{role.name.split(' ')[0]}</span>
+                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                            <span className="text-xs text-zinc-300 font-medium">{cat.name.split(' ')[0]}</span>
+                            {cat.is_customized && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-500/50 text-amber-400">
+                                Modified
+                              </Badge>
+                            )}
                           </div>
                         </th>
                       ))}
@@ -461,31 +491,70 @@ export default function RoleManagementPage() {
                   <tbody>
                     {Object.entries(groupedPermissions).map(([category, perms]) => (
                       <>
-                        <tr key={category} className="bg-zinc-950/50">
-                          <td colSpan={8} className="p-2 text-xs font-semibold text-violet-400 uppercase tracking-wide">
+                        <tr key={`cat-${category}`} className="bg-zinc-950/50">
+                          <td colSpan={categoryPermissions.length + 1} className="p-2 text-xs font-semibold text-violet-400 uppercase tracking-wide">
                             {category}
                           </td>
                         </tr>
                         {perms.map(perm => (
-                          <tr key={perm.permission_id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                            <td className="p-3 text-sm text-zinc-300 sticky left-0 bg-zinc-900">
-                              {perm.name}
+                          <tr key={perm.permission_id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                            <td className="p-3 text-sm text-zinc-300 sticky left-0 bg-zinc-900 z-10">
+                              <div>
+                                <span className="font-medium">{perm.name}</span>
+                                <p className="text-xs text-zinc-500 mt-0.5">{perm.description}</p>
+                              </div>
                             </td>
-                            {roles.system_roles.slice(0, 7).map(role => (
-                              <td key={role.role_id} className="p-3 text-center">
-                                {role.permissions?.includes(perm.permission_id) ? (
-                                  <CheckCircle size={16} className="text-emerald-400 mx-auto" />
-                                ) : (
-                                  <span className="text-zinc-700">—</span>
-                                )}
-                              </td>
-                            ))}
+                            {categoryPermissions.map(cat => {
+                              const isChecked = editedPermissions[cat.role_id]?.includes(perm.permission_id) ?? false;
+                              const wasOriginallyChecked = cat.permissions?.includes(perm.permission_id) ?? false;
+                              const hasChanged = isChecked !== wasOriginallyChecked;
+                              
+                              return (
+                                <td key={cat.role_id} className="p-3 text-center">
+                                  <div className="flex justify-center">
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={() => handlePermissionToggle(cat.role_id, perm.permission_id)}
+                                      className={`border-zinc-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 ${hasChanged ? 'ring-2 ring-amber-500/50' : ''}`}
+                                      data-testid={`perm-${cat.role_id}-${perm.permission_id}`}
+                                    />
+                                  </div>
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Reset Options */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-white text-base">Reset Permissions</CardTitle>
+              <CardDescription>Reset a category&apos;s permissions back to system defaults</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {categoryPermissions.filter(c => c.is_customized).map(cat => (
+                  <Button
+                    key={cat.role_id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleResetPermissions(cat.role_id)}
+                    className="border-zinc-700 text-zinc-300 hover:bg-red-600/20 hover:border-red-500/50 hover:text-red-400"
+                  >
+                    <Unlock size={14} className="mr-1" />
+                    Reset {cat.name}
+                  </Button>
+                ))}
+                {categoryPermissions.filter(c => c.is_customized).length === 0 && (
+                  <p className="text-sm text-zinc-500">All categories are using default permissions</p>
+                )}
               </div>
             </CardContent>
           </Card>
