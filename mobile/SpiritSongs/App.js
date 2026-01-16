@@ -2,10 +2,11 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 // Contexts
 import { AuthProvider } from './src/context/AuthContext';
@@ -22,6 +23,9 @@ import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
+
+// Components
+import MiniPlayer from './src/components/MiniPlayer';
 
 // Config
 import { COLORS } from './src/config';
@@ -95,19 +99,32 @@ function MainNavigator() {
   );
 }
 
+// App Container with MiniPlayer
+function AppContainer() {
+  return (
+    <View style={styles.appContainer}>
+      <MainNavigator />
+      {/* Mini Player - shows at bottom when playing */}
+      <MiniPlayer />
+    </View>
+  );
+}
+
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <AuthProvider>
-        <SubscriptionProvider>
-          <PlayerProvider>
-            <NavigationContainer>
-              <StatusBar style="light" />
-              <MainNavigator />
-            </NavigationContainer>
-          </PlayerProvider>
-        </SubscriptionProvider>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <SubscriptionProvider>
+            <PlayerProvider>
+              <NavigationContainer>
+                <StatusBar style="light" />
+                <AppContainer />
+              </NavigationContainer>
+            </PlayerProvider>
+          </SubscriptionProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
@@ -117,13 +134,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a1a',
   },
+  appContainer: {
+    flex: 1,
+    backgroundColor: '#0a0a1a',
+  },
   tabBar: {
     backgroundColor: '#0a0a1a',
     borderTopWidth: 0,
     elevation: 0,
-    height: Platform.OS === 'ios' ? 84 : 60,
+    height: Platform.OS === 'ios' ? 84 : 64,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    // Ensure tab bar is above navigation buttons
+    position: 'relative',
   },
   tabBarLabel: {
     fontSize: 10,
