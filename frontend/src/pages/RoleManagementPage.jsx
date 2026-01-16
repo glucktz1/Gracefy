@@ -190,6 +190,14 @@ export default function RoleManagementPage() {
   };
 
   const handleBasedOnChange = (baseRole) => {
+    if (baseRole === "none") {
+      setRoleForm(prev => ({
+        ...prev,
+        based_on: null,
+        permissions: []
+      }));
+      return;
+    }
     const systemRole = roles.system_roles.find(r => r.role_id === baseRole);
     if (systemRole) {
       setRoleForm(prev => ({
@@ -205,7 +213,7 @@ export default function RoleManagementPage() {
     const matchesSearch = !searchQuery || 
       (user.name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (user.email?.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesRole = !roleFilter || user.assigned_role === roleFilter;
+    const matchesRole = roleFilter === "all" || user.assigned_role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
