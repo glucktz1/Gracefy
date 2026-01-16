@@ -398,6 +398,9 @@ export default function ChoirManagementPage() {
                         <DropdownMenuItem onClick={() => openEditModal(choir)} className="text-zinc-300 hover:text-white">
                           <Edit2 size={14} className="mr-2" /> Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openPasswordReset(choir)} className="text-violet-400 hover:text-violet-300">
+                          <Key size={14} className="mr-2" /> Reset Password
+                        </DropdownMenuItem>
                         {choir.approval_status === "pending" && (
                           <DropdownMenuItem onClick={() => handleApprovalChange(choir.singer_id, "approved")} className="text-emerald-400">
                             <CheckCircle size={14} className="mr-2" /> Approve
