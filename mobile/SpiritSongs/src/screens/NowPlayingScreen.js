@@ -43,6 +43,8 @@ const NowPlayingScreen = ({ navigation }) => {
     downloadCurrentSong,
   } = usePlayer();
 
+  const { isAuthenticated } = useAuth();
+
   const { 
     isPremium, 
     canPerformAction, 
