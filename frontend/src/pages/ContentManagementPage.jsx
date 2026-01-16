@@ -542,7 +542,7 @@ export default function ContentManagementPage() {
                     <SelectValue placeholder="Select leader" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    <SelectItem value="">No leader</SelectItem>
+                    <SelectItem value="none">No leader</SelectItem>
                     {leaders.map(l => (
                       <SelectItem key={l.leader_id} value={l.leader_id}>{l.name}</SelectItem>
                     ))}
