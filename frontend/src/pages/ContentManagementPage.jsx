@@ -688,7 +688,7 @@ export default function ContentManagementPage() {
           <DialogHeader>
             <DialogTitle>Add Episode/Topic</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Add a new episode to "{selectedSeries?.title}"
+              Add a new episode to &quot;{selectedSeries?.title}&quot;
             </DialogDescription>
           </DialogHeader>
           
