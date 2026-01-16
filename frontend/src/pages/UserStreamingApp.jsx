@@ -285,29 +285,6 @@ const useAudioPlayer = () => {
     }
   }, []);
 
-  // Setup MediaSession action handlers
-  useEffect(() => {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => {
-        audioRef.current.play();
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        audioRef.current.pause();
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => {
-        prevSong();
-      });
-      navigator.mediaSession.setActionHandler('nexttrack', () => {
-        nextSong();
-      });
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined) {
-          audioRef.current.currentTime = details.seekTime;
-        }
-      });
-    }
-  }, []);
-
   const playSong = useCallback(async (song, album, songQueue = [], index = 0) => {
     // End previous session
     if (sessionIdRef.current) {
