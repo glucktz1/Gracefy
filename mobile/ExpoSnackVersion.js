@@ -17,7 +17,7 @@ import { Audio } from 'expo-av';
 const { width } = Dimensions.get('window');
 
 // ============ CONFIG ============
-const API_URL = 'https://faithplay-3.preview.emergentagent.com/api';
+const API_URL = 'https://christian-music-app.preview.emergentagent.com/api';
 const COLORS = {
   primary: '#1DB954',
   background: '#121212',

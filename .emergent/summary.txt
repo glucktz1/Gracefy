@@ -1,144 +1,155 @@
 <analysis>**original_problem_statement:**
-The user is building a comprehensive Christian music streaming app called Spirit Songs. The current focus is on enhancing the user-facing mobile (React Native) and web (React PWA) applications, as well as the admin panel.
+The user is building a comprehensive Christian music streaming app called Spirit Songs. The project includes a user-facing React PWA and a React Native mobile app, managed by a React admin panel with a FastAPI backend.
 
-Recent core requests include:
-1.  **Critical Bug Fixes (Mobile & Web):**
-    *   The mini player is not appearing correctly on the mobile app, especially on the lock screen.
-    *   Continuous playback is not working reliably; music stops after one song.
-    *   Content (like hero banners) configured in the admin Layout Manager is not appearing on the user apps.
-    *   Core user actions (Like, Download, Add to Playlist, Share) are not working on mobile and web.
-2.  **Feature Enhancements:**
-    *   Implement Spotify-like lock screen controls for the mobile app, showing album art and playback controls.
-    *   Implement a robust play count system that prevents replay abuse and calculates revenue.
-    *   Allow choirs/artists to self-register for admin approval.
-    *   Implement Phone OTP login.
-    *   Add admin controls for device limits, billing (a global premium for all switch), and available login methods.
-    *   Add a repeat feature (song/album).
-    *   Ensure the app UI respects the phone's safe areas (task bar positioning).
-3.  **Admin Portal Bug:** A crash was occurring on the Role Management page when using select/dropdown filters.
+The most recent user requests are:
+1.  **Fix Google Login:** The Continue with Google feature on the user-facing app (PWA) is broken and needs to be fixed.
+2.  **Enhance Analytics:** Add minutes streamed to the album performance analytics in the admin dashboard.
+3.  **Admin Choir Management:** Allow admins to edit choir details and reset choir passwords.
+4.  **Choir Registration on PWA:** Allow choirs to register through the web app, not just the admin panel.
+5.  **New Content Module (Leader Content):**
+    *   Create a new section for content like sermons, teachings, and prayers from religious leaders.
+    *   This system should be hierarchical (e.g., Theme -> Series -> Episodes or Theme -> Lessons -> Topics).
+    *   It should support thumbnail and audio uploads.
+    *   The content should be monetizable, similar to albums.
+    *   Integrate this new content type into the admin Layout Manager and the analytics dashboard.
+6.  **Permission Matrix Enhancement:** In the admin Role Management page, allow an admin to enable/disable specific permissions for a user category by ticking a checkbox and saving.
+7.  **Mobile App Build:** The user wants to switch to a new Expo account () to bypass the exhausted build quota and get a downloadable APK.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a FastAPI backend, a React admin panel, and a React Native mobile app. The architecture uses a hybrid database model (MongoDB for admin, Supabase for streaming clients).
+A full-stack application with a FastAPI backend, a React admin panel (frontend), and a React PWA (). The mobile app codebase exists but is currently unbuildable.
 
-In this session, the agent implemented a major enhancement to the admin Users page, verified with the testing agent. The agent then addressed a long list of bugs and features for the user-facing web and mobile apps, including fixes for continuous playback, the quick access grid, and hero section rendering. Several attempts were made to fix mobile app build failures on Expo, which were caused by dependency issues, corrupted files, and finally, an exhausted build quota. The agent fixed a crash on the admin Role Management page. The last action was starting the implementation of proper lock screen controls for the mobile app using .
+In this session, the agent successfully implemented a significant number of features on the admin panel and the PWA, including:
+- A new Admin Settings page for device limits, billing, and login methods.
+- A complete Phone OTP login flow.
+- A choir registration page and an approval flow in the admin panel.
+- A full Forgot Password flow for users.
+- Fixed the PWA's Google OAuth using Emergent-managed Google Auth.
+- Enhanced analytics with minutes streamed.
+- Added choir password reset functionality for admins.
+- Created the backend models, APIs, and a basic admin UI for the new Leader Content module.
+
+The agent also spent considerable effort debugging the mobile app build process, which involved switching Expo accounts, cleaning dependencies, and fixing code errors. A new build has been submitted and is in the queue.
 
 **Last working item**:
-    - Last item agent was working: Implementing Spotify-like lock screen controls for the mobile app to fix the unreliable mini-player and provide a better user experience. This involved installing  and creating a new service at  to handle background audio and native media notifications.
-    - Status: IN PROGRESS
+    - Last item agent was working: The user requested two features: 1) Enable thumbnail and audio uploads for the new Leader Content module. 2) Implement a UI for admins to assign permissions to user categories in the Role Management page. The agent had just started investigating the existing file upload endpoints and the role management page code.
+    - Status: NOT STARTED
     - Agent Testing Done: N
-    - Which testing method agent to use? Manual testing by user via APK.
+    - Which testing method agent to use? backend testing agent
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  Issue 1:  (P0 - BLOCKER) Mobile App Build Failures & Exhausted Quota
-  Issue 2:  (P1) Lock Screen Controls Not Working (Web & Mobile)
-  Issue 3:  (P1) Core User Actions (Like, Download, Playlist, Share) Are Unreliable
-  Issue 4:  (P2) Layout Manager Content Not Showing Correctly on Mobile App
-  Issue 5:  (P2) Play Count Logic is Not Implemented
+  Issue 1:  (P0 - BLOCKER) Mobile App Build is Queued
+  Issue 2:  (P1) Leader Content File Uploads Not Implemented
+  Issue 3:  (P1) Admin Permission Matrix UI Not Implemented
+  Issue 4:  (P2) Lock Screen Controls Not Working (Mobile)
+  Issue 5:  (P3) Core User Actions (Like, Download, Playlist) Are Unreliable on Mobile
   
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent encountered multiple  failures. Fixes included: installing missing peer dependencies (), cleaning up corrupted files in the project directory, and fixing duplicate function declarations and JSX errors in . Despite these efforts, builds remained unstable. The **free tier build quota on Expo has been exhausted for the month**, making it impossible to generate new APKs.
+     - Attempted fixes: After numerous build failures on the original Expo account due to exhausted quotas and dependency issues, the agent successfully logged into the user's new Expo account (). The agent fixed multiple errors, including a lingering import of  in  and a corrupted file in the project directory. A new build () was successfully submitted to the Expo build service.
      - Next debug checklist: 
-        1. Inform the user they must upgrade their Expo account plan to continue building APKs this month.
-        2. Once the quota is available, thoroughly investigate the root cause of the build instability. The recent addition of  might require native configuration changes.
-        3. Create a minimal test build to isolate the problem.
-     - Why fix this issue and what will be achieved with the fix? No mobile app changes can be tested or delivered to the user until this is resolved. It is the highest priority blocker for the entire project.
+        1. Check the status of the queued build (ID: ) at the Expo build URL.
+        2. If the build succeeds, provide the user with the APK download link.
+        3. If it fails, analyze the new build logs to identify the root cause.
+     - Why fix this issue and what will be achieved with the fix? This is the absolute highest priority blocker. No mobile app development, testing, or feature verification can proceed until a successful build is generated.
+     - Status:  IN PROGRESS
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: Blocked on the Expo build service queue.
+  - Issue 2: 
+     - Attempted fixes: None. This is a new request.
+     - Next debug checklist: 
+        1. Create or adapt a backend endpoint (e.g., , ) to handle file uploads specifically for content thumbnails and audio files, associating them with the correct episode or lesson.
+        2. Implement the frontend UI in  to allow file selection and upload for thumbnails and audio content.
+        3. Add progress indicators and error handling for the upload process.
+     - Why fix this issue and what will be achieved with the fix? This is a core requirement for the new Leader Content module, making it functional.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+  - Issue 3: 
+     - Attempted fixes: None. This is a new request.
+     - Next debug checklist: 
+        1. Create a backend endpoint to update permissions for a specific user category (e.g., ).
+        2. In , modify the UI to display permissions as a grid or list of checkboxes for each user category.
+        3. Implement the logic to save the state of the checkboxes to the backend.
+     - Why fix this issue and what will be achieved with the fix? Fulfills a direct user request for more granular control over user permissions.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+  - Issue 4: 
+     - Attempted fixes: The previous attempt to use  was reverted to fix build issues.
+     - Next debug checklist: 
+        1. Once the mobile build is stable (Issue 1 resolved), re-evaluate the best library for background audio and lock screen controls ( vs. ).
+        2. Implement the chosen library correctly, ensuring all native configurations are handled.
+     - Why fix this issue and what will be achieved with the fix? It's a critical UX feature for any music/audio streaming app.
      - Status:  BLOCKED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: User action required (upgrading Expo plan).
-  - Issue 2: 
-     - Attempted fixes: For web, the agent added the  API. For mobile, the agent identified  as insufficient and started integrating .
-     - Next debug checklist: 
-        1. Complete the integration of  in the mobile app.
-        2. Replace the existing audio logic in  with the new .
-        3. Ensure the service is correctly configured to show notifications with media controls on the lock screen.
-     - Why fix this issue and what will be achieved with the fix? This is a critical UX feature for a music streaming app.
-     - Status:  IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: Issue 1 (Build Failures)
-  - Issue 3: 
-     - Attempted fixes: The agent confirmed backend APIs exist and require authentication. The UI components on both web and mobile were updated to include buttons and call the correct service functions. The root cause appears to be that these actions fail silently for unauthenticated users.
-     - Next debug checklist: 
-        1. Add logic to the UI to check for user authentication.
-        2. Disable or hide the Like, Download, and Add to Playlist buttons if the user is not logged in.
-        3. Provide feedback to the user (e.g., a toast message Please log in to use this feature) when they attempt these actions without being authenticated.
-     - Why fix this issue and what will be achieved with the fix? Fixes core, expected functionality for a music app.
-     - Status:  IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: Issue 1 (Build Failures)
-  - Issue 4: 
-     - Attempted fixes: The agent verified the  endpoint returns the correct data (including hero burners) and that the web app renders them. The issue persists on the mobile app. The agent added debug logging to the mobile app's  to trace the data flow.
-     - Next debug checklist: 
-        1. Once a new APK can be built, analyze the console logs to see if  is being fetched correctly in .
-        2. Verify that the  array is populated and that the components responsible for rendering different section types are receiving the correct props.
-     - Why fix this issue and what will be achieved with the fix? This will allow the admin to dynamically control the content on the app's home screen as intended.
-     - Status:  IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: Issue 1 (Build Failures)
+     - Blocked on other issue: Issue 1: Mobile App Build is Queued
   - Issue 5: 
-     - Attempted fixes: The agent created a backend endpoint to receive stream events but has not yet implemented the user-requested logic.
+     - Attempted fixes: Previous diagnosis pointed to a lack of authentication handling in the UI.
      - Next debug checklist: 
-        1. Modify the  endpoint (or create a new one).
-        2. Implement logic to check the user's recent play history for that song.
-        3. Only increment play counts and calculate revenue if the song hasn't been played more than twice by the same user in a short period.
-     - Why fix this issue and what will be achieved with the fix? This provides accurate analytics and forms the basis for the app's revenue model.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? backend
+        1. After the mobile build is working, implement UI logic to disable/hide action buttons (Like, Download, Add to Playlist) for unauthenticated users.
+        2. Show a prompt (e.g., a toast) asking the user to log in if they try to perform these actions.
+     - Why fix this issue and what will be achieved with the fix? Fixes core, expected functionality for a music app.
+     - Status:  BLOCKED
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: Issue 1: Mobile App Build is Queued
 
 **In progress Task List**:
-  - Task 1:  (P0) Refactor Mobile Audio Playback System
-     - Where to resume: The file  has been created. The next step is to write the service logic for  and integrate it into the app, replacing the  implementation in .
-     - What will be achieved with this? A stable, feature-rich audio player with lock screen controls, which will resolve Issue 2 and improve overall app reliability.
-     - Status:  IN PROGRESS
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on something: Issue 1 (Build Failures)
+  - Task 1:  (P1) Implement Leader Content Uploads
+     - Where to resume: The agent has identified existing upload endpoints. The next step is to create or modify backend endpoints and then build the frontend UI in .
+     - What will be achieved with this? Users will be able to upload thumbnails and audio files for the new content types (sermons, teachings, etc.).
+     - Status:  NOT STARTED
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: No.
+  - Task 2:  (P1) Implement Admin Permission Matrix UI
+     - Where to resume: The agent has viewed the  file. Next steps are to design the backend API and then implement the checkbox-based UI.
+     - What will be achieved with this? Admins will have a user-friendly way to manage permissions for different user roles.
+     - Status:  NOT STARTED
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: No.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **(P1) Choir Self-Registration:** Implement the frontend form for choirs to register and connect it to the new  backend endpoint. Add a new section to the admin  for admins to approve these registrations.
-    - **(P1) Free User Limits:** Implement the frontend UI in the admin panel to manage the new  (daily song limit for free users). Enforce this limit in the backend when fetching the next song for a free user.
-    - **(P2) Repeat Feature:** Add UI controls (e.g., icons in the player) for the user to cycle through repeat modes (off, all, one) in the mobile app. The backend logic in  was started but needs to be connected to the UI.
-    - **(P2) Phone OTP Login:** Build the UI for phone number input and OTP entry. Integrate with a (mocked for now) SMS service API.
-    - **(P2) Admin - Device Limits:** Add UI in the admin panel to set device limits for free/paid users based on the new  in the backend.
+    - **(P2) Choir Self-Registration (Mobile):** Allow choirs to register through the mobile app, not just the web. (Blocked by mobile build).
+    - **(P2) PWA Repeat Feature:** The UI was improved, but the underlying logic in  may need review to ensure it works flawlessly for all cases (repeat one, repeat all).
+    - **(P3) Admin - Free User Limits:** Implement the UI in the admin panel to manage daily song limits for free users.
+    - **(P3) Admin - Device Limits:** Add UI in the admin panel to set device limits for free/paid users.
 
     Future Tasks:
-    - **(P2) Layout Manager - Banner Uploads:** Enhance the layout manager to allow admins to upload a banner image and link it to specific content (song/album).
-    - **(P3) Admin - Billing & Login Toggles:** Create a settings page in the admin panel for the global billing switch and login method controls.
-    - **(P3) Live Seminars, Audio Rooms, Community Features:** As per the original project plan.
+    - **(P3) Layout Manager - Banner Uploads:** The UI was added, but needs to be wired to a file upload backend.
+    - **(P3) Live Seminars, Audio Rooms, Community Features.**
 
 **Completed work in this session**
-- **Admin Users Page Enhancement:**
-  - Created a new comprehensive Users page in the admin panel with stats, search, filters, and a detailed user view.
-  - Added new backend endpoints: , , .
-  - Fully tested the new functionality with the .
-- **Bug Fix - Role Management Page:**
-  - Fixed a crash on  by replacing empty  attributes in  components with valid strings (, ).
-- **Streaming App Enhancements (Web & Mobile):**
-  - Implemented continuous playback and playback state restoration () in the web app.
-  - Added background audio capabilities to the mobile app () and MediaSession API to the web app.
-  - Redesigned the Quick Access grid on the web app to match user requirements.
-  - Fixed the web app's hero section to correctly display content from the layout manager.
-- **Backend Admin Settings:**
-  - Created a new  collection and API endpoints () to manage global app settings like billing, free user limits, etc.
+- **Admin & PWA Feature Blitz:**
+  - **Admin Settings Page:** Created  to manage Device Limits, Billing, and Login Toggles.
+  - **Phone OTP Login:** Implemented backend logic and a full UI flow in the PWA's .
+  - **Choir Registration System:** Created , added approval management to , and added registration links to the PWA and Choir Login page.
+  - **Forgot Password Flow:** Added backend endpoints and a complete UI flow (request code, verify code, reset password) to the PWA .
+  - **Layout Manager Enhancements:** Added UI for Hero Banner uploads and added Leader Content as a new section type.
+- **Critical Bug Fixes & Enhancements:**
+  - **Google Login (PWA):** Fixed by implementing the Emergent-managed Google Auth flow, including backend callback and frontend token processing.
+  - **Analytics:** Added  to the album performance endpoint and displayed it on the .
+  - **Admin Choir Management:** Added a password reset feature for admins on the .
+- **New Leader Content Module (Foundation):**
+  - **Backend:** Created Pydantic models and full CRUD APIs for , , and .
+  - **Frontend:** Created the  with a UI for creating and managing this new content.
 - **Mobile Build Debugging:**
-  - Diagnosed and fixed several issues causing build failures, including missing dependencies and corrupted files.
-  - Successfully generated  APK which included fixes for the mini-player and user action buttons.
+  - Successfully switched to a new Expo account.
+  - Diagnosed and fixed multiple build-breaking errors, including incorrect dependencies, old imports, and corrupted files.
+  - Submitted a new, clean build () to the Expo service.
 
 **Earlier issues found/mentioned but not fixed**
 - All known issues are captured in the **All Pending/In progress Issue list**.
 
 **Known issue recurrence from previous fork**
-  - **Issue recurrence in previous fork**: Playback and data loading issues in the mobile app have been a recurring theme.
-  - **Recurrence count**: This has recurred multiple times this session (continuous playback, mini-player visibility, content not loading).
-  - **Status**: IN PROGRESS. The planned migration to  is the next major attempt to stabilize this part of the application.
+  - **Issue recurrence in previous fork**: Playback and data loading issues in the mobile app... and general build instability.
+  - **Recurrence count**: This has been the primary blocker for the entire session.
+  - **Status**: IN PROGRESS. A new build is currently queued on Expo's servers, which represents the latest attempt at a fix.
 
 **Code Architecture**
 
@@ -147,96 +158,101 @@ In this session, the agent implemented a major enhancement to the admin Users pa
 - **Hybrid Database:** MongoDB (admin) + Supabase (streaming).
 - **Admin Panel:** React with Shadcn UI.
 - **Web PWA:** Standalone React app ().
-- **Mobile App:** React Native (Expo).
-- **Mobile Audio:** Currently a mix of , a custom , and a  store. **Migrating to  is in progress.**
+- **Authentication:** JWT-based, with added flows for Phone OTP, Forgot Password, and now Emergent-managed Google Auth.
+- **Mobile App:** React Native (Expo). Build process is the main bottleneck.
 
 **key DB schema**
   - **MongoDB (New Collections):**
-    - : Stores global configuration like billing status, free user limits, etc.
-  - **MongoDB (Updated Collections):**
-    - : Now managed via the new admin Users page.
+    - : Stores parent content items (e.g., Parenting Guide).
+    - : Stores series or lesson groups within a container.
+    - : Stores individual audio/topic items within a series/lesson.
 
 **changes in tech stack**
-  - **Added:**  to the mobile app to handle background audio and lock screen controls.
-  - **Added:**  for an alternative media control approach.
+  - : Was removed from the mobile app to resolve build issues. The app currently relies solely on .
 
 **All files of reference**
 - **Created:**
   - 
+  - 
+  - 
 - **Updated/Overwritten:**
+  -  (numerous new endpoints)
+  -  (new routes and navigation)
+  -  (major auth modal overhaul)
   - 
   - 
   - 
   - 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  -  (owner, projectId updated)
+  -  (fixed imports)
   - 
 
 **Areas that need refactoring**:
-- **Mobile Audio System:** The current mix of , , and  is confusing and buggy. Consolidating all audio logic into the new  using  is a critical refactoring task.
-- : Remains a large monolithic file that should be broken down into routers.
-- : A very large single-file component that manages the entire PWA; should be broken into smaller components.
+- : Has grown significantly and is now over 2,500 lines. It desperately needs to be broken down into separate routers (e.g., , , ).
+- : This file is now over 1,700 lines and contains multiple components (AuthModal, FullPlayer, MiniPlayer). The  logic should be extracted into its own component file.
 
 **key api endpoints**
-- **New Admin:** , , 
-- **New Choir:**  (backend only, no UI yet)
+- **New Auth:**
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+- **New Admin:**
+  - 
+- **New Leader Content:**
+  -  (and GET, PUT, DELETE)
+  -  (and GET, PUT, DELETE)
+  -  (and GET, PUT, DELETE)
 
 **Critical Info for New Agent**
-- **EXPO BUILD QUOTA EXHAUSTED:** You **CANNOT** build a new mobile APK. The user has exhausted their free tier build quota for the month. You must inform the user that they need to **upgrade their Expo plan** before any further mobile app development or testing can proceed. This is the top priority blocker.
-- **Mobile Audio Refactor:** The highest priority technical task is to complete the migration from  to . This is essential for fixing the lock screen controls and stabilizing the app's audio playback. Do not add new features until this core functionality is solid.
-- **Authentication for Actions:** User actions like Like, Download, and Add to Playlist fail because the app doesn't handle the unauthenticated state gracefully. The UI should prevent these actions if the user is not logged in.
+- **MOBILE BUILD IS QUEUED:** The most critical task is to check the status of the mobile app build on Expo. A new build () was submitted from the user's new account () and is in the queue. You **must** verify its status before doing anything else. All mobile-related tasks are blocked until a successful APK is generated. Build Link: **https://expo.dev/accounts/gracefy/projects/SpiritSongs/builds/76eb0567-9835-4f1f-a102-6defa20efa6a**
+- **Current User Focus:** The user's latest request is to implement file uploads for the Leader Content module and enhance the Role Management page with a permission matrix. These are the highest priority *active development* tasks.
+- **Google Auth:** The PWA now uses Emergent's managed Google Auth. The flow involves redirecting the user to a specific OAuth URL and then processing the  returned in the URL hash on the callback.
 
 **documents and test reports created in this job**
-  -  (Admin Users Page Test)
-  -  (Web PWA Test)
-  -  (Updated with completed work and new tasks)
+  - 
+  - 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-10. enhance the admin Users page (Completed)
-9. publish the web and app? (Answered)
-8. ensure song plays continuously... (New bug reports/features - In Progress)
-7. add background audio playback... Generate new App (In Progress, Blocked by Build)
-6. The native app doesnt render albums... (Bug report - In Progress)
-5. A large list of new features and fixes including play count logic, choir self-registration, OTP login, etc. (Acknowledged, added to backlog)
-4. download, create/add song to playlist, like a song... ensure Player Task bar is above device navigation (Bug report/features - In Progress)
-3. Role management error screenshot (Fixed)
-2. mini player on the lockscreen doesnt work... Like share, add to playlist, download... doesnt work (Bug report - In Progress)
-1. ensure native app shows on lock screen like attached... (Reiterated lock screen requirement - In Progress)
+10. how do I upgrade expo? (Answered with instructions)
+9. I want to change the expo account... ... (Actioned: Switched account)
+8. Correct the following - google login... album performance... admin reset choir password... choir register on web (Actioned: All items implemented)
+7. what is the error about? (Answered: Investigated and fixed build errors)
+6. Create a section for other contents similar to Album and songs... (Actioned: Implemented Leader Content module foundation)
+5. For leaders content, allow leader/admin to upload thumbnails/ or lesson image and also correct the audio uploading... (Pending: Current )
+4. Under permision matrix allow admin to enable a particular permision... (Pending: Current )
+3. User provided expo credentials (Actioned)
+2. User request to fix google login and add other features (Actioned)
+1. User asked how to upgrade expo (Answered)
 
 **Project Health Check:**
 - **Broken:**
-    - Mobile App Build Pipeline (Expo quota exhausted).
-    - Mobile App lock screen controls and mini-player visibility.
-    - Mobile App continuous playback.
+    - **Mobile App Build Pipeline:** The build process is extremely fragile. A new build is in the queue, but its success is not guaranteed. This remains the biggest risk to the project.
 - **Mocked:**
-    - Payment gateway (Stripe/M-Pesa).
-    - SMS service for OTP.
+    - SMS service for OTP (returns a  field in the response for testing).
 
 **3rd Party Integrations**
-- **Expo Application Services (EAS):** Used for cloud builds. **(WARNING: Free tier build quota is exhausted for the current month).**
+- **Expo Application Services (EAS):** Used for cloud builds. Currently building under the  account.
 - **Supabase:** PostgreSQL database and file storage.
-- **React Native Track Player:** Newly added for mobile audio, integration is in progress.
-- **Zustand:** State management in the mobile app.
-- **Expo-AV:** Previously used for audio, being replaced.
+- **Emergent-managed Google Auth:** Used for the Continue with Google button on the PWA.
 
 **Testing status**
-  - Testing agent used after significant changes: YES (For Admin Users Page and Web PWA).
+  - Testing agent used after significant changes: YES. Two successful test runs ( and ) were completed for all new backend features (OTP, Forgot Password, Choir Registration, Admin Settings).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: []
-  - Known regressions: Continuous playback and mini-player functionality on the mobile app have regressed or are still not working as intended. Build stability has significantly degraded.
+  - Test files created:
+    - 
+    - 
+  - Known regressions: Mobile app functionality is entirely untested due to build failures.
 
 **Credentials to test flow:**
-- **Admin Login:** Use the Continue with Google button on the admin login page.
+- **Admin Login:** Use the Continue with Google button on the admin login page ().
 - **Choir Login:** Email: , Password: 
-- **Expo Account (for checking build status):** Email: , Password: 
+- **Expo Account:** Email: , Password: 
 - **Supabase Credentials:** Stored in .
 
 **What agent forgot to execute**
-- The agent did not fully resolve the conflicting audio management systems ( vs ) before attempting to add another (), which likely added complexity.
-- The root cause of the build instability was not pinpointed before the build quota was exhausted. More systematic debugging (e.g., creating a minimal reproducible build) should have been prioritized over adding more features.</analysis>
+- The agent has not yet started implementing the code for the user's most recent requests: leader content file uploads and the permission matrix UI. It has only performed initial file exploration.</analysis>
