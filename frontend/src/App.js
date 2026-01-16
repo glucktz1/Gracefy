@@ -34,6 +34,7 @@ import RoleManagementPage from "@/pages/RoleManagementPage";
 import SpecialMixesPage from "@/pages/SpecialMixesPage";
 import ChurchLeaderLoginPage from "@/pages/ChurchLeaderLoginPage";
 import ChurchLeaderDashboard from "@/pages/ChurchLeaderDashboard";
+import AdminSettingsPage from "@/pages/AdminSettingsPage";
 
 // Icons
 import { 
