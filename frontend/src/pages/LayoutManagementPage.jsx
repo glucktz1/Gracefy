@@ -729,6 +729,11 @@ export default function LayoutManagementPage() {
             ))}
           </div>
         </TabsContent>
+
+        {/* Hero Banners Tab */}
+        <TabsContent value="banners" className="space-y-4">
+          <HeroBannersTab albums={albums} />
+        </TabsContent>
       </Tabs>
 
       {/* Section Modal */}
