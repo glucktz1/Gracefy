@@ -438,8 +438,14 @@ export default function HomeScreen({ navigation }) {
   // Get sections data
   const burner = homeData?.burners?.[0];
   const sections = homeData?.sections || [];
-  const featuredAlbums = sections.find(s => s.type === 'featured_albums')?.items || [];
+  console.log('Rendering with sections:', sections.length, 'burner:', !!burner);
+  
+  const featuredSection = sections.find(s => s.type === 'featured_albums' || s.section_type === 'featured_albums');
+  const featuredAlbums = featuredSection?.items || [];
+  console.log('Featured albums:', featuredAlbums.length);
+  
   const filteredItems = getFilteredItems();
+  console.log('All albums:', allAlbums.length, 'filtered:', filteredItems.length);
   
   // Split albums for different layouts
   const continuePlayingItems = featuredAlbums.slice(0, 6);
