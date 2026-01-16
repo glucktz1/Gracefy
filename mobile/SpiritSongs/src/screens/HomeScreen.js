@@ -331,6 +331,7 @@ export default function HomeScreen({ navigation }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [likedSongsCount, setLikedSongsCount] = useState(0);
   const [playlistsCount, setPlaylistsCount] = useState(0);
   const [downloadsCount, setDownloadsCount] = useState(0);
