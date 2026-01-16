@@ -403,11 +403,19 @@ export default function LibraryScreen({ navigation }) {
                   <Text style={styles.sectionTitle}>Downloads</Text>
                   <Text style={styles.sectionCount}>{downloads.length} songs • {formatSize(downloadsSize)}</Text>
                 </View>
-                {downloads.length > 0 && (
-                  <TouchableOpacity onPress={handleClearAllDownloads}>
-                    <Text style={styles.clearAllText}>Clear All</Text>
-                  </TouchableOpacity>
-                )}
+                <View style={styles.headerActions}>
+                  {downloads.length > 0 && (
+                    <>
+                      <TouchableOpacity style={styles.playAllBtn} onPress={handlePlayAllDownloads}>
+                        <Ionicons name="play" size={20} color="#000" />
+                        <Text style={styles.playAllText}>Play All</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={handleClearAllDownloads} style={styles.clearBtn}>
+                        <Text style={styles.clearAllText}>Clear All</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
               </View>
               {downloads.length > 0 ? (
                 downloads.map((song, index) => (
