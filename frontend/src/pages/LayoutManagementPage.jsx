@@ -115,6 +115,366 @@ const BurnerPreview = ({ burner, small = false }) => {
   );
 };
 
+// Hero Banners Tab Component
+const HeroBannersTab = ({ albums }) => {
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    subtitle: '',
+    image_url: '',
+    link_type: 'album',
+    link_id: '',
+    external_url: '',
+    is_active: true,
+    order: 0
+  });
+
+  const fetchBanners = async () => {
+    try {
+      const res = await axios.get(`${API}/layout/hero-banners`, { withCredentials: true });
+      setBanners(res.data.banners || []);
+    } catch (e) {
+      toast.error("Failed to load banners");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await axios.post(`${API}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true
+      });
+      setForm(prev => ({ ...prev, image_url: res.data.url }));
+      toast.success("Image uploaded!");
+    } catch (e) {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.title) {
+      toast.error("Title is required");
+      return;
+    }
+    try {
+      if (editingBanner) {
+        await axios.put(`${API}/layout/hero-banner/${editingBanner.banner_id}`, form, { withCredentials: true });
+        toast.success("Banner updated");
+      } else {
+        await axios.post(`${API}/layout/hero-banner`, form, { withCredentials: true });
+        toast.success("Banner created");
+      }
+      setIsModalOpen(false);
+      setEditingBanner(null);
+      resetForm();
+      fetchBanners();
+    } catch (e) {
+      toast.error("Failed to save banner");
+    }
+  };
+
+  const handleDelete = async (bannerId) => {
+    if (!window.confirm("Delete this banner?")) return;
+    try {
+      await axios.delete(`${API}/layout/hero-banner/${bannerId}`, { withCredentials: true });
+      toast.success("Banner deleted");
+      fetchBanners();
+    } catch (e) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleToggle = async (banner) => {
+    try {
+      await axios.put(`${API}/layout/hero-banner/${banner.banner_id}`, 
+        { is_active: !banner.is_active }, 
+        { withCredentials: true }
+      );
+      toast.success(banner.is_active ? "Banner deactivated" : "Banner activated");
+      fetchBanners();
+    } catch (e) {
+      toast.error("Failed to toggle");
+    }
+  };
+
+  const openEdit = (banner) => {
+    setEditingBanner(banner);
+    setForm({
+      title: banner.title || '',
+      subtitle: banner.subtitle || '',
+      image_url: banner.image_url || '',
+      link_type: banner.link_type || 'album',
+      link_id: banner.link_id || '',
+      external_url: banner.external_url || '',
+      is_active: banner.is_active ?? true,
+      order: banner.order || 0
+    });
+    setIsModalOpen(true);
+  };
+
+  const resetForm = () => {
+    setForm({
+      title: '',
+      subtitle: '',
+      image_url: '',
+      link_type: 'album',
+      link_id: '',
+      external_url: '',
+      is_active: true,
+      order: 0
+    });
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Hero Banners</h3>
+          <p className="text-zinc-400 text-sm">Upload banner images and link them to albums or songs</p>
+        </div>
+        <Button onClick={() => { resetForm(); setEditingBanner(null); setIsModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700">
+          <Plus size={16} className="mr-2" /> Add Banner
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {banners.map((banner) => (
+          <Card key={banner.banner_id} className={`bg-zinc-900 border-zinc-800 overflow-hidden ${!banner.is_active && 'opacity-60'}`}>
+            <div className="relative h-40">
+              {banner.image_url ? (
+                <img src={banner.image_url} alt={banner.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-violet-900 to-emerald-900 flex items-center justify-center">
+                  <Image size={40} className="text-white/30" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <h4 className="font-semibold text-white truncate">{banner.title || 'Untitled'}</h4>
+                {banner.subtitle && <p className="text-xs text-zinc-300 truncate">{banner.subtitle}</p>}
+              </div>
+              {!banner.is_active && (
+                <Badge className="absolute top-2 right-2 bg-zinc-800">Inactive</Badge>
+              )}
+            </div>
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>Links to: {banner.link_type || 'None'}</span>
+                <span>Order: {banner.order}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1 border-zinc-700" onClick={() => openEdit(banner)}>
+                  <Edit2 size={14} className="mr-1" /> Edit
+                </Button>
+                <Button size="sm" variant="outline" className="border-zinc-700" onClick={() => handleToggle(banner)}>
+                  {banner.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
+                </Button>
+                <Button size="sm" variant="outline" className="border-red-800 text-red-400 hover:bg-red-900/30" onClick={() => handleDelete(banner.banner_id)}>
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {banners.length === 0 && (
+          <div className="col-span-full text-center py-12 text-zinc-500">
+            <Image size={48} className="mx-auto mb-4 opacity-50" />
+            <p>No hero banners created yet</p>
+            <p className="text-sm">Add banners to display on the app home screen</p>
+          </div>
+        )}
+      </div>
+
+      {/* Banner Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingBanner ? "Edit Banner" : "Add New Banner"}</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Upload a banner image and link it to content
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Image Upload */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">Banner Image</label>
+              <div className="border-2 border-dashed border-zinc-700 rounded-lg p-4 text-center">
+                {form.image_url ? (
+                  <div className="relative">
+                    <img src={form.image_url} alt="Banner" className="w-full h-32 object-cover rounded" />
+                    <Button 
+                      size="sm" 
+                      variant="destructive" 
+                      className="absolute top-2 right-2" 
+                      onClick={() => setForm(prev => ({ ...prev, image_url: '' }))}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer block py-4">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                    />
+                    {uploading ? (
+                      <div className="flex flex-col items-center">
+                        <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-2" />
+                        <span className="text-sm text-zinc-400">Uploading...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Image size={32} className="mx-auto mb-2 text-zinc-500" />
+                        <span className="text-sm text-zinc-400">Click to upload image</span>
+                        <span className="text-xs text-zinc-500 block mt-1">Max 5MB, JPG/PNG</span>
+                      </>
+                    )}
+                  </label>
+                )}
+              </div>
+              <Input 
+                value={form.image_url} 
+                onChange={(e) => setForm(prev => ({ ...prev, image_url: e.target.value }))}
+                placeholder="Or paste image URL"
+                className="mt-2 bg-zinc-950 border-zinc-700"
+              />
+            </div>
+
+            {/* Title & Subtitle */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Title *</label>
+                <Input 
+                  value={form.title} 
+                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Banner title"
+                  className="bg-zinc-950 border-zinc-700"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Subtitle</label>
+                <Input 
+                  value={form.subtitle} 
+                  onChange={(e) => setForm(prev => ({ ...prev, subtitle: e.target.value }))}
+                  placeholder="Optional subtitle"
+                  className="bg-zinc-950 border-zinc-700"
+                />
+              </div>
+            </div>
+
+            {/* Link Settings */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Link Type</label>
+                <Select value={form.link_type} onValueChange={(v) => setForm(prev => ({ ...prev, link_type: v }))}>
+                  <SelectTrigger className="bg-zinc-950 border-zinc-700">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value="album">Album</SelectItem>
+                    <SelectItem value="song">Song</SelectItem>
+                    <SelectItem value="external">External URL</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Order</label>
+                <Input 
+                  type="number" 
+                  value={form.order} 
+                  onChange={(e) => setForm(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
+                  className="bg-zinc-950 border-zinc-700"
+                />
+              </div>
+            </div>
+
+            {/* Link Target */}
+            {form.link_type === 'album' && (
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Select Album</label>
+                <Select value={form.link_id} onValueChange={(v) => setForm(prev => ({ ...prev, link_id: v }))}>
+                  <SelectTrigger className="bg-zinc-950 border-zinc-700">
+                    <SelectValue placeholder="Choose an album" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 max-h-60">
+                    {albums.map(album => (
+                      <SelectItem key={album.album_id} value={album.album_id}>
+                        {album.title} - {album.artist_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {form.link_type === 'external' && (
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">External URL</label>
+                <Input 
+                  value={form.external_url} 
+                  onChange={(e) => setForm(prev => ({ ...prev, external_url: e.target.value }))}
+                  placeholder="https://..."
+                  className="bg-zinc-950 border-zinc-700"
+                />
+              </div>
+            )}
+
+            {/* Active Toggle */}
+            <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+              <span className="text-sm">Active</span>
+              <Switch 
+                checked={form.is_active} 
+                onCheckedChange={(checked) => setForm(prev => ({ ...prev, is_active: checked }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" className="border-zinc-700" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700">
+              {editingBanner ? "Update" : "Create"} Banner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 export default function LayoutManagementPage() {
   const [sections, setSections] = useState([]);
   const [burners, setBurners] = useState([]);
