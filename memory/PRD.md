@@ -882,3 +882,36 @@ To build an APK for testing on physical devices:
 ### Refactoring Tasks
 - ⏳ Split server.py (~2800 lines) into separate routers
 - ⏳ Extract AuthModal from UserStreamingApp.jsx (~1700 lines)
+
+### Phase 6.1 - Mobile Features & PWA Enhancements (January 16, 2026)
+
+**Choir Self-Registration on Mobile:**
+- ✅ Created `/app/mobile/SpiritSongs/src/screens/ChoirRegistrationScreen.js`
+- ✅ Two-step registration form (Basic Info -> Account Setup)
+- ✅ Supports choir, artist, and band account types
+- ✅ Success screen with approval notification message
+- ✅ Added navigation link from Login screen
+- ✅ Route configured in App.js
+
+**Mobile Auth-Gated Actions (Like/Download/Playlist):**
+- ✅ Updated NowPlayingScreen with auth checks
+- ✅ `handleLike()` - prompts login for unauthenticated users
+- ✅ `handleDownload()` - prompts login, then checks subscription
+- ✅ `handleAddToPlaylist()` - prompts login, then checks subscription
+- ✅ Lock icons shown for unauthenticated users on action buttons
+
+**PWA Repeat Feature:**
+- ✅ Verified repeat cycle: 'off' -> 'all' -> 'one' -> 'off'
+- ✅ Correct icon display: Repeat1 for 'one', Repeat for others
+- ✅ Correct color: emerald-400 when active, zinc-400 when off
+- ✅ Repeat mode indicator shows current state
+
+**Background Audio (Mobile):**
+- ✅ Background playback works with expo-av and `staysActiveInBackground: true`
+- ⚠️ **LIMITATION**: Lock screen controls NOT possible
+  - Requires react-native-track-player which has compatibility issues with Expo SDK 54
+  - Background audio continues playing when screen locked, but no media control buttons
+
+**Testing:**
+- ✅ 16/16 tests passed (100%)
+- ✅ Test file: `/app/tests/test_choir_registration_mobile.py`
