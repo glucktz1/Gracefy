@@ -5,18 +5,39 @@ import { getAudioUrl } from './api';
 const DOWNLOADS_DIR = `${FileSystem.documentDirectory}songs/`;
 const DOWNLOADS_INDEX_KEY = 'downloaded_songs';
 
-// Ensure downloads directory exists
-const ensureDownloadsDir = async () => {
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(DOWNLOADS_DIR, { intermediates: true });
+// Ensure downloads directory exists with retry
+const ensureDownloadsDir = async (retries = 3) => {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(DOWNLOADS_DIR, { intermediates: true });
+        console.log('Downloads directory created:', DOWNLOADS_DIR);
+      }
+      // Verify it was created
+      const verifyInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
+      if (verifyInfo.exists) {
+        return true;
+      }
+    } catch (error) {
+      console.error(`Attempt ${attempt + 1} - Error creating downloads directory:`, error);
+      if (attempt === retries - 1) {
+        // Last attempt - try alternative location
+        try {
+          const altDir = `${FileSystem.cacheDirectory}downloads/`;
+          await FileSystem.makeDirectoryAsync(altDir, { intermediates: true });
+          console.log('Using alternative cache directory:', altDir);
+          return true;
+        } catch (altError) {
+          console.error('Alternative directory also failed:', altError);
+          return false;
+        }
+      }
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
-    return true;
-  } catch (error) {
-    console.error('Error creating downloads directory:', error);
-    return false;
   }
+  return false;
 };
 
 // Get list of downloaded songs
