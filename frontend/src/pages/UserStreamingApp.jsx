@@ -1447,6 +1447,10 @@ export default function UserStreamingApp() {
                             onPlay={() => handlePlaySong(song, { thumbnail: song.album_thumbnail, artist_name: song.artist_name }, searchResults.songs, idx)}
                             isActive={player.currentSong?.song_id === song.song_id}
                             isPlaying={player.isPlaying}
+                            onLike={handleLikeSong}
+                            onAddToPlaylist={handleAddToPlaylist}
+                            onDownload={handleDownloadSong}
+                            isLiked={isFavorite(song.song_id)}
                           />
                         ))}
                       </div>
