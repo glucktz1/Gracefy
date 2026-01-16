@@ -339,6 +339,7 @@ function AppRouter() {
       <Route path="/analytics" element={<ProtectedRoute><EnhancedAnalyticsPage /></ProtectedRoute>} />
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
       <Route path="/monetization" element={<ProtectedRoute><MonetizationSettingsPage /></ProtectedRoute>} />
+      <Route path="/app-settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
       <Route path="/roles" element={<ProtectedRoute><RoleManagementPage /></ProtectedRoute>} />
       <Route path="/layout-management" element={<ProtectedRoute><LayoutManagementPage /></ProtectedRoute>} />
       <Route path="/special-mixes" element={<ProtectedRoute><SpecialMixesPage /></ProtectedRoute>} />
