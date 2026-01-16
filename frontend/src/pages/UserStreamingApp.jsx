@@ -1568,6 +1568,10 @@ export default function UserStreamingApp() {
                         onPlay={() => handlePlaySong(song, album, library.recently_played.map(r => r.song), i)}
                         isActive={player.currentSong?.song_id === song.song_id}
                         isPlaying={player.isPlaying}
+                        onLike={handleLikeSong}
+                        onAddToPlaylist={handleAddToPlaylist}
+                        onDownload={handleDownloadSong}
+                        isLiked={isFavorite(song.song_id)}
                       />
                     ))}
                   </div>
