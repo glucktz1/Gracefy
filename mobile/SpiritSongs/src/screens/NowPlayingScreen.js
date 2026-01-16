@@ -392,7 +392,7 @@ const NowPlayingScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleAddToPlaylist}>
             <View style={styles.secondaryIconWrapper}>
               <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
-              {!canPerformAction('create_playlist') && (
+              {(!isAuthenticated || !canPerformAction('create_playlist')) && (
                 <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
               )}
             </View>
@@ -418,7 +418,7 @@ const NowPlayingScreen = ({ navigation }) => {
                     size={28} 
                     color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
                   />
-                  {!canPerformAction('download') && !isDownloaded && (
+                  {(!isAuthenticated || (!canPerformAction('download') && !isDownloaded)) && (
                     <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
                   )}
                 </View>
