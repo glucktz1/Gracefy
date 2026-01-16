@@ -284,12 +284,15 @@ const NowPlayingScreen = ({ navigation }) => {
                 {currentSong.artist_name || currentAlbum?.artist_name || 'Unknown Artist'}
               </Text>
             </View>
-            <TouchableOpacity onPress={toggleLike} style={styles.likeButton}>
+            <TouchableOpacity onPress={handleLike} style={styles.likeButton}>
               <Ionicons 
                 name={liked ? 'heart' : 'heart-outline'} 
                 size={28} 
                 color={liked ? '#e91e63' : COLORS.textPrimary} 
               />
+              {!isAuthenticated && (
+                <Ionicons name="lock-closed" size={10} color="#FF9800" style={styles.lockBadge} />
+              )}
             </TouchableOpacity>
           </View>
         </View>
