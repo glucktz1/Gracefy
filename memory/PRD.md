@@ -827,3 +827,58 @@ To build an APK for testing on physical devices:
 - **v1.0.2**: Enhanced home screen with dynamic layouts, background playback
 - **v1.0.3**: Fixed album navigation, song playback, playlist creation, added offline downloads, profile tab
 - **v1.0.4**: High-performance streaming with Supabase, FlashList, Zustand, expo-image
+
+### Phase 6.0 - Leader Content & Permission Management (January 16, 2026)
+
+**Leader Content File Upload System:**
+- ✅ POST `/api/content/upload-thumbnail` - Upload thumbnail images (max 5MB) for leader content
+- ✅ POST `/api/content/upload-audio` - Upload audio files (max 100MB) for leader content episodes
+- ✅ Supabase storage with MongoDB fallback when Supabase unavailable
+- ✅ Frontend upload progress indicator with percentage display
+- ✅ Auto audio duration detection from uploaded files
+- ✅ ContentManagementPage enhanced with proper upload UI for:
+  - Container thumbnails
+  - Series thumbnails  
+  - Episode thumbnails and audio files
+
+**Category Permissions Management:**
+- ✅ GET `/api/admin/category-permissions` - Get permissions for all 9 user categories
+- ✅ PUT `/api/admin/category-permissions/{role_id}` - Update permissions for a category
+- ✅ POST `/api/admin/category-permissions/{role_id}/reset` - Reset to system defaults
+- ✅ RoleManagementPage "Permissions Matrix" tab with:
+  - Checkbox toggles for each permission per category
+  - Visual indicators for modified categories
+  - Save Changes button with unsaved changes detection
+  - Reset to defaults functionality
+  - Permission descriptions in matrix view
+
+**Mobile Build Success:**
+- ✅ Mobile app build v1.0.19 completed successfully
+- ✅ APK available: https://expo.dev/artifacts/eas/fFGFHmJUtJyAfL7iqcFKHd.apk
+- ✅ Expo account: gracefy (info.mannaapp@gmail.com)
+
+**Testing:**
+- ✅ 19/19 backend tests passed (100%)
+- ✅ Test file: `/app/tests/test_content_upload_category_permissions.py`
+
+## Pending/Backlog Tasks
+
+### High Priority (P1)
+- ⏳ Mobile App: Lock screen controls not working (requires react-native-track-player)
+- ⏳ Mobile App: Like, Download, Playlist buttons need auth UI handling
+
+### Medium Priority (P2)
+- ⏳ Choir Self-Registration on Mobile
+- ⏳ PWA Repeat Feature logic review
+- ⏳ Admin Free User Limits UI
+- ⏳ Admin Device Limits UI
+
+### Low Priority (P3)
+- ⏳ Layout Manager Banner Uploads wiring
+- ⏳ Live Seminars integration
+- ⏳ Audio Rooms feature
+- ⏳ Community features
+
+### Refactoring Tasks
+- ⏳ Split server.py (~2800 lines) into separate routers
+- ⏳ Extract AuthModal from UserStreamingApp.jsx (~1700 lines)
