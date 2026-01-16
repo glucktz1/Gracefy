@@ -241,6 +241,17 @@ export default function LoginScreen({ navigation }) {
               <Ionicons name="logo-google" size={20} color={COLORS.textPrimary} />
               <Text style={styles.socialBtnText}>Continue with Google</Text>
             </TouchableOpacity>
+
+            {/* Creator Registration Link */}
+            <TouchableOpacity 
+              style={styles.creatorLink}
+              onPress={() => navigation.navigate('ChoirRegistration')}
+            >
+              <Ionicons name="musical-notes" size={18} color={COLORS.primary} />
+              <Text style={styles.creatorLinkText}>
+                Are you a choir, artist, or band? <Text style={styles.creatorLinkHighlight}>Register as Creator</Text>
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Footer */}
