@@ -612,6 +612,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  playAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e91e63',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  playAllText: {
+    color: '#000',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  clearBtn: {
+    padding: 4,
+  },
   clearAllText: {
     color: '#e91e63',
     fontSize: 14,
