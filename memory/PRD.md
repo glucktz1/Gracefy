@@ -560,6 +560,51 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - Quick access grid shows user items first
 - Album detail and mini-player working
 
+### Phase 5.12 - Comprehensive App Enhancements (January 16, 2026)
+
+**Mobile App Fixes:**
+- ✅ MiniPlayer now renders at bottom of screen (above tab bar)
+- ✅ MiniPlayer visible while navigating between screens
+- ✅ Fixed continuous playback (default repeat='all')
+- ✅ Tab bar positioned above phone navigation buttons
+
+**Backend - Admin Settings:**
+- ✅ GET/PUT `/api/admin/settings` - App-wide settings:
+  - `billing_enabled` - Toggle billing on/off
+  - `free_user_daily_song_limit` - Daily song limit for free users
+  - `free_user_max_devices` / `premium_user_max_devices` - Device limits
+  - `login_methods` - Enable/disable email, phone OTP, Google login
+  - `play_count_replay_limit` - Max replays that count (default: 2)
+  - `min_play_duration_seconds` - Minimum play time to count (default: 30s)
+
+**Backend - Play Count Tracking:**
+- ✅ POST `/api/listening/track-play` - Track plays with replay limits
+- ✅ GET `/api/user/daily-plays` - Get user's daily play count
+
+**Backend - Choir Self-Registration:**
+- ✅ POST `/api/choir/register` - Self-register as choir/artist
+- ✅ POST `/api/choir/{id}/submit-song` - Submit songs for approval
+- ✅ GET `/api/admin/choir-registrations` - View pending registrations
+- ✅ POST `/api/admin/choir/{id}/approve` - Approve registration
+- ✅ POST `/api/admin/choir/{id}/reject` - Reject registration
+- ✅ GET `/api/admin/song-submissions` - View pending song submissions
+- ✅ POST `/api/admin/song-submission/{id}/approve` - Approve song
+- ✅ POST `/api/admin/song-submission/{id}/reject` - Reject song
+
+**Backend - Phone OTP Login:**
+- ✅ POST `/api/auth/send-otp` - Send OTP to phone (MOCKED SMS)
+- ✅ POST `/api/auth/verify-otp` - Verify OTP and login/register
+
+**Backend - Hero Banner Management:**
+- ✅ POST `/api/layout/hero-banner` - Create banner with link to content
+- ✅ GET `/api/layout/hero-banners` - List all banners
+- ✅ PUT `/api/layout/hero-banner/{id}` - Update banner
+- ✅ DELETE `/api/layout/hero-banner/{id}` - Delete banner
+
+**APK Build v1.0.11:**
+- **Download:** https://expo.dev/artifacts/eas/j6gBezJrodFnRoJDdhpft3.apk
+- Features: MiniPlayer fixed, continuous playback, tab bar positioning
+
 ## Next Tasks (Priority Order)
 1. **P1 - Fix Mobile APK Build**: Recent builds (v1.0.7, v1.0.8) errored on Expo. Need to diagnose build logs
 2. **P1 - Native Mobile App - Church/Choir UI**: Implement screens to display detailed church/choir profiles, prayer schedules, announcements, location maps
