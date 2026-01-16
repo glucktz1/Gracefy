@@ -955,3 +955,40 @@ To build an APK for testing on physical devices:
 **Known Limitation:**
 - ⚠️ Lock screen media controls require new mobile build to test
 - ⚠️ All mobile UI changes require new build to verify on device
+
+### Phase 6.3 - EAS Build & PWA Library Enhancements (January 17, 2026)
+
+**Mobile Build v1.0.20 Submitted:**
+- ✅ Build ID: 6cc35146-5756-45fa-a25c-c444df950543
+- ✅ Status: Submitted (waiting in queue)
+- ✅ Version: 1.0.20, versionCode: 20
+- ✅ Build URL: https://expo.dev/accounts/gracefy/projects/SpiritSongs/builds/6cc35146-5756-45fa-a25c-c444df950543
+- ✅ Includes all bug fixes:
+  - Duplicate MiniPlayer fix
+  - Download directory retry logic
+  - PlaylistDetailScreen
+  - Play All buttons
+  - Choir registration screen
+  - Auth-gated actions (Like/Download/Playlist)
+
+**PWA Library Enhancements:**
+- ✅ Added library tabs: All, Liked Songs, Playlists, Downloads
+- ✅ Liked Songs section with:
+  - Gradient card with heart icon
+  - Song count display
+  - Play All button (green circular)
+  - List of liked songs with playback
+  - "View all" link when in All tab
+- ✅ Playlists section with:
+  - Grid layout for playlist cards
+  - Play overlay on hover
+  - Click to play entire playlist
+- ✅ Downloads section with:
+  - Placeholder for web (mobile-only feature)
+  - Gradient card styling
+- ✅ Recently Played section with:
+  - Play All button
+  - Song list with full controls
+- ✅ Empty states for each tab
+- ✅ Tab-based filtering
+- ✅ Consistent styling with app theme
