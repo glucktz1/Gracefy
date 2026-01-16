@@ -23,6 +23,7 @@ import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
