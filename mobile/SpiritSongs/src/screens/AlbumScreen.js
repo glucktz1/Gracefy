@@ -30,7 +30,7 @@ export default function AlbumScreen({ route, navigation }) {
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   
-  const { playSong, currentSong, isPlaying, togglePlay } = usePlayer();
+  const { playSong, currentSong, isPlaying, togglePlay, shuffle, repeat, cycleRepeat } = usePlayer();
   const { 
     isPremium, 
     canPerformAction, 
