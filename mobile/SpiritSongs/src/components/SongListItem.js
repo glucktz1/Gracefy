@@ -58,9 +58,17 @@ const SongListItem = ({
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     setMenuVisible(false);
-    // Share functionality would go here
+    try {
+      const shareMessage = `🎵 Listen to "${song.title}" by ${album?.artist_name || 'Spirit Songs'} on Spirit Songs App!`;
+      await Share.share({
+        message: shareMessage,
+        title: song.title,
+      });
+    } catch (error) {
+      console.log('Share error:', error);
+    }
   };
 
   const handleAddToPlaylist = () => {
