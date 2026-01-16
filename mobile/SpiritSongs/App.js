@@ -96,6 +96,11 @@ function MainNavigator() {
         component={LoginScreen}
         options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
       />
+      <Stack.Screen 
+        name="ChoirRegistration" 
+        component={ChoirRegistrationScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
     </Stack.Navigator>
   );
 }
