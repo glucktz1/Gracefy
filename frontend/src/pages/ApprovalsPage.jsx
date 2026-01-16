@@ -33,7 +33,7 @@ export default function ApprovalsPage() {
         axios.get(`${API}/admin/notifications?unread_only=true`, { withCredentials: true }),
         axios.get(`${API}/admin/content-edit-requests?status=pending`, { withCredentials: true }).catch(() => ({ data: { requests: [] } })),
         axios.get(`${API}/church-leader/accounts`, { withCredentials: true }).catch(() => ({ data: { accounts: [] } })),
-        axios.get(`${API}/admin/pending-choir-registrations`, { withCredentials: true }).catch(() => ({ data: { registrations: [] } }))
+        axios.get(`${API}/admin/choir-registrations`, { withCredentials: true }).catch(() => ({ data: { registrations: [] } }))
       ]);
       setApprovals(approvalsRes.data);
       setContentRequests(contentRes.data.requests || []);
