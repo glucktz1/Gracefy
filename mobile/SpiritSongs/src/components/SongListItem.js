@@ -70,6 +70,15 @@ const SongListItem = ({
     }
   };
 
+  const handleDownload = async () => {
+    setMenuVisible(false);
+    if (onDownload) {
+      setIsDownloading(true);
+      await onDownload(song);
+      setIsDownloading(false);
+    }
+  };
+
   const formatDuration = (seconds) => {
     if (!seconds) return '--:--';
     const mins = Math.floor(seconds / 60);
