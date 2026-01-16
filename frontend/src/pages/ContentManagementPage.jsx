@@ -557,7 +557,7 @@ export default function ContentManagementPage() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    <SelectItem value="">No category</SelectItem>
+                    <SelectItem value="none">No category</SelectItem>
                     {categories.map(c => (
                       <SelectItem key={c.category_id} value={c.category_id}>{c.name}</SelectItem>
                     ))}
