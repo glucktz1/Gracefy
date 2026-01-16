@@ -33,32 +33,24 @@ export default function PlaylistDetailScreen({ route, navigation }) {
       // Get playlist details with songs
       const data = await libraryService.getPlaylist(playlistId);
       console.log('Playlist data:', data);
+      
       setPlaylist(data.playlist || data);
       
-      // Fetch song details for each song in the playlist
-      const songDetails = [];
-      const songIds = data.playlist?.songs || data.songs || [];
-      
-      for (const songId of songIds) {
-        try {
-          // Try to find the song - it might be in the response already
-          if (typeof songId === 'object' && songId.song_id) {
-            songDetails.push(songId);
-          } else {
-            // Need to fetch song details
-            // For now, add a placeholder
-            songDetails.push({
-              song_id: songId,
-              title: 'Loading...',
-              artist_name: '',
-            });
-          }
-        } catch (e) {
-          console.log('Error fetching song:', songId);
+      // Parse songs from the response - backend returns {song, album} objects
+      const songsFromResponse = data.songs || [];
+      const parsedSongs = songsFromResponse.map(item => {
+        // If item has a 'song' property, extract it
+        if (item.song) {
+          return {
+            ...item.song,
+            album: item.album,
+          };
         }
-      }
+        // Otherwise, use the item directly
+        return item;
+      });
       
-      setSongs(songDetails);
+      setSongs(parsedSongs);
     } catch (error) {
       console.error('Error fetching playlist:', error);
       setError('Could not load playlist');
