@@ -21,7 +21,7 @@ export const PlayerProvider = ({ children }) => {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState('off');
+  const [repeat, setRepeat] = useState('all'); // Default to 'all' for continuous playback
   const [error, setError] = useState(null);
   const [liked, setLiked] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
