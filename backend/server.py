@@ -4762,16 +4762,21 @@ async def get_choir_revenue(choir_id: str):
         if album:
             album_revenue = (album_stat["premium_hours"] * settings["premium_rate_per_hour"] + 
                            album_stat["standard_hours"] * settings["standard_rate_per_hour"])
+            total_hours = album_stat["premium_hours"] + album_stat["standard_hours"]
             albums_performance.append({
                 "album_id": album_stat["_id"],
                 "title": album["title"],
+                "artist_name": album.get("artist_name", "Unknown"),
                 "monetization_type": album.get("monetization_type", "standard"),
                 "premium_hours": round(album_stat["premium_hours"], 2),
                 "standard_hours": round(album_stat["standard_hours"], 2),
-                "total_hours": round(album_stat["premium_hours"] + album_stat["standard_hours"], 2),
+                "total_hours": round(total_hours, 2),
+                "total_minutes": round(total_hours * 60, 0),
+                "minutes_streamed": round(total_hours * 60, 0),
                 "total_plays": album_stat["total_plays"],
                 "revenue": round(album_revenue, 2),
-                "revenue_percentage": round((album_revenue / max(gross, 1)) * 100, 1)
+                "revenue_percentage": round((album_revenue / max(gross, 1)) * 100, 1),
+                "avg_minutes_per_play": round((total_hours * 60) / max(album_stat["total_plays"], 1), 1)
             })
     
     # Monthly breakdown (only revenue-eligible streams)
