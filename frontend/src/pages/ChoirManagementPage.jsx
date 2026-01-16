@@ -583,6 +583,63 @@ export default function ChoirManagementPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Password Reset Modal */}
+      <Dialog open={isPasswordResetOpen} onOpenChange={setIsPasswordResetOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key size={20} className="text-violet-400" />
+              Reset Choir Password
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-zinc-800/50 rounded-lg">
+              <p className="text-sm text-zinc-400">Resetting password for:</p>
+              <p className="font-semibold text-white">{selectedChoir?.name}</p>
+              <p className="text-xs text-zinc-500">{selectedChoir?.email}</p>
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400 mb-1.5 block">New Password</label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min 6 characters)"
+                className="bg-zinc-950 border-zinc-700"
+                data-testid="new-password-input"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPasswordResetOpen(false)} 
+              className="border-zinc-700"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleResetPassword}
+              disabled={resettingPassword || newPassword.length < 6}
+              className="bg-violet-600 hover:bg-violet-700"
+              data-testid="confirm-reset-btn"
+            >
+              {resettingPassword ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Resetting...
+                </>
+              ) : (
+                'Reset Password'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
