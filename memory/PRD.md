@@ -316,6 +316,42 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - GET `/api/files/{file_id}/stream` - Audio streaming with Range header support
 - GET `/api/files/{file_id}` - File metadata
 
+### Phase 6 - Admin Settings & PWA Enhancements (January 16, 2026)
+
+**Admin Settings Page (`/app-settings`):**
+- ✅ GET `/api/admin/settings` - Get all admin settings
+- ✅ PUT `/api/admin/settings` - Update admin settings
+- ✅ AdminSettingsPage.jsx with 4 tabs: Billing & Plans, Device Limits, Login Methods, Playback Rules
+- ✅ Billing toggle: Enable/disable billing for entire platform
+- ✅ Device limits: Free user (default 1) and Premium user (default 3) device limits
+- ✅ Daily song limit: Configurable limit for free users (default 10 songs/day)
+- ✅ Login method toggles: Email/Password, Phone OTP (MOCKED), Google OAuth
+- ✅ Playback rules: Replay limit per song, minimum play duration for streams
+
+**Phone OTP Login (MOCKED):**
+- ✅ POST `/api/auth/send-otp` - Send OTP to phone number (returns OTP in dev response)
+- ✅ POST `/api/auth/verify-otp` - Verify OTP and return JWT token
+- ✅ PWA AuthModal with Email/Phone OTP tabs
+- ✅ OTP input with 6-digit verification
+- ✅ Dev mode shows OTP code in UI (remove in production)
+- ✅ Respects admin settings - returns 403 if phone_otp login disabled
+
+**Hero Banners in Layout Manager:**
+- ✅ POST `/api/layout/hero-banner` - Create hero banner
+- ✅ GET `/api/layout/hero-banners` - List all banners
+- ✅ GET `/api/layout/hero-banners/active` - Get active banners only
+- ✅ PUT `/api/layout/hero-banner/{banner_id}` - Update banner
+- ✅ DELETE `/api/layout/hero-banner/{banner_id}` - Delete banner
+- ✅ HeroBannersTab in LayoutManagementPage with image upload
+- ✅ Link banners to albums, songs, or external URLs
+- ✅ Order and active status management
+
+**PWA Repeat Feature UI:**
+- ✅ Repeat button cycles: off → all → one
+- ✅ Visual indicators: 🔁 Repeat All / 🔂 Repeat One
+- ✅ Dot indicator under repeat button when active
+- ✅ Title attribute shows current repeat mode
+
 ### Phase 5 - React Native Mobile App (December 2025 - January 2026)
 
 **Mobile App Structure (`/app/mobile/SpiritSongs/`):**
