@@ -7954,6 +7954,79 @@ async def reject_choir_registration(choir_id: str, data: dict):
     
     return {"message": "Choir registration rejected", "choir_id": choir_id}
 
+@api_router.put("/admin/choir/{choir_id}/reset-password")
+async def admin_reset_choir_password(choir_id: str, data: dict):
+    """Admin reset choir password"""
+    new_password = data.get("new_password")
+    
+    if not new_password or len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    # Hash new password
+    import hashlib
+    password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+    
+    result = await db.choir_accounts.update_one(
+        {"choir_id": choir_id},
+        {"$set": {
+            "password_hash": password_hash,
+            "password_reset_at": datetime.now(timezone.utc).isoformat(),
+            "password_reset_by": "admin"
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    return {"message": "Choir password reset successfully", "choir_id": choir_id}
+
+@api_router.put("/admin/choir/{choir_id}")
+async def admin_update_choir(choir_id: str, data: dict):
+    """Admin update choir details"""
+    update_fields = {}
+    
+    if "name" in data:
+        update_fields["name"] = data["name"]
+    if "email" in data:
+        update_fields["email"] = data["email"]
+    if "phone" in data:
+        update_fields["phone"] = data["phone"]
+    if "type" in data:
+        update_fields["type"] = data["type"]
+    if "status" in data:
+        update_fields["status"] = data["status"]
+    if "description" in data:
+        update_fields["description"] = data["description"]
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    update_fields["updated_by"] = "admin"
+    
+    result = await db.choir_accounts.update_one(
+        {"choir_id": choir_id},
+        {"$set": update_fields}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    # Also update singers collection
+    singer_update = {}
+    if "name" in data:
+        singer_update["name"] = data["name"]
+    if "status" in data:
+        singer_update["status"] = data["status"]
+    
+    if singer_update:
+        await db.singers.update_one(
+            {"singer_id": choir_id},
+            {"$set": singer_update}
+        )
+    
+    return {"message": "Choir updated successfully", "choir_id": choir_id}
+
 @api_router.get("/admin/song-submissions")
 async def get_pending_song_submissions():
     """Get all pending song submissions"""
