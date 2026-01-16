@@ -37,6 +37,7 @@ const SECTION_TYPES = [
   { value: "hero", label: "Hero Section", icon: Image },
   { value: "quick_access", label: "Quick Access Grid", icon: Grid },
   { value: "featured_albums", label: "Featured Albums", icon: Star },
+  { value: "leader_content", label: "Leader Content", icon: BookOpen },
   { value: "choirs", label: "Choirs & Artists", icon: Users },
   { value: "churches", label: "Churches", icon: Church },
   { value: "special_mixes", label: "Special Mixes", icon: Disc },
@@ -54,6 +55,7 @@ const CONTENT_TYPES = [
   { value: "choirs", label: "Choirs / Artists" },
   { value: "churches", label: "Churches" },
   { value: "special_mixes", label: "Special Mixes" },
+  { value: "leader_content", label: "Leader Content (Teachings, Sermons)" },
 ];
 
 const ICONS = [
