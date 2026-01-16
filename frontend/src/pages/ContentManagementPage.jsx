@@ -735,13 +735,48 @@ export default function ContentManagementPage() {
                 className="bg-zinc-950 border-zinc-700"
               />
             </div>
+            
+            {/* Thumbnail Upload */}
             <div>
-              <label className="text-sm text-zinc-400 mb-1.5 block">Audio File</label>
+              <label className="text-sm text-zinc-400 mb-1.5 block">Episode Thumbnail (Optional)</label>
+              <div className="flex gap-3">
+                <Input
+                  value={episodeForm.thumbnail_url}
+                  onChange={(e) => setEpisodeForm({ ...episodeForm, thumbnail_url: e.target.value })}
+                  placeholder="Thumbnail URL or upload"
+                  className="bg-zinc-950 border-zinc-700 flex-1"
+                />
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const url = await handleFileUpload(e.target.files?.[0], "image");
+                      if (url) setEpisodeForm({ ...episodeForm, thumbnail_url: url });
+                    }}
+                  />
+                  <Button type="button" variant="outline" className="border-zinc-700" disabled={uploading}>
+                    <Image size={14} className="mr-1" /> 
+                    {uploading && uploadProgress > 0 && uploadProgress < 100 ? `${uploadProgress}%` : "Upload"}
+                  </Button>
+                </label>
+              </div>
+              {episodeForm.thumbnail_url && (
+                <div className="mt-2">
+                  <img src={episodeForm.thumbnail_url} alt="Preview" className="w-20 h-20 rounded object-cover" />
+                </div>
+              )}
+            </div>
+            
+            {/* Audio Upload */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-1.5 block">Audio File *</label>
               <div className="flex gap-3">
                 <Input
                   value={episodeForm.audio_url}
                   onChange={(e) => setEpisodeForm({ ...episodeForm, audio_url: e.target.value })}
-                  placeholder="Audio URL"
+                  placeholder="Audio URL or upload"
                   className="bg-zinc-950 border-zinc-700 flex-1"
                 />
                 <label className="cursor-pointer">
@@ -750,31 +785,79 @@ export default function ContentManagementPage() {
                     accept="audio/*"
                     className="hidden"
                     onChange={async (e) => {
-                      const url = await handleFileUpload(e.target.files?.[0], "audio");
-                      if (url) setEpisodeForm({ ...episodeForm, audio_url: url });
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const url = await handleFileUpload(file, "audio");
+                        if (url) {
+                          // Try to get duration from the audio file
+                          const audio = new Audio();
+                          audio.src = URL.createObjectURL(file);
+                          audio.onloadedmetadata = () => {
+                            setEpisodeForm(prev => ({ 
+                              ...prev, 
+                              audio_url: url,
+                              duration_seconds: Math.round(audio.duration) || 0
+                            }));
+                          };
+                          audio.onerror = () => {
+                            setEpisodeForm(prev => ({ ...prev, audio_url: url }));
+                          };
+                        }
+                      }
                     }}
                   />
-                  <Button type="button" variant="outline" className="border-zinc-700" disabled={uploading}>
-                    <Upload size={14} className="mr-1" /> {uploading ? "..." : "Upload"}
+                  <Button type="button" variant="outline" className="border-zinc-700 border-emerald-500/50 text-emerald-400" disabled={uploading}>
+                    <FileAudio size={14} className="mr-1" /> 
+                    {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload Audio"}
                   </Button>
                 </label>
               </div>
+              {uploading && uploadProgress > 0 && (
+                <div className="mt-2">
+                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">Uploading... {uploadProgress}%</p>
+                </div>
+              )}
+              {episodeForm.audio_url && !uploading && (
+                <div className="mt-2 flex items-center gap-2 p-2 bg-zinc-800/50 rounded">
+                  <FileAudio size={16} className="text-emerald-400" />
+                  <span className="text-sm text-zinc-300">Audio file uploaded</span>
+                  <Check size={14} className="text-emerald-400 ml-auto" />
+                </div>
+              )}
             </div>
+            
             <div>
               <label className="text-sm text-zinc-400 mb-1.5 block">Duration (seconds)</label>
               <Input
                 type="number"
                 value={episodeForm.duration_seconds}
                 onChange={(e) => setEpisodeForm({ ...episodeForm, duration_seconds: parseInt(e.target.value) || 0 })}
-                placeholder="e.g., 1800 for 30 minutes"
+                placeholder="Auto-detected or enter manually"
                 className="bg-zinc-950 border-zinc-700"
               />
+              <p className="text-xs text-zinc-500 mt-1">
+                {episodeForm.duration_seconds > 0 
+                  ? `Duration: ${Math.floor(episodeForm.duration_seconds / 60)}m ${episodeForm.duration_seconds % 60}s`
+                  : "Will be auto-detected from uploaded audio"}
+              </p>
             </div>
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEpisodeModalOpen(false)} className="border-zinc-700">Cancel</Button>
-            <Button onClick={handleCreateEpisode} className="bg-emerald-600 hover:bg-emerald-700">Create Episode</Button>
+            <Button 
+              onClick={handleCreateEpisode} 
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={!episodeForm.title || !episodeForm.audio_url || uploading}
+            >
+              Create Episode
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
