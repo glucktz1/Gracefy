@@ -1681,6 +1681,55 @@ export default function UserStreamingApp() {
         </div>
       )}
 
+      {/* Playlist Modal */}
+      {showPlaylistModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowPlaylistModal(false)}>
+          <div className="bg-zinc-900 rounded-xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4">Add to Playlist</h3>
+            
+            {userPlaylists.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {userPlaylists.map(playlist => (
+                  <button
+                    key={playlist.playlist_id}
+                    onClick={() => addSongToPlaylist(playlist.playlist_id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800 transition-colors text-left"
+                  >
+                    <div className="w-12 h-12 rounded bg-gradient-to-br from-violet-600 to-emerald-600 flex items-center justify-center">
+                      <ListMusic size={20} className="text-white/70" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{playlist.name}</p>
+                      <p className="text-xs text-zinc-500">{playlist.songs?.length || 0} songs</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-zinc-500 text-center py-4">No playlists yet</p>
+            )}
+            
+            <button
+              onClick={() => {
+                const name = prompt("Enter playlist name:");
+                if (name) createNewPlaylist(name);
+              }}
+              className="w-full mt-4 flex items-center justify-center gap-2 p-3 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors"
+            >
+              <Plus size={20} />
+              <span>Create New Playlist</span>
+            </button>
+            
+            <button
+              onClick={() => setShowPlaylistModal(false)}
+              className="w-full mt-2 p-3 text-zinc-400 hover:text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
