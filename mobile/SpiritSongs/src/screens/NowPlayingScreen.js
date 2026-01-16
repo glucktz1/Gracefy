@@ -163,10 +163,6 @@ const NowPlayingScreen = ({ navigation }) => {
     }
   };
 
-  const handleAddToPlaylist = () => {
-    setShowPlaylistModal(true);
-  };
-
   const handleDownload = () => {
     if (downloadCurrentSong) {
       downloadCurrentSong();
