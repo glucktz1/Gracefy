@@ -186,6 +186,9 @@ export default function ApprovalsPage() {
           <TabsTrigger value="all" className="data-[state=active]:bg-violet-600">
             All ({totalPending})
           </TabsTrigger>
+          <TabsTrigger value="choirs" className="data-[state=active]:bg-violet-600">
+            <Music2 size={14} className="mr-1" /> Choirs ({choirRegistrations.length})
+          </TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">
             <Music2 size={14} className="mr-1" /> Content ({contentRequests.length})
           </TabsTrigger>
@@ -203,6 +206,65 @@ export default function ApprovalsPage() {
           </TabsTrigger>
         </TabsList>
 
+        {/* Choir Registrations Tab */}
+        <TabsContent value="choirs" className="space-y-4">
+          {choirRegistrations.length === 0 ? (
+            <div className="empty-state">
+              <CheckCircle className="empty-state-icon text-emerald-500" />
+              <p className="empty-state-title">No pending choir registrations</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {choirRegistrations.map((reg) => (
+                <Card key={reg.choir_id} className="bg-zinc-900/50 border-zinc-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full bg-violet-500/20 flex items-center justify-center">
+                          <Music2 size={24} className="text-violet-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-white">{reg.name}</h3>
+                          <p className="text-sm text-zinc-400">{reg.email}</p>
+                          {reg.phone && <p className="text-sm text-zinc-500">{reg.phone}</p>}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="border-zinc-700 text-zinc-400">
+                              {reg.type === 'choir' ? 'Church Choir' : reg.type === 'artist' ? 'Solo Artist' : 'Band/Group'}
+                            </Badge>
+                            <span className="text-xs text-zinc-500">
+                              Registered: {new Date(reg.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {reg.description && (
+                            <p className="text-sm text-zinc-400 mt-2 max-w-md">{reg.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleChoirRegistrationAction(reg.choir_id, "approved")}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <Check size={16} className="mr-1" /> Approve
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleChoirRegistrationAction(reg.choir_id, "rejected", "Application rejected by admin")}
+                          className="border-red-800 text-red-400 hover:bg-red-900/30"
+                        >
+                          <X size={16} className="mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         {/* All Tab */}
         <TabsContent value="all" className="space-y-6">
           {totalPending === 0 ? (
@@ -213,6 +275,36 @@ export default function ApprovalsPage() {
             </div>
           ) : (
             <>
+              {/* Pending Choir Registrations */}
+              {choirRegistrations.length > 0 && (
+                <Card className="bg-zinc-900/50 border-zinc-800">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Music2 className="text-violet-500" size={20} />
+                      Choir Registrations ({choirRegistrations.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {choirRegistrations.map((reg) => (
+                      <div key={reg.choir_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-white">{reg.name}</p>
+                          <p className="text-sm text-zinc-400">{reg.email} • {reg.type}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleChoirRegistrationAction(reg.choir_id, "approved")} className="bg-emerald-600 hover:bg-emerald-700">
+                            <Check size={14} />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleChoirRegistrationAction(reg.choir_id, "rejected")} className="border-red-800 text-red-400">
+                            <X size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Choir Content Requests */}
               {contentRequests.length > 0 && (
                 <Card className="bg-zinc-900/50 border-zinc-800">
