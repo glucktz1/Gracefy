@@ -8027,6 +8027,113 @@ async def reject_song_submission(submission_id: str, data: dict):
     
     return {"message": "Song submission rejected"}
 
+# ============== USER GOOGLE AUTH ==============
+
+@api_router.post("/user/auth/google-callback")
+async def user_google_callback(request: Request, response: Response):
+    """Handle Google OAuth callback for user app (PWA/Mobile)"""
+    data = await request.json()
+    session_id = data.get("session_id")
+    
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID required")
+    
+    # Get user data from Emergent auth
+    async with httpx.AsyncClient() as client_http:
+        auth_response = await client_http.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id}
+        )
+        
+        if auth_response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        user_data = auth_response.json()
+    
+    # Check if user exists in app_users
+    existing_user = await db.app_users.find_one({"email": user_data["email"]}, {"_id": 0})
+    
+    if existing_user:
+        user_id = existing_user["user_id"]
+        # Update user data
+        await db.app_users.update_one(
+            {"email": user_data["email"]},
+            {"$set": {
+                "name": user_data["name"],
+                "picture": user_data.get("picture"),
+                "last_login": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    else:
+        # Create new user
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        new_user = {
+            "user_id": user_id,
+            "email": user_data["email"],
+            "name": user_data["name"],
+            "picture": user_data.get("picture"),
+            "phone": None,
+            "subscription_type": "free",
+            "register_by": "google",
+            "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "last_login": datetime.now(timezone.utc).isoformat()
+        }
+        await db.app_users.insert_one(new_user)
+    
+    # Generate JWT token for user
+    import jwt
+    token = jwt.encode({
+        "user_id": user_id,
+        "email": user_data["email"],
+        "exp": datetime.now(timezone.utc) + timedelta(days=30)
+    }, os.environ.get("JWT_SECRET", "spirit-songs-secret"), algorithm="HS256")
+    
+    # Get updated user data
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
+    
+    return {
+        "token": token,
+        "user": {
+            "user_id": user_id,
+            "email": user_data["email"],
+            "name": user_data["name"],
+            "picture": user_data.get("picture"),
+            "subscription_type": user.get("subscription_type", "free")
+        }
+    }
+
+@api_router.get("/user/auth/me")
+async def get_user_me(request: Request):
+    """Get current user from token"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.split(" ")[1]
+    
+    try:
+        import jwt
+        payload = jwt.decode(token, os.environ.get("JWT_SECRET", "spirit-songs-secret"), algorithms=["HS256"])
+        user_id = payload.get("user_id")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "user_id": user["user_id"],
+        "email": user.get("email"),
+        "name": user.get("name"),
+        "picture": user.get("picture"),
+        "phone": user.get("phone"),
+        "subscription_type": user.get("subscription_type", "free")
+    }
+
 # ============== PHONE OTP LOGIN ==============
 
 @api_router.post("/auth/send-otp")
