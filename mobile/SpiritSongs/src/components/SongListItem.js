@@ -203,6 +203,17 @@ const SongListItem = ({
                 <Text style={styles.menuOptionText}>Add to Playlist</Text>
               </TouchableOpacity>
 
+              <TouchableOpacity style={styles.menuOption} onPress={handleDownload}>
+                <Ionicons 
+                  name={isDownloading ? "cloud-download" : "download-outline"} 
+                  size={24} 
+                  color={COLORS.textPrimary} 
+                />
+                <Text style={styles.menuOptionText}>
+                  {isDownloading ? 'Downloading...' : 'Download'}
+                </Text>
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.menuOption} onPress={handleShare}>
                 <Ionicons name="share-outline" size={24} color={COLORS.textPrimary} />
                 <Text style={styles.menuOptionText}>Share</Text>
