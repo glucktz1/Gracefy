@@ -62,9 +62,30 @@ const NowPlayingScreen = ({ navigation }) => {
   
   const albumRotate = useRef(new Animated.Value(0)).current;
 
+  // Helper to prompt login
+  const promptLogin = (action) => {
+    Alert.alert(
+      'Login Required',
+      `Please log in to ${action}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log In', onPress: () => navigation.navigate('Login') }
+      ]
+    );
+  };
+
   // Navigate to subscription screen
   const goToSubscription = (feature) => {
     navigation.navigate('Subscription', { lockedFeature: feature });
+  };
+
+  // Handle Like with auth check
+  const handleLike = () => {
+    if (!isAuthenticated) {
+      promptLogin('like songs');
+      return;
+    }
+    toggleLike();
   };
 
   // Handle skip with subscription check
