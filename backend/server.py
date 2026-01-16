@@ -7820,6 +7820,198 @@ async def increment_stream_count(song_id: str):
         logger.error(f"Error updating stream count: {e}")
         return {"message": "Stream count update attempted"}
 
+# ============== LEADER CONTENT FILE UPLOADS ==============
+
+@api_router.post("/content/upload-thumbnail")
+async def upload_content_thumbnail(file: UploadFile = File(...)):
+    """Upload thumbnail image for leader content to Supabase"""
+    if not file.content_type or not file.content_type.startswith("image"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    content = await file.read()
+    
+    # Max 5MB for images
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Max 5MB")
+    
+    if SUPABASE_AVAILABLE:
+        try:
+            storage = get_storage_service()
+            # Upload to content-thumbnails bucket
+            file_ext = Path(file.filename).suffix if file.filename else ".jpg"
+            file_path = f"content-thumbnails/{uuid.uuid4().hex}{file_ext}"
+            
+            result = storage.upload_file(
+                bucket="content-thumbnails",
+                file_path=file_path,
+                file_data=content,
+                content_type=file.content_type
+            )
+            
+            if result:
+                return {
+                    "url": result.get("public_url", ""),
+                    "path": result.get("path", ""),
+                    "size": len(content)
+                }
+        except Exception as e:
+            logger.error(f"Supabase upload failed, falling back to MongoDB: {e}")
+    
+    # Fallback to MongoDB
+    base64_content = base64.b64encode(content).decode('utf-8')
+    file_doc = {
+        "file_id": f"file_{uuid.uuid4().hex[:12]}",
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "size": len(content),
+        "data": base64_content,
+        "file_type": "content_thumbnail",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    
+    return {
+        "url": f"data:{file.content_type};base64,{base64_content}",
+        "file_id": file_doc["file_id"],
+        "size": len(content)
+    }
+
+@api_router.post("/content/upload-audio")
+async def upload_content_audio(file: UploadFile = File(...)):
+    """Upload audio file for leader content episodes to Supabase"""
+    if not file.content_type or not file.content_type.startswith("audio"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+    
+    content = await file.read()
+    
+    # Max 100MB for audio
+    if len(content) > 100 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Audio file too large. Max 100MB")
+    
+    if SUPABASE_AVAILABLE:
+        try:
+            storage = get_storage_service()
+            # Upload to content-audio bucket
+            file_ext = Path(file.filename).suffix if file.filename else ".mp3"
+            file_path = f"content-audio/{uuid.uuid4().hex}{file_ext}"
+            
+            result = storage.upload_audio_file(
+                file_path=file_path,
+                file_data=content,
+                content_type=file.content_type or "audio/mpeg"
+            )
+            
+            if result:
+                return {
+                    "url": result.get("public_url", ""),
+                    "path": result.get("path", ""),
+                    "size": len(content),
+                    "streaming_url": f"/api/supabase/stream-file/{result.get('path', '')}"
+                }
+        except Exception as e:
+            logger.error(f"Supabase audio upload failed, falling back to MongoDB: {e}")
+    
+    # Fallback to MongoDB
+    base64_content = base64.b64encode(content).decode('utf-8')
+    file_doc = {
+        "file_id": f"file_{uuid.uuid4().hex[:12]}",
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "size": len(content),
+        "data": base64_content,
+        "file_type": "content_audio",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    
+    return {
+        "url": f"/api/files/{file_doc['file_id']}/stream",
+        "file_id": file_doc["file_id"],
+        "size": len(content)
+    }
+
+# ============== USER CATEGORY PERMISSIONS MANAGEMENT ==============
+
+@api_router.get("/admin/category-permissions")
+async def get_category_permissions():
+    """Get current permissions for all user categories"""
+    # Get custom permissions if set, otherwise return defaults
+    custom_perms = await db.category_permissions.find({}, {"_id": 0}).to_list(100)
+    custom_perms_dict = {cp["role_id"]: cp["permissions"] for cp in custom_perms}
+    
+    result = []
+    for role in ROLE_HIERARCHY:
+        role_id = role["id"]
+        # Use custom permissions if set, otherwise use defaults
+        permissions = custom_perms_dict.get(role_id, ROLE_PERMISSIONS.get(role_id, []))
+        result.append({
+            "role_id": role_id,
+            "name": role["name"],
+            "color": role["color"],
+            "level": role["level"],
+            "permissions": permissions,
+            "is_customized": role_id in custom_perms_dict
+        })
+    
+    return {"categories": result}
+
+@api_router.put("/admin/category-permissions/{role_id}")
+async def update_category_permissions(role_id: str, data: dict):
+    """Update permissions for a specific user category"""
+    # Validate role exists
+    valid_roles = [r["id"] for r in ROLE_HIERARCHY]
+    if role_id not in valid_roles:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Get permissions from request
+    permissions = data.get("permissions", [])
+    
+    # Validate all permissions exist
+    valid_perms = list(SYSTEM_PERMISSIONS.keys())
+    invalid_perms = [p for p in permissions if p not in valid_perms]
+    if invalid_perms:
+        raise HTTPException(status_code=400, detail=f"Invalid permissions: {invalid_perms}")
+    
+    # Upsert the custom permissions
+    await db.category_permissions.update_one(
+        {"role_id": role_id},
+        {
+            "$set": {
+                "role_id": role_id,
+                "permissions": permissions,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": data.get("updated_by", "admin")
+            }
+        },
+        upsert=True
+    )
+    
+    # Log the change
+    await db.permission_audit_log.insert_one({
+        "log_id": f"perm_log_{uuid.uuid4().hex[:12]}",
+        "role_id": role_id,
+        "action": "update_permissions",
+        "new_permissions": permissions,
+        "updated_by": data.get("updated_by", "admin"),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": f"Permissions updated for {role_id}", "permissions": permissions}
+
+@api_router.post("/admin/category-permissions/{role_id}/reset")
+async def reset_category_permissions(role_id: str):
+    """Reset a category's permissions to system defaults"""
+    valid_roles = [r["id"] for r in ROLE_HIERARCHY]
+    if role_id not in valid_roles:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Delete custom permissions to revert to defaults
+    await db.category_permissions.delete_one({"role_id": role_id})
+    
+    default_perms = ROLE_PERMISSIONS.get(role_id, [])
+    
+    return {"message": f"Permissions reset to defaults for {role_id}", "permissions": default_perms}
+
 # ============== ADMIN USERS MANAGEMENT (APP CUSTOMERS) ==============
 
 @api_router.get("/admin/users")
