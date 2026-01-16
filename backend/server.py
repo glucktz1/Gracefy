@@ -412,6 +412,97 @@ class RateChangeHistory(BaseModel):
     reason: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ============== LEADER CONTENT MODELS ==============
+
+class ContentContainer(BaseModel):
+    """Main container for leader content (like Album for songs)"""
+    model_config = ConfigDict(extra="ignore")
+    container_id: str = Field(default_factory=lambda: f"container_{uuid.uuid4().hex[:12]}")
+    title: str
+    description: Optional[str] = None
+    content_type: str = "teaching"  # teaching, sermon, prayer, reflection, devotion, study, course
+    
+    # Provider info
+    leader_id: Optional[str] = None  # Reference to leaders collection
+    leader_name: Optional[str] = None
+    
+    # Media
+    thumbnail_url: Optional[str] = None
+    banner_url: Optional[str] = None
+    
+    # Categorization
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
+    tags: List[str] = []
+    
+    # Monetization (same as albums)
+    monetization_type: str = "standard"  # free, standard, premium
+    price: float = 0.0
+    
+    # Stats
+    total_series: int = 0
+    total_episodes: int = 0
+    total_duration_minutes: int = 0
+    play_count: int = 0
+    
+    # Status
+    status: str = "active"  # active, draft, archived
+    is_featured: bool = False
+    
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[str] = None
+
+class ContentSeries(BaseModel):
+    """Series/Lesson within a container"""
+    model_config = ConfigDict(extra="ignore")
+    series_id: str = Field(default_factory=lambda: f"series_{uuid.uuid4().hex[:12]}")
+    container_id: str
+    
+    title: str  # e.g., "Lesson 1: Introduction to Parenting"
+    description: Optional[str] = None
+    series_number: int = 1  # For ordering
+    
+    # Media
+    thumbnail_url: Optional[str] = None
+    
+    # Stats
+    total_episodes: int = 0
+    total_duration_minutes: int = 0
+    play_count: int = 0
+    
+    status: str = "active"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ContentEpisode(BaseModel):
+    """Episode/Topic within a series (like Song in Album)"""
+    model_config = ConfigDict(extra="ignore")
+    episode_id: str = Field(default_factory=lambda: f"episode_{uuid.uuid4().hex[:12]}")
+    series_id: str
+    container_id: str
+    
+    title: str  # e.g., "Topic 1: Understanding Your Child"
+    description: Optional[str] = None
+    episode_number: int = 1  # For ordering
+    
+    # Audio file
+    audio_url: Optional[str] = None
+    duration_seconds: int = 0
+    file_size_bytes: int = 0
+    
+    # Media
+    thumbnail_url: Optional[str] = None
+    
+    # Stats
+    play_count: int = 0
+    completion_count: int = 0
+    
+    # Additional
+    transcript: Optional[str] = None
+    notes: Optional[str] = None
+    
+    status: str = "active"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class RevenueSettings(BaseModel):
     """Platform revenue settings - hourly rates for content types (legacy support)"""
     model_config = ConfigDict(extra="ignore")
