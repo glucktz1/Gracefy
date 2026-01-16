@@ -377,7 +377,7 @@ export default function AdminSettingsPage() {
                   <div className="flex items-center gap-3">
                     <AlertTriangle size={20} className="text-red-500" />
                     <p className="text-red-400 text-sm">
-                      Warning: All login methods are disabled. Users won't be able to sign in!
+                      Warning: All login methods are disabled. Users will not be able to sign in!
                     </p>
                   </div>
                 </div>
@@ -416,7 +416,7 @@ export default function AdminSettingsPage() {
                   <span className="text-zinc-400 text-sm">times/day</span>
                 </div>
                 <p className="text-xs text-zinc-500">
-                  After {settings.play_count_replay_limit} plays, additional replays of the same song won't count towards artist revenue
+                  After {settings.play_count_replay_limit} plays, additional replays of the same song will not count towards artist revenue
                 </p>
               </div>
 
@@ -439,7 +439,7 @@ export default function AdminSettingsPage() {
                   <span className="text-zinc-400 text-sm">seconds</span>
                 </div>
                 <p className="text-xs text-zinc-500">
-                  Songs skipped before {settings.min_play_duration_seconds} seconds won't count as streams
+                  Songs skipped before {settings.min_play_duration_seconds} seconds will not count as streams
                 </p>
               </div>
             </CardContent>
