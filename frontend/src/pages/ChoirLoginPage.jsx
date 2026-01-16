@@ -96,11 +96,14 @@ export default function ChoirLoginPage() {
           </form>
 
           {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-zinc-600 text-xs">
-              Contact admin if you don't have login credentials.
+          <div className="mt-8 text-center space-y-3">
+            <p className="text-zinc-400 text-sm">
+              New choir?{' '}
+              <a href="/choir-register" className="text-emerald-400 hover:text-emerald-300 hover:underline">
+                Register here
+              </a>
             </p>
-            <a href="/login" className="text-violet-400 text-sm hover:text-violet-300 mt-2 inline-block">
+            <a href="/login" className="text-violet-400 text-sm hover:text-violet-300 inline-block">
               ← Back to Admin Login
             </a>
           </div>
