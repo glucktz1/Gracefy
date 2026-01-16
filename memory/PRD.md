@@ -352,6 +352,22 @@ Build a comprehensive Christian app with features similar to Spotify, Clubhouse,
 - ✅ Dot indicator under repeat button when active
 - ✅ Title attribute shows current repeat mode
 
+**Choir Self-Registration:**
+- ✅ POST `/api/choir/register` - Self-register as choir/artist/band (creates pending account)
+- ✅ GET `/api/admin/choir-registrations` - List pending choir registrations
+- ✅ POST `/api/admin/choir/{choir_id}/approve` - Approve choir registration
+- ✅ POST `/api/admin/choir/{choir_id}/reject` - Reject choir registration
+- ✅ ChoirRegistrationPage.jsx at `/choir-register` - 2-step registration form
+- ✅ ApprovalsPage.jsx - New "Choirs" tab for pending registrations
+- ✅ Choir Login page has "Register here" link
+
+**Forgot Password Flow (MOCKED):**
+- ✅ POST `/api/auth/forgot-password/send` - Send reset OTP via email/phone (MOCKED)
+- ✅ POST `/api/auth/forgot-password/verify` - Verify OTP and get reset token
+- ✅ POST `/api/auth/forgot-password/reset` - Reset password with token
+- ✅ PWA AuthModal - "Forgot password?" link with 3-step flow
+- ✅ Dev mode shows OTP in UI for testing
+
 ### Phase 5 - React Native Mobile App (December 2025 - January 2026)
 
 **Mobile App Structure (`/app/mobile/SpiritSongs/`):**
