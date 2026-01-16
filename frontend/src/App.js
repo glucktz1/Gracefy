@@ -330,9 +330,13 @@ function AppRouter() {
       {/* User Streaming App - Public */}
       <Route path="/app" element={<UserStreamingApp />} />
       
+      {/* Public Choir Registration */}
+      <Route path="/choir-register" element={<ChoirRegistrationPage />} />
+      
       {/* Admin Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/choir/login" element={<ChoirLoginPage />} />
+      <Route path="/choir-login" element={<ChoirLoginPage />} />
       <Route path="/choir/dashboard" element={<ChoirDashboard />} />
       <Route path="/church/login" element={<ChurchLeaderLoginPage />} />
       <Route path="/church/dashboard" element={<ChurchLeaderDashboard />} />
