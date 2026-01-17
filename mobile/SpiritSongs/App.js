@@ -37,11 +37,18 @@ const Tab = createBottomTabNavigator();
 
 // Bottom Tab Navigator with Profile
 function TabNavigator() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          ...styles.tabBar,
+          // Add bottom padding for navigation buttons
+          paddingBottom: Math.max(insets.bottom, 12),
+          height: 60 + Math.max(insets.bottom, 12),
+        },
         tabBarActiveTintColor: '#e91e63',
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: styles.tabBarLabel,
