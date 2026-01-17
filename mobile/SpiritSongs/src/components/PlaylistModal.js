@@ -301,7 +301,11 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <TouchableOpacity style={styles.overlayTouch} onPress={onClose} activeOpacity={1} />
         <View style={styles.container}>
           {/* Header */}
@@ -326,7 +330,7 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
           {/* Content */}
           {renderContent()}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
