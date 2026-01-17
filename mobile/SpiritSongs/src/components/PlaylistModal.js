@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, TouchableOpacity, Modal, TextInput, 
-  StyleSheet, FlatList, ActivityIndicator, Alert, Keyboard, Dimensions
+  StyleSheet, FlatList, ActivityIndicator, Alert, Keyboard, Dimensions,
+  KeyboardAvoidingView, Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { libraryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { COLORS } from '../config';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
   const [playlists, setPlaylists] = useState([]);
