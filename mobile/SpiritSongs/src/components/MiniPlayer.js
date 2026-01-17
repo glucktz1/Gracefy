@@ -9,6 +9,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '../context/PlayerContext';
 import { COLORS } from '../config';
 
@@ -16,6 +17,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const MiniPlayer = memo(() => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { 
     currentSong, 
     currentAlbum, 
@@ -50,9 +52,12 @@ const MiniPlayer = memo(() => {
   // Get thumbnail
   const thumbnail = currentSong.thumbnail || currentAlbum?.thumbnail;
 
+  // Calculate tab bar height with safe area
+  const tabBarHeight = 60 + Math.max(insets.bottom, 12);
+
   return (
     <Pressable
-      style={styles.container}
+      style={[styles.container, { bottom: tabBarHeight }]}
       onPress={handlePress}
       data-testid="mini-player"
     >
