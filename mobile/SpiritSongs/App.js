@@ -161,11 +161,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a1a',
     borderTopWidth: 0,
     elevation: 0,
-    height: Platform.OS === 'ios' ? 84 : 64,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    // Ensure tab bar is above navigation buttons
-    position: 'relative',
+    // Height and paddingBottom are now set dynamically with safe area insets
   },
   tabBarLabel: {
     fontSize: 10,
