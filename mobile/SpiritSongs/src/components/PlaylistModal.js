@@ -37,11 +37,22 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
   const fetchPlaylists = async () => {
     setLoading(true);
     try {
+      console.log('Fetching playlists...');
       const data = await libraryService.getLibrary();
-      console.log('Library data:', data);
-      setPlaylists(data.playlists || []);
+      console.log('Library data received:', JSON.stringify(data, null, 2));
+      
+      const fetchedPlaylists = data.playlists || [];
+      console.log('Playlists found:', fetchedPlaylists.length);
+      
+      if (fetchedPlaylists.length > 0) {
+        console.log('First playlist:', fetchedPlaylists[0]);
+      }
+      
+      setPlaylists(fetchedPlaylists);
     } catch (error) {
       console.error('Error fetching playlists:', error);
+      console.error('Error details:', error.response?.data);
+      Alert.alert('Error', 'Could not load playlists. Please try again.');
       setPlaylists([]);
     } finally {
       setLoading(false);
