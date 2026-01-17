@@ -992,3 +992,43 @@ To build an APK for testing on physical devices:
 - ✅ Empty states for each tab
 - ✅ Tab-based filtering
 - ✅ Consistent styling with app theme
+
+### Phase 6.4 - Critical Bug Fixes (January 17, 2026)
+
+**Mobile Build v1.0.21 Submitted:**
+- Build ID: 819bc2b8-97f2-42e5-ae6d-3f433def303b
+- Build URL: https://expo.dev/accounts/gracefy/projects/SpiritSongs/builds/819bc2b8-97f2-42e5-ae6d-3f433def303b
+
+**Fixes in this build:**
+
+1. **Tab Bar Safe Area Fix:**
+   - Added `useSafeAreaInsets` to TabNavigator
+   - Dynamic height calculation: `60 + Math.max(insets.bottom, 12)`
+   - Tab bar now properly sits above phone navigation buttons
+
+2. **MiniPlayer Safe Area Fix:**
+   - Added `useSafeAreaInsets` to MiniPlayer component
+   - Dynamically positioned above tab bar
+   - No longer overlaps with navigation buttons
+
+3. **PlaylistModal Fixes:**
+   - Added `KeyboardAvoidingView` to prevent keyboard covering input
+   - Enhanced logging for debugging playlist fetch issues
+   - Added error alert when playlists fail to load
+
+4. **Download Service Improvements:**
+   - Added fallback to cache directory if documents directory fails
+   - Better error messages with permission hints
+   - Enhanced logging for debugging
+
+**Known Limitation:**
+- ⚠️ Lock screen media controls NOT possible with expo-av alone
+- Requires react-native-track-player which has SDK 54 compatibility issues
+- Background audio continues playing, but no lock screen controls
+
+**User-Reported Issues Status:**
+- ✅ Tab bar overlapping navigation - FIXED
+- ✅ Keyboard covering input - FIXED
+- ✅ Download directory issues - IMPROVED
+- ✅ Playlist debugging - ENHANCED
+- ⚠️ Lock screen controls - BLOCKED (requires native module)
