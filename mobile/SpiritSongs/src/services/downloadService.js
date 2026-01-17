@@ -74,19 +74,34 @@ export const isSongDownloaded = async (songId) => {
 // Download a song - Using callback-based download
 export const downloadSong = async (song, album, onProgress) => {
   try {
+    console.log('Download requested for:', song.title);
+    
     const dirReady = await ensureDownloadsDir();
     if (!dirReady) {
-      throw new Error('Could not create downloads directory');
+      console.error('Directory creation failed');
+      throw new Error('Could not create downloads directory. Please check app permissions.');
     }
     
     const audioUrl = getAudioUrl(song.audio_url);
     if (!audioUrl) {
+      console.error('No audio URL for song:', song.song_id);
       throw new Error('No audio URL available for this song');
     }
     
     console.log('Starting download from:', audioUrl);
     
-    const downloadPath = `${DOWNLOADS_DIR}${song.song_id}.mp3`;
+    // Determine download path - use cache dir as fallback
+    let downloadPath = `${DOWNLOADS_DIR}${song.song_id}.mp3`;
+    
+    // Verify directory exists before download
+    const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
+    if (!dirInfo.exists) {
+      // Try cache directory as fallback
+      const cacheDir = `${FileSystem.cacheDirectory}downloads/`;
+      await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+      downloadPath = `${cacheDir}${song.song_id}.mp3`;
+      console.log('Using cache directory for download:', downloadPath);
+    }
     
     // Use callback-based download with progress
     const callback = (downloadProgress) => {
