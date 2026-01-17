@@ -142,7 +142,7 @@ MiniPlayer.HEIGHT = 64;
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 84 : 64, // Above tab bar
+    bottom: 72, // Default, will be overridden dynamically
     left: 0,
     right: 0,
     height: 64,
