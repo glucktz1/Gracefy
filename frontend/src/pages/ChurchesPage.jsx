@@ -944,16 +944,16 @@ export default function ChurchesPage() {
 
       {/* Announcement Modal */}
       <Dialog open={isAnnouncementModalOpen} onOpenChange={setIsAnnouncementModalOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">Add Announcement</DialogTitle>
             <DialogDescription>
-              Create an announcement for {selectedChurch?.name}. It will auto-archive after 2 weeks.
+              Create an announcement for {selectedChurch?.name}. Followers will be notified automatically.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Date *</label>
                 <Input
@@ -964,19 +964,29 @@ export default function ChurchesPage() {
                 />
               </div>
               <div>
-                <label className="text-sm text-zinc-400 mb-1 block">Type</label>
-                <Select value={announcementForm.announcement_type} onValueChange={(v) => setAnnouncementForm({ ...announcementForm, announcement_type: v })}>
+                <label className="text-sm text-zinc-400 mb-1 block">Expires On</label>
+                <Input
+                  type="date"
+                  value={announcementForm.expires_at}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, expires_at: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Category</label>
+                <Select value={announcementForm.category} onValueChange={(v) => setAnnouncementForm({ ...announcementForm, category: v })}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    {ANNOUNCEMENT_TYPES.map(t => (
-                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                    ))}
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="events">Events</SelectItem>
+                    <SelectItem value="prayer_requests">Prayer Requests</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            
             <div>
               <label className="text-sm text-zinc-400 mb-1 block">Title *</label>
               <Input
@@ -986,15 +996,72 @@ export default function ChurchesPage() {
                 placeholder="Announcement title"
               />
             </div>
+            
             <div>
-              <label className="text-sm text-zinc-400 mb-1 block">Description</label>
+              <label className="text-sm text-zinc-400 mb-1 block">Content (Long text)</label>
+              <Textarea
+                value={announcementForm.content}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
+                className="bg-zinc-950 border-zinc-800 text-white"
+                rows={5}
+                placeholder="Full announcement content..."
+              />
+            </div>
+            
+            {/* Image Upload */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block">Announcement Image (Optional)</label>
+              <div className="flex gap-3 items-start">
+                <div 
+                  className={`flex-1 h-32 rounded-lg border-2 border-dashed ${announcementForm.image_url ? 'border-violet-500' : 'border-zinc-700'} bg-zinc-950 flex items-center justify-center overflow-hidden cursor-pointer hover:border-violet-400 transition-colors relative`}
+                  onClick={() => document.getElementById('announcement-image-input').click()}
+                >
+                  {uploadingAnnouncementImage ? (
+                    <div className="text-center">
+                      <div className="animate-spin w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                      <span className="text-xs text-zinc-500">Uploading...</span>
+                    </div>
+                  ) : announcementForm.image_url ? (
+                    <img src={announcementForm.image_url} alt="Announcement" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center p-4">
+                      <Image size={24} className="mx-auto mb-2 text-zinc-600" />
+                      <span className="text-xs text-zinc-500">Upload announcement paper photo</span>
+                    </div>
+                  )}
+                  <input
+                    id="announcement-image-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleAnnouncementImageUpload(e.target.files?.[0])}
+                  />
+                </div>
+                {announcementForm.image_url && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAnnouncementForm({ ...announcementForm, image_url: "" })}
+                    className="border-red-500/50 text-red-400 hover:bg-red-500/20"
+                  >
+                    <X size={14} />
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block">Short Description</label>
               <Textarea
                 value={announcementForm.description}
                 onChange={(e) => setAnnouncementForm({ ...announcementForm, description: e.target.value })}
                 className="bg-zinc-950 border-zinc-800 text-white"
-                rows={3}
+                rows={2}
+                placeholder="Brief summary..."
               />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Time (optional)</label>
