@@ -1228,7 +1228,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   tafakariSource: {
-    color: '#1DB954', // Spotify green-like color
+    color: '#3498DB', // Gracefy blue
     fontSize: 11,
     fontWeight: '500',
     marginBottom: 4,
