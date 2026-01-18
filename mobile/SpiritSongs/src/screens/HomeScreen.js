@@ -139,27 +139,30 @@ const QuickAccessGrid = ({ items, likedSongsCount, playlistsCount, downloadsCoun
 
   return (
     <View style={styles.quickAccessContainer}>
-      {quickItems.map((item, idx) => (
-        <TouchableOpacity 
-          key={item.id || idx}
-          style={styles.quickAccessCard}
-          onPress={() => handlePress(item)}
-          activeOpacity={0.8}
-        >
-          {item.icon ? (
-            <LinearGradient colors={item.gradient} style={styles.quickAccessIconBox}>
-              <Ionicons name={item.icon} size={22} color="#fff" />
-            </LinearGradient>
-          ) : item.thumbnail ? (
-            <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.quickAccessImg} />
-          ) : (
-            <LinearGradient colors={item.gradient || ['#333', '#111']} style={styles.quickAccessIconBox}>
-              <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.7)" />
-            </LinearGradient>
-          )}
-          <Text style={styles.quickAccessText} numberOfLines={2}>{item.name}</Text>
-        </TouchableOpacity>
-      ))}
+      {quickItems.map((item, idx) => {
+        const thumbUrl = getItemThumbnail(item);
+        return (
+          <TouchableOpacity 
+            key={item.id || idx}
+            style={styles.quickAccessCard}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.8}
+          >
+            {item.icon ? (
+              <LinearGradient colors={item.gradient} style={styles.quickAccessIconBox}>
+                <Ionicons name={item.icon} size={22} color="#fff" />
+              </LinearGradient>
+            ) : thumbUrl ? (
+              <Image source={{ uri: thumbUrl }} style={styles.quickAccessImg} />
+            ) : (
+              <LinearGradient colors={item.gradient || ['#333', '#111']} style={styles.quickAccessIconBox}>
+                <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.7)" />
+              </LinearGradient>
+            )}
+            <Text style={styles.quickAccessText} numberOfLines={2}>{item.name}</Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 };
@@ -180,25 +183,28 @@ const HorizontalSmallTiles = ({ title, items, onItemPress, onSeeAll }) => {
         keyExtractor={(item, idx) => item.album_id || item.song_id || `small-${idx}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.smallTile} 
-            onPress={() => onItemPress(item)} 
-            activeOpacity={0.8}
-          >
-            <View style={styles.smallTileImage}>
-              {item.thumbnail ? (
-                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.smallTileImg} />
-              ) : (
-                <LinearGradient colors={['#333', '#111']} style={styles.smallTileImg}>
-                  <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.3)" />
-                </LinearGradient>
-              )}
-            </View>
-            <Text style={styles.smallTileTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.smallTileSubtitle} numberOfLines={1}>{item.artist_name || 'Stream now'}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const thumbUrl = getItemThumbnail(item);
+          return (
+            <TouchableOpacity 
+              style={styles.smallTile} 
+              onPress={() => onItemPress(item)} 
+              activeOpacity={0.8}
+            >
+              <View style={styles.smallTileImage}>
+                {thumbUrl ? (
+                  <Image source={{ uri: thumbUrl }} style={styles.smallTileImg} />
+                ) : (
+                  <LinearGradient colors={['#333', '#111']} style={styles.smallTileImg}>
+                    <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.3)" />
+                  </LinearGradient>
+                )}
+              </View>
+              <Text style={styles.smallTileTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.smallTileSubtitle} numberOfLines={1}>{item.artist_name || 'Stream now'}</Text>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
