@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 const translations = {
   sw: {
     // App Name & Header
-    appName: 'Nyimbo za Roho',
+    appName: 'Gracefy',
     
     // Navigation
     home: 'Nyumbani',
