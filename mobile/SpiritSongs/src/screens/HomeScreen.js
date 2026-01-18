@@ -676,13 +676,16 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Hero Section */}
+        {/* Hero Section - Uses hero config from backend */}
         <HeroSection 
-          item={burner || featuredAlbums[0]} 
+          item={heroItem} 
           onPress={() => {
-            const targetAlbum = burner || featuredAlbums[0];
-            if (targetAlbum?.album_id) {
-              handleAlbumPress(targetAlbum);
+            if (heroItem?.album_id) {
+              handleAlbumPress(heroItem);
+            } else if (heroItem?.link_type === 'album' && heroItem?.link_id) {
+              navigation.navigate('Album', { albumId: heroItem.link_id });
+            } else if (heroItem?.link_type === 'external' && heroItem?.external_url) {
+              // Handle external URL if needed
             }
           }}
         />
