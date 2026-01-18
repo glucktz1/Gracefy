@@ -204,15 +204,29 @@ export const downloadSong = async (song, album, onProgress) => {
 // Remove a downloaded song
 export const removeDownload = async (songId) => {
   try {
-    const downloadPath = `${DOWNLOADS_DIR}${songId}.mp3`;
-    const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+    // First check from index (has the actual path)
+    const downloads = await getDownloadedSongs();
+    const downloaded = downloads.find(d => d.song_id === songId);
     
-    if (fileInfo.exists) {
-      await FileSystem.deleteAsync(downloadPath, { idempotent: true });
+    if (downloaded && downloaded.local_path) {
+      const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(downloaded.local_path, { idempotent: true });
+      }
+    } else {
+      // Fallback: try standard location
+      const dirResult = await ensureDownloadsDir();
+      if (dirResult.success) {
+        const safeId = songId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const downloadPath = `${dirResult.dir}${safeId}.mp3`;
+        const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+        if (fileInfo.exists) {
+          await FileSystem.deleteAsync(downloadPath, { idempotent: true });
+        }
+      }
     }
     
     // Update downloads index
-    const downloads = await getDownloadedSongs();
     const filtered = downloads.filter(d => d.song_id !== songId);
     await saveDownloadedSongs(filtered);
     
@@ -226,10 +240,31 @@ export const removeDownload = async (songId) => {
 // Get local path for a downloaded song
 export const getLocalSongPath = async (songId) => {
   try {
-    const downloadPath = `${DOWNLOADS_DIR}${songId}.mp3`;
-    const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-    return fileInfo.exists ? downloadPath : null;
+    // First check from index (has the actual path)
+    const downloads = await getDownloadedSongs();
+    const downloaded = downloads.find(d => d.song_id === songId);
+    
+    if (downloaded && downloaded.local_path) {
+      const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
+      if (fileInfo.exists) {
+        return downloaded.local_path;
+      }
+    }
+    
+    // Fallback: check in standard directory
+    const dirResult = await ensureDownloadsDir();
+    if (dirResult.success) {
+      const safeId = songId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const downloadPath = `${dirResult.dir}${safeId}.mp3`;
+      const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+      if (fileInfo.exists) {
+        return downloadPath;
+      }
+    }
+    
+    return null;
   } catch (error) {
+    console.error('Error getting local song path:', error);
     return null;
   }
 };
@@ -237,27 +272,28 @@ export const getLocalSongPath = async (songId) => {
 // Get total download size
 export const getDownloadsSize = async () => {
   try {
-    const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-    if (!dirInfo.exists) return 0;
-    
-    const files = await FileSystem.readDirectoryAsync(DOWNLOADS_DIR);
+    const downloads = await getDownloadedSongs();
     let totalSize = 0;
     
-    for (const file of files) {
-      try {
-        const fileInfo = await FileSystem.getInfoAsync(`${DOWNLOADS_DIR}${file}`);
-        if (fileInfo.size) {
-          totalSize += fileInfo.size;
+    for (const download of downloads) {
+      if (download.local_path) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(download.local_path);
+          if (fileInfo.exists && fileInfo.size) {
+            totalSize += fileInfo.size;
+          }
+        } catch (e) {
+          // Skip files that can't be read
         }
-      } catch (e) {
-        // Skip files that can't be read
       }
     }
     
     return totalSize;
   } catch (error) {
+    console.error('Error getting downloads size:', error);
     return 0;
   }
+};
 };
 
 // Clear all downloads
