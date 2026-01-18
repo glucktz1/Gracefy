@@ -407,16 +407,28 @@ export default function SystemSettingsPage() {
                     responseType: 'blob',
                     withCredentials: true
                   });
-                  const url = window.URL.createObjectURL(new Blob([response.data]));
+                  
+                  // Create blob URL and trigger download
+                  const blob = new Blob([response.data], { 
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                  });
+                  const url = window.URL.createObjectURL(blob);
                   const link = document.createElement('a');
                   link.href = url;
                   link.setAttribute('download', 'gracefy_translations.xlsx');
                   document.body.appendChild(link);
                   link.click();
-                  link.remove();
+                  
+                  // Cleanup
+                  setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  }, 100);
+                  
                   toast.success("Translation file downloaded!");
                 } catch (e) {
-                  toast.error("Failed to download translations");
+                  console.error("Download error:", e);
+                  toast.error(e.response?.data?.detail || "Failed to download translations");
                 }
               }}
             >
