@@ -115,6 +115,11 @@ function MainNavigator() {
         component={PlaylistDetailScreen}
         options={{ animation: 'slide_from_right' }}
       />
+      <Stack.Screen 
+        name="ChurchDetail" 
+        component={ChurchDetailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
     </Stack.Navigator>
   );
 }
