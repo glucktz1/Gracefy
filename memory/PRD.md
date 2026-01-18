@@ -16,7 +16,36 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 18, 2026)
 
-### Hero Section Configuration (NEW)
+### Translation Management System (NEW)
+Complete internationalization (i18n) system for mobile app and PWA:
+
+**Features:**
+- **135+ translatable strings** covering all UI elements
+- **Swahili as default language** with English option
+- **Admin can download/upload Excel translations** in System Settings
+- **Custom translations override defaults** automatically
+- **Language selector** in both mobile and PWA navigation
+
+**API Endpoints:**
+- `GET /api/translations?lang=sw` - Get translations for a language
+- `GET /api/admin/translations/download` - Download Excel template
+- `POST /api/admin/translations/upload` - Upload translated Excel
+- `GET /api/admin/translations/languages` - List available languages
+
+**Files Created/Modified:**
+- `/app/frontend/src/context/LanguageContext.jsx` - PWA translation context
+- `/app/frontend/src/pages/SystemSettingsPage.jsx` - Translation management UI
+- `/app/backend/server.py` - Translation API endpoints
+- `/app/mobile/SpiritSongs/src/context/LanguageContext.js` - Updated to fetch from API
+
+### Admin Sidebar Reorganization
+Combined Choir-related menu items into one collapsible group:
+- **Choir & Singers** (expandable)
+  - Singers & Choirs
+  - Choir Management
+  - Choir Accounts
+
+### Hero Section Configuration
 Admin can now configure the hero section to display either:
 1. **Static Banners** - Custom promotional banners with images, titles, and links
 2. **Dynamic Content** - Select specific albums to feature in the hero carousel
@@ -32,14 +61,6 @@ API Endpoints:
    - Uses `cacheDirectory` on Android for better compatibility
    - Better error messages and fallback locations
    - Validates downloaded files
-
-### Files Modified
-- `/app/backend/server.py` - Added hero config endpoints
-- `/app/frontend/src/pages/LayoutManagementPage.jsx` - Added Hero Config tab
-- `/app/mobile/SpiritSongs/src/services/api.js` - Added `getItemThumbnail()` helper
-- `/app/mobile/SpiritSongs/src/services/downloadService.js` - Fixed download directory issues
-- `/app/mobile/SpiritSongs/src/screens/HomeScreen.js` - Uses hero config from API
-- Updated all screens/components to use `getItemThumbnail()`
 
 ## Performance Optimizations (Implemented Jan 18, 2026)
 
