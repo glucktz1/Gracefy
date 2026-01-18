@@ -1175,7 +1175,11 @@ export default function LayoutManagementPage() {
             {filteredSections.map((section, index) => (
               <Card 
                 key={section.section_id} 
-                className={`bg-zinc-900/50 border-zinc-800 ${!section.is_active ? 'opacity-50' : ''}`}
+                className={`border transition-all ${
+                  section.is_active 
+                    ? 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700' 
+                    : 'bg-zinc-950/50 border-zinc-800/50 opacity-60 hover:opacity-80'
+                }`}
                 data-testid={`section-card-${section.section_id}`}
               >
                 <CardContent className="p-4">
@@ -1204,20 +1208,23 @@ export default function LayoutManagementPage() {
                     </div>
 
                     {/* Section icon */}
-                    <div className="w-12 h-12 rounded-lg bg-violet-600/20 flex items-center justify-center flex-shrink-0">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      section.is_active ? 'bg-violet-600/20' : 'bg-zinc-800/50'
+                    }`}>
                       {SECTION_TYPES.find(t => t.value === section.section_type)?.icon ? 
-                        (() => { const Icon = SECTION_TYPES.find(t => t.value === section.section_type)?.icon; return <Icon size={24} className="text-violet-400" />; })()
-                        : <Layout size={24} className="text-violet-400" />
+                        (() => { const Icon = SECTION_TYPES.find(t => t.value === section.section_type)?.icon; return <Icon size={24} className={section.is_active ? "text-violet-400" : "text-zinc-600"} />; })()
+                        : <Layout size={24} className={section.is_active ? "text-violet-400" : "text-zinc-600"} />
                       }
                     </div>
 
                     {/* Section info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-semibold text-white">{section.display_name}</h4>
+                        <h4 className={`font-semibold ${section.is_active ? 'text-white' : 'text-zinc-500'}`}>{section.display_name}</h4>
                         {getPlatformBadge(section.platforms)}
                         <Badge className="bg-zinc-700 text-zinc-300">{section.section_type}</Badge>
-                        {!section.is_active && <Badge className="bg-red-500/20 text-red-400">Inactive</Badge>}
+                        {!section.is_active && <Badge className="bg-red-500/20 text-red-400">Hidden</Badge>}
+                        {section.is_active && <Badge className="bg-emerald-500/20 text-emerald-400">Live</Badge>}
                       </div>
                       <p className="text-sm text-zinc-500 mt-1">{section.description || "No description"}</p>
                       {section.content_type && (
@@ -1245,14 +1252,17 @@ export default function LayoutManagementPage() {
                       >
                         <Edit2 size={14} />
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleToggleSection(section.section_id, section.is_active)}
-                        className={section.is_active ? "text-emerald-400" : "text-zinc-500"}
-                      >
-                        {section.is_active ? <Eye size={14} /> : <EyeOff size={14} />}
-                      </Button>
+                      {/* Toggle Active/Inactive with Switch */}
+                      <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-zinc-800/50">
+                        <Switch
+                          checked={section.is_active}
+                          onCheckedChange={() => handleToggleSection(section.section_id, section.is_active)}
+                          className="data-[state=checked]:bg-emerald-500"
+                        />
+                        <span className={`text-xs ${section.is_active ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                          {section.is_active ? 'Active' : 'Hidden'}
+                        </span>
+                      </div>
                       <Button
                         size="sm"
                         variant="ghost"
