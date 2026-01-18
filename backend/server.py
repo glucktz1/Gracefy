@@ -4451,8 +4451,9 @@ async def get_user_home():
             # Seasonal sections - fetch albums
             albums = await db.albums.find(
                 {"status": "active"},
-                {"_id": 0}
+                ALBUM_LIST_PROJECTION
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            albums = optimize_thumbnails(albums)
             section_data["items"] = albums
             section_data["content_type"] = "albums"
             
@@ -4461,16 +4462,17 @@ async def get_user_home():
             filter_category = section.get("filter_category", section["section_type"])
             content = await db.leader_content.find(
                 {"status": "active", "category": filter_category},
-                {"_id": 0}
+                {"_id": 0, "audio_data": 0}  # Exclude large audio data
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
             
             # If no specific category content, fetch all leader content
             if not content:
                 content = await db.leader_content.find(
                     {"status": "active"},
-                    {"_id": 0}
+                    {"_id": 0, "audio_data": 0}
                 ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
             
+            content = optimize_thumbnails(content)
             section_data["items"] = content
             section_data["content_type"] = "leader_content"
             # Include English display name for localization
@@ -4495,6 +4497,51 @@ async def get_user_home():
         "sections": home_data,
         "burners": burners
     }
+
+
+@api_router.get("/thumbnails/{item_id}")
+async def get_thumbnail(item_id: str):
+    """Get thumbnail image for an album/item - serves base64 as image"""
+    from fastapi.responses import Response
+    
+    # Try albums first
+    item = await db.albums.find_one({"album_id": item_id}, {"thumbnail": 1})
+    if not item:
+        item = await db.special_mixes.find_one({"mix_id": item_id}, {"thumbnail": 1})
+    if not item:
+        item = await db.leader_content.find_one({"content_id": item_id}, {"thumbnail": 1})
+    if not item:
+        item = await db.churches.find_one({"church_id": item_id}, {"thumbnail": 1, "cover_image": 1})
+        if item and "cover_image" in item:
+            item["thumbnail"] = item.get("cover_image")
+    
+    if not item or not item.get("thumbnail"):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    
+    thumb = item["thumbnail"]
+    
+    # If it's a URL, redirect
+    if thumb.startswith("http"):
+        return RedirectResponse(url=thumb)
+    
+    # If it's base64, decode and serve
+    try:
+        # Handle data URL format: data:image/jpeg;base64,....
+        if thumb.startswith("data:"):
+            parts = thumb.split(",", 1)
+            if len(parts) == 2:
+                header, data = parts
+                media_type = header.split(";")[0].replace("data:", "")
+                image_data = base64.b64decode(data)
+                return Response(content=image_data, media_type=media_type)
+        
+        # Plain base64
+        image_data = base64.b64decode(thumb)
+        return Response(content=image_data, media_type="image/jpeg")
+    except Exception as e:
+        logging.error(f"Error decoding thumbnail: {e}")
+        raise HTTPException(status_code=500, detail="Error processing thumbnail")
+
 
 DEFAULT_CATEGORIES = [
     {"category_id": "cat_prayers", "name": "Prayers", "description": "Prayer and meditation music", "icon": "book-open", "status": "active"},
