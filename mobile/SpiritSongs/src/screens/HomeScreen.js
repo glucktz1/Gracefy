@@ -599,6 +599,7 @@ export default function HomeScreen({ navigation }) {
         <ChurchesSection 
           churches={churches}
           onChurchPress={handleChurchPress}
+          title={t('churches')}
         />
 
         {/* Debug info - remove after fixing */}
@@ -611,7 +612,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Continue Playing - Horizontal small tiles */}
         <HorizontalSmallTiles
-          title="Continue Playing"
+          title={t('continuePlayingTitle')}
           items={continuePlayingItems}
           onItemPress={handleAlbumPress}
         />
