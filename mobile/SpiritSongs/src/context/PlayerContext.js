@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import { Alert, Share } from 'react-native';
+import { Alert, Share, AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { sessionService, getAudioUrl, contentService, libraryService } from '../services/api';
 import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from '../services/downloadService';
@@ -8,6 +8,7 @@ import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from
 const PlayerContext = createContext(null);
 
 const SAMPLE_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+const PLAYBACK_STATE_KEY = 'playback_state';
 
 let globalSoundRef = null;
 
@@ -28,10 +29,13 @@ export const PlayerProvider = ({ children }) => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [allAlbums, setAllAlbums] = useState([]);
+  const [hasRestoredState, setHasRestoredState] = useState(false);
   
   const soundRef = useRef(null);
   const sessionIdRef = useRef(null);
   const isLoadingRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+  const lastPositionRef = useRef(0);
 
   // Configure audio for background/lock screen playback
   useEffect(() => {
