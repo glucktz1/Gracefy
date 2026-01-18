@@ -560,6 +560,7 @@ export const PlayerProvider = ({ children }) => {
     isDownloaded,
     isDownloading,
     downloadProgress,
+    hasRestoredState,
     playSong,
     togglePlay,
     playNext,
@@ -571,6 +572,8 @@ export const PlayerProvider = ({ children }) => {
     toggleLike,
     shareSong,
     downloadCurrentSong,
+    resumeFromLastPosition,
+    savePlaybackState,
   };
 
   return (
