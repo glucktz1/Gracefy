@@ -1431,6 +1431,11 @@ export default function LayoutManagementPage() {
           </div>
         </TabsContent>
 
+        {/* Hero Config Tab */}
+        <TabsContent value="hero-config" className="space-y-4">
+          <HeroConfigTab albums={albums} />
+        </TabsContent>
+
         {/* Hero Banners Tab */}
         <TabsContent value="banners" className="space-y-4">
           <HeroBannersTab albums={albums} />
