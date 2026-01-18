@@ -108,7 +108,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
           <div className="p-6 border-b border-zinc-800">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-violet-500">♱</span> Spirit Songs
+                <span className="text-violet-500">♱</span> Gracefy
               </h1>
               <button 
                 className="lg:hidden text-zinc-400 hover:text-white"
@@ -305,7 +305,7 @@ const ProtectedRoute = ({ children }) => {
           <Menu size={24} />
         </button>
         <h1 className="text-lg font-bold text-white ml-3 flex items-center gap-2">
-          <span className="text-violet-500">♱</span> Spirit Songs
+          <span className="text-violet-500">♱</span> Gracefy
         </h1>
       </div>
       

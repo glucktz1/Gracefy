@@ -48,7 +48,7 @@ export default function ChoirLoginPage() {
               <span className="text-3xl text-emerald-400">🎵</span>
             </div>
             <h1 className="text-2xl font-bold text-white font-[Figtree]">Choir Portal</h1>
-            <p className="text-zinc-400 text-sm mt-2">Spirit Songs Revenue Dashboard</p>
+            <p className="text-zinc-400 text-sm mt-2">Gracefy Revenue Dashboard</p>
           </div>
 
           {/* Welcome message */}

@@ -54,7 +54,7 @@ export default function LoginPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-violet-600/20 mb-4">
               <span className="text-3xl text-violet-400">♱</span>
             </div>
-            <h1 className="text-2xl font-bold text-white font-[Figtree]">Spirit Songs</h1>
+            <h1 className="text-2xl font-bold text-white font-[Figtree]">Gracefy</h1>
             <p className="text-zinc-400 text-sm mt-2">Admin Dashboard</p>
           </div>
 

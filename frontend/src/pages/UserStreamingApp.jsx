@@ -276,8 +276,8 @@ const useAudioPlayer = () => {
     if ('mediaSession' in navigator && song) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: song.title || 'Unknown Track',
-        artist: album?.artist_name || 'Spirit Songs',
-        album: album?.title || 'Spirit Songs',
+        artist: album?.artist_name || 'Gracefy',
+        album: album?.title || 'Gracefy',
         artwork: album?.thumbnail ? [
           { src: album.thumbnail, sizes: '512x512', type: 'image/jpeg' }
         ] : []
@@ -848,7 +848,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
       localStorage.setItem('user_token', res.data.token);
       localStorage.setItem('user_id', res.data.user.user_id);
       setShowAuth(false);
-      toast.success("Welcome to Spirit Songs!");
+      toast.success("Welcome to Gracefy!");
       // Reset state
       setOtpStep(false);
       setOtp('');
@@ -1597,7 +1597,7 @@ export default function UserStreamingApp() {
 
   // Handler for Share
   const handleShareSong = async (song, album) => {
-    const shareText = `🎵 Listen to "${song.title}" by ${album?.artist_name || 'Spirit Songs'} on Spirit Songs!`;
+    const shareText = `🎵 Listen to "${song.title}" by ${album?.artist_name || 'Gracefy'} on Gracefy!`;
     
     if (navigator.share) {
       try {
@@ -1645,7 +1645,7 @@ export default function UserStreamingApp() {
       <aside className="fixed left-0 top-0 w-64 h-full bg-black p-6 hidden lg:flex flex-col z-40">
         <div className="mb-8">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span className="text-emerald-500">♱</span> Spirit Songs
+            <span className="text-emerald-500">♱</span> Gracefy
           </h1>
         </div>
         
@@ -1707,7 +1707,7 @@ export default function UserStreamingApp() {
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 bg-black/95 backdrop-blur-xl z-40 px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <span className="text-emerald-500">♱</span> Spirit Songs
+            <span className="text-emerald-500">♱</span> Gracefy
           </h1>
           {user ? (
             <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">

@@ -106,7 +106,7 @@ export default function ChoirRegistrationPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Registration Submitted!</h2>
             <p className="text-zinc-400 mb-6">
-              Thank you for registering with Spirit Songs. Your application is now pending admin approval.
+              Thank you for registering with Gracefy. Your application is now pending admin approval.
             </p>
             <p className="text-sm text-zinc-500 mb-6">
               You will receive an email notification once your account is approved.
@@ -139,7 +139,7 @@ export default function ChoirRegistrationPage() {
           <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Music2 size={32} className="text-white" />
           </div>
-          <CardTitle className="text-2xl">Join Spirit Songs</CardTitle>
+          <CardTitle className="text-2xl">Join Gracefy</CardTitle>
           <CardDescription>Register as a choir, artist, or band</CardDescription>
         </CardHeader>
         
