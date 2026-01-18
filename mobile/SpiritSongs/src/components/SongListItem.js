@@ -174,9 +174,9 @@ const SongListItem = ({
             {/* Song Header in Menu */}
             <View style={styles.menuHeader}>
               <View style={styles.menuThumbnail}>
-                {song.thumbnail || album?.thumbnail ? (
+                {(getItemThumbnail(song) || getItemThumbnail(album)) ? (
                   <Image 
-                    source={{ uri: song.thumbnail || album?.thumbnail }} 
+                    source={{ uri: getItemThumbnail(song) || getItemThumbnail(album) }} 
                     style={styles.menuThumbnailImg}
                   />
                 ) : (
