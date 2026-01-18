@@ -44,6 +44,8 @@ const SECTION_TYPES = [
   { value: "seasonal", label: "Seasonal Section", icon: Calendar },
   { value: "trending", label: "Trending/Popular", icon: Crown },
   { value: "cta", label: "Call-to-Action", icon: Megaphone },
+  { value: "sermons", label: "Mahubiri na Tafakari (Sermons)", icon: BookOpen },
+  { value: "teachings", label: "Mafundisho na Katekesi (Teachings)", icon: BookOpen },
   { value: "custom", label: "Custom Section", icon: Layout },
 ];
 
