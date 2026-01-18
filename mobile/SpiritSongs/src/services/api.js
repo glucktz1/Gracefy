@@ -85,6 +85,17 @@ export const contentService = {
     return response.data;
   },
   
+  getChurches: async () => {
+    const response = await api.get('/churches');
+    return response.data;
+  },
+  
+  getChurchDetails: async (churchId, userId = null) => {
+    const url = userId ? `/churches/${churchId}/full?user_id=${userId}` : `/churches/${churchId}/full`;
+    const response = await api.get(url);
+    return response.data;
+  },
+  
   getCategoryAlbums: async (categoryId) => {
     const response = await api.get(`/user/browse/category/${categoryId}`);
     return response.data;
