@@ -97,7 +97,7 @@ const translations = {
   },
   en: {
     // App Name & Header
-    appName: 'Spirit Songs',
+    appName: 'Gracefy',
     
     // Navigation
     home: 'Home',
