@@ -2272,29 +2272,64 @@ async def reject_church(church_id: str, data: dict):
     return {"message": "Church rejected"}
 
 @api_router.get("/churches/{church_id}/full")
-async def get_church_full_details(church_id: str):
-    """Get church with all details including announcements and prayer schedule"""
+async def get_church_full_details(church_id: str, user_id: Optional[str] = None):
+    """Get church with all details including announcements, choirs, leaders, etc."""
     church = await db.churches.find_one({"church_id": church_id}, {"_id": 0})
     if not church:
         raise HTTPException(status_code=404, detail="Church not found")
     
-    # Get active announcements (not older than 2 weeks)
-    two_weeks_ago = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%d")
+    # Get active announcements (not expired)
+    now = datetime.now(timezone.utc).isoformat()
     announcements = await db.church_announcements.find(
-        {"church_id": church_id, "date": {"$gte": two_weeks_ago}, "status": "active"},
+        {
+            "church_id": church_id, 
+            "status": "active",
+            "$or": [
+                {"expires_at": {"$gte": now}},
+                {"expires_at": None}
+            ]
+        },
         {"_id": 0}
-    ).sort("date", -1).to_list(50)
+    ).sort("created_at", -1).to_list(50)
     
-    # Group announcements by date
-    announcements_by_date = {}
-    for ann in announcements:
-        date = ann.get("date")
-        if date not in announcements_by_date:
-            announcements_by_date[date] = []
-        announcements_by_date[date].append(ann)
+    # Get choirs belonging to this church
+    choirs = await db.singers.find(
+        {"church_id": church_id, "approval_status": "approved"},
+        {"_id": 0}
+    ).to_list(50)
     
-    church["announcements"] = announcements_by_date
-    church["announcements_list"] = announcements
+    # Enrich choirs with albums count
+    for choir in choirs:
+        albums_count = await db.albums.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
+        choir["albums_count"] = albums_count
+    
+    # Get religious leaders of this church
+    leaders = await db.religious_leaders.find(
+        {"church_id": church_id, "status": "approved"},
+        {"_id": 0}
+    ).to_list(20)
+    
+    # Get follower count
+    followers_count = await db.user_follows.count_documents({
+        "entity_type": "church",
+        "entity_id": church_id
+    })
+    
+    # Check if current user follows this church
+    is_following = False
+    if user_id:
+        follow = await db.user_follows.find_one({
+            "user_id": user_id,
+            "entity_type": "church",
+            "entity_id": church_id
+        })
+        is_following = follow is not None
+    
+    church["announcements"] = announcements
+    church["choirs"] = choirs
+    church["leaders"] = leaders
+    church["followers_count"] = followers_count
+    church["is_following"] = is_following
     
     return church
 
