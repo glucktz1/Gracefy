@@ -202,7 +202,7 @@ export default function SystemSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await axios.get(`${API}/admin/settings`);
+      const response = await axios.get(`${API}/admin/system-settings`);
       if (response.data) {
         setSettings(prev => ({ ...prev, ...response.data }));
       }
@@ -216,7 +216,7 @@ export default function SystemSettingsPage() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await axios.post(`${API}/admin/settings`, settings);
+      await axios.post(`${API}/admin/system-settings`, settings);
       toast.success("Settings saved successfully!");
     } catch (error) {
       toast.error("Failed to save settings");
