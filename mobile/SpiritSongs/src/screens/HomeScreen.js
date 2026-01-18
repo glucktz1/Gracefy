@@ -1176,4 +1176,101 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
   },
+  // Tafakari Section - Spotify-style horizontal cards
+  tafakariCard: {
+    width: width * 0.85,
+    marginRight: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#2D2152', // Purple/plum background like reference
+  },
+  tafakariCardInner: {
+    flexDirection: 'row',
+    padding: 12,
+  },
+  tafakariImageContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  tafakariImage: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tafakariBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tafakariBadgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  tafakariInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'space-between',
+  },
+  tafakariTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  tafakariSource: {
+    color: '#1DB954', // Spotify green-like color
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  tafakariMeta: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+    marginBottom: 8,
+  },
+  tafakariActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  tafakariPreviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  tafakariPreviewText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  tafakariAddBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tafakariPlayBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
