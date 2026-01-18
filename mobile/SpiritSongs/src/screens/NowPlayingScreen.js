@@ -284,15 +284,9 @@ const NowPlayingScreen = ({ navigation }) => {
                 {currentSong.artist_name || currentAlbum?.artist_name || 'Unknown Artist'}
               </Text>
             </View>
-            <TouchableOpacity onPress={handleLike} style={styles.likeButton}>
-              <Ionicons 
-                name={liked ? 'heart' : 'heart-outline'} 
-                size={28} 
-                color={liked ? '#e91e63' : COLORS.textPrimary} 
-              />
-              {!isAuthenticated && (
-                <Ionicons name="lock-closed" size={10} color="#FF9800" style={styles.lockBadge} />
-              )}
+            {/* Add to Playlist Button - Right Side, More Visible */}
+            <TouchableOpacity onPress={handleAddToPlaylist} style={styles.addToPlaylistBtn}>
+              <Ionicons name="add-circle" size={36} color="#4CAF50" />
             </TouchableOpacity>
           </View>
         </View>
@@ -387,38 +381,19 @@ const NowPlayingScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Primary Action Row - Like (left) and Add to Playlist (right) */}
-        <View style={styles.primaryActionRow}>
-          {/* Like Button - Left */}
-          <TouchableOpacity onPress={handleLike} style={styles.primaryActionBtn}>
-            <View style={[styles.actionIconCircle, liked && styles.actionIconCircleActive]}>
-              <Ionicons 
-                name={liked ? 'heart' : 'heart-outline'} 
-                size={24} 
-                color={liked ? '#fff' : COLORS.textPrimary} 
-              />
-            </View>
-            <Text style={[styles.primaryActionText, liked && styles.primaryActionTextActive]}>
+        {/* Secondary Actions - Like, Download and Share */}
+        <View style={styles.secondaryActions}>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handleLike}>
+            <Ionicons 
+              name={liked ? 'heart' : 'heart-outline'} 
+              size={26} 
+              color={liked ? '#e91e63' : COLORS.textSecondary} 
+            />
+            <Text style={[styles.secondaryText, liked && { color: '#e91e63' }]}>
               {liked ? 'Liked' : 'Like'}
             </Text>
           </TouchableOpacity>
 
-          {/* Add to Playlist - Right (More visible) */}
-          <TouchableOpacity onPress={handleAddToPlaylist} style={styles.primaryActionBtn}>
-            <View style={[styles.actionIconCircle, styles.addToPlaylistCircle]}>
-              <Ionicons name="add" size={28} color="#fff" />
-            </View>
-            <Text style={styles.primaryActionText}>Add to Playlist</Text>
-            {(!isAuthenticated || !canPerformAction('create_playlist')) && (
-              <View style={styles.actionLockBadge}>
-                <Ionicons name="lock-closed" size={10} color="#fff" />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Secondary Actions - Download and Share */}
-        <View style={styles.secondaryActions}>
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleDownload}>
             {isDownloading ? (
               <>
@@ -430,7 +405,7 @@ const NowPlayingScreen = ({ navigation }) => {
                 <View style={styles.secondaryIconWrapper}>
                   <Ionicons 
                     name={isDownloaded ? 'checkmark-circle' : 'download-outline'} 
-                    size={24} 
+                    size={26} 
                     color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
                   />
                   {(!isAuthenticated || (!canPerformAction('download') && !isDownloaded)) && (
@@ -445,12 +420,12 @@ const NowPlayingScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="share-social-outline" size={26} color={COLORS.textSecondary} />
             <Text style={styles.secondaryText}>Share</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowQueue(true)}>
-            <Ionicons name="list" size={24} color={COLORS.textSecondary} />
+            <Ionicons name="list" size={26} color={COLORS.textSecondary} />
             <Text style={styles.secondaryText}>Queue</Text>
           </TouchableOpacity>
         </View>
@@ -500,11 +475,13 @@ const NowPlayingScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Playlist Modal */}
+      {/* Playlist Modal - with like functionality */}
       <PlaylistModal 
         visible={showPlaylistModal}
         onClose={() => setShowPlaylistModal(false)}
         song={currentSong}
+        isLiked={liked}
+        onLike={toggleLike}
       />
     </View>
   );
@@ -612,7 +589,7 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 12,
   },
   songTitle: {
     color: COLORS.textPrimary,
@@ -624,7 +601,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 4,
   },
-  likeButton: {
+  addToPlaylistBtn: {
     padding: 8,
   },
   progressSection: {
