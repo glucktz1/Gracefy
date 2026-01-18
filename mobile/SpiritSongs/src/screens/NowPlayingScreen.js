@@ -387,23 +387,38 @@ const NowPlayingScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Secondary Actions */}
-        <View style={styles.secondaryActions}>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={handleAddToPlaylist}>
-            <View style={styles.secondaryIconWrapper}>
-              <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
-              {(!isAuthenticated || !canPerformAction('create_playlist')) && (
-                <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
-              )}
+        {/* Primary Action Row - Like (left) and Add to Playlist (right) */}
+        <View style={styles.primaryActionRow}>
+          {/* Like Button - Left */}
+          <TouchableOpacity onPress={handleLike} style={styles.primaryActionBtn}>
+            <View style={[styles.actionIconCircle, liked && styles.actionIconCircleActive]}>
+              <Ionicons 
+                name={liked ? 'heart' : 'heart-outline'} 
+                size={24} 
+                color={liked ? '#fff' : COLORS.textPrimary} 
+              />
             </View>
-            <Text style={styles.secondaryText}>Add to Playlist</Text>
+            <Text style={[styles.primaryActionText, liked && styles.primaryActionTextActive]}>
+              {liked ? 'Liked' : 'Like'}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryBtn} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={28} color={COLORS.textSecondary} />
-            <Text style={styles.secondaryText}>Share</Text>
+          {/* Add to Playlist - Right (More visible) */}
+          <TouchableOpacity onPress={handleAddToPlaylist} style={styles.primaryActionBtn}>
+            <View style={[styles.actionIconCircle, styles.addToPlaylistCircle]}>
+              <Ionicons name="add" size={28} color="#fff" />
+            </View>
+            <Text style={styles.primaryActionText}>Add to Playlist</Text>
+            {(!isAuthenticated || !canPerformAction('create_playlist')) && (
+              <View style={styles.actionLockBadge}>
+                <Ionicons name="lock-closed" size={10} color="#fff" />
+              </View>
+            )}
           </TouchableOpacity>
+        </View>
 
+        {/* Secondary Actions - Download and Share */}
+        <View style={styles.secondaryActions}>
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleDownload}>
             {isDownloading ? (
               <>
@@ -415,19 +430,30 @@ const NowPlayingScreen = ({ navigation }) => {
                 <View style={styles.secondaryIconWrapper}>
                   <Ionicons 
                     name={isDownloaded ? 'checkmark-circle' : 'download-outline'} 
-                    size={28} 
+                    size={24} 
                     color={isDownloaded ? '#4CAF50' : COLORS.textSecondary} 
                   />
                   {(!isAuthenticated || (!canPerformAction('download') && !isDownloaded)) && (
-                    <Ionicons name="lock-closed" size={12} color="#FF9800" style={styles.featureLock} />
+                    <Ionicons name="lock-closed" size={10} color="#FF9800" style={styles.featureLock} />
                   )}
                 </View>
                 <Text style={[styles.secondaryText, isDownloaded && { color: '#4CAF50' }]}>
-                  {isDownloaded ? 'Downloaded' : 'Download'}
+                  {isDownloaded ? 'Saved' : 'Download'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handleShare}>
+            <Ionicons name="share-social-outline" size={24} color={COLORS.textSecondary} />
+            <Text style={styles.secondaryText}>Share</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowQueue(true)}>
+            <Ionicons name="list" size={24} color={COLORS.textSecondary} />
+            <Text style={styles.secondaryText}>Queue</Text>
+          </TouchableOpacity>
+        </View>
         </View>
       </LinearGradient>
 
