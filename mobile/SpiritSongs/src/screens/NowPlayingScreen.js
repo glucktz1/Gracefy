@@ -318,7 +318,7 @@ const NowPlayingScreen = ({ navigation }) => {
             <Ionicons 
               name="shuffle" 
               size={24} 
-              color={shuffle ? '#e91e63' : COLORS.textSecondary} 
+              color={shuffle ? '#3498DB' : COLORS.textSecondary} 
             />
             {!isPremium && isShuffleForced() && (
               <Ionicons name="lock-closed" size={10} color="#FF9800" style={styles.lockBadge} />
@@ -358,7 +358,7 @@ const NowPlayingScreen = ({ navigation }) => {
             <Ionicons 
               name={repeat === 'one' ? 'repeat' : 'repeat'} 
               size={24} 
-              color={repeat !== 'off' ? '#e91e63' : COLORS.textSecondary} 
+              color={repeat !== 'off' ? '#3498DB' : COLORS.textSecondary} 
             />
             {repeat === 'one' && (
               <View style={styles.repeatOneBadge}>
@@ -387,9 +387,9 @@ const NowPlayingScreen = ({ navigation }) => {
             <Ionicons 
               name={liked ? 'heart' : 'heart-outline'} 
               size={26} 
-              color={liked ? '#e91e63' : COLORS.textSecondary} 
+              color={liked ? '#3498DB' : COLORS.textSecondary} 
             />
-            <Text style={[styles.secondaryText, liked && { color: '#e91e63' }]}>
+            <Text style={[styles.secondaryText, liked && { color: '#3498DB' }]}>
               {liked ? 'Liked' : 'Like'}
             </Text>
           </TouchableOpacity>
@@ -397,7 +397,7 @@ const NowPlayingScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleDownload}>
             {isDownloading ? (
               <>
-                <ActivityIndicator size="small" color="#e91e63" />
+                <ActivityIndicator size="small" color="#3498DB" />
                 <Text style={styles.secondaryText}>{Math.round(downloadProgress * 100)}%</Text>
               </>
             ) : (
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   backButton: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     borderRadius: 2,
   },
   progressKnob: {
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     marginLeft: -6,
   },
   timeRow: {
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   upgradeLink: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 12,
     fontWeight: '600',
   },

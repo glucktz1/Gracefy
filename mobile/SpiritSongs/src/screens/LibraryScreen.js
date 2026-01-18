@@ -57,7 +57,7 @@ const SongCard = ({ song, onPress, onRemove, isCurrentSong, showRemove, isLiked 
         {song.artist_name || 'Unknown Artist'}
       </Text>
     </View>
-    {isLiked && <Ionicons name="heart" size={18} color="#e91e63" style={styles.likeIcon} />}
+    {isLiked && <Ionicons name="heart" size={18} color="#3498DB" style={styles.likeIcon} />}
     {showRemove && (
       <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(song)}>
         <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
@@ -274,7 +274,7 @@ export default function LibraryScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e91e63" />
+        <ActivityIndicator size="large" color="#3498DB" />
       </View>
     );
   }
@@ -285,7 +285,7 @@ export default function LibraryScreen({ navigation }) {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.profileBtn} onPress={() => navigation.navigate('Profile')}>
-            <LinearGradient colors={['#e91e63', '#9c27b0']} style={styles.profileGradient}>
+            <LinearGradient colors={['#3498DB', '#1A295E']} style={styles.profileGradient}>
               <Text style={styles.profileInitial}>
                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
               </Text>
@@ -301,7 +301,7 @@ export default function LibraryScreen({ navigation }) {
       <ScrollView
         style={styles.content}
         contentContainerStyle={[styles.contentPadding, currentSong && { paddingBottom: 140 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#e91e63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3498DB" />}
         showsVerticalScrollIndicator={false}
       >
         {/* Quick Access Grid - 2 columns x 4 rows */}
@@ -346,7 +346,7 @@ export default function LibraryScreen({ navigation }) {
               gradient={[
                 ['#FF9800', '#FFB74D'],
                 ['#00BCD4', '#4DD0E1'],
-                ['#9c27b0', '#e040fb'],
+                ['#1A295E', '#e040fb'],
                 ['#795548', '#A1887F'],
               ][idx] || ['#333', '#555']}
               title={playlist.name}
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   },
   quickAccessCardActive: {
     borderWidth: 1,
-    borderColor: '#e91e63',
+    borderColor: '#3498DB',
   },
   quickAccessIcon: {
     width: 56,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   playAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -635,12 +635,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   clearAllText: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 14,
     fontWeight: '600',
   },
   createText: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   activeText: {
-    color: '#e91e63',
+    color: '#3498DB',
   },
   likeIcon: {
     marginRight: 8,
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   createBtn: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,

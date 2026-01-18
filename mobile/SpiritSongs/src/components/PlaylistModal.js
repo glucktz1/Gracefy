@@ -243,12 +243,12 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated, onLike, isLi
           >
             <View style={[styles.quickActionIcon, isLiked && styles.quickActionIconActive]}>
               {likeLoading ? (
-                <ActivityIndicator size="small" color={isLiked ? '#fff' : '#e91e63'} />
+                <ActivityIndicator size="small" color={isLiked ? '#fff' : '#3498DB'} />
               ) : (
                 <Ionicons 
                   name={isLiked ? 'heart' : 'heart-outline'} 
                   size={24} 
-                  color={isLiked ? '#fff' : '#e91e63'} 
+                  color={isLiked ? '#fff' : '#3498DB'} 
                 />
               )}
             </View>
@@ -279,7 +279,7 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated, onLike, isLi
 
           {loading ? (
             <View style={styles.loaderContainer}>
-              <ActivityIndicator size="small" color="#e91e63" />
+              <ActivityIndicator size="small" color="#3498DB" />
             </View>
           ) : playlists.length === 0 ? (
             <View style={styles.noPlaylistsMsg}>
@@ -310,10 +310,10 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated, onLike, isLi
                   </Text>
                 </View>
                 {addingTo === item.playlist_id ? (
-                  <ActivityIndicator size="small" color="#e91e63" />
+                  <ActivityIndicator size="small" color="#3498DB" />
                 ) : (
                   <View style={styles.addIconContainer}>
-                    <Ionicons name="add-circle" size={26} color="#e91e63" />
+                    <Ionicons name="add-circle" size={26} color="#3498DB" />
                   </View>
                 )}
               </TouchableOpacity>
@@ -351,7 +351,7 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated, onLike, isLi
             {/* Song Info */}
             {song && (
               <View style={styles.songInfo}>
-                <Ionicons name="musical-note" size={18} color="#e91e63" />
+                <Ionicons name="musical-note" size={18} color="#3498DB" />
                 <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
               </View>
             )}
@@ -448,8 +448,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(233, 30, 99, 0.3)',
   },
   quickActionIconActive: {
-    backgroundColor: '#e91e63',
-    borderColor: '#e91e63',
+    backgroundColor: '#3498DB',
+    borderColor: '#3498DB',
   },
   createIcon: {
     backgroundColor: '#4CAF50',
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   quickActionTextActive: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontWeight: '600',
   },
   // Not logged in
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loginBtn: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 24,
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   confirmBtn: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 24,

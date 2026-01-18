@@ -113,7 +113,7 @@ export default function ChurchDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e91e63" />
+        <ActivityIndicator size="large" color="#3498DB" />
       </View>
     );
   }
@@ -202,13 +202,13 @@ export default function ChurchDetailScreen({ route, navigation }) {
             disabled={followLoading}
           >
             {followLoading ? (
-              <ActivityIndicator size="small" color={isFollowing ? '#e91e63' : '#fff'} />
+              <ActivityIndicator size="small" color={isFollowing ? '#3498DB' : '#fff'} />
             ) : (
               <>
                 <Ionicons 
                   name={isFollowing ? 'checkmark' : 'add'} 
                   size={20} 
-                  color={isFollowing ? '#e91e63' : '#fff'} 
+                  color={isFollowing ? '#3498DB' : '#fff'} 
                 />
                 <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
                   {isFollowing ? 'Following' : 'Follow'}
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   denominationText: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingVertical: 14,
     borderRadius: 25,
     marginTop: 20,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   followBtnActive: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#e91e63',
+    borderColor: '#3498DB',
   },
   followBtnText: {
     color: '#fff',
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   followBtnTextActive: {
-    color: '#e91e63',
+    color: '#3498DB',
   },
   tabs: {
     flexDirection: 'row',
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     borderBottomWidth: 2,
-    borderBottomColor: '#e91e63',
+    borderBottomColor: '#3498DB',
   },
   tabText: {
     color: COLORS.textMuted,
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tabTextActive: {
-    color: '#e91e63',
+    color: '#3498DB',
   },
   tabContent: {
     padding: 16,
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   scheduleDay: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     width: 60,
     paddingVertical: 8,
     borderRadius: 8,

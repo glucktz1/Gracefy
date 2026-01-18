@@ -290,7 +290,7 @@ export default function AlbumScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e91e63" />
+        <ActivityIndicator size="large" color="#3498DB" />
         <Text style={styles.loadingText}>Loading album...</Text>
       </View>
     );
@@ -378,7 +378,7 @@ export default function AlbumScreen({ route, navigation }) {
               disabled={downloadingAll}
             >
               {downloadingAll ? (
-                <ActivityIndicator size="small" color="#e91e63" />
+                <ActivityIndicator size="small" color="#3498DB" />
               ) : (
                 <Ionicons name="download-outline" size={24} color={COLORS.textSecondary} />
               )}
@@ -393,12 +393,12 @@ export default function AlbumScreen({ route, navigation }) {
               <Ionicons 
                 name={repeat === 'one' ? 'repeat-one' : 'repeat'} 
                 size={24} 
-                color={repeat !== 'off' ? '#e91e63' : COLORS.textSecondary} 
+                color={repeat !== 'off' ? '#3498DB' : COLORS.textSecondary} 
               />
             </TouchableOpacity>
             {/* Shuffle Button */}
             <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffle}>
-              <Ionicons name="shuffle" size={24} color={shuffle ? '#e91e63' : COLORS.textSecondary} />
+              <Ionicons name="shuffle" size={24} color={shuffle ? '#3498DB' : COLORS.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.playBtn} 
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     justifyContent: 'center',
     alignItems: 'center',
   },

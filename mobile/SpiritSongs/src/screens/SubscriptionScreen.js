@@ -176,7 +176,7 @@ export default function SubscriptionScreen({ navigation, route }) {
         >
           {/* Hero Section */}
           <LinearGradient
-            colors={['#e91e63', '#9c27b0']}
+            colors={['#3498DB', '#1A295E']}
             style={styles.hero}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -237,7 +237,7 @@ export default function SubscriptionScreen({ navigation, route }) {
               <Text style={styles.sectionTitle}>Choose a Plan</Text>
               
               {loading ? (
-                <ActivityIndicator size="large" color="#e91e63" />
+                <ActivityIndicator size="large" color="#3498DB" />
               ) : (
                 <View style={styles.plansContainer}>
                   {plans.map((plan) => (
@@ -494,14 +494,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   planCardPopular: {
-    borderColor: '#e91e63',
+    borderColor: '#3498DB',
     borderWidth: 2,
   },
   popularBadge: {
     position: 'absolute',
     top: -10,
     right: 16,
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   planPrice: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 24,
     fontWeight: '800',
   },
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   subscribeBtn: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center',
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   featureValueActiveText: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontWeight: '600',
   },
   faqSection: {

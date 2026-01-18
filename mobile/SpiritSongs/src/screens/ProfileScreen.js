@@ -36,7 +36,7 @@ const SUBSCRIPTION_PLANS = [
     price: '$9.99',
     period: '/month',
     features: ['Unlimited streaming', 'No ads', 'High quality audio', 'Offline mode', 'Early access', 'Exclusive content'],
-    color: '#e91e63',
+    color: '#3498DB',
     popular: true,
   },
   {
@@ -45,7 +45,7 @@ const SUBSCRIPTION_PLANS = [
     price: '$14.99',
     period: '/month',
     features: ['Up to 6 accounts', 'All Premium features', 'Family mix playlists', 'Parental controls'],
-    color: '#9c27b0',
+    color: '#1A295E',
   },
 ];
 
@@ -170,7 +170,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Profile Section */}
         <View style={styles.profileSection}>
-          <LinearGradient colors={['#e91e63', '#9c27b0']} style={styles.avatar}>
+          <LinearGradient colors={['#3498DB', '#1A295E']} style={styles.avatar}>
             <Text style={styles.avatarText}>
               {user?.name?.charAt(0)?.toUpperCase() || 'G'}
             </Text>
@@ -244,7 +244,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#e91e63', '#9c27b0']}
+              colors={['#3498DB', '#1A295E']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.premiumBannerGradient}
@@ -292,7 +292,7 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem} onPress={handleManageSubscription}>
-            <Ionicons name="card-outline" size={24} color="#e91e63" />
+            <Ionicons name="card-outline" size={24} color="#3498DB" />
             <Text style={styles.menuText}>Subscription</Text>
             {isPremium ? (
               <View style={styles.premiumIndicator}>
@@ -404,7 +404,7 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={styles.languageOptionNameSecondary}>{lang.name}</Text>
                 </View>
                 {language === lang.code && (
-                  <Ionicons name="checkmark-circle" size={24} color="#e91e63" />
+                  <Ionicons name="checkmark-circle" size={24} color="#3498DB" />
                 )}
               </TouchableOpacity>
             ))}
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   premiumBadge: {
     backgroundColor: 'rgba(233, 30, 99, 0.2)',
     borderWidth: 1,
-    borderColor: '#e91e63',
+    borderColor: '#3498DB',
   },
   trialBadge: {
     backgroundColor: 'rgba(255, 152, 0, 0.2)',
@@ -501,13 +501,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   premiumText: {
-    color: '#e91e63',
+    color: '#3498DB',
   },
   trialText: {
     color: '#FF9800',
   },
   upgradeText: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 8,
@@ -586,12 +586,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   upgradeIndicator: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 13,
     fontWeight: '600',
   },
   loginBtn: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 24,
@@ -667,13 +667,13 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   planCardActive: {
-    borderColor: '#e91e63',
+    borderColor: '#3498DB',
   },
   popularBadge: {
     position: 'absolute',
     top: -10,
     right: 16,
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 4,
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   planPrice: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 28,
     fontWeight: '800',
   },
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   languageIndicatorText: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 12,
     fontWeight: '500',
   },

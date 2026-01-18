@@ -120,7 +120,7 @@ const QuickAccessGrid = ({ items, likedSongsCount, playlistsCount, downloadsCoun
       gradient: [
         ['#FF9800', '#FFB74D'],
         ['#00BCD4', '#4DD0E1'],
-        ['#9c27b0', '#e040fb'],
+        ['#1A295E', '#e040fb'],
         ['#795548', '#A1887F'],
       ][idx] || ['#333', '#555'],
     }))
@@ -237,7 +237,7 @@ const VerticalListSection = ({ title, items, onItemPress, onSeeAll }) => {
               </Text>
             </View>
             <TouchableOpacity style={styles.verticalListPlay} onPress={() => onItemPress(item)}>
-              <Ionicons name="play-circle" size={32} color="#e91e63" />
+              <Ionicons name="play-circle" size={32} color="#3498DB" />
             </TouchableOpacity>
           </TouchableOpacity>
         ))}
@@ -560,7 +560,7 @@ export default function HomeScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e91e63" />
+        <ActivityIndicator size="large" color="#3498DB" />
         <Text style={{ color: '#fff', marginTop: 10 }}>Loading content...</Text>
       </View>
     );
@@ -569,10 +569,10 @@ export default function HomeScreen({ navigation }) {
   if (error) {
     return (
       <View style={styles.loadingContainer}>
-        <Ionicons name="alert-circle" size={48} color="#e91e63" />
+        <Ionicons name="alert-circle" size={48} color="#3498DB" />
         <Text style={{ color: '#fff', marginTop: 10, textAlign: 'center' }}>{error}</Text>
         <TouchableOpacity 
-          style={{ marginTop: 20, padding: 12, backgroundColor: '#e91e63', borderRadius: 8 }}
+          style={{ marginTop: 20, padding: 12, backgroundColor: '#3498DB', borderRadius: 8 }}
           onPress={onRefresh}
         >
           <Text style={{ color: '#fff', fontWeight: '600' }}>Retry</Text>
@@ -617,7 +617,7 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh} 
-            tintColor="#e91e63"
+            tintColor="#3498DB"
           />
         }
         showsVerticalScrollIndicator={false}
@@ -625,7 +625,7 @@ export default function HomeScreen({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.profileBtn} onPress={handleProfilePress}>
-            <LinearGradient colors={['#e91e63', '#9c27b0']} style={styles.profileGradient}>
+            <LinearGradient colors={['#3498DB', '#1A295E']} style={styles.profileGradient}>
               <Text style={styles.profileInitial}>{user?.name?.charAt(0)?.toUpperCase() || 'S'}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   heroBadge: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
   heroPlayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterTabActive: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
   },
   filterTabText: {
     color: COLORS.textSecondary,
@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   seeAll: {
-    color: '#e91e63',
+    color: '#3498DB',
     fontSize: 13,
     fontWeight: '600',
   },

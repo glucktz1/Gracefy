@@ -149,7 +149,7 @@ export default function PlaylistDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e91e63" />
+        <ActivityIndicator size="large" color="#3498DB" />
       </View>
     );
   }
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryBtn: {
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#e91e63',
+    backgroundColor: '#3498DB',
     justifyContent: 'center',
     alignItems: 'center',
     paddingLeft: 4,
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeSongTitle: {
-    color: '#e91e63',
+    color: '#3498DB',
   },
   songArtist: {
     color: COLORS.textSecondary,
