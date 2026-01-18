@@ -9385,6 +9385,189 @@ async def delete_hero_banner(banner_id: str):
     
     return {"message": "Banner deleted"}
 
+
+# ============== SYSTEM SETTINGS ==============
+
+class SystemSettings(BaseModel):
+    # Branding
+    appName: str = "Gracefy"
+    tagline: str = "Christian Music Streaming"
+    logoLight: Optional[str] = ""
+    logoDark: Optional[str] = ""
+    favicon: Optional[str] = ""
+    primaryColor: str = "#3498DB"
+    secondaryColor: str = "#1A295E"
+    
+    # Language & Currency
+    defaultLanguage: str = "sw"
+    supportedLanguages: List[str] = ["sw", "en"]
+    defaultCurrency: str = "TZS"
+    supportedCurrencies: List[str] = ["TZS", "KES", "USD"]
+    
+    # Geo-locking
+    geoLockingEnabled: bool = False
+    geoLockMode: str = "whitelist"  # whitelist or blacklist
+    allowedCountries: List[str] = ["TZ", "KE", "UG"]
+    blockedCountries: List[str] = []
+    geoLockMessage: str = "This service is not available in your region."
+    bypassGeoLockForPremium: bool = False
+    
+    # Payment Gateways
+    stripeEnabled: bool = False
+    stripePublicKey: Optional[str] = ""
+    stripeSecretKey: Optional[str] = ""
+    mpesaEnabled: bool = True
+    mpesaConsumerKey: Optional[str] = ""
+    mpesaConsumerSecret: Optional[str] = ""
+    paypalEnabled: bool = False
+    paypalClientId: Optional[str] = ""
+    paypalSecret: Optional[str] = ""
+    
+    # Content Settings
+    maxFreeStreamsPerDay: int = 5
+    maxFreeSongsPerDay: int = 10
+    freeUserSkipLimit: int = 6
+    previewDuration: int = 30
+    enableExplicitContent: bool = False
+    requireAgeVerification: bool = False
+    
+    # Notifications
+    emailNotifications: bool = True
+    pushNotifications: bool = True
+    smsNotifications: bool = False
+    newReleaseAlerts: bool = True
+    promotionalEmails: bool = False
+    
+    # Security
+    requireEmailVerification: bool = True
+    twoFactorEnabled: bool = False
+    maxLoginAttempts: int = 5
+    sessionTimeout: int = 30
+    passwordMinLength: int = 8
+    
+    # Streaming
+    defaultQuality: str = "high"
+    allowOfflineDownload: bool = True
+    maxOfflineSongs: int = 100
+    streamingBitrate: int = 320
+    
+    # Analytics
+    googleAnalyticsId: Optional[str] = ""
+    facebookPixelId: Optional[str] = ""
+    enableUserTracking: bool = True
+    
+    # Social Media
+    facebookUrl: Optional[str] = ""
+    twitterUrl: Optional[str] = ""
+    instagramUrl: Optional[str] = ""
+    youtubeUrl: Optional[str] = ""
+    tiktokUrl: Optional[str] = ""
+    
+    # Legal
+    termsOfServiceUrl: Optional[str] = ""
+    privacyPolicyUrl: Optional[str] = ""
+    copyrightNotice: str = "© 2026 Gracefy. All rights reserved."
+    dmcaContact: Optional[str] = ""
+
+
+@api_router.get("/admin/settings")
+async def get_system_settings():
+    """Get system settings"""
+    settings = await db.system_settings.find_one({"setting_id": "main"}, {"_id": 0})
+    if not settings:
+        # Return default settings
+        return SystemSettings().model_dump()
+    return settings
+
+
+@api_router.post("/admin/settings")
+async def save_system_settings(settings: SystemSettings):
+    """Save system settings"""
+    data = settings.model_dump()
+    data["setting_id"] = "main"
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.system_settings.update_one(
+        {"setting_id": "main"},
+        {"$set": data},
+        upsert=True
+    )
+    return {"message": "Settings saved successfully"}
+
+
+@api_router.get("/geo/check")
+async def check_geo_location(request: Request):
+    """Check user's geographic location based on IP"""
+    # Get client IP from request
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+    if client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    
+    # Try to get country from IP using free IP geolocation API
+    country_code = None
+    country_name = None
+    
+    try:
+        async with httpx.AsyncClient() as http_client:
+            # Using ip-api.com (free, no API key required)
+            response = await http_client.get(f"http://ip-api.com/json/{client_ip}?fields=status,countryCode,country")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    country_code = data.get("countryCode")
+                    country_name = data.get("country")
+    except Exception as e:
+        logging.error(f"Geo lookup failed: {e}")
+    
+    # Get system settings
+    settings = await db.system_settings.find_one({"setting_id": "main"}, {"_id": 0})
+    
+    is_blocked = False
+    block_message = "This service is not available in your region."
+    
+    if settings and settings.get("geoLockingEnabled"):
+        geo_mode = settings.get("geoLockMode", "whitelist")
+        allowed = settings.get("allowedCountries", [])
+        blocked = settings.get("blockedCountries", [])
+        block_message = settings.get("geoLockMessage", block_message)
+        
+        if country_code:
+            if geo_mode == "whitelist":
+                is_blocked = country_code not in allowed
+            else:  # blacklist
+                is_blocked = country_code in blocked
+    
+    return {
+        "ip": client_ip,
+        "country_code": country_code,
+        "country_name": country_name,
+        "is_blocked": is_blocked,
+        "block_message": block_message if is_blocked else None,
+        "geo_locking_enabled": settings.get("geoLockingEnabled", False) if settings else False
+    }
+
+
+@api_router.get("/admin/settings/geo-stats")
+async def get_geo_stats():
+    """Get geographic access statistics"""
+    # This would track geo-blocked attempts in production
+    stats = await db.geo_access_logs.aggregate([
+        {"$group": {
+            "_id": "$country_code",
+            "total_attempts": {"$sum": 1},
+            "blocked_attempts": {"$sum": {"$cond": ["$is_blocked", 1, 0]}},
+            "allowed_attempts": {"$sum": {"$cond": ["$is_blocked", 0, 1]}}
+        }},
+        {"$sort": {"total_attempts": -1}},
+        {"$limit": 20}
+    ]).to_list(20)
+    
+    return {
+        "stats_by_country": stats,
+        "total_countries": len(stats)
+    }
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
