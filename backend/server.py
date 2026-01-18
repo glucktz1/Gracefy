@@ -4542,6 +4542,19 @@ async def get_thumbnail(item_id: str):
     """Get thumbnail image for an album/item - serves base64 as image"""
     from fastapi.responses import Response
     
+    # Check cache first
+    cache_key = f"thumb:{item_id}"
+    cached_thumb = await cache.get(cache_key)
+    if cached_thumb:
+        if cached_thumb.get("type") == "redirect":
+            return RedirectResponse(url=cached_thumb["url"])
+        else:
+            return Response(
+                content=base64.b64decode(cached_thumb["data"]),
+                media_type=cached_thumb.get("media_type", "image/jpeg"),
+                headers={"Cache-Control": "public, max-age=86400"}  # Cache for 1 day
+            )
+    
     # Try albums first
     item = await db.albums.find_one({"album_id": item_id}, {"thumbnail": 1})
     if not item:
@@ -4558,12 +4571,16 @@ async def get_thumbnail(item_id: str):
     
     thumb = item["thumbnail"]
     
-    # If it's a URL, redirect
+    # If it's a URL, redirect and cache
     if thumb.startswith("http"):
+        await cache.set(cache_key, {"type": "redirect", "url": thumb}, 3600)
         return RedirectResponse(url=thumb)
     
     # If it's base64, decode and serve
     try:
+        media_type = "image/jpeg"
+        image_data = None
+        
         # Handle data URL format: data:image/jpeg;base64,....
         if thumb.startswith("data:"):
             parts = thumb.split(",", 1)
@@ -4571,14 +4588,44 @@ async def get_thumbnail(item_id: str):
                 header, data = parts
                 media_type = header.split(";")[0].replace("data:", "")
                 image_data = base64.b64decode(data)
-                return Response(content=image_data, media_type=media_type)
+        else:
+            # Plain base64
+            image_data = base64.b64decode(thumb)
         
-        # Plain base64
-        image_data = base64.b64decode(thumb)
-        return Response(content=image_data, media_type="image/jpeg")
+        # Cache the decoded data (but not too large)
+        if image_data and len(image_data) < 500000:  # < 500KB
+            await cache.set(cache_key, {
+                "type": "base64",
+                "data": base64.b64encode(image_data).decode(),
+                "media_type": media_type
+            }, 3600)
+        
+        return Response(
+            content=image_data,
+            media_type=media_type,
+            headers={"Cache-Control": "public, max-age=86400"}
+        )
     except Exception as e:
         logging.error(f"Error decoding thumbnail: {e}")
         raise HTTPException(status_code=500, detail="Error processing thumbnail")
+
+
+@api_router.get("/admin/cache/stats")
+async def get_cache_stats():
+    """Get cache statistics"""
+    stats = await cache.get_stats()
+    return stats
+
+
+@api_router.post("/admin/cache/clear")
+async def clear_cache(pattern: Optional[str] = None):
+    """Clear cache - optionally by pattern"""
+    if pattern:
+        deleted = await cache.delete_pattern(pattern)
+        return {"message": f"Deleted {deleted} keys matching '{pattern}'"}
+    else:
+        await cache.clear_all()
+        return {"message": "Cache cleared"}
 
 
 DEFAULT_CATEGORIES = [
