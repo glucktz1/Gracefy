@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
-import { libraryService } from '../services/api';
+import { libraryService, getItemThumbnail } from '../services/api';
 import AnimatedBars from './AnimatedBars';
 import { COLORS } from '../config';
 
