@@ -365,8 +365,8 @@ export default function ProfileScreen({ navigation }) {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>{t('appName')} v1.0.24</Text>
-          <Text style={styles.copyright}>© 2026 Spirit Songs. All rights reserved.</Text>
+          <Text style={styles.appVersion}>{t('appName')} v1.0.27</Text>
+          <Text style={styles.copyright}>© 2026 Gracefy. All rights reserved.</Text>
         </View>
       </ScrollView>
 
