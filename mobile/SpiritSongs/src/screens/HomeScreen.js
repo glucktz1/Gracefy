@@ -1024,4 +1024,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  // Churches
+  churchCard: {
+    width: width * 0.35,
+    marginRight: 12,
+  },
+  churchImageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+    position: 'relative',
+  },
+  churchImage: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  churchDenomBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  churchDenomText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  churchName: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  churchLocation: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    marginTop: 4,
+  },
 });
