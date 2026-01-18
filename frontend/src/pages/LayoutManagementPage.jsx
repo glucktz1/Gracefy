@@ -927,7 +927,7 @@ export default function LayoutManagementPage() {
   const handleToggleSection = async (sectionId, isActive) => {
     try {
       await axios.put(`${API}/layout/sections/${sectionId}/toggle`, { is_active: !isActive }, { withCredentials: true });
-      toast.success(isActive ? "Section deactivated" : "Section activated");
+      toast.success(isActive ? "Section deactivated - changes applied!" : "Section activated - now visible to users!");
       fetchData();
     } catch (error) {
       toast.error("Failed to toggle section");
