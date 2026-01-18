@@ -760,4 +760,67 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
   },
+  // Language Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  languageModalContainer: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 16,
+    width: '85%',
+    maxWidth: 340,
+    overflow: 'hidden',
+  },
+  languageModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  languageModalTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  languageOptionActive: {
+    backgroundColor: 'rgba(233, 30, 99, 0.1)',
+  },
+  languageOptionInfo: {
+    flex: 1,
+  },
+  languageOptionName: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  languageOptionNameSecondary: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  languageIndicator: {
+    backgroundColor: 'rgba(233, 30, 99, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  languageIndicatorText: {
+    color: '#e91e63',
+    fontSize: 12,
+    fontWeight: '500',
+  },
 });
