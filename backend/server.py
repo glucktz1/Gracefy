@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -14,6 +15,9 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import httpx
 import base64
+
+# Import caching service
+from cache_service import cache, cached, invalidate_home_cache, invalidate_albums_cache, invalidate_layout_cache
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
