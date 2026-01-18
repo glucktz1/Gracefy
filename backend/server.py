@@ -4524,11 +4524,49 @@ async def get_user_home():
         {"_id": 0}
     ).sort("sort_order", 1).to_list(5)
     
-    # Get recently played (if authenticated, handled separately)
+    # Get hero configuration
+    hero_config = await db.hero_config.find_one({"config_id": "main"}, {"_id": 0})
+    hero_content = {
+        "hero_type": "static_banner",
+        "auto_rotate": True,
+        "rotation_interval": 5000,
+        "show_navigation": True,
+        "items": []
+    }
+    
+    if hero_config:
+        hero_content["hero_type"] = hero_config.get("hero_type", "static_banner")
+        hero_content["auto_rotate"] = hero_config.get("auto_rotate", True)
+        hero_content["rotation_interval"] = hero_config.get("rotation_interval", 5000)
+        hero_content["show_navigation"] = hero_config.get("show_navigation", True)
+        
+        if hero_config.get("hero_type") == "dynamic_content" and hero_config.get("content_ids"):
+            # Fetch dynamic content (albums)
+            albums = await db.albums.find(
+                {"album_id": {"$in": hero_config["content_ids"]}, "status": "active"},
+                {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1, "songs_count": 1, "description": 1}
+            ).to_list(10)
+            albums = optimize_thumbnails(albums)
+            hero_content["items"] = albums
+        else:
+            # Fetch static banners
+            banners = await db.hero_banners.find(
+                {"is_active": True},
+                {"_id": 0}
+            ).sort("order", 1).to_list(10)
+            hero_content["items"] = banners
+    else:
+        # Fetch static banners as default
+        banners = await db.hero_banners.find(
+            {"is_active": True},
+            {"_id": 0}
+        ).sort("order", 1).to_list(10)
+        hero_content["items"] = banners
     
     response_data = {
         "sections": home_data,
-        "burners": burners
+        "burners": burners,
+        "hero": hero_content
     }
     
     # Cache the response for 60 seconds
