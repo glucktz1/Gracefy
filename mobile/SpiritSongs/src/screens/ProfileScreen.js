@@ -162,9 +162,9 @@ export default function ProfileScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={28} color={COLORS.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity style={styles.settingsBtn}>
-            <Ionicons name="settings-outline" size={24} color={COLORS.textPrimary} />
+          <Text style={styles.headerTitle}>{t('profile')}</Text>
+          <TouchableOpacity style={styles.settingsBtn} onPress={() => setShowLanguageModal(true)}>
+            <Ionicons name="language-outline" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
         </View>
 
