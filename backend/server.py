@@ -4320,6 +4320,11 @@ async def get_user_profile(request: Request):
 @api_router.get("/user/home")
 async def get_user_home():
     """Get home screen data for the user app based on layout settings"""
+    # Check cache first
+    cached_home = await cache.get("home:app:main")
+    if cached_home:
+        return cached_home
+    
     # Optimized projection - exclude large fields for list queries
     ALBUM_LIST_PROJECTION = {
         "_id": 0,
