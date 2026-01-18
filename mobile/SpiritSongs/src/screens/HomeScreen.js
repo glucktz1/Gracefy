@@ -368,6 +368,78 @@ const LargeCardsSection = ({ title, items, onItemPress, onSeeAll }) => {
   );
 };
 
+// Tafakari Style Cards - Spotify-like horizontal cards (like the reference image)
+const TafakariSection = ({ title, items, onItemPress, onPlay }) => {
+  if (!items || items.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      <FlatList
+        horizontal
+        data={items}
+        keyExtractor={(item, idx) => item.album_id || item.content_id || `tafakari-${idx}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.tafakariCard} 
+            onPress={() => onItemPress(item)} 
+            activeOpacity={0.9}
+          >
+            <View style={styles.tafakariCardInner}>
+              {/* Left: Album Art */}
+              <View style={styles.tafakariImageContainer}>
+                {item.thumbnail ? (
+                  <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.tafakariImage} />
+                ) : (
+                  <LinearGradient colors={['#7c3aed', '#4f46e5']} style={styles.tafakariImage}>
+                    <Ionicons name="book" size={32} color="rgba(255,255,255,0.5)" />
+                  </LinearGradient>
+                )}
+                {/* Radio badge */}
+                <View style={styles.tafakariBadge}>
+                  <Text style={styles.tafakariBadgeText}>RADIO</Text>
+                </View>
+              </View>
+              
+              {/* Right: Info */}
+              <View style={styles.tafakariInfo}>
+                <Text style={styles.tafakariTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={styles.tafakariSource}>Spirit Songs</Text>
+                <Text style={styles.tafakariMeta} numberOfLines={1}>
+                  {item.songs_count || item.tracks || 10} tracks • {item.artist_name || 'Various Artists'}
+                </Text>
+                
+                {/* Action buttons */}
+                <View style={styles.tafakariActions}>
+                  <TouchableOpacity style={styles.tafakariPreviewBtn}>
+                    <Ionicons name="radio-outline" size={14} color="#fff" />
+                    <Text style={styles.tafakariPreviewText}>Preview</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.tafakariAddBtn}>
+                    <Ionicons name="add" size={20} color="#fff" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.tafakariPlayBtn}
+                    onPress={() => onPlay && onPlay(item)}
+                  >
+                    <Ionicons name="play" size={20} color="#000" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+};
+
 // ============ MAIN HOME SCREEN ============
 
 export default function HomeScreen({ navigation }) {
