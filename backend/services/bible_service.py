@@ -97,7 +97,7 @@ class BibleService:
             url = SWAHILI_BIBLE_URL if language == "sw" else ENGLISH_BIBLE_URL
             
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=120), allow_redirects=True) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to fetch Bible data: HTTP {response.status}")
                     
@@ -106,9 +106,64 @@ class BibleService:
             # Process and store the Bible data
             books_stored = 0
             verses_stored = 0
+            books_processed = set()
             
-            # Check if it's the Swahili Bible format (list of books)
-            if isinstance(bible_data, list):
+            # SourceForge format: {"metadata": {...}, "verses": [{book_name, book, chapter, verse, text}, ...]}
+            if isinstance(bible_data, dict) and "verses" in bible_data:
+                verses_list = bible_data.get("verses", [])
+                
+                for verse_data in verses_list:
+                    book_name = verse_data.get("book_name", "Unknown")
+                    chapter = verse_data.get("chapter", 1)
+                    verse_num = verse_data.get("verse", 1)
+                    text = verse_data.get("text", "")
+                    book_number = verse_data.get("book", 0)
+                    
+                    # Store book if not already done
+                    if book_name not in books_processed:
+                        # Determine testament based on book number (1-39 OT, 40-66 NT)
+                        testament = "old" if book_number < 40 else "new"
+                        
+                        book_doc = {
+                            "book_id": f"book_{language}_{book_name.lower().replace(' ', '_')}",
+                            "name": book_name,
+                            "name_localized": BOOK_NAMES.get(language, {}).get(book_name, book_name),
+                            "language": language,
+                            "testament": testament,
+                            "order": book_number,
+                            "updated_at": datetime.now(timezone.utc)
+                        }
+                        
+                        await self.db.bible_books.update_one(
+                            {"book_id": book_doc["book_id"]},
+                            {"$set": book_doc},
+                            upsert=True
+                        )
+                        books_processed.add(book_name)
+                        books_stored += 1
+                    
+                    # Store verse
+                    verse_doc = {
+                        "verse_id": f"verse_{language}_{book_name.lower().replace(' ', '_')}_{chapter}_{verse_num}",
+                        "book_name": book_name,
+                        "book_name_localized": BOOK_NAMES.get(language, {}).get(book_name, book_name),
+                        "chapter": chapter,
+                        "verse": verse_num,
+                        "text": text,
+                        "language": language,
+                        "reference": f"{book_name} {chapter}:{verse_num}",
+                        "reference_localized": f"{BOOK_NAMES.get(language, {}).get(book_name, book_name)} {chapter}:{verse_num}"
+                    }
+                    
+                    await self.db.bible_verses.update_one(
+                        {"verse_id": verse_doc["verse_id"]},
+                        {"$set": verse_doc},
+                        upsert=True
+                    )
+                    verses_stored += 1
+            
+            # Legacy format: list of books with chapters
+            elif isinstance(bible_data, list):
                 for book_data in bible_data:
                     book_name = book_data.get("book") or book_data.get("name", "Unknown")
                     chapters = book_data.get("chapters", [])
@@ -128,7 +183,6 @@ class BibleService:
                         "updated_at": datetime.now(timezone.utc)
                     }
                     
-                    # Upsert book
                     await self.db.bible_books.update_one(
                         {"book_id": book_doc["book_id"]},
                         {"$set": book_doc},
@@ -136,7 +190,6 @@ class BibleService:
                     )
                     books_stored += 1
                     
-                    # Store chapters and verses
                     for chapter_idx, chapter_data in enumerate(chapters):
                         chapter_num = chapter_idx + 1
                         verses = chapter_data if isinstance(chapter_data, list) else chapter_data.get("verses", [])
