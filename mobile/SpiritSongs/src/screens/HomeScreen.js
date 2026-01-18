@@ -729,12 +729,13 @@ export default function HomeScreen({ navigation }) {
           onItemPress={handleAlbumPress}
         />
 
-        {/* Mahubiri na Tafakari - New Section */}
+        {/* Mahubiri na Tafakari - New Section with Tafakari style cards */}
         {allAlbums.length > 2 && (
-          <LargeCardsSection
+          <TafakariSection
             title={t('mahubirinaTafakari')}
-            items={allAlbums.slice(2, 6)}
+            items={allAlbums.slice(2, 8)}
             onItemPress={handleAlbumPress}
+            onPlay={handleAlbumPress}
           />
         )}
 
@@ -742,7 +743,7 @@ export default function HomeScreen({ navigation }) {
         {allAlbums.length > 4 && (
           <HorizontalSmallTiles
             title={t('mafundishoNaKatekesi')}
-            items={allAlbums.slice(4, 10)}
+            items={allAlbums.slice(4, 12)}
             onItemPress={handleAlbumPress}
           />
         )}
