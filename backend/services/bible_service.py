@@ -101,7 +101,15 @@ class BibleService:
                     if response.status != 200:
                         raise Exception(f"Failed to fetch Bible data: HTTP {response.status}")
                     
-                    bible_data = await response.json()
+                    # Handle both JSON and octet-stream content types
+                    content_type = response.headers.get('content-type', '')
+                    if 'application/json' in content_type:
+                        bible_data = await response.json()
+                    else:
+                        # Read as text and parse JSON manually
+                        import json
+                        text_content = await response.text()
+                        bible_data = json.loads(text_content)
             
             # Process and store the Bible data
             books_stored = 0
