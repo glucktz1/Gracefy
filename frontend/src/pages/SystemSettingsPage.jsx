@@ -398,43 +398,54 @@ export default function SystemSettingsPage() {
             <p className="text-xs text-slate-400 mb-3">
               Download an Excel file containing all translatable text. Edit the translations and upload it back.
             </p>
-            <Button
-              variant="outline"
-              className="border-violet-500 text-violet-400 hover:bg-violet-500/10"
-              onClick={async () => {
-                try {
-                  const response = await axios.get(`${API}/admin/translations/download`, {
-                    responseType: 'blob',
-                    withCredentials: true
-                  });
-                  
-                  // Create blob URL and trigger download
-                  const blob = new Blob([response.data], { 
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-                  });
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.setAttribute('download', 'gracefy_translations.xlsx');
-                  document.body.appendChild(link);
-                  link.click();
-                  
-                  // Cleanup
-                  setTimeout(() => {
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                  }, 100);
-                  
-                  toast.success("Translation file downloaded!");
-                } catch (e) {
-                  console.error("Download error:", e);
-                  toast.error(e.response?.data?.detail || "Failed to download translations");
-                }
-              }}
-            >
-              <Upload className="w-4 h-4 mr-2 rotate-180" />
-              Download Excel Template
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-violet-500 text-violet-400 hover:bg-violet-500/10"
+                onClick={async () => {
+                  try {
+                    const response = await axios.get(`${API}/admin/translations/download`, {
+                      responseType: 'blob',
+                      withCredentials: true
+                    });
+                    
+                    // Create blob URL and trigger download
+                    const blob = new Blob([response.data], { 
+                      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                    });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'gracefy_translations.xlsx');
+                    document.body.appendChild(link);
+                    link.click();
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    toast.success("Translation file downloaded!");
+                  } catch (e) {
+                    console.error("Download error:", e);
+                    toast.error(e.response?.data?.detail || "Failed to download translations");
+                  }
+                }}
+              >
+                <Upload className="w-4 h-4 mr-2 rotate-180" />
+                Download Excel Template
+              </Button>
+              
+              {/* Direct download link as fallback */}
+              <a
+                href={`${API}/admin/translations/download`}
+                download="gracefy_translations.xlsx"
+                className="inline-flex items-center px-4 py-2 rounded-md border border-zinc-600 text-zinc-400 hover:bg-zinc-700 text-sm"
+              >
+                Direct Link
+              </a>
+            </div>
           </div>
 
           {/* Upload Section */}
