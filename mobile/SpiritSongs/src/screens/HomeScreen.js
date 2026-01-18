@@ -283,13 +283,13 @@ const GridSection = ({ title, items, onItemPress, onSeeAll }) => {
 };
 
 // Churches Section - Horizontal scrolling
-const ChurchesSection = ({ churches, onChurchPress }) => {
+const ChurchesSection = ({ churches, onChurchPress, title = 'Churches' }) => {
   if (!churches || churches.length === 0) return null;
   
   return (
     <View style={styles.sectionContainer}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Churches</Text>
+        <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       <FlatList
         horizontal
