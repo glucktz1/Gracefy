@@ -6,7 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { libraryService, contentService, getThumbnailUrl } from '../services/api';
+import { libraryService, contentService, getThumbnailUrl, getItemThumbnail } from '../services/api';
 import { getDownloadedSongs, removeDownload, clearAllDownloads, getDownloadsSize } from '../services/downloadService';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
@@ -34,30 +34,32 @@ const QuickAccessCard = ({ icon, gradient, title, subtitle, onPress, isActive })
 );
 
 // Song Card
-const SongCard = ({ song, onPress, onRemove, isCurrentSong, showRemove, isLiked }) => (
-  <TouchableOpacity 
-    style={[styles.songCard, isCurrentSong && styles.songCardActive]} 
-    onPress={onPress} 
-    activeOpacity={0.8}
-  >
-    <View style={styles.songArt}>
-      {song.thumbnail ? (
-        <Image source={{ uri: getThumbnailUrl(song.thumbnail) }} style={styles.songImg} />
-      ) : (
-        <LinearGradient colors={['#535353', '#121212']} style={styles.songImg}>
-          <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
-        </LinearGradient>
-      )}
-    </View>
-    <View style={styles.songInfo}>
-      <Text style={[styles.songName, isCurrentSong && styles.activeText]} numberOfLines={1}>
-        {song.title}
-      </Text>
-      <Text style={styles.songMeta} numberOfLines={1}>
-        {song.artist_name || 'Unknown Artist'}
-      </Text>
-    </View>
-    {isLiked && <Ionicons name="heart" size={18} color="#3498DB" style={styles.likeIcon} />}
+const SongCard = ({ song, onPress, onRemove, isCurrentSong, showRemove, isLiked }) => {
+  const thumbUrl = getItemThumbnail(song);
+  return (
+    <TouchableOpacity 
+      style={[styles.songCard, isCurrentSong && styles.songCardActive]} 
+      onPress={onPress} 
+      activeOpacity={0.8}
+    >
+      <View style={styles.songArt}>
+        {thumbUrl ? (
+          <Image source={{ uri: thumbUrl }} style={styles.songImg} />
+        ) : (
+          <LinearGradient colors={['#535353', '#121212']} style={styles.songImg}>
+            <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
+          </LinearGradient>
+        )}
+      </View>
+      <View style={styles.songInfo}>
+        <Text style={[styles.songName, isCurrentSong && styles.activeText]} numberOfLines={1}>
+          {song.title}
+        </Text>
+        <Text style={styles.songMeta} numberOfLines={1}>
+          {song.artist_name || 'Unknown Artist'}
+        </Text>
+      </View>
+      {isLiked && <Ionicons name="heart" size={18} color="#3498DB" style={styles.likeIcon} />}
     {showRemove && (
       <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(song)}>
         <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
