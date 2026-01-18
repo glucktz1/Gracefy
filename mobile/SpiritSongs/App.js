@@ -141,16 +141,35 @@ function AppContainer() {
 }
 
 export default function App() {
+  const [currentRoute, setCurrentRoute] = React.useState('');
+  
+  // Helper to get active route name from navigation state
+  const getActiveRouteName = (state) => {
+    if (!state || !state.routes) return '';
+    const route = state.routes[state.index];
+    if (route.state) {
+      return getActiveRouteName(route.state);
+    }
+    return route.name;
+  };
+  
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <AuthProvider>
           <SubscriptionProvider>
             <PlayerProvider>
-              <NavigationContainer>
-                <StatusBar style="light" />
-                <AppContainer />
-              </NavigationContainer>
+              <NavigationStateContext.Provider value={{ currentRoute }}>
+                <NavigationContainer
+                  onStateChange={(state) => {
+                    const routeName = getActiveRouteName(state);
+                    setCurrentRoute(routeName);
+                  }}
+                >
+                  <StatusBar style="light" />
+                  <AppContainer />
+                </NavigationContainer>
+              </NavigationStateContext.Provider>
             </PlayerProvider>
           </SubscriptionProvider>
         </AuthProvider>
