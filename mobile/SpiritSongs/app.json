@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "Spirit Songs",
-    "slug": "SpiritSongs",
-    "version": "1.0.26",
+    "name": "Gracefy",
+    "slug": "Gracefy",
+    "version": "1.0.27",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/gracefy-logo.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/gracefy-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a1a"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.spiritsongs.app",
+      "bundleIdentifier": "com.gracefy.app",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -26,12 +26,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/gracefy-logo.png",
         "backgroundColor": "#0a0a1a"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.spiritsongs.app",
-      "versionCode": 26,
+      "package": "com.gracefy.app",
+      "versionCode": 27,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
@@ -54,8 +54,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
-          "color": "#e91e63"
+          "icon": "./assets/gracefy-logo.png",
+          "color": "#3498DB"
         }
       ]
     ],
