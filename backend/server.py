@@ -7214,6 +7214,9 @@ async def toggle_burner(burner_id: str, data: dict):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Burner not found")
     
+    # Invalidate home cache so changes reflect immediately
+    await invalidate_home_cache()
+    
     return {"message": f"Burner {'activated' if is_active else 'deactivated'}"}
 
 # ============== LAYOUT CONFIG (User-side rendering) ==============
