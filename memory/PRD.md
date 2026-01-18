@@ -14,6 +14,33 @@ Gracefy is a comprehensive Christian music streaming platform with:
 - **Background**: #0A0A1A (Dark with blue tint)
 - **Default Language**: Kiswahili (with English option)
 
+## Latest Updates (Jan 18, 2026)
+
+### Hero Section Configuration (NEW)
+Admin can now configure the hero section to display either:
+1. **Static Banners** - Custom promotional banners with images, titles, and links
+2. **Dynamic Content** - Select specific albums to feature in the hero carousel
+
+API Endpoints:
+- `GET /api/layout/hero-config` - Get hero configuration
+- `POST /api/layout/hero-config` - Save hero configuration
+- `GET /api/layout/hero-content` - Get hero content for app
+
+### Mobile App Fixes (v1.0.28)
+1. **Image Display Fixed** - Added `getItemThumbnail()` helper to handle optimized thumbnail URLs (`thumbnail_url` field)
+2. **Download Issue Fixed** - Improved download service with better directory handling and error recovery
+   - Uses `cacheDirectory` on Android for better compatibility
+   - Better error messages and fallback locations
+   - Validates downloaded files
+
+### Files Modified
+- `/app/backend/server.py` - Added hero config endpoints
+- `/app/frontend/src/pages/LayoutManagementPage.jsx` - Added Hero Config tab
+- `/app/mobile/SpiritSongs/src/services/api.js` - Added `getItemThumbnail()` helper
+- `/app/mobile/SpiritSongs/src/services/downloadService.js` - Fixed download directory issues
+- `/app/mobile/SpiritSongs/src/screens/HomeScreen.js` - Uses hero config from API
+- Updated all screens/components to use `getItemThumbnail()`
+
 ## Performance Optimizations (Implemented Jan 18, 2026)
 
 ### Backend Optimizations
