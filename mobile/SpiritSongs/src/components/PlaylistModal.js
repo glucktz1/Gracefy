@@ -19,10 +19,12 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creating, setCreating] = useState(false);
   const [addingTo, setAddingTo] = useState(null);
-  const { isAuthenticated } = useAuth();
+  const [error, setError] = useState(null);
+  const { isAuthenticated, token } = useAuth();
 
   useEffect(() => {
     if (visible) {
+      setError(null);
       if (isAuthenticated) {
         fetchPlaylists();
       } else {
@@ -36,24 +38,30 @@ const PlaylistModal = ({ visible, onClose, song, onPlaylistCreated }) => {
 
   const fetchPlaylists = async () => {
     setLoading(true);
+    setError(null);
     try {
-      console.log('Fetching playlists...');
+      console.log('Fetching playlists... isAuthenticated:', isAuthenticated);
+      console.log('Token available:', !!token);
+      
       const data = await libraryService.getLibrary();
-      console.log('Library data received:', JSON.stringify(data, null, 2));
+      console.log('Library data:', data);
       
       const fetchedPlaylists = data.playlists || [];
       console.log('Playlists found:', fetchedPlaylists.length);
       
-      if (fetchedPlaylists.length > 0) {
-        console.log('First playlist:', fetchedPlaylists[0]);
-      }
-      
       setPlaylists(fetchedPlaylists);
+      
+      // If no playlists, show create input automatically
+      if (fetchedPlaylists.length === 0) {
+        setShowCreateInput(true);
+      }
     } catch (error) {
       console.error('Error fetching playlists:', error);
-      console.error('Error details:', error.response?.data);
-      Alert.alert('Error', 'Could not load playlists. Please try again.');
+      console.error('Error response:', error.response?.data);
+      setError('Could not load playlists');
       setPlaylists([]);
+      // Show create input on error as fallback
+      setShowCreateInput(true);
     } finally {
       setLoading(false);
     }
