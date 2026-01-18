@@ -1032,3 +1032,60 @@ To build an APK for testing on physical devices:
 - ✅ Download directory issues - IMPROVED
 - ✅ Playlist debugging - ENHANCED
 - ⚠️ Lock screen controls - BLOCKED (requires native module)
+
+### Phase 7.0 - Church System (January 17, 2026)
+
+**Backend Models:**
+- ✅ Enhanced ChurchAnnouncement model with:
+  - content (long text)
+  - image_url (photo upload support)
+  - category (general, events, prayer_requests)
+  - expires_at (admin-controlled expiry)
+- ✅ UserNotification model for in-app notifications
+
+**Backend API Endpoints:**
+- ✅ GET `/api/churches` - List all churches
+- ✅ GET `/api/churches/{id}/full` - Full church details with choirs, leaders, announcements, followers
+- ✅ POST `/api/churches/{id}/announcements` - Create announcement with image support
+- ✅ GET `/api/user/notifications` - User notifications
+- ✅ POST `/api/user/notifications/{id}/read` - Mark notification read
+- ✅ POST `/api/user/notifications/read-all` - Mark all notifications read
+- ✅ notify_followers() helper for automatic notifications
+
+**Admin Panel (ChurchesPage.jsx):**
+- ✅ Enhanced announcement form with:
+  - Long content text area
+  - Image upload with preview
+  - Category selector (General, Events, Prayer Requests)
+  - Expiry date picker
+  - Auto-notification to followers
+
+**Mobile App:**
+- ✅ ChurchDetailScreen.js - Full church detail view with:
+  - Church info, cover image, location
+  - Stats (followers, choirs, updates)
+  - Follow/Unfollow button
+  - Tabs: Info, Announcements, Schedule, Choirs
+  - Announcement cards with images
+  - Choir list with navigation to albums
+- ✅ ChurchesSection in HomeScreen - Horizontal church list
+- ✅ Navigation to ChurchDetail from Home
+- ✅ API service methods for churches
+
+**Build v1.0.22 Submitted:**
+- Build ID: 9ce3a8ef-6584-432e-902e-02715187a514
+- Build URL: https://expo.dev/accounts/gracefy/projects/SpiritSongs/builds/9ce3a8ef-6584-432e-902e-02715187a514
+
+**Features:**
+- ✅ Churches display on home screen
+- ✅ Click church to view full details
+- ✅ Prayer schedule, announcements, church leaders
+- ✅ Choirs linked to churches
+- ✅ Users can follow churches
+- ✅ Automatic notifications for followers (in-app)
+- ✅ Announcement with text + image upload
+- ✅ Announcement expiry dates
+
+**Pending:**
+- ⏳ Push notifications (requires additional setup)
+- ⏳ Choir registration linked to church selection
