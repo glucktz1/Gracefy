@@ -526,6 +526,146 @@ export default function EnhancedAnalyticsPage() {
           </Card>
         </TabsContent>
 
+        {/* Bible Analytics Tab */}
+        <TabsContent value="bible" className="space-y-6">
+          {/* Bible Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <StatCard
+              icon={BookOpen}
+              iconColor="amber"
+              label="Total Bible Listens"
+              value={bibleAnalytics?.total_listens?.toLocaleString() || 0}
+              subValue="Last 30 days"
+            />
+            <StatCard
+              icon={Mic2}
+              iconColor="violet"
+              label="Audio Snippets"
+              value={bibleAnalytics?.top_snippets?.length || 0}
+              subValue="Pre-generated passages"
+            />
+            <StatCard
+              icon={BarChart3}
+              iconColor="emerald"
+              label="Most Popular Book"
+              value={bibleAnalytics?.popular_books?.[0]?.book || "N/A"}
+              subValue={`${bibleAnalytics?.popular_books?.[0]?.count || 0} listens`}
+            />
+            <StatCard
+              icon={Clock}
+              iconColor="blue"
+              label="Peak Listening Time"
+              value={(() => {
+                const times = bibleAnalytics?.listening_times || [];
+                const peak = times.reduce((max, t) => t.count > (max?.count || 0) ? t : max, null);
+                const labels = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", night: "Night" };
+                return labels[peak?.time] || "N/A";
+              })()}
+              subValue="When users listen most"
+            />
+          </div>
+
+          {/* Bible Popular Books */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp size={18} className="text-amber-400" />
+                  Most Read Bible Books
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {bibleAnalytics?.popular_books?.length > 0 ? (
+                  <div className="space-y-3">
+                    {bibleAnalytics.popular_books.slice(0, 5).map((book, idx) => (
+                      <div key={book.book} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs flex items-center justify-center font-bold">
+                            {idx + 1}
+                          </span>
+                          <span className="text-white">{book.book}</span>
+                        </div>
+                        <Badge className="bg-zinc-800">{book.count} listens</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-center py-8">No Bible listening data yet</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock size={18} className="text-blue-400" />
+                  Listening Times Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {bibleAnalytics?.listening_times?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <RechartsPie>
+                      <Pie
+                        data={bibleAnalytics.listening_times.map(t => ({
+                          name: { morning: "Morning", afternoon: "Afternoon", evening: "Evening", night: "Night" }[t.time] || t.time,
+                          value: t.count
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {bibleAnalytics.listening_times.map((_, idx) => (
+                          <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                      <Tooltip />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-zinc-500 text-center py-8">No listening time data yet</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Snippets */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Mic2 size={18} className="text-violet-400" />
+                Top Bible Snippets by Plays
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {bibleAnalytics?.top_snippets?.length > 0 ? (
+                <div className="space-y-3">
+                  {bibleAnalytics.top_snippets.map((snippet, idx) => (
+                    <div key={snippet.snippet_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center font-bold">
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <p className="font-medium text-white">{snippet.title}</p>
+                          <p className="text-xs text-amber-400">{snippet.reference}</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-violet-500/20 text-violet-400">{snippet.play_count} plays</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-zinc-500 text-center py-8">No snippet plays yet</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Choirs Tab */}
         <TabsContent value="choirs" className="space-y-6">
           <Card className="bg-zinc-900/50 border-zinc-800">
