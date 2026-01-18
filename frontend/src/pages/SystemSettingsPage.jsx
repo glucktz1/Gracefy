@@ -454,7 +454,7 @@ export default function SystemSettingsPage() {
             <p className="text-xs text-slate-400 mb-3">
               Upload the edited Excel file to update translations. Changes will reflect immediately on user apps.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3">
               <input
                 type="file"
                 id="translation-upload"
@@ -464,6 +464,15 @@ export default function SystemSettingsPage() {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   
+                  // Show uploading state
+                  const uploadBtn = document.getElementById('upload-btn');
+                  const uploadStatus = document.getElementById('upload-status');
+                  if (uploadBtn) uploadBtn.disabled = true;
+                  if (uploadStatus) {
+                    uploadStatus.textContent = 'Uploading...';
+                    uploadStatus.className = 'text-sm text-yellow-400 mt-2';
+                  }
+                  
                   const formData = new FormData();
                   formData.append('file', file);
                   
@@ -472,22 +481,47 @@ export default function SystemSettingsPage() {
                       withCredentials: true,
                       headers: { 'Content-Type': 'multipart/form-data' }
                     });
-                    toast.success(`Translations uploaded! Updated ${response.data.languages_updated?.length || 0} languages.`);
+                    
+                    // Show success
+                    const langCount = response.data.languages_updated?.length || 0;
+                    const keyCount = response.data.total_keys || 0;
+                    toast.success(`✓ Translations uploaded successfully!`);
+                    
+                    if (uploadStatus) {
+                      uploadStatus.innerHTML = `<span class="text-emerald-400">✓ Success!</span> Updated ${langCount} language(s) with ${keyCount} translation keys.`;
+                      uploadStatus.className = 'text-sm mt-2';
+                    }
+                    
                     e.target.value = '';
                   } catch (err) {
-                    toast.error(err.response?.data?.detail || "Failed to upload translations");
+                    console.error("Upload error:", err);
+                    const errorMsg = err.response?.data?.detail || "Failed to upload translations";
+                    toast.error(errorMsg);
+                    
+                    if (uploadStatus) {
+                      uploadStatus.innerHTML = `<span class="text-red-400">✗ Error:</span> ${errorMsg}`;
+                      uploadStatus.className = 'text-sm mt-2';
+                    }
+                    
                     e.target.value = '';
+                  } finally {
+                    if (uploadBtn) uploadBtn.disabled = false;
                   }
                 }}
               />
-              <Button
-                variant="outline"
-                className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10"
-                onClick={() => document.getElementById('translation-upload')?.click()}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Translated Excel
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  id="upload-btn"
+                  variant="outline"
+                  className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10"
+                  onClick={() => document.getElementById('translation-upload')?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Translated Excel
+                </Button>
+                <span className="text-xs text-slate-500">(.xlsx or .xls files)</span>
+              </div>
+              <div id="upload-status" className="text-sm text-slate-400 mt-1"></div>
             </div>
           </div>
 
