@@ -1665,28 +1665,38 @@ export default function UserStreamingApp() {
             onClick={() => { setView('home'); setActiveCategory(null); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'home' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
           >
-            <Home size={22} /> Home
+            <Home size={22} /> {t('nav.home', 'Home')}
           </button>
           <button 
             onClick={() => setView('search')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'search' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
           >
-            <Search size={22} /> Search
+            <Search size={22} /> {t('nav.search', 'Search')}
           </button>
           <button 
             onClick={fetchLibrary}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'library' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
           >
-            <Library size={22} /> Your Library
+            <Library size={22} /> {t('library.yourLibrary', 'Your Library')}
           </button>
         </nav>
 
         <div className="mt-6 pt-6 border-t border-zinc-800 space-y-2">
           <button className="flex items-center gap-3 text-zinc-400 hover:text-white transition-colors text-sm w-full">
-            <Plus size={18} /> Create Playlist
+            <Plus size={18} /> {t('action.createPlaylist', 'Create Playlist')}
           </button>
           <button className="flex items-center gap-3 text-zinc-400 hover:text-white transition-colors text-sm w-full">
-            <Heart size={18} /> Liked Songs
+            <Heart size={18} /> {t('library.likedSongs', 'Liked Songs')}
+          </button>
+        </div>
+
+        {/* Language Selector */}
+        <div className="mt-4 pt-4 border-t border-zinc-800">
+          <button 
+            onClick={() => setShowLanguageModal(true)}
+            className="flex items-center gap-3 text-zinc-400 hover:text-white transition-colors text-sm w-full"
+          >
+            <Globe size={18} /> {t('settings.language', 'Language')}: {language === 'sw' ? 'Kiswahili' : 'English'}
           </button>
         </div>
 
@@ -1699,7 +1709,7 @@ export default function UserStreamingApp() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{user.name || user.email}</p>
-                <button onClick={handleLogout} className="text-xs text-zinc-500 hover:text-white">Logout</button>
+                <button onClick={handleLogout} className="text-xs text-zinc-500 hover:text-white">{t('auth.logout', 'Logout')}</button>
               </div>
             </div>
           ) : (
@@ -1707,7 +1717,7 @@ export default function UserStreamingApp() {
               onClick={() => setShowAuth(true)}
               className="w-full py-2.5 bg-white text-black rounded-full font-semibold hover:scale-105 transition-transform text-sm"
             >
-              Sign In
+              {t('auth.login', 'Sign In')}
             </button>
           )}
         </div>
