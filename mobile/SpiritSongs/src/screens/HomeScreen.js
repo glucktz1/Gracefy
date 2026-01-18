@@ -408,7 +408,7 @@ const TafakariSection = ({ title, items, onItemPress, onPlay }) => {
               {/* Right: Info */}
               <View style={styles.tafakariInfo}>
                 <Text style={styles.tafakariTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.tafakariSource}>Spirit Songs</Text>
+                <Text style={styles.tafakariSource}>Gracefy</Text>
                 <Text style={styles.tafakariMeta} numberOfLines={1}>
                   {item.songs_count || item.tracks || 10} tracks • {item.artist_name || 'Various Artists'}
                 </Text>
