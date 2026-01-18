@@ -365,10 +365,52 @@ export default function ProfileScreen({ navigation }) {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>Spirit Songs v1.0.2</Text>
+          <Text style={styles.appVersion}>{t('appName')} v1.0.24</Text>
           <Text style={styles.copyright}>© 2026 Spirit Songs. All rights reserved.</Text>
         </View>
       </ScrollView>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={showLanguageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowLanguageModal(false)}
+        >
+          <View style={styles.languageModalContainer}>
+            <View style={styles.languageModalHeader}>
+              <Text style={styles.languageModalTitle}>{t('changeLanguage')}</Text>
+              <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            {availableLanguages.map((lang) => (
+              <TouchableOpacity 
+                key={lang.code}
+                style={[
+                  styles.languageOption,
+                  language === lang.code && styles.languageOptionActive
+                ]}
+                onPress={() => handleLanguageSelect(lang.code)}
+              >
+                <View style={styles.languageOptionInfo}>
+                  <Text style={styles.languageOptionName}>{lang.nativeName}</Text>
+                  <Text style={styles.languageOptionNameSecondary}>{lang.name}</Text>
+                </View>
+                {language === lang.code && (
+                  <Ionicons name="checkmark-circle" size={24} color="#e91e63" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
