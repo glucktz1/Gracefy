@@ -2325,7 +2325,10 @@ async def create_church_announcement(church_id: str, data: dict):
         church_name=church.get("name"),
         date=data.get("date"),
         title=data.get("title"),
+        content=data.get("content"),  # Long text content
+        image_url=data.get("image_url"),  # Image/photo upload
         announcement_type=data.get("announcement_type", "general"),
+        category=data.get("category", "general"),  # general, events, prayer_requests
         description=data.get("description"),
         time=data.get("time"),
         location=data.get("location"),
@@ -2336,10 +2339,13 @@ async def create_church_announcement(church_id: str, data: dict):
         created_by=data.get("created_by")
     )
     
-    # Set expiry to 2 weeks from announcement date
+    # Set expiry date - use provided or default to 2 weeks
     try:
-        ann_date = datetime.strptime(data.get("date"), "%Y-%m-%d")
-        announcement.expires_at = ann_date + timedelta(days=14)
+        if data.get("expires_at"):
+            announcement.expires_at = datetime.fromisoformat(data.get("expires_at").replace("Z", "+00:00"))
+        else:
+            ann_date = datetime.strptime(data.get("date"), "%Y-%m-%d")
+            announcement.expires_at = ann_date + timedelta(days=14)
     except:
         pass
     
@@ -2354,7 +2360,8 @@ async def create_church_announcement(church_id: str, data: dict):
     await notify_followers("church", church_id, "new_announcement", {
         "church_name": church.get("name"),
         "announcement_title": data.get("title"),
-        "announcement_type": data.get("announcement_type", "general")
+        "announcement_type": data.get("announcement_type", "general"),
+        "image_url": data.get("image_url")
     })
     
     return {"announcement_id": doc["announcement_id"], "message": "Announcement created"}
