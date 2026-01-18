@@ -1126,6 +1126,9 @@ export default function LayoutManagementPage() {
           <TabsTrigger value="sections" className="data-[state=active]:bg-violet-600">
             <Layout size={14} className="mr-2" /> Sections ({sections.length})
           </TabsTrigger>
+          <TabsTrigger value="hero-config" className="data-[state=active]:bg-violet-600">
+            <Star size={14} className="mr-2" /> Hero Config
+          </TabsTrigger>
           <TabsTrigger value="burners" className="data-[state=active]:bg-violet-600">
             <Megaphone size={14} className="mr-2" /> Burners ({burners.length})
           </TabsTrigger>
