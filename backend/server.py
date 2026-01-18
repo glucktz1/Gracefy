@@ -1745,16 +1745,40 @@ async def delete_category(category_id: str):
 # ============== ALBUMS MANAGEMENT ==============
 
 @api_router.get("/albums")
-async def get_albums(category_id: Optional[str] = None, artist_id: Optional[str] = None, skip: int = 0, limit: int = 50):
-    """Get all albums"""
+async def get_albums(category_id: Optional[str] = None, artist_id: Optional[str] = None, skip: int = 0, limit: int = 20):
+    """Get all albums - optimized with pagination"""
     query = {}
     if category_id:
         query["category_id"] = category_id
     if artist_id:
         query["artist_id"] = artist_id
-    albums = await db.albums.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    # Optimized projection - exclude large base64 thumbnails
+    projection = {
+        "_id": 0,
+        "album_id": 1,
+        "title": 1,
+        "description": 1,
+        "artist_id": 1,
+        "artist_name": 1,
+        "category_id": 1,
+        "category_name": 1,
+        "thumbnail": 1,
+        "release_date": 1,
+        "monetization_type": 1,
+        "status": 1,
+        "songs_count": 1,
+        "total_plays": 1,
+        "created_at": 1
+    }
+    
+    albums = await db.albums.find(query, projection).skip(skip).limit(min(limit, 50)).to_list(min(limit, 50))
     total = await db.albums.count_documents(query)
-    return {"albums": albums, "total": total}
+    
+    # Optimize thumbnails
+    albums = optimize_thumbnails(albums)
+    
+    return {"albums": albums, "total": total, "skip": skip, "limit": limit}
 
 @api_router.get("/albums/{album_id}")
 async def get_album(album_id: str):
