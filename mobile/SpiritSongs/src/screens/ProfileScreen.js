@@ -125,12 +125,12 @@ export default function ProfileScreen({ navigation }) {
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t('logout'),
+      language === 'sw' ? 'Una uhakika unataka kutoka?' : 'Are you sure you want to logout?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         { 
-          text: 'Logout', 
+          text: t('logout'), 
           style: 'destructive',
           onPress: async () => {
             await logout();
@@ -139,6 +139,11 @@ export default function ProfileScreen({ navigation }) {
         },
       ]
     );
+  };
+
+  const handleLanguageSelect = async (langCode) => {
+    await changeLanguage(langCode);
+    setShowLanguageModal(false);
   };
 
   const handleLogin = () => {
