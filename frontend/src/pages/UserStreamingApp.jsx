@@ -2291,6 +2291,15 @@ export default function UserStreamingApp() {
               )}
             </div>
           )}
+
+          {/* BIBLE VIEW */}
+          {view === 'bible' && (
+            <BibleView 
+              language={language} 
+              t={t}
+              onBack={() => setView('home')}
+            />
+          )}
         </div>
       </main>
 
