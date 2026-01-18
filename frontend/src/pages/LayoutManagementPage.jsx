@@ -479,6 +479,340 @@ const HeroBannersTab = ({ albums }) => {
   );
 };
 
+// Hero Configuration Component - Choose between Static Banners or Dynamic Content
+const HeroConfigTab = ({ albums }) => {
+  const [config, setConfig] = useState({
+    hero_type: 'static_banner',
+    content_ids: [],
+    auto_rotate: true,
+    rotation_interval: 5000,
+    show_navigation: true
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [selectedAlbums, setSelectedAlbums] = useState([]);
+
+  const fetchConfig = async () => {
+    try {
+      const res = await axios.get(`${API}/layout/hero-config`, { withCredentials: true });
+      if (res.data) {
+        setConfig(res.data);
+        // Set selected albums based on content_ids
+        if (res.data.content_ids?.length > 0) {
+          const selected = albums.filter(a => res.data.content_ids.includes(a.album_id));
+          setSelectedAlbums(selected);
+        }
+      }
+    } catch (e) {
+      console.log("Using default hero config");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConfig();
+  }, [albums]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const saveConfig = {
+        ...config,
+        content_ids: selectedAlbums.map(a => a.album_id)
+      };
+      await axios.post(`${API}/layout/hero-config`, saveConfig, { withCredentials: true });
+      toast.success("Hero configuration saved! Changes will reflect on user side.");
+    } catch (e) {
+      toast.error("Failed to save configuration");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleAlbumSelection = (album) => {
+    setSelectedAlbums(prev => {
+      const isSelected = prev.some(a => a.album_id === album.album_id);
+      if (isSelected) {
+        return prev.filter(a => a.album_id !== album.album_id);
+      } else {
+        return [...prev, album];
+      }
+    });
+  };
+
+  const moveAlbum = (index, direction) => {
+    const newSelected = [...selectedAlbums];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= newSelected.length) return;
+    [newSelected[index], newSelected[newIndex]] = [newSelected[newIndex], newSelected[index]];
+    setSelectedAlbums(newSelected);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Hero Type Selection */}
+      <Card className="bg-zinc-900/50 border-zinc-800">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Image size={20} className="text-violet-400" />
+            Hero Section Type
+          </CardTitle>
+          <CardDescription>Choose what content appears in the hero section at the top of the app</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Static Banners Option */}
+            <div 
+              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                config.hero_type === 'static_banner' 
+                  ? 'border-violet-500 bg-violet-500/10' 
+                  : 'border-zinc-700 hover:border-zinc-600'
+              }`}
+              onClick={() => setConfig(prev => ({ ...prev, hero_type: 'static_banner' }))}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  config.hero_type === 'static_banner' ? 'bg-violet-500' : 'bg-zinc-800'
+                }`}>
+                  <Image size={20} className="text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">Static Banners</h4>
+                  <p className="text-xs text-zinc-400">Custom promotional banners</p>
+                </div>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Use the Hero Banners tab to create and manage custom promotional banners with custom images, titles, and links.
+              </p>
+              {config.hero_type === 'static_banner' && (
+                <div className="mt-3 flex items-center gap-2 text-emerald-400 text-sm">
+                  <Check size={16} /> Currently Active
+                </div>
+              )}
+            </div>
+
+            {/* Dynamic Content Option */}
+            <div 
+              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                config.hero_type === 'dynamic_content' 
+                  ? 'border-violet-500 bg-violet-500/10' 
+                  : 'border-zinc-700 hover:border-zinc-600'
+              }`}
+              onClick={() => setConfig(prev => ({ ...prev, hero_type: 'dynamic_content' }))}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  config.hero_type === 'dynamic_content' ? 'bg-violet-500' : 'bg-zinc-800'
+                }`}>
+                  <Music2 size={20} className="text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white">Dynamic Content</h4>
+                  <p className="text-xs text-zinc-400">Feature albums automatically</p>
+                </div>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Select specific albums to feature in the hero section. Their artwork, titles, and details will be displayed dynamically.
+              </p>
+              {config.hero_type === 'dynamic_content' && (
+                <div className="mt-3 flex items-center gap-2 text-emerald-400 text-sm">
+                  <Check size={16} /> Currently Active
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dynamic Content Selection */}
+      {config.hero_type === 'dynamic_content' && (
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Star size={20} className="text-amber-400" />
+              Select Featured Albums
+            </CardTitle>
+            <CardDescription>Choose albums to display in the hero carousel. Drag to reorder.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Selected Albums */}
+            {selectedAlbums.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <label className="text-sm text-zinc-400 font-medium">Selected Albums (drag to reorder)</label>
+                <div className="space-y-2 p-3 bg-zinc-800/50 rounded-lg">
+                  {selectedAlbums.map((album, index) => (
+                    <div 
+                      key={album.album_id}
+                      className="flex items-center gap-3 p-2 bg-zinc-900 rounded-lg"
+                    >
+                      <div className="flex flex-col">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={index === 0}
+                          onClick={() => moveAlbum(index, 'up')}
+                          className="h-5 w-5 p-0"
+                        >
+                          <ChevronUp size={12} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={index === selectedAlbums.length - 1}
+                          onClick={() => moveAlbum(index, 'down')}
+                          className="h-5 w-5 p-0"
+                        >
+                          <ChevronDown size={12} />
+                        </Button>
+                      </div>
+                      <span className="w-6 h-6 rounded bg-violet-500/20 text-violet-400 flex items-center justify-center text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <div className="w-10 h-10 bg-zinc-700 rounded overflow-hidden">
+                        {album.thumbnail ? (
+                          <img src={album.thumbnail?.startsWith('data:') ? album.thumbnail : `${BACKEND_URL}${album.thumbnail_url || `/api/thumbnails/${album.album_id}`}`} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Music2 size={16} className="text-zinc-500" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{album.title}</p>
+                        <p className="text-xs text-zinc-400 truncate">{album.artist_name}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toggleAlbumSelection(album)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Available Albums */}
+            <div>
+              <label className="text-sm text-zinc-400 font-medium block mb-2">
+                Available Albums ({albums.filter(a => !selectedAlbums.some(s => s.album_id === a.album_id)).length})
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[300px] overflow-y-auto p-2">
+                {albums.filter(a => !selectedAlbums.some(s => s.album_id === a.album_id)).map(album => (
+                  <div
+                    key={album.album_id}
+                    className="p-2 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-700/50 transition-colors"
+                    onClick={() => toggleAlbumSelection(album)}
+                  >
+                    <div className="w-full aspect-square bg-zinc-700 rounded-lg mb-2 overflow-hidden">
+                      {album.thumbnail ? (
+                        <img 
+                          src={album.thumbnail?.startsWith('data:') ? album.thumbnail : `${BACKEND_URL}${album.thumbnail_url || `/api/thumbnails/${album.album_id}`}`} 
+                          alt="" 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Music2 size={24} className="text-zinc-500" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-white truncate">{album.title}</p>
+                    <p className="text-xs text-zinc-400 truncate">{album.artist_name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Display Settings */}
+      <Card className="bg-zinc-900/50 border-zinc-800">
+        <CardHeader>
+          <CardTitle className="text-lg">Display Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+            <div>
+              <span className="text-sm font-medium">Auto-rotate</span>
+              <p className="text-xs text-zinc-400">Automatically cycle through hero items</p>
+            </div>
+            <Switch 
+              checked={config.auto_rotate} 
+              onCheckedChange={(checked) => setConfig(prev => ({ ...prev, auto_rotate: checked }))}
+            />
+          </div>
+          
+          {config.auto_rotate && (
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">Rotation Interval (seconds)</label>
+              <Select 
+                value={String(config.rotation_interval)} 
+                onValueChange={(v) => setConfig(prev => ({ ...prev, rotation_interval: parseInt(v) }))}
+              >
+                <SelectTrigger className="bg-zinc-950 border-zinc-700 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="3000">3 seconds</SelectItem>
+                  <SelectItem value="5000">5 seconds</SelectItem>
+                  <SelectItem value="7000">7 seconds</SelectItem>
+                  <SelectItem value="10000">10 seconds</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+            <div>
+              <span className="text-sm font-medium">Show Navigation Dots</span>
+              <p className="text-xs text-zinc-400">Display navigation indicators</p>
+            </div>
+            <Switch 
+              checked={config.show_navigation} 
+              onCheckedChange={(checked) => setConfig(prev => ({ ...prev, show_navigation: checked }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleSave} 
+          disabled={saving}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          {saving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save size={16} className="mr-2" />
+              Save Hero Configuration
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export default function LayoutManagementPage() {
   const [sections, setSections] = useState([]);
   const [burners, setBurners] = useState([]);
