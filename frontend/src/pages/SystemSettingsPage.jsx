@@ -604,7 +604,7 @@ export default function SystemSettingsPage() {
             Geo-Locking Configuration
           </CardTitle>
           <CardDescription>
-            Automatically detect user's IP and restrict access based on geographic location
+            Automatically detect user IP and restrict access based on geographic location
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
