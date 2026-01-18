@@ -55,7 +55,8 @@ const SystemSettingsPage = lazy(() => import("@/pages/SystemSettingsPage"));
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
-  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe
+  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe,
+  ChevronDown, ChevronRight, UsersRound
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -68,7 +69,18 @@ export const AuthContext = ({ children }) => {
 
 // Sidebar component with permission-based rendering
 const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) => {
+  const [expandedGroups, setExpandedGroups] = useState(['choir-singers']); // Default expanded
+  
+  const toggleGroup = (groupId) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupId) 
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+  
   // Map each nav item to required permissions
+  // Grouped items for Choir and Singers
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] }, // Always visible
     { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
@@ -79,8 +91,18 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
     { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
     { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
-    { path: "/admin/choirs", icon: Mic2, label: "Choir Management", permissions: ["choir_onboarding_approval", "user_management"] },
-    { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+    // Grouped: Choir and Singers
+    { 
+      groupId: "choir-singers",
+      icon: UsersRound, 
+      label: "Choir & Singers", 
+      permissions: ["choir_onboarding_approval", "user_management", "view_all_revenue_reports", "approve_payouts"],
+      children: [
+        { path: "/singers", icon: Mic2, label: "Singers & Choirs", permissions: ["user_management"] },
+        { path: "/admin/choirs", icon: Users, label: "Choir Management", permissions: ["choir_onboarding_approval", "user_management"] },
+        { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+      ]
+    },
     { path: "/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
     { path: "/users", icon: Users, label: "Users", permissions: ["user_management"] },
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
@@ -88,7 +110,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/leader-content", icon: BookOpen, label: "Leader Content", permissions: ["content_moderation", "content_approval"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
     { path: "/leaders", icon: UserCheck, label: "Religious Leaders", permissions: ["user_management"] },
-    { path: "/singers", icon: Mic2, label: "Singers & Choirs", permissions: ["user_management"] },
     { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
     { path: "/audiorooms", icon: Radio, label: "Audio Rooms", permissions: ["platform_settings"] },
     { path: "/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
@@ -98,11 +119,23 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
   ];
 
   // Filter nav items based on user permissions
-  const filteredNavItems = navItems.filter(item => {
-    // Items with no permissions are always visible
+  const filterItem = (item) => {
     if (!item.permissions || item.permissions.length === 0) return true;
-    // Check if user has at least one of the required permissions
     return item.permissions.some(perm => userPermissions.includes(perm));
+  };
+  
+  const filteredNavItems = navItems.filter(item => {
+    if (item.children) {
+      // For grouped items, show if any child is visible
+      const visibleChildren = item.children.filter(filterItem);
+      return visibleChildren.length > 0;
+    }
+    return filterItem(item);
+  }).map(item => {
+    if (item.children) {
+      return { ...item, children: item.children.filter(filterItem) };
+    }
+    return item;
   });
 
   return (
