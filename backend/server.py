@@ -9818,7 +9818,11 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_db_migration():
-    """Run database migrations on startup"""
+    """Run database migrations and initialize services on startup"""
+    # Initialize Redis cache
+    await cache.connect()
+    logger.info("Cache service initialized")
+    
     # Migrate singers: convert 'followers' to 'followers_count' for consistency
     result = await db.singers.update_many(
         {"followers": {"$exists": True}, "followers_count": {"$exists": False}},
@@ -9845,4 +9849,5 @@ async def startup_db_migration():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    await cache.disconnect()
     client.close()
