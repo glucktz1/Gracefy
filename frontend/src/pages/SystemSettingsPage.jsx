@@ -108,6 +108,291 @@ const SIDEBAR_ITEMS = [
   { id: "legal", label: "Legal & Compliance", icon: FileText },
 ];
 
+// Translation Management Card Component
+const TranslationManagementCard = () => {
+  const [translationStats, setTranslationStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [previewLang, setPreviewLang] = useState('sw');
+  const [previewTranslations, setPreviewTranslations] = useState({});
+
+  // Fetch translation statistics
+  const fetchTranslationStats = async () => {
+    setLoadingStats(true);
+    try {
+      const response = await axios.get(`${API}/admin/translations/languages`, { withCredentials: true });
+      setTranslationStats(response.data);
+    } catch (e) {
+      console.error("Failed to fetch translation stats:", e);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  // Fetch preview translations for selected language
+  const fetchPreviewTranslations = async (lang) => {
+    try {
+      const response = await axios.get(`${API}/translations?lang=${lang}`);
+      setPreviewTranslations(response.data.translations || {});
+    } catch (e) {
+      console.error("Failed to fetch preview:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchTranslationStats();
+    fetchPreviewTranslations('sw');
+  }, []);
+
+  useEffect(() => {
+    fetchPreviewTranslations(previewLang);
+  }, [previewLang]);
+
+  // Sample keys to preview
+  const previewKeys = [
+    'nav.home', 'nav.search', 'nav.library', 
+    'action.play', 'action.download', 'common.loading',
+    'library.likedSongs', 'player.nowPlaying', 'auth.login'
+  ];
+
+  return (
+    <Card className="bg-slate-900/50 border-slate-700">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="w-5 h-5 text-violet-400" />
+          Translation Management
+        </CardTitle>
+        <CardDescription>
+          Download, edit and upload translations for all supported languages
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        
+        {/* Translation Status Section */}
+        <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-lg">
+          <h4 className="text-sm font-medium text-emerald-400 mb-3 flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            Translation Status
+          </h4>
+          {loadingStats ? (
+            <div className="text-sm text-slate-400">Loading translation stats...</div>
+          ) : translationStats ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {translationStats.languages?.map(lang => (
+                  <div key={lang.code} className="bg-slate-800/50 p-3 rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-white">{lang.nativeName || lang.name}</span>
+                      {lang.isDefault && (
+                        <Badge variant="outline" className="text-xs border-emerald-500 text-emerald-400">Default</Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {lang.translatedKeys} / {lang.totalKeys} keys ({lang.completionPercentage}%)
+                    </div>
+                    <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        style={{ width: `${lang.completionPercentage}%` }}
+                      />
+                    </div>
+                    {lang.updatedAt && (
+                      <div className="text-xs text-slate-500 mt-1">
+                        Updated: {new Date(lang.updatedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="text-xs text-slate-400">
+                Total translation keys: <span className="text-white font-medium">{translationStats.totalKeys}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-slate-400">Could not load translation stats</div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-2 text-emerald-400 hover:text-emerald-300"
+            onClick={fetchTranslationStats}
+          >
+            Refresh Status
+          </Button>
+        </div>
+
+        {/* Translation Preview Section */}
+        <div className="bg-slate-800/50 p-4 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-white">Preview Translations</h4>
+            <Select value={previewLang} onValueChange={setPreviewLang}>
+              <SelectTrigger className="w-32 bg-slate-900 border-slate-600 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sw">Kiswahili</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs max-h-48 overflow-y-auto">
+            {previewKeys.map(key => (
+              <div key={key} className="flex justify-between p-2 bg-slate-900/50 rounded">
+                <span className="text-slate-500 font-mono">{key}</span>
+                <span className="text-white ml-2">{previewTranslations[key] || '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Download Section */}
+        <div className="bg-slate-800/50 p-4 rounded-lg">
+          <h4 className="text-sm font-medium text-white mb-2">Download Translation Template</h4>
+          <p className="text-xs text-slate-400 mb-3">
+            Download an Excel file containing all translatable text. Edit the translations and upload it back.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="border-violet-500 text-violet-400 hover:bg-violet-500/10"
+              onClick={async () => {
+                try {
+                  const response = await axios.get(`${API}/admin/translations/download`, {
+                    responseType: 'blob',
+                    withCredentials: true
+                  });
+                  
+                  const blob = new Blob([response.data], { 
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                  });
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', 'gracefy_translations.xlsx');
+                  document.body.appendChild(link);
+                  link.click();
+                  
+                  setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  }, 100);
+                  
+                  toast.success("Translation file downloaded!");
+                } catch (e) {
+                  console.error("Download error:", e);
+                  toast.error(e.response?.data?.detail || "Failed to download translations");
+                }
+              }}
+            >
+              <Upload className="w-4 h-4 mr-2 rotate-180" />
+              Download Excel Template
+            </Button>
+            
+            <a
+              href={`${API}/admin/translations/download`}
+              download="gracefy_translations.xlsx"
+              className="inline-flex items-center px-4 py-2 rounded-md border border-zinc-600 text-zinc-400 hover:bg-zinc-700 text-sm"
+            >
+              Direct Link
+            </a>
+          </div>
+        </div>
+
+        {/* Upload Section */}
+        <div className="bg-slate-800/50 p-4 rounded-lg">
+          <h4 className="text-sm font-medium text-white mb-2">Upload Translated File</h4>
+          <p className="text-xs text-slate-400 mb-3">
+            Upload the edited Excel file to update translations. Changes will reflect immediately on user apps.
+          </p>
+          <div className="flex flex-col gap-3">
+            <input
+              type="file"
+              id="translation-upload"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                
+                const uploadBtn = document.getElementById('upload-btn');
+                const uploadStatus = document.getElementById('upload-status');
+                if (uploadBtn) uploadBtn.disabled = true;
+                if (uploadStatus) {
+                  uploadStatus.textContent = 'Uploading...';
+                  uploadStatus.className = 'text-sm text-yellow-400 mt-2';
+                }
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                  const response = await axios.post(`${API}/admin/translations/upload`, formData, {
+                    withCredentials: true,
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                  });
+                  
+                  const langCount = response.data.languages_updated?.length || 0;
+                  const keyCount = response.data.total_keys || 0;
+                  toast.success(`✓ Translations uploaded successfully!`);
+                  
+                  if (uploadStatus) {
+                    uploadStatus.innerHTML = `<span class="text-emerald-400">✓ Success!</span> Updated ${langCount} language(s) with ${keyCount} translation keys.`;
+                    uploadStatus.className = 'text-sm mt-2';
+                  }
+                  
+                  // Refresh stats after upload
+                  fetchTranslationStats();
+                  fetchPreviewTranslations(previewLang);
+                  
+                  e.target.value = '';
+                } catch (err) {
+                  console.error("Upload error:", err);
+                  const errorMsg = err.response?.data?.detail || "Failed to upload translations";
+                  toast.error(errorMsg);
+                  
+                  if (uploadStatus) {
+                    uploadStatus.innerHTML = `<span class="text-red-400">✗ Error:</span> ${errorMsg}`;
+                    uploadStatus.className = 'text-sm mt-2';
+                  }
+                  
+                  e.target.value = '';
+                } finally {
+                  if (uploadBtn) uploadBtn.disabled = false;
+                }
+              }}
+            />
+            <div className="flex items-center gap-3">
+              <Button
+                id="upload-btn"
+                variant="outline"
+                className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10"
+                onClick={() => document.getElementById('translation-upload')?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Translated Excel
+              </Button>
+              <span className="text-xs text-slate-500">(.xlsx or .xls files)</span>
+            </div>
+            <div id="upload-status" className="text-sm text-slate-400 mt-1"></div>
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
+          <h4 className="text-sm font-medium text-blue-400 mb-2">How to Translate:</h4>
+          <ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
+            <li>Download the Excel template above</li>
+            <li>Open it in Excel or Google Sheets</li>
+            <li>Edit the translations in the &quot;swahili&quot; column (or add new language columns)</li>
+            <li>Keep the &quot;key&quot; column unchanged</li>
+            <li>Save and upload the file</li>
+            <li>Check the &quot;Translation Status&quot; section above to verify changes</li>
+          </ol>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState("branding");
   const [loading, setLoading] = useState(true);
