@@ -4385,7 +4385,7 @@ async def get_user_home():
         elif section["section_type"] == "quick_access":
             categories = await db.categories.find(
                 {"status": "active"},
-                {"_id": 0}
+                CATEGORY_LIST_PROJECTION
             ).limit(section.get("content_count", 6)).to_list(6)
             section_data["items"] = categories
             section_data["content_type"] = "categories"
@@ -4393,43 +4393,43 @@ async def get_user_home():
         elif section["section_type"] in ["featured_albums", "trending"]:
             albums = await db.albums.find(
                 {"status": "active"},
-                {"_id": 0}
+                ALBUM_LIST_PROJECTION
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            albums = optimize_thumbnails(albums)
             section_data["items"] = albums
             section_data["content_type"] = "albums"
         
         elif section["section_type"] == "special_mixes":
             mixes = await db.special_mixes.find(
                 {"status": "active"},
-                {"_id": 0}
+                {"_id": 0, "songs": 0}  # Exclude large songs array
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
             for mix in mixes:
                 mix["album_id"] = mix["mix_id"]
                 mix["is_special_mix"] = True
+            mixes = optimize_thumbnails(mixes)
             section_data["items"] = mixes
             section_data["content_type"] = "special_mixes"
         
         elif section["section_type"] == "choirs":
             choirs = await db.singers.find(
                 {},
-                {"_id": 0}
+                {"_id": 0, "bio": 0}  # Exclude large text fields
             ).sort("followers_count", -1).limit(section.get("content_count", 10)).to_list(10)
             for choir in choirs:
-                albums_count = await db.albums.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
-                songs_count = await db.songs.count_documents({"artist_id": choir.get("singer_id"), "status": "active"})
-                choir["albums_count"] = albums_count
-                choir["songs_count"] = songs_count
                 choir["entity_type"] = "choir"
+            choirs = optimize_thumbnails(choirs)
             section_data["items"] = choirs
             section_data["content_type"] = "choirs"
         
         elif section["section_type"] == "churches":
             churches = await db.churches.find(
                 {"status": "approved"},
-                {"_id": 0}
+                {"_id": 0, "description": 0}  # Exclude large text fields
             ).sort("followers_count", -1).limit(section.get("content_count", 10)).to_list(10)
             for church in churches:
                 church["entity_type"] = "church"
+            churches = optimize_thumbnails(churches)
             section_data["items"] = churches
             section_data["content_type"] = "churches"
             
@@ -4439,8 +4439,9 @@ async def get_user_home():
             if section.get("content_ids"):
                 items = await db.albums.find(
                     {"album_id": {"$in": section["content_ids"]}},
-                    {"_id": 0}
+                    ALBUM_LIST_PROJECTION
                 ).to_list(10)
+                items = optimize_thumbnails(items)
                 section_data["items"] = items
             else:
                 section_data["items"] = []
