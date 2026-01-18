@@ -1,5 +1,5 @@
 // API Configuration - Using the production backend URL
-const API_BASE_URL = 'https://faithtunes-5.preview.emergentagent.com';
+const API_BASE_URL = 'https://faith-melody-3.preview.emergentagent.com';
 
 export const API_URL = `${API_BASE_URL}/api`;
 
