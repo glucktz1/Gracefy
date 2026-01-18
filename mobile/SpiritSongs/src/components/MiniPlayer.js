@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '../context/PlayerContext';
+import { getItemThumbnail } from '../services/api';
 import { COLORS } from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,8 +50,8 @@ const MiniPlayer = memo(() => {
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
 
-  // Get thumbnail
-  const thumbnail = currentSong.thumbnail || currentAlbum?.thumbnail;
+  // Get thumbnail - use getItemThumbnail for optimized thumbnail support
+  const thumbnail = getItemThumbnail(currentSong) || getItemThumbnail(currentAlbum);
 
   // Calculate tab bar height with safe area
   const tabBarHeight = 60 + Math.max(insets.bottom, 12);
