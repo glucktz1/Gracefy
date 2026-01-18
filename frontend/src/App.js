@@ -171,21 +171,69 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
           <nav className="flex-1 overflow-y-auto py-4">
             <ul className="space-y-1 px-3">
               {filteredNavItems.map((item) => (
-                <li key={item.path}>
-                  <NavLink
-                    to={item.path}
-                    onClick={() => setIsOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        isActive
-                          ? "bg-violet-600/20 text-violet-400 border-l-2 border-violet-500"
-                          : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-                      }`
-                    }
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                  </NavLink>
+                <li key={item.path || item.groupId}>
+                  {item.children ? (
+                    // Grouped menu item with children
+                    <div>
+                      <button
+                        onClick={() => toggleGroup(item.groupId)}
+                        className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          expandedGroups.includes(item.groupId)
+                            ? "bg-violet-600/10 text-violet-400"
+                            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon size={18} />
+                          {item.label}
+                        </div>
+                        {expandedGroups.includes(item.groupId) ? (
+                          <ChevronDown size={16} />
+                        ) : (
+                          <ChevronRight size={16} />
+                        )}
+                      </button>
+                      {/* Sub-items */}
+                      {expandedGroups.includes(item.groupId) && (
+                        <ul className="mt-1 ml-4 space-y-1 border-l border-zinc-800 pl-2">
+                          {item.children.map((child) => (
+                            <li key={child.path}>
+                              <NavLink
+                                to={child.path}
+                                onClick={() => setIsOpen(false)}
+                                className={({ isActive }) =>
+                                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                    isActive
+                                      ? "bg-violet-600/20 text-violet-400"
+                                      : "text-zinc-500 hover:text-white hover:bg-zinc-800/50"
+                                  }`
+                                }
+                              >
+                                <child.icon size={16} />
+                                {child.label}
+                              </NavLink>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : (
+                    // Regular menu item
+                    <NavLink
+                      to={item.path}
+                      onClick={() => setIsOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          isActive
+                            ? "bg-violet-600/20 text-violet-400 border-l-2 border-violet-500"
+                            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+                        }`
+                      }
+                    >
+                      <item.icon size={18} />
+                      {item.label}
+                    </NavLink>
+                  )}
                 </li>
               ))}
             </ul>
