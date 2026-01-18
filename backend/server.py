@@ -10290,6 +10290,284 @@ async def get_geo_stats():
     }
 
 
+# ============== BIBLIA NA VITABU VYA DINI (BIBLE MODULE) ==============
+from services.bible_service import BibleService
+from services.tts_service import TTSService
+
+# Initialize services
+bible_service = BibleService(db)
+tts_service = TTSService(db)
+
+
+@api_router.post("/admin/bible/initialize")
+async def initialize_bible_data(language: str = "sw"):
+    """Download and store Bible data in MongoDB"""
+    try:
+        result = await bible_service.fetch_and_store_bible(language)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/bible/stats")
+async def get_bible_stats(language: str = "sw"):
+    """Get statistics about stored Bible data"""
+    stats = await bible_service.get_bible_stats(language)
+    return stats
+
+
+@api_router.get("/bible/books")
+async def get_bible_books(language: str = "sw"):
+    """Get all Bible books"""
+    books = await bible_service.get_books(language)
+    return {"books": books, "count": len(books)}
+
+
+@api_router.get("/bible/books/{book_name}/chapters")
+async def get_book_chapters(book_name: str, language: str = "sw"):
+    """Get all chapters for a book"""
+    chapters = await bible_service.get_chapters(book_name, language)
+    return {"book": book_name, "chapters": chapters, "count": len(chapters)}
+
+
+@api_router.get("/bible/books/{book_name}/chapters/{chapter}")
+async def get_chapter_verses(book_name: str, chapter: int, language: str = "sw"):
+    """Get all verses for a chapter"""
+    verses = await bible_service.get_verses(book_name, chapter, language)
+    return {
+        "book": book_name,
+        "chapter": chapter,
+        "verses": verses,
+        "count": len(verses)
+    }
+
+
+@api_router.get("/bible/verse/{book_name}/{chapter}/{verse}")
+async def get_single_verse(book_name: str, chapter: int, verse: int, language: str = "sw"):
+    """Get a specific verse"""
+    verse_data = await bible_service.get_verse(book_name, chapter, verse, language)
+    if not verse_data:
+        raise HTTPException(status_code=404, detail="Verse not found")
+    return verse_data
+
+
+@api_router.get("/bible/passage/{book_name}/{chapter}/{start_verse}/{end_verse}")
+async def get_passage(book_name: str, chapter: int, start_verse: int, end_verse: int, language: str = "sw"):
+    """Get a range of verses"""
+    verses = await bible_service.get_passage(book_name, chapter, start_verse, end_verse, language)
+    text = " ".join([v["text"] for v in verses])
+    return {
+        "reference": f"{book_name} {chapter}:{start_verse}-{end_verse}",
+        "verses": verses,
+        "combined_text": text,
+        "count": len(verses)
+    }
+
+
+@api_router.get("/bible/search")
+async def search_bible(q: str, language: str = "sw", limit: int = 50):
+    """Search Bible for text"""
+    verses = await bible_service.search_verses(q, language, limit)
+    return {"query": q, "results": verses, "count": len(verses)}
+
+
+# ============== BIBLE TTS (Text-to-Speech) ==============
+
+@api_router.get("/bible/tts/voices")
+async def get_tts_voices():
+    """Get available TTS voices"""
+    voices = tts_service.get_available_voices()
+    return {"voices": voices}
+
+
+@api_router.post("/bible/tts/generate")
+async def generate_bible_audio(data: dict):
+    """Generate audio from Bible text on-demand"""
+    text = data.get("text")
+    voice = data.get("voice", "nova")
+    speed = data.get("speed", 1.0)
+    
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    
+    if len(text) > 4000:
+        raise HTTPException(status_code=400, detail="Text too long (max 4000 characters)")
+    
+    try:
+        result = await tts_service.generate_audio(text, voice, speed)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/bible/tts/verse")
+async def generate_verse_audio(data: dict):
+    """Generate audio for a specific verse"""
+    book_name = data.get("book_name")
+    chapter = data.get("chapter")
+    verse = data.get("verse")
+    language = data.get("language", "sw")
+    voice = data.get("voice", "nova")
+    speed = data.get("speed", 1.0)
+    
+    if not all([book_name, chapter, verse]):
+        raise HTTPException(status_code=400, detail="book_name, chapter, and verse are required")
+    
+    # Get the verse
+    verse_data = await bible_service.get_verse(book_name, chapter, verse, language)
+    if not verse_data:
+        raise HTTPException(status_code=404, detail="Verse not found")
+    
+    try:
+        result = await tts_service.generate_audio(verse_data["text"], voice, speed)
+        result["reference"] = verse_data["reference"]
+        result["verse_text"] = verse_data["text"]
+        
+        # Track analytics
+        await tts_service._track_listening_analytics(f"verse_{book_name}_{chapter}_{verse}", book_name, chapter)
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/bible/tts/passage")
+async def generate_passage_audio(data: dict):
+    """Generate audio for a passage (multiple verses)"""
+    book_name = data.get("book_name")
+    chapter = data.get("chapter")
+    start_verse = data.get("start_verse")
+    end_verse = data.get("end_verse")
+    language = data.get("language", "sw")
+    voice = data.get("voice", "nova")
+    speed = data.get("speed", 1.0)
+    
+    if not all([book_name, chapter, start_verse, end_verse]):
+        raise HTTPException(status_code=400, detail="book_name, chapter, start_verse, and end_verse are required")
+    
+    # Get the verses
+    verses = await bible_service.get_passage(book_name, chapter, start_verse, end_verse, language)
+    if not verses:
+        raise HTTPException(status_code=404, detail="Passage not found")
+    
+    combined_text = " ".join([v["text"] for v in verses])
+    
+    if len(combined_text) > 4000:
+        raise HTTPException(status_code=400, detail="Passage too long for TTS (max ~4000 characters)")
+    
+    try:
+        result = await tts_service.generate_audio(combined_text, voice, speed)
+        result["reference"] = f"{book_name} {chapter}:{start_verse}-{end_verse}"
+        result["verse_count"] = len(verses)
+        
+        # Track analytics
+        await tts_service._track_listening_analytics(f"passage_{book_name}_{chapter}", book_name, chapter)
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== ADMIN BIBLE SNIPPETS ==============
+
+@api_router.post("/admin/bible/snippets")
+async def create_bible_snippet(data: dict):
+    """Create a pre-generated Bible snippet with audio"""
+    try:
+        snippet = await tts_service.create_bible_snippet(
+            title=data.get("title"),
+            description=data.get("description", ""),
+            book_name=data.get("book_name"),
+            chapter=data.get("chapter"),
+            start_verse=data.get("start_verse"),
+            end_verse=data.get("end_verse"),
+            language=data.get("language", "sw"),
+            voice=data.get("voice", "nova"),
+            speed=data.get("speed", 1.0),
+            created_by=data.get("created_by")
+        )
+        return snippet
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/admin/bible/snippets")
+async def get_admin_bible_snippets(
+    language: str = None,
+    book_name: str = None,
+    limit: int = 50,
+    skip: int = 0
+):
+    """Get all Bible snippets for admin"""
+    snippets = await tts_service.get_snippets(
+        language=language,
+        book_name=book_name,
+        limit=limit,
+        skip=skip,
+        active_only=False  # Admin sees all
+    )
+    total = await db.bible_snippets.count_documents({})
+    return {"snippets": snippets, "total": total}
+
+
+@api_router.put("/admin/bible/snippets/{snippet_id}")
+async def update_bible_snippet(snippet_id: str, data: dict):
+    """Update a Bible snippet"""
+    success = await tts_service.update_snippet(snippet_id, data)
+    if not success:
+        raise HTTPException(status_code=404, detail="Snippet not found")
+    return {"message": "Snippet updated"}
+
+
+@api_router.delete("/admin/bible/snippets/{snippet_id}")
+async def delete_bible_snippet(snippet_id: str):
+    """Delete a Bible snippet"""
+    success = await tts_service.delete_snippet(snippet_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Snippet not found")
+    return {"message": "Snippet deleted"}
+
+
+# ============== USER BIBLE SNIPPETS ==============
+
+@api_router.get("/bible/snippets")
+async def get_bible_snippets(
+    language: str = None,
+    book_name: str = None,
+    limit: int = 50,
+    skip: int = 0
+):
+    """Get active Bible snippets for users"""
+    snippets = await tts_service.get_snippets(
+        language=language,
+        book_name=book_name,
+        limit=limit,
+        skip=skip,
+        active_only=True
+    )
+    return {"snippets": snippets}
+
+
+@api_router.get("/bible/snippets/{snippet_id}")
+async def get_snippet_with_audio(snippet_id: str):
+    """Get a specific snippet with its audio data"""
+    snippet = await tts_service.get_snippet_audio(snippet_id)
+    if not snippet:
+        raise HTTPException(status_code=404, detail="Snippet not found")
+    return snippet
+
+
+# ============== BIBLE ANALYTICS ==============
+
+@api_router.get("/admin/bible/analytics")
+async def get_bible_analytics(days: int = 30):
+    """Get Bible listening analytics"""
+    analytics = await tts_service.get_analytics(days)
+    return analytics
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
