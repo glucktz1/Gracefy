@@ -384,6 +384,7 @@ export default function HomeScreen({ navigation }) {
   const [downloadsCount, setDownloadsCount] = useState(0);
   const { currentSong } = usePlayer();
   const { user, isAuthenticated } = useAuth();
+  const { t, strings } = useLanguage();
 
   const fetchData = useCallback(async () => {
     try {
