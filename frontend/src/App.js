@@ -342,49 +342,51 @@ function AppRouter() {
   }
 
   return (
-    <Routes>
-      {/* User Streaming App - Public */}
-      <Route path="/app" element={<UserStreamingApp />} />
-      
-      {/* Public Choir Registration */}
-      <Route path="/choir-register" element={<ChoirRegistrationPage />} />
-      
-      {/* Admin Routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/choir/login" element={<ChoirLoginPage />} />
-      <Route path="/choir-login" element={<ChoirLoginPage />} />
-      <Route path="/choir/dashboard" element={<ChoirDashboard />} />
-      <Route path="/church/login" element={<ChurchLeaderLoginPage />} />
-      <Route path="/church/dashboard" element={<ChurchLeaderDashboard />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><EnhancedAnalyticsPage /></ProtectedRoute>} />
-      <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
-      <Route path="/monetization" element={<ProtectedRoute><MonetizationSettingsPage /></ProtectedRoute>} />
-      <Route path="/app-settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
-      <Route path="/system-settings" element={<ProtectedRoute><SystemSettingsPage /></ProtectedRoute>} />
-      <Route path="/roles" element={<ProtectedRoute><RoleManagementPage /></ProtectedRoute>} />
-      <Route path="/layout-management" element={<ProtectedRoute><LayoutManagementPage /></ProtectedRoute>} />
-      <Route path="/special-mixes" element={<ProtectedRoute><SpecialMixesPage /></ProtectedRoute>} />
-      <Route path="/admin/choirs" element={<ProtectedRoute><ChoirManagementPage /></ProtectedRoute>} />
-      <Route path="/admin/choirs/:choirId" element={<ProtectedRoute><ChoirDetailsPage /></ProtectedRoute>} />
-      <Route path="/choir-accounts" element={<ProtectedRoute><ChoirAccountsPage /></ProtectedRoute>} />
-      <Route path="/withdrawals" element={<ProtectedRoute><WithdrawalsPage /></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-      <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
-      <Route path="/albums" element={<ProtectedRoute><AlbumsPage /></ProtectedRoute>} />
-      <Route path="/leader-content" element={<ProtectedRoute><ContentManagementPage /></ProtectedRoute>} />
-      <Route path="/churches" element={<ProtectedRoute><ChurchesPage /></ProtectedRoute>} />
-      <Route path="/leaders" element={<ProtectedRoute><LeadersPage /></ProtectedRoute>} />
-      <Route path="/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
-      <Route path="/seminars" element={<ProtectedRoute><SeminarsPage /></ProtectedRoute>} />
-      <Route path="/audiorooms" element={<ProtectedRoute><AudioRoomsPage /></ProtectedRoute>} />
-      <Route path="/donations" element={<ProtectedRoute><DonationsPage /></ProtectedRoute>} />
-      <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
-      <Route path="/bookings" element={<ProtectedRoute><BookingsPage /></ProtectedRoute>} />
-      <Route path="/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
-      <Route path="/" element={<LoginPage />} />
-      <Route path="*" element={<LoginPage />} />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* User Streaming App - Public */}
+        <Route path="/app" element={<UserStreamingApp />} />
+        
+        {/* Public Choir Registration */}
+        <Route path="/choir-register" element={<ChoirRegistrationPage />} />
+        
+        {/* Admin Routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/choir/login" element={<ChoirLoginPage />} />
+        <Route path="/choir-login" element={<ChoirLoginPage />} />
+        <Route path="/choir/dashboard" element={<ChoirDashboard />} />
+        <Route path="/church/login" element={<ChurchLeaderLoginPage />} />
+        <Route path="/church/dashboard" element={<ChurchLeaderDashboard />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/analytics" element={<ProtectedRoute><EnhancedAnalyticsPage /></ProtectedRoute>} />
+        <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
+        <Route path="/monetization" element={<ProtectedRoute><MonetizationSettingsPage /></ProtectedRoute>} />
+        <Route path="/app-settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
+        <Route path="/system-settings" element={<ProtectedRoute><SystemSettingsPage /></ProtectedRoute>} />
+        <Route path="/roles" element={<ProtectedRoute><RoleManagementPage /></ProtectedRoute>} />
+        <Route path="/layout-management" element={<ProtectedRoute><LayoutManagementPage /></ProtectedRoute>} />
+        <Route path="/special-mixes" element={<ProtectedRoute><SpecialMixesPage /></ProtectedRoute>} />
+        <Route path="/admin/choirs" element={<ProtectedRoute><ChoirManagementPage /></ProtectedRoute>} />
+        <Route path="/admin/choirs/:choirId" element={<ProtectedRoute><ChoirDetailsPage /></ProtectedRoute>} />
+        <Route path="/choir-accounts" element={<ProtectedRoute><ChoirAccountsPage /></ProtectedRoute>} />
+        <Route path="/withdrawals" element={<ProtectedRoute><WithdrawalsPage /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+        <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
+        <Route path="/albums" element={<ProtectedRoute><AlbumsPage /></ProtectedRoute>} />
+        <Route path="/leader-content" element={<ProtectedRoute><ContentManagementPage /></ProtectedRoute>} />
+        <Route path="/churches" element={<ProtectedRoute><ChurchesPage /></ProtectedRoute>} />
+        <Route path="/leaders" element={<ProtectedRoute><LeadersPage /></ProtectedRoute>} />
+        <Route path="/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
+        <Route path="/seminars" element={<ProtectedRoute><SeminarsPage /></ProtectedRoute>} />
+        <Route path="/audiorooms" element={<ProtectedRoute><AudioRoomsPage /></ProtectedRoute>} />
+        <Route path="/donations" element={<ProtectedRoute><DonationsPage /></ProtectedRoute>} />
+        <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+        <Route path="/bookings" element={<ProtectedRoute><BookingsPage /></ProtectedRoute>} />
+        <Route path="/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
+        <Route path="/" element={<LoginPage />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    </Suspense>
   );
 }
 
