@@ -57,11 +57,101 @@ export const PlayerProvider = ({ children }) => {
     };
     setupAudio();
     fetchAllAlbums();
+    restorePlaybackState(); // Restore last playback state
+    
+    // Handle app state changes to save position
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
+      savePlaybackState();
       stopAndUnloadSound();
+      subscription?.remove();
     };
   }, []);
+
+  // Save playback state when position changes significantly
+  useEffect(() => {
+    lastPositionRef.current = position;
+    // Save state periodically (every 10 seconds or more)
+    if (currentSong && position > 0 && Math.floor(position) % 10 === 0) {
+      savePlaybackState();
+    }
+  }, [position, currentSong]);
+
+  const handleAppStateChange = async (nextAppState) => {
+    if (appStateRef.current.match(/active/) && nextAppState.match(/inactive|background/)) {
+      // App going to background - save state
+      await savePlaybackState();
+    }
+    appStateRef.current = nextAppState;
+  };
+
+  const savePlaybackState = async () => {
+    if (!currentSong) return;
+    
+    try {
+      const state = {
+        songId: currentSong.song_id,
+        songData: currentSong,
+        albumData: currentAlbum,
+        position: lastPositionRef.current || position,
+        queueIndex: queueIndex,
+        timestamp: Date.now(),
+      };
+      await SecureStore.setItemAsync(PLAYBACK_STATE_KEY, JSON.stringify(state));
+      console.log('Saved playback state at position:', state.position);
+    } catch (e) {
+      console.log('Error saving playback state:', e);
+    }
+  };
+
+  const restorePlaybackState = async () => {
+    if (hasRestoredState) return;
+    
+    try {
+      const savedState = await SecureStore.getItemAsync(PLAYBACK_STATE_KEY);
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        
+        // Only restore if saved within last 24 hours
+        const hoursSinceSaved = (Date.now() - state.timestamp) / (1000 * 60 * 60);
+        if (hoursSinceSaved < 24 && state.songData && state.position > 0) {
+          console.log('Restoring playback state:', state.songData.title, 'at position:', state.position);
+          
+          // Set the song and album info (but don't auto-play)
+          setCurrentSong(state.songData);
+          setCurrentAlbum(state.albumData);
+          setPosition(state.position);
+          
+          // Mark as restored
+          setHasRestoredState(true);
+        }
+      }
+    } catch (e) {
+      console.log('Error restoring playback state:', e);
+    }
+  };
+
+  // Resume from saved position
+  const resumeFromLastPosition = async () => {
+    if (!currentSong) return;
+    
+    try {
+      const savedState = await SecureStore.getItemAsync(PLAYBACK_STATE_KEY);
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        if (state.songId === currentSong.song_id && state.position > 0) {
+          await loadAndPlaySong(currentSong, currentAlbum, state.position);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.log('Error resuming:', e);
+    }
+    
+    await loadAndPlaySong(currentSong, currentAlbum);
+    return false;
+  };
 
   const fetchAllAlbums = async () => {
     try {
