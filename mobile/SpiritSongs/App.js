@@ -126,11 +126,20 @@ function MainNavigator() {
 
 // App Container with MiniPlayer
 function AppContainer() {
+  const navigationRef = React.useRef(null);
+  const [currentRoute, setCurrentRoute] = React.useState('');
+
   return (
     <View style={styles.appContainer}>
-      <MainNavigator />
-      {/* Mini Player - shows at bottom when playing */}
-      <MiniPlayer />
+      <MainNavigator 
+        ref={navigationRef}
+        onStateChange={() => {
+          const route = navigationRef.current?.getCurrentRoute();
+          setCurrentRoute(route?.name || '');
+        }}
+      />
+      {/* Mini Player - hide when on NowPlaying screen */}
+      {currentRoute !== 'NowPlaying' && <MiniPlayer />}
     </View>
   );
 }
