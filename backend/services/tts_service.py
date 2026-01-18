@@ -1,5 +1,5 @@
 """
-TTS Service - Text-to-Speech using OpenAI via Emergent Integrations
+TTS Service - Text-to-Speech using ElevenLabs
 Generates audio from Bible text and stores for reuse
 """
 import os
@@ -15,50 +15,60 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Available voices
+# ElevenLabs voices - multilingual voices that work well with Swahili
 AVAILABLE_VOICES = [
-    {"id": "alloy", "name": "Alloy", "description": "Neutral, balanced"},
-    {"id": "ash", "name": "Ash", "description": "Clear, articulate"},
-    {"id": "coral", "name": "Coral", "description": "Warm, friendly"},
-    {"id": "echo", "name": "Echo", "description": "Smooth, calm"},
-    {"id": "fable", "name": "Fable", "description": "Expressive, storytelling"},
-    {"id": "nova", "name": "Nova", "description": "Energetic, upbeat"},
-    {"id": "onyx", "name": "Onyx", "description": "Deep, authoritative"},
-    {"id": "sage", "name": "Sage", "description": "Wise, measured"},
-    {"id": "shimmer", "name": "Shimmer", "description": "Bright, cheerful"}
+    {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel", "description": "Calm, clear American female"},
+    {"id": "AZnzlk1XvdvUeBnXmlld", "name": "Domi", "description": "Strong, confident female"},
+    {"id": "EXAVITQu4vr4xnSDxMaL", "name": "Bella", "description": "Soft, warm female"},
+    {"id": "ErXwobaYiN019PkySvjV", "name": "Antoni", "description": "Well-rounded male"},
+    {"id": "MF3mGyEYCl7XYWbV9V6O", "name": "Elli", "description": "Emotional, expressive female"},
+    {"id": "TxGEqnHWrfWFTfGW9XjX", "name": "Josh", "description": "Deep, narrative male"},
+    {"id": "VR6AewLTigWG4xSOukaG", "name": "Arnold", "description": "Crisp, authoritative male"},
+    {"id": "pNInz6obpgDQGcFmaJgB", "name": "Adam", "description": "Deep, narration male"},
+    {"id": "yoZ06aMxZJJ28mfd3POQ", "name": "Sam", "description": "Raspy, dynamic male"},
+    {"id": "jBpfuIE2acCO8z3wKNLl", "name": "Gigi", "description": "Childish, animated female"},
+    {"id": "oWAxZDx7w5VEj9dCyTzz", "name": "Grace", "description": "Southern American female"},
 ]
+
+# Default voice for Bible reading
+DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # Rachel - calm and clear
 
 
 class TTSService:
     def __init__(self, db):
         self.db = db
-        self.api_key = os.environ.get("EMERGENT_LLM_KEY")
-        self._tts_client = None
+        self.api_key = os.environ.get("ELEVENLABS_API_KEY")
+        self._client = None
         
-    async def _get_tts_client(self):
-        """Lazy initialization of TTS client"""
-        if self._tts_client is None:
-            from emergentintegrations.llm.openai import OpenAITextToSpeech
-            self._tts_client = OpenAITextToSpeech(api_key=self.api_key)
-        return self._tts_client
+    def _get_client(self):
+        """Lazy initialization of ElevenLabs client"""
+        if self._client is None:
+            from elevenlabs import ElevenLabs
+            self._client = ElevenLabs(api_key=self.api_key)
+        return self._client
     
-    def _generate_audio_hash(self, text: str, voice: str, speed: float) -> str:
+    def _generate_audio_hash(self, text: str, voice: str, stability: float) -> str:
         """Generate a unique hash for caching purposes"""
-        content = f"{text}|{voice}|{speed}"
+        content = f"{text}|{voice}|{stability}|elevenlabs"
         return hashlib.md5(content.encode()).hexdigest()
     
     async def generate_audio(
         self,
         text: str,
-        voice: str = "nova",
+        voice: str = None,
         speed: float = 1.0,
-        model: str = "tts-1",
+        stability: float = 0.5,
+        similarity_boost: float = 0.75,
         cache: bool = True
     ) -> Dict[str, Any]:
-        """Generate audio from text using OpenAI TTS"""
+        """Generate audio from text using ElevenLabs TTS"""
         try:
+            # Use default voice if not specified or if old OpenAI voice name provided
+            if not voice or voice in ["nova", "alloy", "echo", "fable", "onyx", "shimmer", "ash", "coral", "sage"]:
+                voice = DEFAULT_VOICE
+            
             # Check cache first
-            audio_hash = self._generate_audio_hash(text, voice, speed)
+            audio_hash = self._generate_audio_hash(text, voice, stability)
             
             if cache:
                 cached = await self.db.bible_audio_cache.find_one(
@@ -80,24 +90,39 @@ class TTSService:
                         "audio_base64": cached["audio_base64"],
                         "cached": True,
                         "voice": voice,
-                        "duration_estimate": len(text) / 15  # Rough estimate
+                        "provider": "elevenlabs",
+                        "duration_estimate": len(text) / 15
                     }
             
-            # Generate new audio
-            tts_client = await self._get_tts_client()
+            # Generate new audio using ElevenLabs
+            client = self._get_client()
             
-            # Split text if too long (4096 char limit)
-            if len(text) > 4000:
-                # For long text, we'll just take first 4000 chars with warning
-                text = text[:4000]
-                logger.warning("Text truncated to 4000 characters")
+            # ElevenLabs has a 5000 char limit per request
+            if len(text) > 5000:
+                text = text[:5000]
+                logger.warning("Text truncated to 5000 characters")
             
-            audio_bytes = await tts_client.generate_speech(
-                text=text,
-                model=model,
-                voice=voice,
-                speed=speed
+            # Use eleven_multilingual_v2 for better Swahili support
+            from elevenlabs import VoiceSettings
+            
+            voice_settings = VoiceSettings(
+                stability=stability,
+                similarity_boost=similarity_boost,
+                style=0.0,
+                use_speaker_boost=True
             )
+            
+            audio_generator = client.text_to_speech.convert(
+                text=text,
+                voice_id=voice,
+                model_id="eleven_multilingual_v2",
+                voice_settings=voice_settings
+            )
+            
+            # Collect audio data from generator
+            audio_bytes = b""
+            for chunk in audio_generator:
+                audio_bytes += chunk
             
             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
             audio_id = f"audio_{uuid.uuid4().hex[:12]}"
@@ -110,8 +135,10 @@ class TTSService:
                     "audio_base64": audio_base64,
                     "text_length": len(text),
                     "voice": voice,
-                    "speed": speed,
-                    "model": model,
+                    "stability": stability,
+                    "similarity_boost": similarity_boost,
+                    "model": "eleven_multilingual_v2",
+                    "provider": "elevenlabs",
                     "file_size_bytes": len(audio_bytes),
                     "created_at": datetime.now(timezone.utc),
                     "last_accessed": datetime.now(timezone.utc),
@@ -124,12 +151,13 @@ class TTSService:
                 "audio_base64": audio_base64,
                 "cached": False,
                 "voice": voice,
+                "provider": "elevenlabs",
                 "file_size_bytes": len(audio_bytes),
                 "duration_estimate": len(text) / 15
             }
             
         except Exception as e:
-            logger.error(f"TTS generation error: {e}")
+            logger.error(f"ElevenLabs TTS generation error: {e}")
             raise
     
     async def create_bible_snippet(
@@ -141,7 +169,7 @@ class TTSService:
         start_verse: int,
         end_verse: int,
         language: str = "sw",
-        voice: str = "nova",
+        voice: str = None,
         speed: float = 1.0,
         created_by: str = None
     ) -> Dict[str, Any]:
@@ -186,11 +214,12 @@ class TTSService:
                 "end_verse": end_verse,
                 "language": language,
                 "text": full_text,
-                "voice": voice,
+                "voice": audio_result.get("voice", DEFAULT_VOICE),
                 "speed": speed,
                 "audio_id": audio_result["audio_id"],
                 "audio_base64": audio_result["audio_base64"],
                 "duration_estimate": audio_result.get("duration_estimate", 0),
+                "provider": "elevenlabs",
                 "is_active": True,
                 "play_count": 0,
                 "created_by": created_by,
@@ -229,7 +258,7 @@ class TTSService:
         
         snippets = await self.db.bible_snippets.find(
             query,
-            {"_id": 0, "audio_base64": 0}  # Exclude large audio data
+            {"_id": 0, "audio_base64": 0}
         ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
         
         return snippets
@@ -352,3 +381,24 @@ class TTSService:
     def get_available_voices(self) -> List[Dict]:
         """Get list of available TTS voices"""
         return AVAILABLE_VOICES
+    
+    async def fetch_elevenlabs_voices(self) -> List[Dict]:
+        """Fetch all available voices from ElevenLabs API"""
+        try:
+            client = self._get_client()
+            voices_response = client.voices.get_all()
+            
+            voices = []
+            for voice in voices_response.voices:
+                voices.append({
+                    "id": voice.voice_id,
+                    "name": voice.name,
+                    "description": voice.description or f"{voice.labels.get('accent', '')} {voice.labels.get('gender', '')}".strip(),
+                    "preview_url": voice.preview_url,
+                    "category": voice.category
+                })
+            
+            return voices
+        except Exception as e:
+            logger.error(f"Error fetching ElevenLabs voices: {e}")
+            return AVAILABLE_VOICES
