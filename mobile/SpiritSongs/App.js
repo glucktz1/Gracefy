@@ -124,52 +124,20 @@ const MainNavigator = React.forwardRef((props, ref) => {
   );
 });
 
+// Navigation state context for tracking current route
+const NavigationStateContext = React.createContext({ currentRoute: '' });
+
 // App Container with MiniPlayer - hide when on NowPlaying
 function AppContainer() {
-  const [currentRoute, setCurrentRoute] = React.useState('');
-  const routeNameRef = React.useRef('');
-
-  const onStateChange = () => {
-    const previousRouteName = routeNameRef.current;
-    // We need to get the current route from navigation state
-    // For now, we'll track it through a global
-  };
-
-  return (
-    <NavigationTracker setRoute={setCurrentRoute}>
-      <View style={styles.appContainer}>
-        <MainNavigator />
-        {/* Mini Player - hide when on NowPlaying screen */}
-        {currentRoute !== 'NowPlaying' && <MiniPlayer />}
-      </View>
-    </NavigationTracker>
-  );
-}
-
-// Navigation tracker component
-function NavigationTracker({ children, setRoute }) {
-  const navigation = useNavigation();
+  const { currentRoute } = React.useContext(NavigationStateContext);
   
-  React.useEffect(() => {
-    const unsubscribe = navigation.addListener('state', (e) => {
-      // Get the current route name
-      const getActiveRouteName = (state) => {
-        if (!state || !state.routes) return '';
-        const route = state.routes[state.index];
-        if (route.state) {
-          return getActiveRouteName(route.state);
-        }
-        return route.name;
-      };
-      
-      const routeName = getActiveRouteName(e.data.state);
-      setRoute(routeName);
-    });
-
-    return unsubscribe;
-  }, [navigation, setRoute]);
-
-  return children;
+  return (
+    <View style={styles.appContainer}>
+      <MainNavigator />
+      {/* Mini Player - hide when on NowPlaying screen */}
+      {currentRoute !== 'NowPlaying' && <MiniPlayer />}
+    </View>
+  );
 }
 
 export default function App() {
