@@ -46,17 +46,20 @@ const StatCard = ({ icon: Icon, iconColor, label, value, subValue, trend, trendV
 export default function EnhancedAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [realtime, setRealtime] = useState(null);
+  const [bibleAnalytics, setBibleAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30d");
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const [analyticsRes, realtimeRes] = await Promise.all([
+      const [analyticsRes, realtimeRes, bibleRes] = await Promise.all([
         axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }),
-        axios.get(`${API}/analytics/realtime`, { withCredentials: true })
+        axios.get(`${API}/analytics/realtime`, { withCredentials: true }),
+        axios.get(`${API}/admin/bible/analytics?days=30`, { withCredentials: true }).catch(() => ({ data: null }))
       ]);
       setAnalytics(analyticsRes.data);
       setRealtime(realtimeRes.data);
+      setBibleAnalytics(bibleRes.data);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast.error("Failed to load analytics");
