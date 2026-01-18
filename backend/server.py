@@ -9613,6 +9613,86 @@ async def delete_hero_banner(banner_id: str):
     return {"message": "Banner deleted"}
 
 
+# ============== HERO SECTION CONFIGURATION ==============
+
+@api_router.get("/layout/hero-config")
+async def get_hero_config():
+    """Get hero section configuration"""
+    config = await db.hero_config.find_one({"config_id": "main"}, {"_id": 0})
+    if not config:
+        # Return default config
+        config = {
+            "config_id": "main",
+            "hero_type": "static_banner",  # static_banner, dynamic_content
+            "content_ids": [],  # album_ids for dynamic content
+            "auto_rotate": True,
+            "rotation_interval": 5000,  # milliseconds
+            "show_navigation": True,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+    return config
+
+
+@api_router.post("/layout/hero-config")
+async def save_hero_config(data: dict):
+    """Save hero section configuration"""
+    config = {
+        "config_id": "main",
+        "hero_type": data.get("hero_type", "static_banner"),
+        "content_ids": data.get("content_ids", []),
+        "auto_rotate": data.get("auto_rotate", True),
+        "rotation_interval": data.get("rotation_interval", 5000),
+        "show_navigation": data.get("show_navigation", True),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.hero_config.update_one(
+        {"config_id": "main"},
+        {"$set": config},
+        upsert=True
+    )
+    
+    # Invalidate home cache
+    await invalidate_home_cache()
+    
+    return {"message": "Hero configuration saved", "config": config}
+
+
+@api_router.get("/layout/hero-content")
+async def get_hero_content_for_app():
+    """Get hero content based on configuration (for user-facing app)"""
+    config = await db.hero_config.find_one({"config_id": "main"}, {"_id": 0})
+    
+    if not config:
+        config = {"hero_type": "static_banner", "content_ids": []}
+    
+    result = {
+        "hero_type": config.get("hero_type", "static_banner"),
+        "auto_rotate": config.get("auto_rotate", True),
+        "rotation_interval": config.get("rotation_interval", 5000),
+        "show_navigation": config.get("show_navigation", True),
+        "items": []
+    }
+    
+    if config.get("hero_type") == "dynamic_content" and config.get("content_ids"):
+        # Fetch dynamic content (albums)
+        albums = await db.albums.find(
+            {"album_id": {"$in": config["content_ids"]}, "status": "active"},
+            {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1, "thumbnail_url": 1, "songs_count": 1}
+        ).to_list(10)
+        albums = optimize_thumbnails(albums)
+        result["items"] = albums
+    else:
+        # Fetch static banners
+        banners = await db.hero_banners.find(
+            {"is_active": True},
+            {"_id": 0}
+        ).sort("order", 1).to_list(10)
+        result["items"] = banners
+    
+    return result
+
+
 # ============== SYSTEM SETTINGS ==============
 
 class SystemSettings(BaseModel):
