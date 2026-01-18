@@ -305,25 +305,35 @@ export default function ProfileScreen({ navigation }) {
           
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Library')}>
             <Ionicons name="heart-outline" size={24} color={COLORS.textPrimary} />
-            <Text style={styles.menuText}>Liked Songs</Text>
+            <Text style={styles.menuText}>{t('likedSongs')}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="download-outline" size={24} color={COLORS.textPrimary} />
-            <Text style={styles.menuText}>Downloads</Text>
+            <Text style={styles.menuText}>{t('downloads')}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowLanguageModal(true)}>
+            <Ionicons name="language-outline" size={24} color={COLORS.textPrimary} />
+            <Text style={styles.menuText}>{t('language')}</Text>
+            <View style={styles.languageIndicator}>
+              <Text style={styles.languageIndicatorText}>
+                {language === 'sw' ? 'Kiswahili' : 'English'}
+              </Text>
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="time-outline" size={24} color={COLORS.textPrimary} />
-            <Text style={styles.menuText}>Listening History</Text>
+            <Text style={styles.menuText}>{language === 'sw' ? 'Historia ya Kusikiliza' : 'Listening History'}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
-            <Text style={styles.menuText}>Notifications</Text>
+            <Text style={styles.menuText}>{language === 'sw' ? 'Arifa' : 'Notifications'}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
         </View>
