@@ -2293,18 +2293,56 @@ export default function UserStreamingApp() {
         <div className="flex justify-around py-2">
           <button onClick={() => { setView('home'); setActiveCategory(null); }} className={`flex flex-col items-center gap-0.5 py-1 px-4 ${view === 'home' ? 'text-white' : 'text-zinc-500'}`}>
             <Home size={22} />
-            <span className="text-[10px]">Home</span>
+            <span className="text-[10px]">{t('nav.home', 'Home')}</span>
           </button>
           <button onClick={() => setView('search')} className={`flex flex-col items-center gap-0.5 py-1 px-4 ${view === 'search' ? 'text-white' : 'text-zinc-500'}`}>
             <Search size={22} />
-            <span className="text-[10px]">Search</span>
+            <span className="text-[10px]">{t('nav.search', 'Search')}</span>
           </button>
           <button onClick={fetchLibrary} className={`flex flex-col items-center gap-0.5 py-1 px-4 ${view === 'library' ? 'text-white' : 'text-zinc-500'}`}>
             <Library size={22} />
-            <span className="text-[10px]">Library</span>
+            <span className="text-[10px]">{t('nav.library', 'Library')}</span>
+          </button>
+          <button onClick={() => setShowLanguageModal(true)} className={`flex flex-col items-center gap-0.5 py-1 px-4 text-zinc-500`}>
+            <Globe size={22} />
+            <span className="text-[10px]">{language.toUpperCase()}</span>
           </button>
         </div>
       </nav>
+
+      {/* Language Selection Modal */}
+      {showLanguageModal && (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+          <div className="bg-zinc-900 rounded-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white">{t('settings.changeLanguage', 'Change Language')}</h3>
+              <button onClick={() => setShowLanguageModal(false)} className="text-zinc-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {availableLanguages.map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => {
+                    changeLanguage(lang.code);
+                    setShowLanguageModal(false);
+                    toast.success(lang.code === 'sw' ? 'Lugha imebadilishwa' : 'Language changed');
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-xl transition ${
+                    language === lang.code 
+                      ? 'bg-emerald-600 text-white' 
+                      : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                  }`}
+                >
+                  <span className="font-medium">{lang.nativeName}</span>
+                  {language === lang.code && <span className="text-sm">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mini Player */}
       <MiniPlayer 
