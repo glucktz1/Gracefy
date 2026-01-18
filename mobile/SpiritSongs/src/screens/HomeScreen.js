@@ -373,6 +373,7 @@ export default function HomeScreen({ navigation }) {
   const [homeData, setHomeData] = useState(null);
   const [categories, setCategories] = useState([]);
   const [allAlbums, setAllAlbums] = useState([]);
+  const [churches, setChurches] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -386,15 +387,18 @@ export default function HomeScreen({ navigation }) {
   const fetchData = useCallback(async () => {
     try {
       console.log('Fetching home data...');
-      const [home, cats] = await Promise.all([
+      const [home, cats, churchesRes] = await Promise.all([
         contentService.getHome(),
         contentService.getCategories(),
+        contentService.getChurches().catch(() => ({ churches: [] })),
       ]);
       console.log('Home data received:', home?.sections?.length, 'sections');
       console.log('Categories received:', cats?.categories?.length, 'categories');
+      console.log('Churches received:', churchesRes?.churches?.length, 'churches');
       
       setHomeData(home);
       setCategories(cats.categories || []);
+      setChurches(churchesRes.churches || []);
       
       // Collect all albums from sections
       const albums = [];
