@@ -110,6 +110,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
     { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
     { path: "/leader-content", icon: BookOpen, label: "Leader Content", permissions: ["content_moderation", "content_approval"] },
+    { path: "/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
     { path: "/leaders", icon: UserCheck, label: "Religious Leaders", permissions: ["user_management"] },
     { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
