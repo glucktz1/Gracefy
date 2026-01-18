@@ -1,43 +1,55 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, NavLink } from "react-router-dom";
 import axios from "axios";
 import { Toaster } from "@/components/ui/sonner";
 
-// Pages
+// Loading component for lazy-loaded pages
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-screen bg-slate-950">
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-slate-400">Loading...</p>
+    </div>
+  </div>
+);
+
+// Critical pages - loaded immediately
 import Dashboard from "@/pages/Dashboard";
-import UsersPage from "@/pages/UsersPage";
-import CategoriesPage from "@/pages/CategoriesPage";
-import AlbumsPage from "@/pages/AlbumsPage";
-import ChurchesPage from "@/pages/ChurchesPage";
-import LeadersPage from "@/pages/LeadersPage";
-import SingersPage from "@/pages/SingersPage";
-import SeminarsPage from "@/pages/SeminarsPage";
-import AudioRoomsPage from "@/pages/AudioRoomsPage";
-import DonationsPage from "@/pages/DonationsPage";
-import CommunityPage from "@/pages/CommunityPage";
-import BookingsPage from "@/pages/BookingsPage";
-import ApprovalsPage from "@/pages/ApprovalsPage";
 import LoginPage from "@/pages/LoginPage";
-import RevenueAnalyticsPage from "@/pages/RevenueAnalyticsPage";
-import ChoirAccountsPage from "@/pages/ChoirAccountsPage";
-import WithdrawalsPage from "@/pages/WithdrawalsPage";
-import ChoirLoginPage from "@/pages/ChoirLoginPage";
-import ChoirDashboard from "@/pages/ChoirDashboard";
-import ChoirManagementPage from "@/pages/ChoirManagementPage";
-import ChoirDetailsPage from "@/pages/ChoirDetailsPage";
-import MonetizationSettingsPage from "@/pages/MonetizationSettingsPage";
-import LayoutManagementPage from "@/pages/LayoutManagementPage";
-import EnhancedAnalyticsPage from "@/pages/EnhancedAnalyticsPage";
 import UserStreamingApp from "@/pages/UserStreamingApp";
-import RoleManagementPage from "@/pages/RoleManagementPage";
-import SpecialMixesPage from "@/pages/SpecialMixesPage";
-import ChurchLeaderLoginPage from "@/pages/ChurchLeaderLoginPage";
-import ChurchLeaderDashboard from "@/pages/ChurchLeaderDashboard";
-import AdminSettingsPage from "@/pages/AdminSettingsPage";
-import ChoirRegistrationPage from "@/pages/ChoirRegistrationPage";
-import ContentManagementPage from "@/pages/ContentManagementPage";
-import SystemSettingsPage from "@/pages/SystemSettingsPage";
+
+// Lazy-loaded pages - loaded on demand
+const UsersPage = lazy(() => import("@/pages/UsersPage"));
+const CategoriesPage = lazy(() => import("@/pages/CategoriesPage"));
+const AlbumsPage = lazy(() => import("@/pages/AlbumsPage"));
+const ChurchesPage = lazy(() => import("@/pages/ChurchesPage"));
+const LeadersPage = lazy(() => import("@/pages/LeadersPage"));
+const SingersPage = lazy(() => import("@/pages/SingersPage"));
+const SeminarsPage = lazy(() => import("@/pages/SeminarsPage"));
+const AudioRoomsPage = lazy(() => import("@/pages/AudioRoomsPage"));
+const DonationsPage = lazy(() => import("@/pages/DonationsPage"));
+const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
+const BookingsPage = lazy(() => import("@/pages/BookingsPage"));
+const ApprovalsPage = lazy(() => import("@/pages/ApprovalsPage"));
+const RevenueAnalyticsPage = lazy(() => import("@/pages/RevenueAnalyticsPage"));
+const ChoirAccountsPage = lazy(() => import("@/pages/ChoirAccountsPage"));
+const WithdrawalsPage = lazy(() => import("@/pages/WithdrawalsPage"));
+const ChoirLoginPage = lazy(() => import("@/pages/ChoirLoginPage"));
+const ChoirDashboard = lazy(() => import("@/pages/ChoirDashboard"));
+const ChoirManagementPage = lazy(() => import("@/pages/ChoirManagementPage"));
+const ChoirDetailsPage = lazy(() => import("@/pages/ChoirDetailsPage"));
+const MonetizationSettingsPage = lazy(() => import("@/pages/MonetizationSettingsPage"));
+const LayoutManagementPage = lazy(() => import("@/pages/LayoutManagementPage"));
+const EnhancedAnalyticsPage = lazy(() => import("@/pages/EnhancedAnalyticsPage"));
+const RoleManagementPage = lazy(() => import("@/pages/RoleManagementPage"));
+const SpecialMixesPage = lazy(() => import("@/pages/SpecialMixesPage"));
+const ChurchLeaderLoginPage = lazy(() => import("@/pages/ChurchLeaderLoginPage"));
+const ChurchLeaderDashboard = lazy(() => import("@/pages/ChurchLeaderDashboard"));
+const AdminSettingsPage = lazy(() => import("@/pages/AdminSettingsPage"));
+const ChoirRegistrationPage = lazy(() => import("@/pages/ChoirRegistrationPage"));
+const ContentManagementPage = lazy(() => import("@/pages/ContentManagementPage"));
+const SystemSettingsPage = lazy(() => import("@/pages/SystemSettingsPage"));
 
 // Icons
 import { 
