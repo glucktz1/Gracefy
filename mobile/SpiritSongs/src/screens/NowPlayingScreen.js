@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { getThumbnailUrl } from '../services/api';
+import { getThumbnailUrl, getItemThumbnail } from '../services/api';
 import AnimatedBars from '../components/AnimatedBars';
 import SongListItem from '../components/SongListItem';
 import PlaylistModal from '../components/PlaylistModal';
@@ -226,7 +226,7 @@ const NowPlayingScreen = ({ navigation }) => {
     );
   }
 
-  const thumbnailUrl = getThumbnailUrl(currentSong.thumbnail || currentAlbum?.thumbnail);
+  const thumbnailUrl = getItemThumbnail(currentSong) || getItemThumbnail(currentAlbum);
 
   return (
     <View style={styles.container}>
