@@ -479,6 +479,10 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('Profile');
   }, [navigation]);
 
+  const handleChurchPress = useCallback((church) => {
+    navigation.navigate('ChurchDetail', { churchId: church.church_id });
+  }, [navigation]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
