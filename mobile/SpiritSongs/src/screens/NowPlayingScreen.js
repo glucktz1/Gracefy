@@ -785,14 +785,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  secondaryIconWrapper: {
-    position: 'relative',
-  },
-  featureLock: {
-    position: 'absolute',
-    bottom: -2,
-    right: -4,
-  },
 });
 
 export default NowPlayingScreen;
