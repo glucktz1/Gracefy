@@ -381,23 +381,7 @@ export default function SystemSettingsPage() {
       </Card>
 
       {/* Translation Management Card */}
-      <Card className="bg-slate-900/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-violet-400" />
-            Translation Management
-          </CardTitle>
-          <CardDescription>
-            Download, edit and upload translations for all supported languages
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Download Section */}
-          <div className="bg-slate-800/50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-white mb-2">Download Translation Template</h4>
-            <p className="text-xs text-slate-400 mb-3">
-              Download an Excel file containing all translatable text. Edit the translations and upload it back.
-            </p>
+      <TranslationManagementCard />
             <div className="flex gap-2">
               <Button
                 variant="outline"
