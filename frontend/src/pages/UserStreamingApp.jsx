@@ -2068,7 +2068,7 @@ export default function UserStreamingApp() {
           {view === 'library' && library && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">Your Library</h1>
+                <h1 className="text-2xl font-bold">{t('library.yourLibrary', 'Your Library')}</h1>
               </div>
 
               {/* Library Tabs */}
@@ -2079,7 +2079,7 @@ export default function UserStreamingApp() {
                     libraryTab === 'all' ? 'bg-white text-black' : 'bg-zinc-800 text-white hover:bg-zinc-700'
                   }`}
                 >
-                  All
+                  {t('home.all', 'All')}
                 </button>
                 <button
                   onClick={() => setLibraryTab('liked')}
@@ -2087,7 +2087,7 @@ export default function UserStreamingApp() {
                     libraryTab === 'liked' ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'
                   }`}
                 >
-                  <Heart size={16} fill={libraryTab === 'liked' ? 'currentColor' : 'none'} /> Liked Songs
+                  <Heart size={16} fill={libraryTab === 'liked' ? 'currentColor' : 'none'} /> {t('library.likedSongs', 'Liked Songs')}
                 </button>
                 <button
                   onClick={() => setLibraryTab('playlists')}
@@ -2095,7 +2095,7 @@ export default function UserStreamingApp() {
                     libraryTab === 'playlists' ? 'bg-white text-black' : 'bg-zinc-800 text-white hover:bg-zinc-700'
                   }`}
                 >
-                  <ListMusic size={16} /> Playlists
+                  <ListMusic size={16} /> {t('library.playlists', 'Playlists')}
                 </button>
                 <button
                   onClick={() => setLibraryTab('downloads')}
@@ -2103,7 +2103,7 @@ export default function UserStreamingApp() {
                     libraryTab === 'downloads' ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'
                   }`}
                 >
-                  <Download size={16} /> Downloads
+                  <Download size={16} /> {t('library.downloads', 'Downloads')}
                 </button>
               </div>
 
@@ -2116,8 +2116,8 @@ export default function UserStreamingApp() {
                         <Heart size={24} className="text-white" fill="currentColor" />
                       </div>
                       <div>
-                        <h2 className="font-bold text-lg">Liked Songs</h2>
-                        <p className="text-sm text-zinc-400">{library.favorites.filter(f => f.type === 'song').length} songs</p>
+                        <h2 className="font-bold text-lg">{t('library.likedSongs', 'Liked Songs')}</h2>
+                        <p className="text-sm text-zinc-400">{library.favorites.filter(f => f.type === 'song').length} {t('library.songs', 'songs')}</p>
                       </div>
                     </div>
                     <button
