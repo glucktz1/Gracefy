@@ -77,7 +77,7 @@ function TabNavigator() {
 }
 
 // Main Stack Navigator
-function MainNavigator() {
+const MainNavigator = React.forwardRef((props, ref) => {
   return (
     <Stack.Navigator
       screenOptions={{
