@@ -4370,6 +4370,27 @@ async def get_user_home():
             section_data["items"] = albums
             section_data["content_type"] = "albums"
             
+        elif section["section_type"] in ["sermons", "teachings"]:
+            # Fetch leader content for sermons and teachings
+            filter_category = section.get("filter_category", section["section_type"])
+            content = await db.leader_content.find(
+                {"status": "active", "category": filter_category},
+                {"_id": 0}
+            ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            
+            # If no specific category content, fetch all leader content
+            if not content:
+                content = await db.leader_content.find(
+                    {"status": "active"},
+                    {"_id": 0}
+                ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
+            
+            section_data["items"] = content
+            section_data["content_type"] = "leader_content"
+            # Include English display name for localization
+            if section.get("display_name_en"):
+                section_data["display_name_en"] = section["display_name_en"]
+            
         else:
             section_data["items"] = []
             section_data["content_type"] = "unknown"
