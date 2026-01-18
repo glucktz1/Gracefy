@@ -604,7 +604,8 @@ export default function HomeScreen({ navigation }) {
   // Get sections data
   const burner = homeData?.burners?.[0];
   const sections = homeData?.sections || [];
-  console.log('Rendering with sections:', sections.length, 'burner:', !!burner);
+  const heroConfig = homeData?.hero || { hero_type: 'static_banner', items: [] };
+  console.log('Rendering with sections:', sections.length, 'burner:', !!burner, 'hero:', heroConfig.hero_type);
   
   const featuredSection = sections.find(s => s.type === 'featured_albums' || s.section_type === 'featured_albums');
   const featuredAlbums = featuredSection?.items || [];
@@ -619,6 +620,21 @@ export default function HomeScreen({ navigation }) {
   const newReleasesItems = allAlbums.slice(4, 8);
   const bestsellingItems = allAlbums.slice(0, 6);
   const popularItems = allAlbums.slice(0, 4);
+
+  // Get hero content based on configuration
+  const getHeroItem = () => {
+    if (heroConfig.hero_type === 'dynamic_content' && heroConfig.items?.length > 0) {
+      // Use dynamic content (albums)
+      return heroConfig.items[0];
+    } else if (heroConfig.items?.length > 0) {
+      // Use static banners
+      return heroConfig.items[0];
+    }
+    // Fallback to burner or featured albums
+    return burner || featuredAlbums[0];
+  };
+
+  const heroItem = getHeroItem();
 
   // Quick access items from categories and albums
   const quickAccessItems = [
