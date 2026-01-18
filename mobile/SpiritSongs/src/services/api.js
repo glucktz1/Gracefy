@@ -226,26 +226,48 @@ export const getAudioUrl = (audioUrl) => {
   return audioUrl;
 };
 
-// Get thumbnail URL
-export const getThumbnailUrl = (thumbnailUrl) => {
-  if (!thumbnailUrl) return null;
+// Get thumbnail URL - handles both thumbnail and thumbnail_url fields
+export const getThumbnailUrl = (thumbnailUrl, thumbnailUrlField = null) => {
+  // Prefer thumbnail_url if provided (from optimized API responses)
+  const url = thumbnailUrlField || thumbnailUrl;
+  
+  if (!url) return null;
   
   const baseUrl = getBaseUrl();
   
-  if (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) {
-    return thumbnailUrl;
+  // If it's already a full URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
   }
   
-  if (thumbnailUrl.startsWith('/')) {
-    return `${baseUrl}${thumbnailUrl}`;
+  // Handle /api/thumbnails/{id} format (from optimized responses)
+  if (url.startsWith('/api/thumbnails/')) {
+    return `${baseUrl}${url}`;
   }
   
-  // Handle file_id format
-  if (thumbnailUrl && !thumbnailUrl.includes('/')) {
-    return `${baseUrl}/api/files/${thumbnailUrl}`;
+  // Handle other /api paths
+  if (url.startsWith('/api/')) {
+    return `${baseUrl}${url}`;
   }
   
-  return thumbnailUrl;
+  // Handle relative paths starting with /
+  if (url.startsWith('/')) {
+    return `${baseUrl}${url}`;
+  }
+  
+  // Handle file_id format - convert to streaming URL
+  if (url && !url.includes('/')) {
+    return `${baseUrl}/api/files/${url}`;
+  }
+  
+  return url;
+};
+
+// Helper to get thumbnail from an item (album, song, etc)
+export const getItemThumbnail = (item) => {
+  if (!item) return null;
+  // Prefer thumbnail_url (from optimized API), then fall back to thumbnail
+  return getThumbnailUrl(item.thumbnail, item.thumbnail_url);
 };
 
 export default api;

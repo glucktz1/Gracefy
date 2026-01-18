@@ -1,43 +1,68 @@
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { getAudioUrl } from './api';
 
-const DOWNLOADS_DIR = `${FileSystem.documentDirectory}songs/`;
+// Use documentDirectory for iOS and cacheDirectory for Android (more reliable on Android)
+const getDownloadsDir = () => {
+  if (Platform.OS === 'android') {
+    return `${FileSystem.cacheDirectory}gracefy_songs/`;
+  }
+  return `${FileSystem.documentDirectory}songs/`;
+};
+
+const DOWNLOADS_DIR = getDownloadsDir();
 const DOWNLOADS_INDEX_KEY = 'downloaded_songs';
 
-// Ensure downloads directory exists with retry
+// Ensure downloads directory exists with retry and better error handling
 const ensureDownloadsDir = async (retries = 3) => {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
+      // First check if the parent directory is accessible
+      const parentDir = Platform.OS === 'android' 
+        ? FileSystem.cacheDirectory 
+        : FileSystem.documentDirectory;
+      
+      const parentInfo = await FileSystem.getInfoAsync(parentDir);
+      if (!parentInfo.exists) {
+        console.error('Parent directory does not exist:', parentDir);
+        throw new Error('Storage not accessible');
+      }
+      
       const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
       if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(DOWNLOADS_DIR, { intermediates: true });
         console.log('Downloads directory created:', DOWNLOADS_DIR);
       }
+      
       // Verify it was created
       const verifyInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
       if (verifyInfo.exists) {
-        return true;
+        return { success: true, dir: DOWNLOADS_DIR };
       }
     } catch (error) {
       console.error(`Attempt ${attempt + 1} - Error creating downloads directory:`, error);
+      
       if (attempt === retries - 1) {
-        // Last attempt - try alternative location
+        // Last attempt - try alternative location (cache directory on both platforms)
         try {
-          const altDir = `${FileSystem.cacheDirectory}downloads/`;
-          await FileSystem.makeDirectoryAsync(altDir, { intermediates: true });
+          const altDir = `${FileSystem.cacheDirectory}gracefy_downloads/`;
+          const altDirInfo = await FileSystem.getInfoAsync(altDir);
+          if (!altDirInfo.exists) {
+            await FileSystem.makeDirectoryAsync(altDir, { intermediates: true });
+          }
           console.log('Using alternative cache directory:', altDir);
-          return true;
+          return { success: true, dir: altDir };
         } catch (altError) {
           console.error('Alternative directory also failed:', altError);
-          return false;
+          return { success: false, dir: null };
         }
       }
       // Wait before retry
       await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
-  return false;
+  return { success: false, dir: null };
 };
 
 // Get list of downloaded songs
