@@ -1273,9 +1273,13 @@ export default function UserStreamingApp() {
   const [favorites, setFavorites] = useState([]);
   const [quickAccessItems, setQuickAccessItems] = useState([]);
   const [libraryTab, setLibraryTab] = useState('all');
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
+  
+  // i18n - Translation hook
+  const { t, language, changeLanguage, availableLanguages } = useLanguage();
 
   // Restore playback on page load
   useEffect(() => {
@@ -1312,13 +1316,18 @@ export default function UserStreamingApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, homeData]);
 
-  // Get greeting based on time
+  // Get greeting based on time and language
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
+    if (language === 'sw') {
+      if (hour < 12) return 'Habari ya asubuhi';
+      if (hour < 18) return 'Habari ya mchana';
+      return 'Habari ya jioni';
+    }
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
-  }, []);
+  }, [language]);
 
   // Fetch home data
   useEffect(() => {
