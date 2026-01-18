@@ -293,15 +293,39 @@ class BibleService:
         """Search for verses containing text"""
         # Create text index if not exists
         try:
-            await self.db.bible_verses.create_index([("text", "text")])
-        except:
-            pass
+            # Check if text index exists
+            indexes = await self.db.bible_verses.index_information()
+            has_text_index = any('text' in str(idx.get('key', {})) for idx in indexes.values())
+            if not has_text_index:
+                await self.db.bible_verses.create_index([("text", "text")], name="text_search_index")
+                logger.info("Created text index for bible_verses")
+        except Exception as e:
+            logger.warning(f"Could not create text index: {e}")
+            # Fallback to regex search if text index fails
+            try:
+                verses = await self.db.bible_verses.find(
+                    {"text": {"$regex": query, "$options": "i"}, "language": language},
+                    {"_id": 0}
+                ).limit(limit).to_list(limit)
+                return verses
+            except Exception as e2:
+                logger.error(f"Regex search also failed: {e2}")
+                return []
         
-        verses = await self.db.bible_verses.find(
-            {"$text": {"$search": query}, "language": language},
-            {"_id": 0, "score": {"$meta": "textScore"}}
-        ).sort([("score", {"$meta": "textScore"})]).limit(limit).to_list(limit)
-        return verses
+        try:
+            verses = await self.db.bible_verses.find(
+                {"$text": {"$search": query}, "language": language},
+                {"_id": 0, "score": {"$meta": "textScore"}}
+            ).sort([("score", {"$meta": "textScore"})]).limit(limit).to_list(limit)
+            return verses
+        except Exception as e:
+            logger.warning(f"Text search failed, falling back to regex: {e}")
+            # Fallback to regex search
+            verses = await self.db.bible_verses.find(
+                {"text": {"$regex": query, "$options": "i"}, "language": language},
+                {"_id": 0}
+            ).limit(limit).to_list(limit)
+            return verses
     
     async def get_bible_stats(self, language: str = "sw") -> Dict:
         """Get statistics about the stored Bible data"""
