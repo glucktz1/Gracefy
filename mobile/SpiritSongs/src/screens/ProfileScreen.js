@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image, 
-  StyleSheet, Dimensions, ActivityIndicator, Alert
+  StyleSheet, Dimensions, ActivityIndicator, Alert, Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
+import { useLanguage } from '../context/LanguageContext';
 import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
