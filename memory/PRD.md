@@ -14,9 +14,52 @@ Gracefy is a comprehensive Christian music streaming platform with:
 - **Background**: #0A0A1A (Dark with blue tint)
 - **Default Language**: Kiswahili (with English option)
 
-## Latest Updates (Jan 18, 2026)
+## Latest Updates (Jan 19, 2026)
 
-### Translation Management System (NEW)
+### 📖 Biblia na Vitabu vya Dini Module (NEW)
+Complete Bible reading and listening module with AI text-to-speech:
+
+**User Features:**
+- **Browse Bible books** (26 books, 7853 verses - Swahili New Testament)
+- **Navigate chapters and verses** with intuitive UI
+- **AI Audio Reading** - Listen to any verse with OpenAI TTS
+- **Featured Snippets** - Admin-curated passages with pre-generated audio
+- **Language support** - Swahili with localized book names (Mathayo, Marko, Luka, etc.)
+
+**Admin Features:**
+- **Bible Snippet Management** - Create, edit, delete curated passages
+- **TTS Voice Selection** - 9 voices (alloy, ash, coral, echo, fable, nova, onyx, sage, shimmer)
+- **Analytics Dashboard** - Track listening patterns
+  - Total listens (30-day period)
+  - Most popular Bible books
+  - Listening times (morning/afternoon/evening/night)
+  - Daily trends
+  - Top snippets by play count
+
+**API Endpoints:**
+- `GET /api/bible/stats` - Bible data statistics
+- `GET /api/bible/books` - List all Bible books
+- `GET /api/bible/books/{book}/chapters` - Get chapters for a book
+- `GET /api/bible/books/{book}/chapters/{chapter}` - Get verses
+- `POST /api/bible/tts/verse` - Generate TTS audio for a verse
+- `POST /api/bible/tts/passage` - Generate TTS for a passage
+- `GET /api/bible/snippets` - Get featured snippets (user)
+- `POST /api/admin/bible/snippets` - Create snippet with audio
+- `GET /api/admin/bible/analytics` - Bible listening analytics
+
+**Files Created:**
+- `/app/backend/services/bible_service.py` - Bible data management
+- `/app/backend/services/tts_service.py` - TTS generation via OpenAI/Emergent
+- `/app/frontend/src/pages/BibleManagementPage.jsx` - Admin page
+- BibleView component in `UserStreamingApp.jsx` - User Bible interface
+
+**Technical Notes:**
+- Bible data from SourceForge public domain (Swahili NT)
+- TTS uses OpenAI via Emergent LLM Key (EMERGENT_LLM_KEY)
+- Audio cached in MongoDB to avoid regeneration
+- Analytics tracked with time-of-day classification
+
+### Translation Management System
 Complete internationalization (i18n) system for mobile app and PWA:
 
 **Features:**
