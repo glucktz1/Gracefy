@@ -1972,7 +1972,7 @@ export default function UserStreamingApp() {
 
                   {searchResults.albums?.length > 0 && (
                     <section>
-                      <SectionHeader title="Albums" />
+                      <SectionHeader title={t('library.albums', 'Albums')} />
                       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                         {searchResults.albums.map(album => (
                           <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
@@ -1983,7 +1983,7 @@ export default function UserStreamingApp() {
 
                   {searchResults.artists?.length > 0 && (
                     <section>
-                      <SectionHeader title="Artists" />
+                      <SectionHeader title={t('library.artists', 'Artists')} />
                       <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                         {searchResults.artists.map(artist => (
                           <ArtistCard key={artist.singer_id} artist={artist} />
@@ -1995,7 +1995,7 @@ export default function UserStreamingApp() {
               ) : (
                 <div className="text-center py-16">
                   <Search size={48} className="mx-auto mb-4 text-zinc-600" />
-                  <p className="text-zinc-500">Search for songs, albums, or artists</p>
+                  <p className="text-zinc-500">{t('search.placeholder', 'Search for songs, albums, or artists')}</p>
                 </div>
               )}
             </div>
@@ -2005,7 +2005,7 @@ export default function UserStreamingApp() {
           {view === 'album' && selectedAlbum && (
             <div>
               <button onClick={() => setView('home')} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6">
-                <ChevronLeft size={20} /> Back
+                <ChevronLeft size={20} /> {t('common.back', 'Back')}
               </button>
 
               <div className="flex flex-col md:flex-row gap-6 mb-8">
