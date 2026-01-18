@@ -2270,15 +2270,15 @@ export default function UserStreamingApp() {
                   {libraryTab === 'liked' && (
                     <>
                       <Heart size={64} className="mx-auto mb-4 text-zinc-700" />
-                      <h3 className="text-xl font-semibold mb-2">No Liked Songs Yet</h3>
-                      <p className="text-zinc-500">Tap the heart icon on any song to add it to your liked songs</p>
+                      <h3 className="text-xl font-semibold mb-2">{t('empty.noLikedSongs', 'No Liked Songs Yet')}</h3>
+                      <p className="text-zinc-500">{t('empty.tapHeartToAdd', 'Tap the heart icon on any song to add it to your liked songs')}</p>
                     </>
                   )}
                   {libraryTab === 'playlists' && (
                     <>
                       <ListMusic size={64} className="mx-auto mb-4 text-zinc-700" />
-                      <h3 className="text-xl font-semibold mb-2">No Playlists Yet</h3>
-                      <p className="text-zinc-500">Create a playlist to organize your favorite music</p>
+                      <h3 className="text-xl font-semibold mb-2">{t('empty.noPlaylists', 'No Playlists Yet')}</h3>
+                      <p className="text-zinc-500">{t('empty.createPlaylistsToOrganize', 'Create a playlist to organize your favorite music')}</p>
                     </>
                   )}
                 </div>
