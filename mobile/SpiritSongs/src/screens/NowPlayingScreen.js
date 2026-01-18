@@ -681,68 +681,26 @@ const styles = StyleSheet.create({
   secondaryActions: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 32,
+    gap: 24,
     paddingHorizontal: 32,
-    marginTop: 16,
+    marginTop: 24,
   },
   secondaryBtn: {
     alignItems: 'center',
-    gap: 4,
-    minWidth: 60,
+    gap: 6,
+    minWidth: 56,
   },
   secondaryText: {
     color: COLORS.textSecondary,
-    fontSize: 10,
+    fontSize: 11,
   },
-  // Primary Action Row - Like and Add to Playlist
-  primaryActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 48,
-    marginTop: 24,
-    marginBottom: 8,
+  secondaryIconWrapper: {
+    position: 'relative',
   },
-  primaryActionBtn: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  actionIconCircleActive: {
-    backgroundColor: '#e91e63',
-    borderColor: '#e91e63',
-  },
-  addToPlaylistCircle: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  primaryActionText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  primaryActionTextActive: {
-    color: '#e91e63',
-  },
-  actionLockBadge: {
+  featureLock: {
     position: 'absolute',
-    top: -4,
+    bottom: -2,
     right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FF9800',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   queueContainer: {
     flex: 1,
