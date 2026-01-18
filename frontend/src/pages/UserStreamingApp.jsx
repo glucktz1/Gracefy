@@ -1279,7 +1279,7 @@ export default function UserStreamingApp() {
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
   
   // i18n - Translation hook
-  const { t, language, changeLanguage, availableLanguages } = useLanguage();
+  const { t, language, changeLanguage, availableLanguages, getGreeting } = useLanguage();
 
   // Restore playback on page load
   useEffect(() => {
@@ -1316,18 +1316,8 @@ export default function UserStreamingApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, homeData]);
 
-  // Get greeting based on time and language
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (language === 'sw') {
-      if (hour < 12) return 'Habari ya asubuhi';
-      if (hour < 18) return 'Habari ya mchana';
-      return 'Habari ya jioni';
-    }
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  }, [language]);
+  // Get greeting using the language context
+  const greeting = getGreeting();
 
   // Fetch home data
   useEffect(() => {
