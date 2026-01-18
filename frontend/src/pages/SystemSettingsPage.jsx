@@ -531,8 +531,8 @@ export default function SystemSettingsPage() {
             <ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
               <li>Download the Excel template above</li>
               <li>Open it in Excel or Google Sheets</li>
-              <li>Edit the translations in the 'swahili' column (or add new language columns)</li>
-              <li>Keep the 'key' column unchanged</li>
+              <li>Edit the translations in the &quot;swahili&quot; column (or add new language columns)</li>
+              <li>Keep the &quot;key&quot; column unchanged</li>
               <li>Save and upload the file</li>
               <li>Translations will automatically update on user apps</li>
             </ol>
