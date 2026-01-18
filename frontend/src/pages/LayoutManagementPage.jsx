@@ -639,20 +639,42 @@ const HeroConfigTab = ({ albums }) => {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Star size={20} className="text-amber-400" />
-              Select Featured Albums
+              Select Featured Albums for Hero Carousel
             </CardTitle>
-            <CardDescription>Choose albums to display in the hero carousel. Drag to reorder.</CardDescription>
+            <CardDescription>
+              Choose at least 5 albums to display in the hero carousel. These will rotate automatically on the home screen.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Selection Status */}
+            <div className={`p-3 rounded-lg ${selectedAlbums.length >= 5 ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+              <div className="flex items-center gap-2">
+                {selectedAlbums.length >= 5 ? (
+                  <Check size={18} className="text-emerald-400" />
+                ) : (
+                  <AlertCircle size={18} className="text-amber-400" />
+                )}
+                <span className={`text-sm font-medium ${selectedAlbums.length >= 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {selectedAlbums.length} / 5+ albums selected
+                </span>
+              </div>
+              {selectedAlbums.length < 5 && (
+                <p className="text-xs text-amber-400/80 mt-1">Select at least 5 albums for a better carousel experience</p>
+              )}
+            </div>
+
             {/* Selected Albums */}
             {selectedAlbums.length > 0 && (
-              <div className="space-y-2 mb-4">
-                <label className="text-sm text-zinc-400 font-medium">Selected Albums (drag to reorder)</label>
-                <div className="space-y-2 p-3 bg-zinc-800/50 rounded-lg">
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-400 font-medium flex items-center justify-between">
+                  <span>Selected Albums (use arrows to reorder)</span>
+                  <span className="text-xs text-zinc-500">{selectedAlbums.length} selected</span>
+                </label>
+                <div className="space-y-2 p-3 bg-zinc-800/50 rounded-lg max-h-[300px] overflow-y-auto">
                   {selectedAlbums.map((album, index) => (
                     <div 
                       key={album.album_id}
-                      className="flex items-center gap-3 p-2 bg-zinc-900 rounded-lg"
+                      className="flex items-center gap-3 p-2 bg-zinc-900 rounded-lg hover:bg-zinc-800/80 transition-colors"
                     >
                       <div className="flex flex-col">
                         <Button
@@ -677,7 +699,7 @@ const HeroConfigTab = ({ albums }) => {
                       <span className="w-6 h-6 rounded bg-violet-500/20 text-violet-400 flex items-center justify-center text-xs font-bold">
                         {index + 1}
                       </span>
-                      <div className="w-10 h-10 bg-zinc-700 rounded overflow-hidden">
+                      <div className="w-12 h-12 bg-zinc-700 rounded-lg overflow-hidden flex-shrink-0">
                         {album.thumbnail ? (
                           <img src={album.thumbnail?.startsWith('data:') ? album.thumbnail : `${BACKEND_URL}${album.thumbnail_url || `/api/thumbnails/${album.album_id}`}`} alt="" className="w-full h-full object-cover" />
                         ) : (
