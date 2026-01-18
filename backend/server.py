@@ -167,6 +167,22 @@ class UserFollow(BaseModel):
     notifications_enabled: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class UserNotification(BaseModel):
+    """In-app notifications for users"""
+    model_config = ConfigDict(extra="ignore")
+    notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    title: str
+    message: str
+    notification_type: str  # announcement, new_content, new_song, event, system
+    entity_type: Optional[str] = None  # church, choir, leader
+    entity_id: Optional[str] = None
+    entity_name: Optional[str] = None
+    image_url: Optional[str] = None
+    action_url: Optional[str] = None  # Deep link or screen to open
+    is_read: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class ReligiousLeader(BaseModel):
     model_config = ConfigDict(extra="ignore")
     leader_id: str = Field(default_factory=lambda: f"lead_{uuid.uuid4().hex[:12]}")
