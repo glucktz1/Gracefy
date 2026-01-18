@@ -51,13 +51,14 @@ const AdminSettingsPage = lazy(() => import("@/pages/AdminSettingsPage"));
 const ChoirRegistrationPage = lazy(() => import("@/pages/ChoirRegistrationPage"));
 const ContentManagementPage = lazy(() => import("@/pages/ContentManagementPage"));
 const SystemSettingsPage = lazy(() => import("@/pages/SystemSettingsPage"));
+const BibleManagementPage = lazy(() => import("@/pages/BibleManagementPage"));
 
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
   CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe,
-  ChevronDown, ChevronRight, UsersRound
+  ChevronDown, ChevronRight, UsersRound, BookMarked
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
