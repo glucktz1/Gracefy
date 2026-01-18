@@ -107,9 +107,9 @@ const SongListItem = ({
             <AnimatedBars isPlaying={true} size="small" />
           ) : showThumbnail ? (
             <View style={styles.thumbnailContainer}>
-              {song.thumbnail || album?.thumbnail ? (
+              {(getItemThumbnail(song) || getItemThumbnail(album)) ? (
                 <Image 
-                  source={{ uri: song.thumbnail || album?.thumbnail }} 
+                  source={{ uri: getItemThumbnail(song) || getItemThumbnail(album) }} 
                   style={styles.thumbnail}
                 />
               ) : (
