@@ -2558,20 +2558,24 @@ export default function UserStreamingApp() {
       {/* Mobile Navigation */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-800 z-50" style={{ bottom: player.currentSong ? '72px' : '0' }}>
         <div className="flex justify-around py-2">
-          <button onClick={() => { setView('home'); setActiveCategory(null); }} className={`flex flex-col items-center gap-0.5 py-1 px-4 ${view === 'home' ? 'text-white' : 'text-zinc-500'}`}>
-            <Home size={22} />
+          <button onClick={() => { setView('home'); setActiveCategory(null); }} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'home' ? 'text-white' : 'text-zinc-500'}`}>
+            <Home size={20} />
             <span className="text-[10px]">{t('nav.home', 'Home')}</span>
           </button>
-          <button onClick={() => setView('search')} className={`flex flex-col items-center gap-0.5 py-1 px-4 ${view === 'search' ? 'text-white' : 'text-zinc-500'}`}>
-            <Search size={22} />
+          <button onClick={() => setView('search')} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'search' ? 'text-white' : 'text-zinc-500'}`}>
+            <Search size={20} />
             <span className="text-[10px]">{t('nav.search', 'Search')}</span>
           </button>
-          <button onClick={fetchLibrary} className={`flex flex-col items-center gap-0.5 py-1 px-4 ${view === 'library' ? 'text-white' : 'text-zinc-500'}`}>
-            <Library size={22} />
+          <button onClick={() => setView('bible')} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'bible' ? 'text-amber-500' : 'text-zinc-500'}`}>
+            <BookOpen size={20} />
+            <span className="text-[10px]">{t('nav.bible', 'Biblia')}</span>
+          </button>
+          <button onClick={fetchLibrary} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'library' ? 'text-white' : 'text-zinc-500'}`}>
+            <Library size={20} />
             <span className="text-[10px]">{t('nav.library', 'Library')}</span>
           </button>
-          <button onClick={() => setShowLanguageModal(true)} className={`flex flex-col items-center gap-0.5 py-1 px-4 text-zinc-500`}>
-            <Globe size={22} />
+          <button onClick={() => setShowLanguageModal(true)} className={`flex flex-col items-center gap-0.5 py-1 px-3 text-zinc-500`}>
+            <Globe size={20} />
             <span className="text-[10px]">{language.toUpperCase()}</span>
           </button>
         </div>
