@@ -159,28 +159,31 @@ export const HorizontalAlbumList = memo(({
     }
   }, [onAlbumPress]);
 
-  const renderItem = useCallback(({ item }) => (
-    <TouchableOpacity
-      style={styles.horizontalCard}
-      onPress={() => handleAlbumPress(item)}
-      activeOpacity={0.8}
-    >
-      <Image
-        source={item.thumbnail ? { uri: item.thumbnail } : PLACEHOLDER_IMAGE}
-        style={styles.horizontalAlbumArt}
-        contentFit="cover"
-        transition={200}
-        cachePolicy="memory-disk"
-        placeholder={PLACEHOLDER_IMAGE}
-      />
-      <Text style={styles.horizontalTitle} numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Text style={styles.horizontalArtist} numberOfLines={1}>
-        {item.artist_name}
-      </Text>
-    </TouchableOpacity>
-  ), [handleAlbumPress]);
+  const renderItem = useCallback(({ item }) => {
+    const thumbUrl = getItemThumbnail(item);
+    return (
+      <TouchableOpacity
+        style={styles.horizontalCard}
+        onPress={() => handleAlbumPress(item)}
+        activeOpacity={0.8}
+      >
+        <Image
+          source={thumbUrl ? { uri: thumbUrl } : PLACEHOLDER_IMAGE}
+          style={styles.horizontalAlbumArt}
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
+          placeholder={PLACEHOLDER_IMAGE}
+        />
+        <Text style={styles.horizontalTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.horizontalArtist} numberOfLines={1}>
+          {item.artist_name}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [handleAlbumPress]);
 
   const keyExtractor = useCallback((item) => item.album_id || item.id, []);
 
