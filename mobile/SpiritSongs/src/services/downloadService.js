@@ -85,13 +85,29 @@ const saveDownloadedSongs = async (songs) => {
   }
 };
 
-// Check if a song is downloaded
+// Check if a song is downloaded - checks both index and file existence
 export const isSongDownloaded = async (songId) => {
   try {
-    const downloadPath = `${DOWNLOADS_DIR}${songId}.mp3`;
-    const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-    return fileInfo.exists;
+    // First check from index (has the actual path)
+    const downloads = await getDownloadedSongs();
+    const downloaded = downloads.find(d => d.song_id === songId);
+    if (downloaded && downloaded.local_path) {
+      const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
+      return fileInfo.exists;
+    }
+    
+    // Fallback: check in standard directory
+    const dirResult = await ensureDownloadsDir();
+    if (dirResult.success) {
+      const safeId = songId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const downloadPath = `${dirResult.dir}${safeId}.mp3`;
+      const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+      return fileInfo.exists;
+    }
+    
+    return false;
   } catch (error) {
+    console.error('Error checking download status:', error);
     return false;
   }
 };
