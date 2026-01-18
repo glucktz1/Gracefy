@@ -1770,19 +1770,19 @@ export default function UserStreamingApp() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {/* User items first */}
                     <QuickAccessCard 
-                      item={{ type: 'liked_songs', name: 'Liked Songs' }} 
+                      item={{ type: 'liked_songs', name: t('library.likedSongs', 'Liked Songs') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('liked'); }}
                     />
                     <QuickAccessCard 
-                      item={{ type: 'playlists', name: 'Playlists' }} 
+                      item={{ type: 'playlists', name: t('library.playlists', 'Playlists') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('playlists'); }}
                     />
                     <QuickAccessCard 
-                      item={{ type: 'downloads', name: 'Downloads' }} 
+                      item={{ type: 'downloads', name: t('library.downloads', 'Downloads') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('downloads'); }}
                     />
                     <QuickAccessCard 
-                      item={{ type: 'library', name: 'My Library' }} 
+                      item={{ type: 'library', name: t('library.yourLibrary', 'My Library') }} 
                       onClick={() => setView('library')}
                     />
                     {/* Admin configured items (up to 4 more) */}
@@ -1800,7 +1800,7 @@ export default function UserStreamingApp() {
                 {!activeCategory && (
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     <button className="px-4 py-2 rounded-full bg-white text-black text-sm font-medium whitespace-nowrap">
-                      All
+                      {language === 'sw' ? 'Zote' : 'All'}
                     </button>
                     {categories.slice(0, 8).map(cat => (
                       <button
