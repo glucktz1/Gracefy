@@ -113,13 +113,17 @@ class BibleService:
                     book_name = book_data.get("book") or book_data.get("name", "Unknown")
                     chapters = book_data.get("chapters", [])
                     
+                    # Determine testament
+                    book_order = BOOK_ORDER.index(book_name) if book_name in BOOK_ORDER else 99
+                    testament = "old" if book_order < 39 else "new"
+                    
                     book_doc = {
                         "book_id": f"book_{language}_{book_name.lower().replace(' ', '_')}",
                         "name": book_name,
                         "name_localized": BOOK_NAMES.get(language, {}).get(book_name, book_name),
                         "language": language,
-                        "testament": "old" if BOOK_ORDER.index(book_name) < 39 if book_name in BOOK_ORDER else True else "new",
-                        "order": BOOK_ORDER.index(book_name) if book_name in BOOK_ORDER else 99,
+                        "testament": testament,
+                        "order": book_order,
                         "chapter_count": len(chapters),
                         "updated_at": datetime.now(timezone.utc)
                     }
