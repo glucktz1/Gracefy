@@ -62,6 +62,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
     { path: "/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
     { path: "/monetization", icon: Settings, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
+    { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
     { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
     { path: "/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
     { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
