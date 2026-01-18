@@ -586,6 +586,258 @@ const SectionHeader = ({ title, subtitle, onSeeMore }) => (
   </div>
 );
 
+// Bible View Component
+const BibleView = ({ language, t, onBack }) => {
+  const [books, setBooks] = useState([]);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [chapters, setChapters] = useState([]);
+  const [selectedChapter, setSelectedChapter] = useState(null);
+  const [verses, setVerses] = useState([]);
+  const [snippets, setSnippets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const [audioElement, setAudioElement] = useState(null);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+
+  // Fetch books and snippets on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [booksRes, snippetsRes] = await Promise.all([
+          axios.get(`${API}/bible/books?language=${language}`),
+          axios.get(`${API}/bible/snippets?language=${language}`)
+        ]);
+        setBooks(booksRes.data.books || []);
+        setSnippets(snippetsRes.data.snippets || []);
+      } catch (e) {
+        console.error("Error fetching Bible data:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [language]);
+
+  // Fetch chapters when book selected
+  useEffect(() => {
+    if (selectedBook) {
+      axios.get(`${API}/bible/books/${selectedBook.name}/chapters?language=${language}`)
+        .then(res => setChapters(res.data.chapters || []))
+        .catch(() => setChapters([]));
+    }
+  }, [selectedBook, language]);
+
+  // Fetch verses when chapter selected
+  useEffect(() => {
+    if (selectedBook && selectedChapter) {
+      axios.get(`${API}/bible/books/${selectedBook.name}/chapters/${selectedChapter}?language=${language}`)
+        .then(res => setVerses(res.data.verses || []))
+        .catch(() => setVerses([]));
+    }
+  }, [selectedBook, selectedChapter, language]);
+
+  // Play snippet audio
+  const handlePlaySnippet = async (snippet) => {
+    if (playingAudio === snippet.snippet_id) {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+      }
+      setPlayingAudio(null);
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
+      if (audioElement) audioElement.pause();
+      
+      const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      audio.onended = () => setPlayingAudio(null);
+      audio.play();
+      setAudioElement(audio);
+      setPlayingAudio(snippet.snippet_id);
+    } catch (e) {
+      toast.error("Failed to play audio");
+    }
+  };
+
+  // Generate audio for a verse
+  const handleReadVerse = async (verse) => {
+    setGeneratingAudio(true);
+    try {
+      const res = await axios.post(`${API}/bible/tts/verse`, {
+        book_name: selectedBook.name,
+        chapter: selectedChapter,
+        verse: verse.verse,
+        language: language,
+        voice: "nova"
+      });
+      
+      if (audioElement) audioElement.pause();
+      const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      audio.onended = () => setPlayingAudio(null);
+      audio.play();
+      setAudioElement(audio);
+      setPlayingAudio(`verse_${verse.verse}`);
+    } catch (e) {
+      toast.error("Failed to generate audio");
+    } finally {
+      setGeneratingAudio(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={40} className="animate-spin text-amber-500" />
+      </div>
+    );
+  }
+
+  // Show snippets if no book selected
+  if (!selectedBook) {
+    return (
+      <div className="space-y-6 p-4">
+        <h1 className="text-2xl font-bold flex items-center gap-3">
+          <BookOpen className="text-amber-500" />
+          {t('bible.title', 'Biblia na Vitabu vya Dini')}
+        </h1>
+
+        {/* Featured Snippets */}
+        {snippets.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">{t('bible.featuredSnippets', 'Vifungu Maarufu')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {snippets.slice(0, 4).map(snippet => (
+                <div 
+                  key={snippet.snippet_id}
+                  className="bg-gradient-to-br from-amber-900/30 to-zinc-900 rounded-xl p-4 border border-amber-500/20"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-white">{snippet.title}</h3>
+                      <p className="text-xs text-amber-400">{snippet.reference}</p>
+                      {snippet.description && (
+                        <p className="text-sm text-zinc-400 mt-1 line-clamp-2">{snippet.description}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handlePlaySnippet(snippet)}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                        playingAudio === snippet.snippet_id 
+                          ? 'bg-amber-500 text-black' 
+                          : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/40'
+                      }`}
+                    >
+                      {playingAudio === snippet.snippet_id ? <Pause size={20} /> : <Play size={20} />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Book List */}
+        <div>
+          <h2 className="text-lg font-semibold mb-3">{t('bible.selectBook', 'Chagua Kitabu')}</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {books.map(book => (
+              <button
+                key={book.book_id}
+                onClick={() => setSelectedBook(book)}
+                className="p-3 bg-zinc-800/50 hover:bg-zinc-700/50 rounded-lg text-left transition-colors"
+              >
+                <p className="font-medium text-white text-sm">{book.name}</p>
+                <p className="text-xs text-zinc-500">{book.testament === 'old' ? 'Agano la Kale' : 'Agano Jipya'}</p>
+              </button>
+            ))}
+          </div>
+          {books.length === 0 && (
+            <p className="text-center text-zinc-500 py-8">
+              {t('bible.noData', 'Bible data not available. Please contact admin.')}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show chapters if book selected but no chapter
+  if (!selectedChapter) {
+    return (
+      <div className="space-y-6 p-4">
+        <button 
+          onClick={() => setSelectedBook(null)}
+          className="flex items-center gap-2 text-zinc-400 hover:text-white"
+        >
+          <ChevronLeft size={20} /> {t('action.back', 'Rudi')}
+        </button>
+        
+        <h1 className="text-2xl font-bold">{selectedBook.name}</h1>
+        
+        <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
+          {chapters.map(ch => (
+            <button
+              key={ch}
+              onClick={() => setSelectedChapter(ch)}
+              className="aspect-square flex items-center justify-center bg-zinc-800 hover:bg-amber-600 rounded-lg font-medium transition-colors"
+            >
+              {ch}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Show verses
+  return (
+    <div className="space-y-4 p-4">
+      <button 
+        onClick={() => setSelectedChapter(null)}
+        className="flex items-center gap-2 text-zinc-400 hover:text-white"
+      >
+        <ChevronLeft size={20} /> {t('action.back', 'Rudi')}
+      </button>
+      
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">{selectedBook.name} {selectedChapter}</h1>
+        <span className="text-xs text-zinc-500">{verses.length} {t('bible.verses', 'mistari')}</span>
+      </div>
+      
+      <div className="space-y-3 pb-20">
+        {verses.map(verse => (
+          <div 
+            key={verse.verse_id}
+            className="flex gap-3 p-3 bg-zinc-900/50 rounded-lg hover:bg-zinc-800/50 transition-colors"
+          >
+            <span className="text-amber-500 font-bold text-sm w-8 flex-shrink-0">{verse.verse}</span>
+            <p className="text-zinc-200 text-sm leading-relaxed flex-1">{verse.text}</p>
+            <button
+              onClick={() => handleReadVerse(verse)}
+              disabled={generatingAudio}
+              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                playingAudio === `verse_${verse.verse}`
+                  ? 'bg-amber-500 text-black'
+                  : 'bg-zinc-700 text-zinc-400 hover:bg-amber-500/20 hover:text-amber-400'
+              }`}
+            >
+              {generatingAudio && playingAudio === `verse_${verse.verse}` ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : playingAudio === `verse_${verse.verse}` ? (
+                <Pause size={14} />
+              ) : (
+                <Volume2 size={14} />
+              )}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Full-Screen Player Modal
 const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
   if (!player.currentSong) return null;
