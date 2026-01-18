@@ -542,7 +542,8 @@ class LayoutSection(BaseModel):
     section_id: str = Field(default_factory=lambda: f"section_{uuid.uuid4().hex[:12]}")
     name: str  # Internal name
     display_name: str  # Shown to users
-    section_type: str  # hero, quick_access, featured_albums, seasonal, trending, cta, custom, choirs, churches, special_mixes
+    display_name_en: Optional[str] = None  # English display name for localization
+    section_type: str  # hero, quick_access, featured_albums, seasonal, trending, cta, custom, choirs, churches, special_mixes, sermons, teachings
     description: Optional[str] = None
     
     # Platform targeting
