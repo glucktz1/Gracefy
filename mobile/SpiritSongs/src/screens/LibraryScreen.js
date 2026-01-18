@@ -66,7 +66,8 @@ const SongCard = ({ song, onPress, onRemove, isCurrentSong, showRemove, isLiked 
       </TouchableOpacity>
     )}
   </TouchableOpacity>
-);
+  );
+};
 
 // Playlist Card
 const PlaylistGridCard = ({ playlist, onPress }) => (
