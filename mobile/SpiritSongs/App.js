@@ -157,23 +157,25 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <PlayerProvider>
-              <NavigationStateContext.Provider value={{ currentRoute }}>
-                <NavigationContainer
-                  onStateChange={(state) => {
-                    const routeName = getActiveRouteName(state);
-                    setCurrentRoute(routeName);
-                  }}
-                >
-                  <StatusBar style="light" />
-                  <AppContainer />
-                </NavigationContainer>
-              </NavigationStateContext.Provider>
-            </PlayerProvider>
-          </SubscriptionProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <SubscriptionProvider>
+              <PlayerProvider>
+                <NavigationStateContext.Provider value={{ currentRoute }}>
+                  <NavigationContainer
+                    onStateChange={(state) => {
+                      const routeName = getActiveRouteName(state);
+                      setCurrentRoute(routeName);
+                    }}
+                  >
+                    <StatusBar style="light" />
+                    <AppContainer />
+                  </NavigationContainer>
+                </NavigationStateContext.Provider>
+              </PlayerProvider>
+            </SubscriptionProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
