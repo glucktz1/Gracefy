@@ -221,33 +221,36 @@ const VerticalListSection = ({ title, items, onItemPress, onSeeAll }) => {
         {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
       </View>
       <View style={styles.verticalListContainer}>
-        {items.slice(0, 4).map((item, idx) => (
-          <TouchableOpacity 
-            key={item.album_id || item.song_id || idx} 
-            style={styles.verticalListItem}
-            onPress={() => onItemPress(item)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.verticalListThumb}>
-              {item.thumbnail ? (
-                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.verticalListImg} />
-              ) : (
-                <LinearGradient colors={['#333', '#111']} style={styles.verticalListImg}>
-                  <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
-                </LinearGradient>
-              )}
-            </View>
-            <View style={styles.verticalListInfo}>
-              <Text style={styles.verticalListTitle} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.verticalListSubtitle} numberOfLines={1}>
-                {item.songs_count ? `${item.songs_count} songs` : item.artist_name || 'Stream now'}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.verticalListPlay} onPress={() => onItemPress(item)}>
-              <Ionicons name="play-circle" size={32} color="#3498DB" />
+        {items.slice(0, 4).map((item, idx) => {
+          const thumbUrl = getItemThumbnail(item);
+          return (
+            <TouchableOpacity 
+              key={item.album_id || item.song_id || idx} 
+              style={styles.verticalListItem}
+              onPress={() => onItemPress(item)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.verticalListThumb}>
+                {thumbUrl ? (
+                  <Image source={{ uri: thumbUrl }} style={styles.verticalListImg} />
+                ) : (
+                  <LinearGradient colors={['#333', '#111']} style={styles.verticalListImg}>
+                    <Ionicons name="musical-notes" size={20} color="rgba(255,255,255,0.3)" />
+                  </LinearGradient>
+                )}
+              </View>
+              <View style={styles.verticalListInfo}>
+                <Text style={styles.verticalListTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.verticalListSubtitle} numberOfLines={1}>
+                  {item.songs_count ? `${item.songs_count} songs` : item.artist_name || 'Stream now'}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.verticalListPlay} onPress={() => onItemPress(item)}>
+                <Ionicons name="play-circle" size={32} color="#3498DB" />
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
@@ -264,26 +267,29 @@ const GridSection = ({ title, items, onItemPress, onSeeAll }) => {
         {onSeeAll && <TouchableOpacity onPress={onSeeAll}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>}
       </View>
       <View style={styles.gridContainer}>
-        {items.slice(0, 4).map((item, idx) => (
-          <TouchableOpacity 
-            key={item.album_id || idx} 
-            style={styles.gridItem}
-            onPress={() => onItemPress(item)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.gridItemImage}>
-              {item.thumbnail ? (
-                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.gridItemImg} />
-              ) : (
-                <LinearGradient colors={['#333', '#111']} style={styles.gridItemImg}>
-                  <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.3)" />
-                </LinearGradient>
-              )}
-            </View>
-            <Text style={styles.gridItemTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.gridItemSubtitle} numberOfLines={1}>{item.artist_name}</Text>
-          </TouchableOpacity>
-        ))}
+        {items.slice(0, 4).map((item, idx) => {
+          const thumbUrl = getItemThumbnail(item);
+          return (
+            <TouchableOpacity 
+              key={item.album_id || idx} 
+              style={styles.gridItem}
+              onPress={() => onItemPress(item)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.gridItemImage}>
+                {thumbUrl ? (
+                  <Image source={{ uri: thumbUrl }} style={styles.gridItemImg} />
+                ) : (
+                  <LinearGradient colors={['#333', '#111']} style={styles.gridItemImg}>
+                    <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.3)" />
+                  </LinearGradient>
+                )}
+              </View>
+              <Text style={styles.gridItemTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={styles.gridItemSubtitle} numberOfLines={1}>{item.artist_name}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -304,20 +310,22 @@ const ChurchesSection = ({ churches, onChurchPress, title = 'Churches' }) => {
         keyExtractor={(item) => item.church_id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.churchCard} 
-            onPress={() => onChurchPress(item)} 
-            activeOpacity={0.8}
-          >
-            <View style={styles.churchImageContainer}>
-              {item.thumbnail || item.cover_image ? (
-                <Image source={{ uri: item.thumbnail || item.cover_image }} style={styles.churchImage} />
-              ) : (
-                <LinearGradient colors={['#4f46e5', '#7c3aed']} style={styles.churchImage}>
-                  <Ionicons name="business" size={32} color="rgba(255,255,255,0.4)" />
-                </LinearGradient>
-              )}
+        renderItem={({ item }) => {
+          const thumbUrl = getItemThumbnail(item) || item.cover_image;
+          return (
+            <TouchableOpacity 
+              style={styles.churchCard} 
+              onPress={() => onChurchPress(item)} 
+              activeOpacity={0.8}
+            >
+              <View style={styles.churchImageContainer}>
+                {thumbUrl ? (
+                  <Image source={{ uri: thumbUrl }} style={styles.churchImage} />
+                ) : (
+                  <LinearGradient colors={['#4f46e5', '#7c3aed']} style={styles.churchImage}>
+                    <Ionicons name="business" size={32} color="rgba(255,255,255,0.4)" />
+                  </LinearGradient>
+                )}
               {item.denomination && (
                 <View style={styles.churchDenomBadge}>
                   <Text style={styles.churchDenomText}>{item.denomination.slice(0, 3).toUpperCase()}</Text>
