@@ -122,7 +122,7 @@ const MainNavigator = React.forwardRef((props, ref) => {
       />
     </Stack.Navigator>
   );
-}
+});
 
 // App Container with MiniPlayer
 function AppContainer() {
