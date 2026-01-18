@@ -1669,6 +1669,12 @@ export default function UserStreamingApp() {
           >
             <Library size={22} /> {t('library.yourLibrary', 'Your Library')}
           </button>
+          <button 
+            onClick={() => setView('bible')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'bible' ? 'bg-amber-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <BookOpen size={22} /> {t('nav.bible', 'Biblia')}
+          </button>
         </nav>
 
         <div className="mt-6 pt-6 border-t border-zinc-800 space-y-2">
