@@ -4,12 +4,14 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1,
   Heart, MoreHorizontal, ChevronLeft, ChevronRight, Home, Search, Library,
   Plus, Minus, Clock, Music2, Mic2, ListMusic, X, Share2, Download, Maximize2,
-  BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2
+  BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import { useLanguage } from "@/context/LanguageContext";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
