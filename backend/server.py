@@ -9840,6 +9840,377 @@ async def save_system_settings(settings: SystemSettings):
     return {"message": "Settings saved successfully"}
 
 
+# ============== TRANSLATION MANAGEMENT ==============
+
+# Default translations (English as base, Swahili as primary)
+DEFAULT_TRANSLATIONS = {
+    # Navigation
+    "nav.home": {"en": "Home", "sw": "Nyumbani"},
+    "nav.search": {"en": "Search", "sw": "Tafuta"},
+    "nav.library": {"en": "Library", "sw": "Maktaba"},
+    "nav.profile": {"en": "Profile", "sw": "Wasifu"},
+    
+    # Home Screen
+    "home.featured": {"en": "FEATURED", "sw": "ILIYOANGAZIWA"},
+    "home.playNow": {"en": "Play Now", "sw": "Cheza Sasa"},
+    "home.forYou": {"en": "For You", "sw": "Kwako Wewe"},
+    "home.continuePlaying": {"en": "Continue Playing", "sw": "Endelea Kusikiliza"},
+    "home.popularAlbums": {"en": "Popular Albums", "sw": "Albamu Maarufu"},
+    "home.topPicks": {"en": "Top Picks", "sw": "Chaguo Bora"},
+    "home.newReleases": {"en": "New Releases", "sw": "Mpya"},
+    "home.bestselling": {"en": "Bestselling", "sw": "Zinazouzwa Zaidi"},
+    "home.churches": {"en": "Churches", "sw": "Makanisa"},
+    "home.sermons": {"en": "Sermons & Reflections", "sw": "Mahubiri na Tafakari"},
+    "home.teachings": {"en": "Teachings & Catechesis", "sw": "Mafundisho na Katekesi"},
+    "home.lentSongs": {"en": "Lent Songs", "sw": "Nyimbo za Kwaresima"},
+    "home.quickAccess": {"en": "Quick Access", "sw": "Ufikiaji Haraka"},
+    
+    # Library Screen
+    "library.yourLibrary": {"en": "Your Library", "sw": "Maktaba Yako"},
+    "library.likedSongs": {"en": "Liked Songs", "sw": "Nyimbo Unazopenda"},
+    "library.downloads": {"en": "Downloads", "sw": "Vilivyopakuliwa"},
+    "library.playlists": {"en": "Playlists", "sw": "Orodha za Nyimbo"},
+    "library.recentlyPlayed": {"en": "Recently Played", "sw": "Zilizochezwa Hivi Karibuni"},
+    "library.songs": {"en": "songs", "sw": "nyimbo"},
+    "library.albums": {"en": "Albums", "sw": "Albamu"},
+    "library.artists": {"en": "Artists", "sw": "Wasanii"},
+    
+    # Player
+    "player.nowPlaying": {"en": "Now Playing", "sw": "Inacheza Sasa"},
+    "player.playingFrom": {"en": "PLAYING FROM", "sw": "INACHEZA KUTOKA"},
+    "player.queue": {"en": "Queue", "sw": "Foleni"},
+    "player.nextInQueue": {"en": "Next in Queue", "sw": "Ijayo Katika Foleni"},
+    "player.noMoreSongs": {"en": "No more songs in queue", "sw": "Hakuna nyimbo zaidi kwenye foleni"},
+    "player.shuffle": {"en": "Shuffle", "sw": "Changanya"},
+    "player.repeat": {"en": "Repeat", "sw": "Rudia"},
+    "player.repeatOne": {"en": "Repeat One", "sw": "Rudia Moja"},
+    
+    # Actions
+    "action.play": {"en": "Play", "sw": "Cheza"},
+    "action.playAll": {"en": "Play All", "sw": "Cheza Zote"},
+    "action.pause": {"en": "Pause", "sw": "Simamisha"},
+    "action.like": {"en": "Like", "sw": "Penda"},
+    "action.liked": {"en": "Liked", "sw": "Imependwa"},
+    "action.download": {"en": "Download", "sw": "Pakua"},
+    "action.downloading": {"en": "Downloading...", "sw": "Inapakua..."},
+    "action.downloaded": {"en": "Downloaded", "sw": "Imepakuliwa"},
+    "action.saved": {"en": "Saved", "sw": "Imehifadhiwa"},
+    "action.share": {"en": "Share", "sw": "Shiriki"},
+    "action.addToPlaylist": {"en": "Add to Playlist", "sw": "Ongeza kwenye Orodha"},
+    "action.createPlaylist": {"en": "Create Playlist", "sw": "Tengeneza Orodha"},
+    "action.newPlaylist": {"en": "New Playlist", "sw": "Orodha Mpya"},
+    "action.remove": {"en": "Remove", "sw": "Ondoa"},
+    "action.clearAll": {"en": "Clear All", "sw": "Futa Zote"},
+    "action.follow": {"en": "Follow", "sw": "Fuata"},
+    "action.following": {"en": "Following", "sw": "Unafuata"},
+    "action.subscribe": {"en": "Subscribe", "sw": "Jiandikishe"},
+    
+    # Search
+    "search.placeholder": {"en": "Search songs, albums, artists...", "sw": "Tafuta nyimbo, albamu, wasanii..."},
+    "search.recent": {"en": "Recent Searches", "sw": "Utafutaji wa Hivi Karibuni"},
+    "search.trending": {"en": "Trending", "sw": "Zinazopanda"},
+    "search.noResults": {"en": "No results found", "sw": "Hakuna matokeo"},
+    "search.tryDifferent": {"en": "Try different keywords", "sw": "Jaribu maneno mengine"},
+    
+    # Auth
+    "auth.loginRequired": {"en": "Login Required", "sw": "Ingia Kwanza"},
+    "auth.pleaseLogin": {"en": "Please log in to continue", "sw": "Tafadhali ingia ili uendelee"},
+    "auth.login": {"en": "Log In", "sw": "Ingia"},
+    "auth.logout": {"en": "Log Out", "sw": "Toka"},
+    "auth.signUp": {"en": "Sign Up", "sw": "Jisajili"},
+    "auth.email": {"en": "Email", "sw": "Barua pepe"},
+    "auth.password": {"en": "Password", "sw": "Nywila"},
+    "auth.forgotPassword": {"en": "Forgot Password?", "sw": "Umesahau Nywila?"},
+    "auth.continueWithGoogle": {"en": "Continue with Google", "sw": "Endelea na Google"},
+    
+    # Profile/Settings
+    "settings.settings": {"en": "Settings", "sw": "Mipangilio"},
+    "settings.language": {"en": "Language", "sw": "Lugha"},
+    "settings.kiswahili": {"en": "Kiswahili", "sw": "Kiswahili"},
+    "settings.english": {"en": "English", "sw": "Kiingereza"},
+    "settings.changeLanguage": {"en": "Change Language", "sw": "Badilisha Lugha"},
+    "settings.account": {"en": "Account", "sw": "Akaunti"},
+    "settings.notifications": {"en": "Notifications", "sw": "Arifa"},
+    "settings.privacy": {"en": "Privacy", "sw": "Faragha"},
+    "settings.help": {"en": "Help & Support", "sw": "Msaada"},
+    "settings.about": {"en": "About", "sw": "Kuhusu"},
+    "settings.version": {"en": "Version", "sw": "Toleo"},
+    "settings.darkMode": {"en": "Dark Mode", "sw": "Hali ya Giza"},
+    "settings.audioQuality": {"en": "Audio Quality", "sw": "Ubora wa Sauti"},
+    "settings.downloadQuality": {"en": "Download Quality", "sw": "Ubora wa Kupakua"},
+    "settings.storage": {"en": "Storage", "sw": "Hifadhi"},
+    "settings.clearCache": {"en": "Clear Cache", "sw": "Futa Kashe"},
+    
+    # Subscription
+    "subscription.upgrade": {"en": "Upgrade", "sw": "Boresha"},
+    "subscription.premium": {"en": "Premium", "sw": "Premium"},
+    "subscription.free": {"en": "Free", "sw": "Bila Malipo"},
+    "subscription.monthly": {"en": "Monthly", "sw": "Kila Mwezi"},
+    "subscription.yearly": {"en": "Yearly", "sw": "Kila Mwaka"},
+    "subscription.subscribe": {"en": "Subscribe Now", "sw": "Jiandikishe Sasa"},
+    "subscription.benefits": {"en": "Premium Benefits", "sw": "Faida za Premium"},
+    "subscription.noAds": {"en": "No Ads", "sw": "Hakuna Matangazo"},
+    "subscription.unlimitedSkips": {"en": "Unlimited Skips", "sw": "Kuruka Bila Kikomo"},
+    "subscription.offlineMode": {"en": "Offline Mode", "sw": "Hali ya Nje ya Mtandao"},
+    "subscription.highQuality": {"en": "High Quality Audio", "sw": "Sauti ya Ubora wa Juu"},
+    
+    # Common
+    "common.seeAll": {"en": "See All", "sw": "Ona Zote"},
+    "common.noContent": {"en": "No content available yet", "sw": "Hakuna maudhui bado"},
+    "common.pullToRefresh": {"en": "Pull down to refresh", "sw": "Vuta kushuka kuonyesha upya"},
+    "common.loading": {"en": "Loading...", "sw": "Inapakia..."},
+    "common.error": {"en": "Error", "sw": "Hitilafu"},
+    "common.retry": {"en": "Retry", "sw": "Jaribu Tena"},
+    "common.cancel": {"en": "Cancel", "sw": "Ghairi"},
+    "common.close": {"en": "Close", "sw": "Funga"},
+    "common.save": {"en": "Save", "sw": "Hifadhi"},
+    "common.success": {"en": "Success", "sw": "Imefanikiwa"},
+    "common.confirm": {"en": "Confirm", "sw": "Thibitisha"},
+    "common.delete": {"en": "Delete", "sw": "Futa"},
+    "common.edit": {"en": "Edit", "sw": "Hariri"},
+    "common.done": {"en": "Done", "sw": "Imekamilika"},
+    "common.next": {"en": "Next", "sw": "Endelea"},
+    "common.back": {"en": "Back", "sw": "Rudi"},
+    "common.skip": {"en": "Skip", "sw": "Ruka"},
+    "common.ok": {"en": "OK", "sw": "Sawa"},
+    "common.yes": {"en": "Yes", "sw": "Ndiyo"},
+    "common.no": {"en": "No", "sw": "Hapana"},
+    
+    # Empty States
+    "empty.noLikedSongs": {"en": "No Liked Songs", "sw": "Hakuna Nyimbo Unazopenda"},
+    "empty.noDownloads": {"en": "No Downloads", "sw": "Hakuna Vilivyopakuliwa"},
+    "empty.noPlaylists": {"en": "No Playlists", "sw": "Hakuna Orodha za Nyimbo"},
+    "empty.tapHeartToAdd": {"en": "Tap the heart icon on any song to add it here", "sw": "Gusa ikoni ya moyo kwenye wimbo wowote kuuongeza hapa"},
+    "empty.downloadToListen": {"en": "Download songs to listen offline", "sw": "Pakua nyimbo kusikiliza bila mtandao"},
+    "empty.createPlaylistsToOrganize": {"en": "Create playlists to organize your music", "sw": "Tengeneza orodha kupanga muziki wako"},
+    "empty.noSearchResults": {"en": "No search results", "sw": "Hakuna matokeo ya utafutaji"},
+    
+    # Errors
+    "error.networkError": {"en": "Network error. Please check your connection.", "sw": "Hitilafu ya mtandao. Tafadhali angalia muunganisho wako."},
+    "error.somethingWentWrong": {"en": "Something went wrong", "sw": "Kitu kimeenda vibaya"},
+    "error.tryAgain": {"en": "Please try again", "sw": "Tafadhali jaribu tena"},
+    "error.sessionExpired": {"en": "Session expired. Please log in again.", "sw": "Kipindi kimeisha. Tafadhali ingia tena."},
+    "error.downloadFailed": {"en": "Download failed", "sw": "Kupakua kumeshindikana"},
+    "error.playbackError": {"en": "Playback error", "sw": "Hitilafu ya kucheza"},
+    
+    # Album/Song Details
+    "detail.tracks": {"en": "tracks", "sw": "nyimbo"},
+    "detail.duration": {"en": "Duration", "sw": "Muda"},
+    "detail.releaseDate": {"en": "Release Date", "sw": "Tarehe ya Kutolewa"},
+    "detail.artist": {"en": "Artist", "sw": "Msanii"},
+    "detail.album": {"en": "Album", "sw": "Albamu"},
+    "detail.genre": {"en": "Genre", "sw": "Aina"},
+    
+    # PWA Specific
+    "pwa.installApp": {"en": "Install App", "sw": "Sakinisha Programu"},
+    "pwa.addToHomeScreen": {"en": "Add to Home Screen", "sw": "Ongeza kwenye Skrini ya Nyumbani"},
+    "pwa.offline": {"en": "You are offline", "sw": "Uko nje ya mtandao"},
+    "pwa.updateAvailable": {"en": "Update available", "sw": "Sasisho linapatikana"},
+}
+
+
+@api_router.get("/translations")
+async def get_translations(lang: str = "sw"):
+    """Get translations for a specific language"""
+    # First check if custom translations exist in database
+    custom_translations = await db.translations.find_one({"lang": lang}, {"_id": 0})
+    
+    # Build translation object
+    result = {}
+    for key, values in DEFAULT_TRANSLATIONS.items():
+        # Use custom translation if exists, otherwise use default
+        if custom_translations and key in custom_translations.get("strings", {}):
+            result[key] = custom_translations["strings"][key]
+        else:
+            result[key] = values.get(lang, values.get("en", key))
+    
+    return {
+        "lang": lang,
+        "translations": result,
+        "updated_at": custom_translations.get("updated_at") if custom_translations else None
+    }
+
+
+@api_router.get("/admin/translations/download")
+async def download_translations_excel():
+    """Download all translations as Excel file for editing"""
+    import pandas as pd
+    from io import BytesIO
+    
+    # Prepare data for Excel
+    rows = []
+    for key, values in DEFAULT_TRANSLATIONS.items():
+        row = {
+            "key": key,
+            "english": values.get("en", ""),
+            "swahili": values.get("sw", "")
+        }
+        rows.append(row)
+    
+    # Check for custom translations and add any additional keys
+    custom_langs = await db.translations.find({}, {"_id": 0}).to_list(100)
+    custom_lang_codes = [c["lang"] for c in custom_langs]
+    
+    # Add custom language columns
+    for custom in custom_langs:
+        lang = custom["lang"]
+        if lang not in ["en", "sw"]:
+            for row in rows:
+                key = row["key"]
+                if key in custom.get("strings", {}):
+                    row[lang] = custom["strings"][key]
+                else:
+                    row[lang] = ""
+    
+    df = pd.DataFrame(rows)
+    
+    # Write to Excel
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Translations', index=False)
+        
+        # Add instructions sheet
+        instructions = pd.DataFrame({
+            "Instructions": [
+                "1. Edit translations in the 'Translations' sheet",
+                "2. The 'key' column should NOT be modified",
+                "3. 'english' column contains English translations (reference)",
+                "4. 'swahili' column contains Kiswahili translations",
+                "5. Add new language columns as needed (e.g., 'french', 'arabic')",
+                "6. Save the file and upload it back to the admin panel",
+                "7. Empty cells will use English as fallback",
+                "",
+                "Language codes:",
+                "sw = Kiswahili",
+                "en = English",
+                "fr = French",
+                "ar = Arabic",
+                "pt = Portuguese"
+            ]
+        })
+        instructions.to_excel(writer, sheet_name='Instructions', index=False)
+    
+    output.seek(0)
+    
+    return Response(
+        content=output.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=gracefy_translations.xlsx"
+        }
+    )
+
+
+@api_router.post("/admin/translations/upload")
+async def upload_translations_excel(file: UploadFile = File(...)):
+    """Upload edited translations Excel file"""
+    import pandas as pd
+    from io import BytesIO
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Please upload an Excel file (.xlsx or .xls)")
+    
+    try:
+        content = await file.read()
+        df = pd.read_excel(BytesIO(content), sheet_name='Translations')
+        
+        # Validate required columns
+        if 'key' not in df.columns:
+            raise HTTPException(status_code=400, detail="Excel file must have a 'key' column")
+        
+        # Get language columns (exclude 'key')
+        lang_columns = [col for col in df.columns if col != 'key']
+        
+        # Process each language
+        updated_languages = []
+        for lang_col in lang_columns:
+            lang_code = lang_col.lower().strip()
+            if lang_code == 'english':
+                lang_code = 'en'
+            elif lang_code == 'swahili':
+                lang_code = 'sw'
+            
+            # Build strings dictionary for this language
+            strings = {}
+            for _, row in df.iterrows():
+                key = row['key']
+                value = row[lang_col]
+                if pd.notna(value) and str(value).strip():
+                    strings[key] = str(value).strip()
+            
+            # Save to database
+            await db.translations.update_one(
+                {"lang": lang_code},
+                {
+                    "$set": {
+                        "lang": lang_code,
+                        "strings": strings,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                },
+                upsert=True
+            )
+            updated_languages.append(lang_code)
+        
+        return {
+            "message": "Translations uploaded successfully",
+            "languages_updated": updated_languages,
+            "total_keys": len(df)
+        }
+    
+    except Exception as e:
+        logging.error(f"Error processing translations file: {e}")
+        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
+
+
+@api_router.get("/admin/translations/languages")
+async def get_available_languages():
+    """Get list of available languages with translation stats"""
+    # Get custom translations from database
+    custom_translations = await db.translations.find({}, {"_id": 0, "lang": 1, "strings": 1, "updated_at": 1}).to_list(100)
+    
+    total_keys = len(DEFAULT_TRANSLATIONS)
+    
+    languages = [
+        {
+            "code": "en",
+            "name": "English",
+            "nativeName": "English",
+            "isDefault": False,
+            "totalKeys": total_keys,
+            "translatedKeys": total_keys,
+            "completionPercentage": 100
+        },
+        {
+            "code": "sw",
+            "name": "Kiswahili",
+            "nativeName": "Kiswahili",
+            "isDefault": True,
+            "totalKeys": total_keys,
+            "translatedKeys": total_keys,
+            "completionPercentage": 100
+        }
+    ]
+    
+    # Add custom languages
+    for custom in custom_translations:
+        lang_code = custom["lang"]
+        if lang_code not in ["en", "sw"]:
+            translated_count = len(custom.get("strings", {}))
+            languages.append({
+                "code": lang_code,
+                "name": lang_code.upper(),
+                "nativeName": lang_code,
+                "isDefault": False,
+                "totalKeys": total_keys,
+                "translatedKeys": translated_count,
+                "completionPercentage": round((translated_count / total_keys) * 100, 1) if total_keys > 0 else 0,
+                "updatedAt": custom.get("updated_at")
+            })
+    
+    return {"languages": languages, "totalKeys": total_keys}
+
+
 @api_router.get("/geo/check")
 async def check_geo_location(request: Request):
     """Check user's geographic location based on IP"""
