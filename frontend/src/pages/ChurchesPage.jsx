@@ -110,13 +110,18 @@ export default function ChurchesPage() {
   const [announcementForm, setAnnouncementForm] = useState({
     date: new Date().toISOString().split('T')[0],
     title: "",
+    content: "",
+    image_url: "",
     announcement_type: "general",
+    category: "general",
     description: "",
     time: "",
     location: "",
     contact_person: "",
-    contact_phone: ""
+    contact_phone: "",
+    expires_at: ""
   });
+  const [uploadingAnnouncementImage, setUploadingAnnouncementImage] = useState(false);
 
   // Image upload states
   const [uploadingImage, setUploadingImage] = useState({ thumbnail: false, cover: false, leader: false });
