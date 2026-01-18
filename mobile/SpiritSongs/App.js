@@ -25,6 +25,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
 import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
+import ChurchDetailScreen from './src/screens/ChurchDetailScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
