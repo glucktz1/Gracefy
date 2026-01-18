@@ -7070,6 +7070,9 @@ async def toggle_section(section_id: str, data: dict):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Section not found")
     
+    # Invalidate home cache so changes reflect immediately
+    await invalidate_home_cache()
+    
     return {"message": f"Section {'activated' if is_active else 'deactivated'}"}
 
 @api_router.post("/layout/sections/{section_id}/assign-content")
