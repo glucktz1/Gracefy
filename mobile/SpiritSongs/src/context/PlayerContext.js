@@ -264,7 +264,7 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  const loadAndPlaySong = async (song, album) => {
+  const loadAndPlaySong = async (song, album, startPosition = 0) => {
     if (isLoadingRef.current) return;
     
     try {
@@ -272,7 +272,7 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       
-      console.log('Loading:', song.title);
+      console.log('Loading:', song.title, startPosition > 0 ? `from position ${startPosition}s` : '');
       
       await stopAndUnloadSound();
       
@@ -306,6 +306,7 @@ export const PlayerProvider = ({ children }) => {
           shouldPlay: true,
           progressUpdateIntervalMillis: 500,
           isLooping: repeat === 'one',
+          positionMillis: startPosition * 1000, // Start from saved position
         },
         onPlaybackStatusUpdate
       );
