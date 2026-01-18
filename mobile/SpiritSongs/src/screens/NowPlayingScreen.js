@@ -454,7 +454,6 @@ const NowPlayingScreen = ({ navigation }) => {
             <Text style={styles.secondaryText}>Queue</Text>
           </TouchableOpacity>
         </View>
-        </View>
       </LinearGradient>
 
       {/* Queue Modal */}
