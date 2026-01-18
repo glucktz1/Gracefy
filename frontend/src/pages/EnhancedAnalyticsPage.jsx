@@ -249,6 +249,9 @@ export default function EnhancedAnalyticsPage() {
           <TabsTrigger value="overview" className="data-[state=active]:bg-violet-600">Overview</TabsTrigger>
           <TabsTrigger value="revenue" className="data-[state=active]:bg-violet-600">Revenue</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">Content</TabsTrigger>
+          <TabsTrigger value="bible" className="data-[state=active]:bg-amber-600">
+            <BookOpen size={14} className="mr-1" /> Bible
+          </TabsTrigger>
           <TabsTrigger value="choirs" className="data-[state=active]:bg-violet-600">Choirs</TabsTrigger>
         </TabsList>
 
