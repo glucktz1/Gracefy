@@ -94,8 +94,10 @@ const SubscriptionCard = ({ plan, currentPlan, onSelect }) => {
 export default function ProfileScreen({ navigation }) {
   const { user, isAuthenticated, logout } = useAuth();
   const { isPremium, isTrial, trialInfo, features, subscriptionExpiry, subscriptionInfo, refresh, getTrialDaysRemaining, isTrialExpiringSoon } = useSubscription();
+  const { t, language, changeLanguage, availableLanguages } = useLanguage();
   const [currentPlan, setCurrentPlan] = useState(isPremium ? 'premium' : 'free');
   const [loading, setLoading] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   // Update current plan when subscription changes
   useEffect(() => {
