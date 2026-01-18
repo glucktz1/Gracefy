@@ -29,6 +29,59 @@ app = FastAPI(title="Gracefy Admin API")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# ============== PERFORMANCE HELPERS ==============
+
+# Simple in-memory cache for frequently accessed data
+_cache = {}
+_cache_timestamps = {}
+CACHE_TTL = 60  # Cache TTL in seconds
+
+def get_cached(key: str):
+    """Get cached value if not expired"""
+    import time
+    if key in _cache and key in _cache_timestamps:
+        if time.time() - _cache_timestamps[key] < CACHE_TTL:
+            return _cache[key]
+    return None
+
+def set_cached(key: str, value: any):
+    """Set cache value"""
+    import time
+    _cache[key] = value
+    _cache_timestamps[key] = time.time()
+
+def optimize_thumbnails(items: list) -> list:
+    """
+    Optimize thumbnails in items list.
+    - If thumbnail is a base64 string > 1000 chars, replace with a placeholder URL
+    - This dramatically reduces response sizes
+    """
+    for item in items:
+        if "thumbnail" in item and item["thumbnail"]:
+            thumb = item["thumbnail"]
+            # Check if it's a base64 string (not a URL)
+            if isinstance(thumb, str) and len(thumb) > 1000 and not thumb.startswith("http"):
+                # It's a large base64 string - provide a URL to fetch it
+                item_id = item.get("album_id") or item.get("mix_id") or item.get("content_id") or "unknown"
+                item["thumbnail_url"] = f"/api/thumbnails/{item_id}"
+                item["thumbnail"] = None  # Remove the base64 data from list response
+            elif isinstance(thumb, str) and thumb.startswith("http"):
+                item["thumbnail_url"] = thumb
+    return items
+
+def paginate_response(items: list, page: int = 1, limit: int = 20) -> dict:
+    """Helper to paginate list responses"""
+    total = len(items)
+    start = (page - 1) * limit
+    end = start + limit
+    return {
+        "items": items[start:end],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit
+    }
+
 # ============== MODELS ==============
 
 class UserBase(BaseModel):
