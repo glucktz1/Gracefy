@@ -132,14 +132,17 @@ class Church(BaseModel):
     updated_at: Optional[datetime] = None
 
 class ChurchAnnouncement(BaseModel):
-    """Church announcements that auto-delete after 2 weeks"""
+    """Church announcements with text and image support"""
     model_config = ConfigDict(extra="ignore")
     announcement_id: str = Field(default_factory=lambda: f"ann_{uuid.uuid4().hex[:12]}")
     church_id: str
     church_name: Optional[str] = None
     date: str  # YYYY-MM-DD format
     title: str
-    announcement_type: str = "general"  # general, offering, baptism, adoration, wedding, funeral, meeting, event, other
+    content: Optional[str] = None  # Long text content
+    image_url: Optional[str] = None  # Image/photo of announcement paper
+    announcement_type: str = "general"  # general, event, prayer_request
+    category: str = "general"  # general, events, prayer_requests
     description: Optional[str] = None
     time: Optional[str] = None  # If event has specific time
     location: Optional[str] = None  # If different from church
@@ -147,10 +150,10 @@ class ChurchAnnouncement(BaseModel):
     contact_phone: Optional[str] = None
     is_recurring: bool = False
     recurrence_pattern: Optional[str] = None  # weekly, monthly
-    status: str = "active"  # active, archived
+    status: str = "active"  # active, archived, expired
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    expires_at: Optional[datetime] = None  # Auto-set to 2 weeks from date
+    expires_at: Optional[datetime] = None  # Expiry date set by church admin
 
 class UserFollow(BaseModel):
     """Track user follows for churches and choirs/artists"""
