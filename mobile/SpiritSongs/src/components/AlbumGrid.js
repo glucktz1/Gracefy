@@ -8,6 +8,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { getItemThumbnail } from '../services/api';
 import { COLORS } from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -24,6 +25,8 @@ const AlbumCard = memo(({ item, onPress }) => {
     onPress(item);
   }, [item, onPress]);
 
+  const thumbUrl = getItemThumbnail(item);
+
   return (
     <TouchableOpacity
       style={styles.albumCard}
@@ -34,7 +37,7 @@ const AlbumCard = memo(({ item, onPress }) => {
       {/* Album Art with expo-image */}
       <View style={styles.albumArtContainer}>
         <Image
-          source={item.thumbnail ? { uri: item.thumbnail } : PLACEHOLDER_IMAGE}
+          source={thumbUrl ? { uri: thumbUrl } : PLACEHOLDER_IMAGE}
           style={styles.albumArt}
           contentFit="cover"
           transition={200}
