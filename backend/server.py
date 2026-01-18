@@ -9344,7 +9344,7 @@ if cors_origins == '*':
     allowed_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://christian-music-app.preview.emergentagent.com"
+        "https://faithtunes-5.preview.emergentagent.com"
     ]
 else:
     allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
