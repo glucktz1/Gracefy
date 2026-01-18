@@ -19,12 +19,13 @@ const GRID_CARD_WIDTH = (width - 48) / 2;
 // Hero Carousel - Large featured banner
 const HeroSection = ({ item, onPress }) => {
   if (!item) return null;
+  const thumbUrl = getItemThumbnail(item);
   
   return (
     <TouchableOpacity style={styles.heroSection} onPress={onPress} activeOpacity={0.95}>
-      {item.thumbnail ? (
+      {thumbUrl ? (
         <Image 
-          source={{ uri: getThumbnailUrl(item.thumbnail) }} 
+          source={{ uri: thumbUrl }} 
           style={styles.heroImage}
           resizeMode="cover"
         />
