@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { contentService, getThumbnailUrl, libraryService } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { COLORS } from '../config';
 
 const { width, height } = Dimensions.get('window');
