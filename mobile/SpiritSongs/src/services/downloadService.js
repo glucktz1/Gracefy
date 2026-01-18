@@ -294,15 +294,35 @@ export const getDownloadsSize = async () => {
     return 0;
   }
 };
-};
 
 // Clear all downloads
 export const clearAllDownloads = async () => {
   try {
-    const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-    if (dirInfo.exists) {
-      await FileSystem.deleteAsync(DOWNLOADS_DIR, { idempotent: true });
+    // Delete all files from downloaded songs index
+    const downloads = await getDownloadedSongs();
+    for (const download of downloads) {
+      if (download.local_path) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(download.local_path);
+          if (fileInfo.exists) {
+            await FileSystem.deleteAsync(download.local_path, { idempotent: true });
+          }
+        } catch (e) {
+          console.log('Error deleting file:', e);
+        }
+      }
     }
+    
+    // Also try to clean up the download directory
+    const dirResult = await ensureDownloadsDir();
+    if (dirResult.success) {
+      try {
+        await FileSystem.deleteAsync(dirResult.dir, { idempotent: true });
+      } catch (e) {
+        console.log('Error deleting directory:', e);
+      }
+    }
+    
     await saveDownloadedSongs([]);
     return { success: true };
   } catch (error) {
