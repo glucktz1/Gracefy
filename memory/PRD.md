@@ -156,6 +156,8 @@ REDIS_URL=redis://your-redis-server:6379
 5. **Admin Features** - Layout Manager, Content Management, Permissions
 6. **Localization** - Kiswahili (default), English
 7. **System Settings** - Geo-locking, payments, branding
+8. **Bible Module** - Read and listen to Bible with AI TTS (Swahili)
+9. **Bible Analytics** - Track listening patterns, popular books, time-of-day distribution
 
 ### Mobile Builds
 - **v1.0.27 (Gracefy branding)**: https://expo.dev/artifacts/eas/ddSvbwbMofCQALkYxkHvHd.apk
