@@ -281,6 +281,52 @@ const GridSection = ({ title, items, onItemPress, onSeeAll }) => {
   );
 };
 
+// Churches Section - Horizontal scrolling
+const ChurchesSection = ({ churches, onChurchPress }) => {
+  if (!churches || churches.length === 0) return null;
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Churches</Text>
+      </View>
+      <FlatList
+        horizontal
+        data={churches}
+        keyExtractor={(item) => item.church_id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.churchCard} 
+            onPress={() => onChurchPress(item)} 
+            activeOpacity={0.8}
+          >
+            <View style={styles.churchImageContainer}>
+              {item.thumbnail || item.cover_image ? (
+                <Image source={{ uri: item.thumbnail || item.cover_image }} style={styles.churchImage} />
+              ) : (
+                <LinearGradient colors={['#4f46e5', '#7c3aed']} style={styles.churchImage}>
+                  <Ionicons name="business" size={32} color="rgba(255,255,255,0.4)" />
+                </LinearGradient>
+              )}
+              {item.denomination && (
+                <View style={styles.churchDenomBadge}>
+                  <Text style={styles.churchDenomText}>{item.denomination.slice(0, 3).toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.churchName} numberOfLines={2}>{item.name}</Text>
+            <Text style={styles.churchLocation} numberOfLines={1}>
+              <Ionicons name="location-outline" size={10} color={COLORS.textMuted} /> {item.location}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+};
+
 // Large vertical cards
 const LargeCardsSection = ({ title, items, onItemPress, onSeeAll }) => {
   if (!items || items.length === 0) return null;
