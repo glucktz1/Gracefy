@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { contentService } from '../services/api';
+import { contentService, getItemThumbnail } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import SongListItem from '../components/SongListItem';
 import { COLORS } from '../config';
@@ -39,23 +39,26 @@ const CategoryCard = ({ category, onPress }) => {
   );
 };
 
-const AlbumCard = ({ album, onPress }) => (
-  <TouchableOpacity style={styles.searchAlbumCard} onPress={onPress} activeOpacity={0.8}>
-    <View style={styles.searchAlbumArt}>
-      {album.thumbnail ? (
-        <Image source={{ uri: album.thumbnail }} style={styles.searchAlbumImg} />
-      ) : (
-        <LinearGradient colors={['#535353', '#121212']} style={styles.searchAlbumImg}>
-          <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.3)" />
-        </LinearGradient>
-      )}
-    </View>
-    <View style={styles.searchAlbumInfo}>
-      <Text style={styles.searchAlbumTitle} numberOfLines={1}>{album.title}</Text>
-      <Text style={styles.searchAlbumArtist} numberOfLines={1}>Album • {album.artist_name}</Text>
-    </View>
-  </TouchableOpacity>
-);
+const AlbumCard = ({ album, onPress }) => {
+  const thumbUrl = getItemThumbnail(album);
+  return (
+    <TouchableOpacity style={styles.searchAlbumCard} onPress={onPress} activeOpacity={0.8}>
+      <View style={styles.searchAlbumArt}>
+        {thumbUrl ? (
+          <Image source={{ uri: thumbUrl }} style={styles.searchAlbumImg} />
+        ) : (
+          <LinearGradient colors={['#535353', '#121212']} style={styles.searchAlbumImg}>
+            <Ionicons name="musical-notes" size={32} color="rgba(255,255,255,0.3)" />
+          </LinearGradient>
+        )}
+      </View>
+      <View style={styles.searchAlbumInfo}>
+        <Text style={styles.searchAlbumTitle} numberOfLines={1}>{album.title}</Text>
+        <Text style={styles.searchAlbumArtist} numberOfLines={1}>Album • {album.artist_name}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
