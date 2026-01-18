@@ -12,6 +12,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { AuthProvider } from './src/context/AuthContext';
 import { PlayerProvider } from './src/context/PlayerContext';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
