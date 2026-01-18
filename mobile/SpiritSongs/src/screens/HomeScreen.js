@@ -622,14 +622,14 @@ export default function HomeScreen({ navigation }) {
           <View style={{ padding: 32, alignItems: 'center' }}>
             <Ionicons name="musical-notes" size={48} color="#666" />
             <Text style={{ color: '#888', marginTop: 12, textAlign: 'center' }}>
-              No content available yet.{'\n'}Pull down to refresh.
+              {t('noContent')}{'\n'}{t('pullToRefresh')}
             </Text>
           </View>
         )}
 
         {/* Show filtered content when category selected */}
         {activeCategory !== 'all' && filteredItems.length > 0 && (
-          <GridSection
+          <HorizontalSmallTiles
             title={categories.find(c => c.category_id === activeCategory)?.name || 'Results'}
             items={filteredItems}
             onItemPress={handleAlbumPress}
@@ -638,28 +638,46 @@ export default function HomeScreen({ navigation }) {
 
         {/* Popular Albums - Vertical list */}
         <VerticalListSection
-          title="Popular Albums"
+          title={t('popularAlbums')}
           items={popularItems}
           onItemPress={handleAlbumPress}
         />
 
-        {/* Top Picks - 2x2 Grid */}
-        <GridSection
-          title="Top Picks"
+        {/* Top Picks - Changed to Horizontal scroll */}
+        <HorizontalSmallTiles
+          title={t('topPicks')}
           items={gridItems}
           onItemPress={handleAlbumPress}
         />
 
         {/* New Releases */}
         <HorizontalSmallTiles
-          title="New Releases"
+          title={t('newReleases')}
           items={newReleasesItems}
           onItemPress={handleAlbumPress}
         />
 
+        {/* Mahubiri na Tafakari - New Section */}
+        {allAlbums.length > 2 && (
+          <LargeCardsSection
+            title={t('mahubirinaTafakari')}
+            items={allAlbums.slice(2, 6)}
+            onItemPress={handleAlbumPress}
+          />
+        )}
+
+        {/* Mafundisho na Katekesi - New Section */}
+        {allAlbums.length > 4 && (
+          <HorizontalSmallTiles
+            title={t('mafundishoNaKatekesi')}
+            items={allAlbums.slice(4, 10)}
+            onItemPress={handleAlbumPress}
+          />
+        )}
+
         {/* Bestselling - Large vertical cards */}
         <LargeCardsSection
-          title="Bestselling"
+          title={t('bestselling')}
           items={bestsellingItems}
           onItemPress={handleAlbumPress}
         />
