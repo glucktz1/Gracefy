@@ -4239,6 +4239,35 @@ async def get_user_profile(request: Request):
 @api_router.get("/user/home")
 async def get_user_home():
     """Get home screen data for the user app based on layout settings"""
+    # Optimized projection - exclude large fields for list queries
+    ALBUM_LIST_PROJECTION = {
+        "_id": 0,
+        "album_id": 1,
+        "title": 1,
+        "description": 1,
+        "artist_id": 1,
+        "artist_name": 1,
+        "category_id": 1,
+        "category_name": 1,
+        "thumbnail": 1,  # Keep thumbnail URL, but we'll truncate base64 later
+        "release_date": 1,
+        "monetization_type": 1,
+        "status": 1,
+        "songs_count": 1,
+        "total_plays": 1,
+        "created_at": 1
+    }
+    
+    CATEGORY_LIST_PROJECTION = {
+        "_id": 0,
+        "category_id": 1,
+        "name": 1,
+        "description": 1,
+        "type": 1,
+        "icon": 1,
+        "status": 1
+    }
+    
     # Get active layout sections for app
     sections = await db.layout_sections.find(
         {"platforms": "app", "is_active": True},
@@ -4264,17 +4293,17 @@ async def get_user_home():
             if content_type == "albums":
                 items = await db.albums.find(
                     {"album_id": {"$in": section["content_ids"]}, "status": {"$ne": "deleted"}},
-                    {"_id": 0}
+                    ALBUM_LIST_PROJECTION
                 ).to_list(50)
             elif content_type == "categories":
                 items = await db.categories.find(
                     {"category_id": {"$in": section["content_ids"]}},
-                    {"_id": 0}
+                    CATEGORY_LIST_PROJECTION
                 ).to_list(50)
             elif content_type == "special_mixes":
                 items = await db.special_mixes.find(
                     {"mix_id": {"$in": section["content_ids"]}},
-                    {"_id": 0}
+                    {"_id": 0, "songs": 0}  # Exclude songs array
                 ).to_list(50)
                 for mix in items:
                     mix["album_id"] = mix["mix_id"]
@@ -4294,6 +4323,8 @@ async def get_user_home():
                 for church in items:
                     church["entity_type"] = "church"
             
+            # Optimize thumbnails - truncate base64 data
+            items = optimize_thumbnails(items)
             section_data["items"] = items
             section_data["content_type"] = content_type
             
