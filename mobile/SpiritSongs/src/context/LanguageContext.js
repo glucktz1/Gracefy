@@ -191,14 +191,37 @@ const translations = {
 
 const LanguageContext = createContext(null);
 
+// API URL from config
+import { API_BASE_URL } from '../config';
+
 export const LanguageProvider = ({ children }) => {
   // Default to Kiswahili (sw)
   const [language, setLanguage] = useState('sw');
+  const [customTranslations, setCustomTranslations] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadLanguage();
   }, []);
+
+  // Fetch custom translations from API when language changes
+  useEffect(() => {
+    const fetchCustomTranslations = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/translations?lang=${language}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.translations) {
+            setCustomTranslations(data.translations);
+          }
+        }
+      } catch (error) {
+        console.log('Using default translations:', error);
+      }
+    };
+    
+    fetchCustomTranslations();
+  }, [language]);
 
   const loadLanguage = async () => {
     try {
@@ -224,13 +247,18 @@ export const LanguageProvider = ({ children }) => {
     }
   };
 
-  // Translation function
+  // Translation function - checks custom translations first, then falls back to defaults
   const t = (key) => {
+    // Check custom translations from API first
+    if (customTranslations[key]) {
+      return customTranslations[key];
+    }
+    // Fall back to built-in translations
     return translations[language]?.[key] || translations['en']?.[key] || key;
   };
 
-  // Get current translations object
-  const strings = translations[language] || translations['en'];
+  // Get current translations object (merge custom with defaults)
+  const strings = { ...translations[language], ...customTranslations } || translations['en'];
 
   const value = {
     language,
