@@ -4526,10 +4526,15 @@ async def get_user_home():
     
     # Get recently played (if authenticated, handled separately)
     
-    return {
+    response_data = {
         "sections": home_data,
         "burners": burners
     }
+    
+    # Cache the response for 60 seconds
+    await cache.set("home:app:main", response_data, 60)
+    
+    return response_data
 
 
 @api_router.get("/thumbnails/{item_id}")
