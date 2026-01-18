@@ -359,25 +359,28 @@ const LargeCardsSection = ({ title, items, onItemPress, onSeeAll }) => {
         keyExtractor={(item, idx) => item.album_id || `large-${idx}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.largeCard} 
-            onPress={() => onItemPress(item)} 
-            activeOpacity={0.8}
-          >
-            <View style={styles.largeCardImage}>
-              {item.thumbnail ? (
-                <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.largeCardImg} />
-              ) : (
-                <LinearGradient colors={['#1e3a5f', '#0a192f']} style={styles.largeCardImg}>
-                  <Ionicons name="musical-notes" size={40} color="rgba(255,255,255,0.3)" />
-                </LinearGradient>
-              )}
-            </View>
-            <Text style={styles.largeCardTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.largeCardSubtitle} numberOfLines={1}>{item.artist_name || 'Stream now'}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const thumbUrl = getItemThumbnail(item);
+          return (
+            <TouchableOpacity 
+              style={styles.largeCard} 
+              onPress={() => onItemPress(item)} 
+              activeOpacity={0.8}
+            >
+              <View style={styles.largeCardImage}>
+                {thumbUrl ? (
+                  <Image source={{ uri: thumbUrl }} style={styles.largeCardImg} />
+                ) : (
+                  <LinearGradient colors={['#1e3a5f', '#0a192f']} style={styles.largeCardImg}>
+                    <Ionicons name="musical-notes" size={40} color="rgba(255,255,255,0.3)" />
+                  </LinearGradient>
+                )}
+              </View>
+              <Text style={styles.largeCardTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.largeCardSubtitle} numberOfLines={1}>{item.artist_name || 'Stream now'}</Text>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
@@ -398,56 +401,58 @@ const TafakariSection = ({ title, items, onItemPress, onPlay }) => {
         keyExtractor={(item, idx) => item.album_id || item.content_id || `tafakari-${idx}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalList}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.tafakariCard} 
-            onPress={() => onItemPress(item)} 
-            activeOpacity={0.9}
-          >
-            <View style={styles.tafakariCardInner}>
-              {/* Left: Album Art */}
-              <View style={styles.tafakariImageContainer}>
-                {item.thumbnail ? (
-                  <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.tafakariImage} />
-                ) : (
-                  <LinearGradient colors={['#7c3aed', '#4f46e5']} style={styles.tafakariImage}>
-                    <Ionicons name="book" size={32} color="rgba(255,255,255,0.5)" />
-                  </LinearGradient>
-                )}
-                {/* Radio badge */}
-                <View style={styles.tafakariBadge}>
-                  <Text style={styles.tafakariBadgeText}>RADIO</Text>
+        renderItem={({ item }) => {
+          const thumbUrl = getItemThumbnail(item);
+          return (
+            <TouchableOpacity 
+              style={styles.tafakariCard} 
+              onPress={() => onItemPress(item)} 
+              activeOpacity={0.9}
+            >
+              <View style={styles.tafakariCardInner}>
+                {/* Left: Album Art */}
+                <View style={styles.tafakariImageContainer}>
+                  {thumbUrl ? (
+                    <Image source={{ uri: thumbUrl }} style={styles.tafakariImage} />
+                  ) : (
+                    <LinearGradient colors={['#7c3aed', '#4f46e5']} style={styles.tafakariImage}>
+                      <Ionicons name="book" size={32} color="rgba(255,255,255,0.5)" />
+                    </LinearGradient>
+                  )}
+                  {/* Radio badge */}
+                  <View style={styles.tafakariBadge}>
+                    <Text style={styles.tafakariBadgeText}>RADIO</Text>
+                  </View>
                 </View>
-              </View>
-              
-              {/* Right: Info */}
-              <View style={styles.tafakariInfo}>
-                <Text style={styles.tafakariTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.tafakariSource}>Gracefy</Text>
-                <Text style={styles.tafakariMeta} numberOfLines={1}>
-                  {item.songs_count || item.tracks || 10} tracks • {item.artist_name || 'Various Artists'}
-                </Text>
                 
-                {/* Action buttons */}
-                <View style={styles.tafakariActions}>
-                  <TouchableOpacity style={styles.tafakariPreviewBtn}>
-                    <Ionicons name="radio-outline" size={14} color="#fff" />
-                    <Text style={styles.tafakariPreviewText}>Preview</Text>
-                  </TouchableOpacity>
+                {/* Right: Info */}
+                <View style={styles.tafakariInfo}>
+                  <Text style={styles.tafakariTitle} numberOfLines={2}>{item.title}</Text>
+                  <Text style={styles.tafakariSource}>Gracefy</Text>
+                  <Text style={styles.tafakariMeta} numberOfLines={1}>
+                    {item.songs_count || item.tracks || 10} tracks • {item.artist_name || 'Various Artists'}
+                  </Text>
                   
-                  <TouchableOpacity style={styles.tafakariAddBtn}>
-                    <Ionicons name="add" size={20} color="#fff" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.tafakariPlayBtn}
-                    onPress={() => onPlay && onPlay(item)}
-                  >
-                    <Ionicons name="play" size={20} color="#000" />
-                  </TouchableOpacity>
+                  {/* Action buttons */}
+                  <View style={styles.tafakariActions}>
+                    <TouchableOpacity style={styles.tafakariPreviewBtn}>
+                      <Ionicons name="radio-outline" size={14} color="#fff" />
+                      <Text style={styles.tafakariPreviewText}>Preview</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={styles.tafakariAddBtn}>
+                      <Ionicons name="add" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.tafakariPlayBtn}
+                      onPress={() => onPlay && onPlay(item)}
+                    >
+                      <Ionicons name="play" size={20} color="#000" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
           </TouchableOpacity>
         )}
       />
