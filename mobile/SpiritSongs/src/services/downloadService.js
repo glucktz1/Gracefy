@@ -101,11 +101,13 @@ export const downloadSong = async (song, album, onProgress) => {
   try {
     console.log('Download requested for:', song.title);
     
-    const dirReady = await ensureDownloadsDir();
-    if (!dirReady) {
+    const dirResult = await ensureDownloadsDir();
+    if (!dirResult.success) {
       console.error('Directory creation failed');
-      throw new Error('Could not create downloads directory. Please check app permissions.');
+      throw new Error('Could not create downloads directory. Please check app permissions or try again.');
     }
+    
+    const downloadDir = dirResult.dir;
     
     const audioUrl = getAudioUrl(song.audio_url);
     if (!audioUrl) {
@@ -114,19 +116,11 @@ export const downloadSong = async (song, album, onProgress) => {
     }
     
     console.log('Starting download from:', audioUrl);
+    console.log('Download directory:', downloadDir);
     
-    // Determine download path - use cache dir as fallback
-    let downloadPath = `${DOWNLOADS_DIR}${song.song_id}.mp3`;
-    
-    // Verify directory exists before download
-    const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-    if (!dirInfo.exists) {
-      // Try cache directory as fallback
-      const cacheDir = `${FileSystem.cacheDirectory}downloads/`;
-      await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
-      downloadPath = `${cacheDir}${song.song_id}.mp3`;
-      console.log('Using cache directory for download:', downloadPath);
-    }
+    // Sanitize filename - remove special characters
+    const safeId = song.song_id.replace(/[^a-zA-Z0-9_-]/g, '_');
+    let downloadPath = `${downloadDir}${safeId}.mp3`;
     
     // Use callback-based download with progress
     const callback = (downloadProgress) => {
@@ -142,7 +136,11 @@ export const downloadSong = async (song, album, onProgress) => {
     const downloadResumable = FileSystem.createDownloadResumable(
       audioUrl,
       downloadPath,
-      {},
+      {
+        headers: {
+          'Accept': 'audio/mpeg, audio/*',
+        },
+      },
       callback
     );
     
@@ -152,6 +150,12 @@ export const downloadSong = async (song, album, onProgress) => {
     if (result && result.uri) {
       console.log('Download complete:', result.uri);
       
+      // Verify file exists and has content
+      const fileInfo = await FileSystem.getInfoAsync(result.uri);
+      if (!fileInfo.exists || fileInfo.size === 0) {
+        throw new Error('Downloaded file is empty or missing');
+      }
+      
       // Update downloads index
       const downloads = await getDownloadedSongs();
       const songData = {
@@ -159,11 +163,11 @@ export const downloadSong = async (song, album, onProgress) => {
         title: song.title,
         artist_name: song.artist_name || album?.artist_name || 'Unknown Artist',
         duration: song.duration,
-        thumbnail: song.thumbnail || album?.thumbnail,
+        thumbnail: song.thumbnail || song.thumbnail_url || album?.thumbnail || album?.thumbnail_url,
         album_id: album?.album_id,
         album_title: album?.title,
         downloaded_at: new Date().toISOString(),
-        local_path: downloadPath,
+        local_path: result.uri, // Use the actual result URI
       };
       
       // Remove existing entry if any, then add new
@@ -171,7 +175,7 @@ export const downloadSong = async (song, album, onProgress) => {
       filtered.push(songData);
       await saveDownloadedSongs(filtered);
       
-      return { success: true, path: downloadPath };
+      return { success: true, path: result.uri };
     }
     
     throw new Error('Download failed - no result');
