@@ -6800,7 +6800,7 @@ DEFAULT_BURNERS = [
 
 @api_router.get("/layout/sections")
 async def get_layout_sections(platform: Optional[str] = None, active_only: bool = False):
-    """Get all layout sections"""
+    """Get all layout sections - optimized"""
     query = {}
     if platform:
         query["platforms"] = platform
@@ -6819,24 +6819,34 @@ async def get_layout_sections(platform: Optional[str] = None, active_only: bool 
         # Re-fetch to get clean data without _id
         sections = await db.layout_sections.find(query, {"_id": 0}).sort("sort_order", 1).to_list(100)
     
-    # Enrich sections with content details
+    # Optimized projection for enriched content (exclude thumbnails)
+    OPTIMIZED_ALBUM_PROJECTION = {
+        "_id": 0,
+        "album_id": 1,
+        "title": 1,
+        "artist_name": 1,
+        "status": 1,
+        "songs_count": 1
+    }
+    
+    # Enrich sections with content details (without large thumbnail data)
     for section in sections:
         if section.get("content_type") == "categories" and section.get("content_ids"):
             categories = await db.categories.find(
                 {"category_id": {"$in": section["content_ids"]}},
-                {"_id": 0}
+                {"_id": 0, "thumbnail": 0}  # Exclude thumbnails
             ).to_list(50)
             section["content_items"] = categories
         elif section.get("content_type") == "albums" and section.get("content_ids"):
             albums = await db.albums.find(
                 {"album_id": {"$in": section["content_ids"]}},
-                {"_id": 0}
+                OPTIMIZED_ALBUM_PROJECTION
             ).to_list(50)
             section["content_items"] = albums
         elif section.get("content_type") == "songs" and section.get("content_ids"):
             songs = await db.songs.find(
                 {"song_id": {"$in": section["content_ids"]}},
-                {"_id": 0}
+                {"_id": 0, "lyrics": 0, "audio_data": 0}  # Exclude large fields
             ).to_list(50)
             section["content_items"] = songs
     
