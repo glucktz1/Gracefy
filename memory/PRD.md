@@ -189,6 +189,9 @@ REDIS_URL=redis://your-redis-server:6379
 - `GET /api/thumbnails/{id}` - Image serving
 - `GET /api/admin/cache/stats` - Cache statistics
 - `POST /api/admin/cache/clear` - Clear cache
+- `GET /api/bible/books` - Bible books list
+- `POST /api/bible/tts/verse` - Generate verse audio
+- `GET /api/admin/bible/analytics` - Bible analytics
 
 ## Last Updated
-January 18, 2026
+January 19, 2026
