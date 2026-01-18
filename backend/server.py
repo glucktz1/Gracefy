@@ -9470,7 +9470,7 @@ class SystemSettings(BaseModel):
     dmcaContact: Optional[str] = ""
 
 
-@api_router.get("/admin/settings")
+@api_router.get("/admin/system-settings")
 async def get_system_settings():
     """Get system settings"""
     settings = await db.system_settings.find_one({"setting_id": "main"}, {"_id": 0})
@@ -9480,7 +9480,7 @@ async def get_system_settings():
     return settings
 
 
-@api_router.post("/admin/settings")
+@api_router.post("/admin/system-settings")
 async def save_system_settings(settings: SystemSettings):
     """Save system settings"""
     data = settings.model_dump()
