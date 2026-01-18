@@ -557,7 +557,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.profileInitial}>{user?.name?.charAt(0)?.toUpperCase() || 'S'}</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Spirit Songs</Text>
+          <Text style={styles.headerTitle}>{t('appName')}</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Search')}>
               <Ionicons name="search-outline" size={24} color={COLORS.textPrimary} />
