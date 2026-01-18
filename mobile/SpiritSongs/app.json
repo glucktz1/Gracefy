@@ -30,7 +30,7 @@
         "backgroundColor": "#0a0a1a"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.gracefy.app",
+      "package": "com.spiritsongs.app",
       "versionCode": 27,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
