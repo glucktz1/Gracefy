@@ -9737,6 +9737,54 @@ async def get_geo_stats():
 # Include the router in the main app
 app.include_router(api_router)
 
+# ============== RATE LIMITING ==============
+from collections import defaultdict
+import time as time_module
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Simple in-memory rate limiting middleware"""
+    def __init__(self, app, requests_per_minute: int = 60):
+        super().__init__(app)
+        self.requests_per_minute = requests_per_minute
+        self.requests = defaultdict(list)
+    
+    async def dispatch(self, request: Request, call_next):
+        # Get client IP
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+        if client_ip:
+            client_ip = client_ip.split(",")[0].strip()
+        
+        current_time = time_module.time()
+        minute_ago = current_time - 60
+        
+        # Clean old requests
+        self.requests[client_ip] = [
+            req_time for req_time in self.requests[client_ip] 
+            if req_time > minute_ago
+        ]
+        
+        # Check rate limit
+        if len(self.requests[client_ip]) >= self.requests_per_minute:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."}
+            )
+        
+        # Record this request
+        self.requests[client_ip].append(current_time)
+        
+        response = await call_next(request)
+        return response
+
+# Add rate limiting middleware (100 requests per minute per IP)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
+
+# ============== GZIP COMPRESSION ==============
+from starlette.middleware.gzip import GZipMiddleware
+
+# Add GZIP compression for responses > 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # CORS configuration - for credentials, we need specific origins
 cors_origins = os.environ.get('CORS_ORIGINS', '*')
 if cors_origins == '*':
