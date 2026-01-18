@@ -380,6 +380,109 @@ export default function SystemSettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Translation Management Card */}
+      <Card className="bg-slate-900/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-violet-400" />
+            Translation Management
+          </CardTitle>
+          <CardDescription>
+            Download, edit and upload translations for all supported languages
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Download Section */}
+          <div className="bg-slate-800/50 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-white mb-2">Download Translation Template</h4>
+            <p className="text-xs text-slate-400 mb-3">
+              Download an Excel file containing all translatable text. Edit the translations and upload it back.
+            </p>
+            <Button
+              variant="outline"
+              className="border-violet-500 text-violet-400 hover:bg-violet-500/10"
+              onClick={async () => {
+                try {
+                  const response = await axios.get(`${API}/admin/translations/download`, {
+                    responseType: 'blob',
+                    withCredentials: true
+                  });
+                  const url = window.URL.createObjectURL(new Blob([response.data]));
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', 'gracefy_translations.xlsx');
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  toast.success("Translation file downloaded!");
+                } catch (e) {
+                  toast.error("Failed to download translations");
+                }
+              }}
+            >
+              <Upload className="w-4 h-4 mr-2 rotate-180" />
+              Download Excel Template
+            </Button>
+          </div>
+
+          {/* Upload Section */}
+          <div className="bg-slate-800/50 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-white mb-2">Upload Translated File</h4>
+            <p className="text-xs text-slate-400 mb-3">
+              Upload the edited Excel file to update translations. Changes will reflect immediately on user apps.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                id="translation-upload"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  const formData = new FormData();
+                  formData.append('file', file);
+                  
+                  try {
+                    const response = await axios.post(`${API}/admin/translations/upload`, formData, {
+                      withCredentials: true,
+                      headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    toast.success(`Translations uploaded! Updated ${response.data.languages_updated?.length || 0} languages.`);
+                    e.target.value = '';
+                  } catch (err) {
+                    toast.error(err.response?.data?.detail || "Failed to upload translations");
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10"
+                onClick={() => document.getElementById('translation-upload')?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Translated Excel
+              </Button>
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-400 mb-2">How to Translate:</h4>
+            <ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
+              <li>Download the Excel template above</li>
+              <li>Open it in Excel or Google Sheets</li>
+              <li>Edit the translations in the 'swahili' column (or add new language columns)</li>
+              <li>Keep the 'key' column unchanged</li>
+              <li>Save and upload the file</li>
+              <li>Translations will automatically update on user apps</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="bg-slate-900/50 border-slate-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
