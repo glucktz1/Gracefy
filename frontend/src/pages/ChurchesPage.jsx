@@ -345,17 +345,44 @@ export default function ChurchesPage() {
 
   const openAnnouncementModal = (church) => {
     setSelectedChurch(church);
+    // Calculate default expiry (2 weeks from today)
+    const defaultExpiry = new Date();
+    defaultExpiry.setDate(defaultExpiry.getDate() + 14);
+    
     setAnnouncementForm({
       date: new Date().toISOString().split('T')[0],
       title: "",
+      content: "",
+      image_url: "",
       announcement_type: "general",
+      category: "general",
       description: "",
       time: "",
       location: "",
       contact_person: "",
-      contact_phone: ""
+      contact_phone: "",
+      expires_at: defaultExpiry.toISOString().split('T')[0]
     });
     setIsAnnouncementModalOpen(true);
+  };
+
+  const handleAnnouncementImageUpload = async (file) => {
+    if (!file) return;
+    setUploadingAnnouncementImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await axios.post(`${API}/content/upload-thumbnail`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true
+      });
+      setAnnouncementForm(prev => ({ ...prev, image_url: res.data.url }));
+      toast.success("Image uploaded");
+    } catch (error) {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingAnnouncementImage(false);
+    }
   };
 
   const handleCreateAnnouncement = async () => {
@@ -370,7 +397,7 @@ export default function ChurchesPage() {
         announcementForm,
         { withCredentials: true }
       );
-      toast.success("Announcement created");
+      toast.success("Announcement created! Followers will be notified.");
       setIsAnnouncementModalOpen(false);
     } catch (error) {
       toast.error("Failed to create announcement");
