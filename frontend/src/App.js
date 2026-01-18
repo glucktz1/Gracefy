@@ -18,6 +18,7 @@ const PageLoader = () => (
 import Dashboard from "@/pages/Dashboard";
 import LoginPage from "@/pages/LoginPage";
 import UserStreamingApp from "@/pages/UserStreamingApp";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 // Lazy-loaded pages - loaded on demand
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
