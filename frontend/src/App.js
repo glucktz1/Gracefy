@@ -475,9 +475,11 @@ function AppRouter() {
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <AppRouter />
-      </BrowserRouter>
+      <LanguageProvider>
+        <BrowserRouter>
+          <AppRouter />
+        </BrowserRouter>
+      </LanguageProvider>
       <Toaster position="top-right" richColors />
     </div>
   );
