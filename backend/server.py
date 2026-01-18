@@ -2569,6 +2569,102 @@ async def check_is_following(entity_type: str, entity_id: str, request: Request)
     
     return {"is_following": follow is not None}
 
+# ============== USER NOTIFICATIONS ==============
+
+@api_router.get("/user/notifications")
+async def get_user_notifications(request: Request, limit: int = 50, skip: int = 0, unread_only: bool = False):
+    """Get user's notifications"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    
+    query = {"user_id": user_id}
+    if unread_only:
+        query["is_read"] = False
+    
+    notifications = await db.user_notifications.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    unread_count = await db.user_notifications.count_documents({"user_id": user_id, "is_read": False})
+    total = await db.user_notifications.count_documents({"user_id": user_id})
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count,
+        "total": total
+    }
+
+@api_router.post("/user/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, request: Request):
+    """Mark a notification as read"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    
+    result = await db.user_notifications.update_one(
+        {"notification_id": notification_id, "user_id": user_id},
+        {"$set": {"is_read": True}}
+    )
+    
+    return {"message": "Notification marked as read"}
+
+@api_router.post("/user/notifications/read-all")
+async def mark_all_notifications_read(request: Request):
+    """Mark all user notifications as read"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    
+    result = await db.user_notifications.update_many(
+        {"user_id": user_id, "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    
+    return {"message": f"Marked {result.modified_count} notifications as read"}
+
+@api_router.delete("/user/notifications/{notification_id}")
+async def delete_notification(notification_id: str, request: Request):
+    """Delete a notification"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc.get("user_id")
+    
+    await db.user_notifications.delete_one({
+        "notification_id": notification_id, 
+        "user_id": user_id
+    })
+    
+    return {"message": "Notification deleted"}
+
 async def notify_followers(entity_type: str, entity_id: str, notification_type: str, data: dict):
     """Notify all followers of an entity about new content"""
     followers = await db.user_follows.find({
