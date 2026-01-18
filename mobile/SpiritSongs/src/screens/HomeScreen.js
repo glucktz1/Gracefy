@@ -593,6 +593,12 @@ export default function HomeScreen({ navigation }) {
           navigation={navigation}
         />
 
+        {/* Churches Section */}
+        <ChurchesSection 
+          churches={churches}
+          onChurchPress={handleChurchPress}
+        />
+
         {/* Debug info - remove after fixing */}
         {__DEV__ && (
           <View style={{ padding: 16, backgroundColor: '#1a1a1a', margin: 8, borderRadius: 8 }}>
