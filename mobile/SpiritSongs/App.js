@@ -253,6 +253,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a1a',
   },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#0a0a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   tabBar: {
     backgroundColor: '#0a0a1a',
     borderTopWidth: 0,
