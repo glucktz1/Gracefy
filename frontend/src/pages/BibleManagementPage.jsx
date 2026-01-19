@@ -73,6 +73,8 @@ export default function BibleManagementPage() {
       setStats(statsRes.data);
       setSnippets(snippetsRes.data.snippets || []);
       setVoices(voicesRes.data.voices || []);
+      setMaleVoices(voicesRes.data.male_voices || []);
+      setFemaleVoices(voicesRes.data.female_voices || []);
       
       if (statsRes.data.has_data) {
         const booksRes = await axios.get(`${API}/bible/books?language=sw`);
