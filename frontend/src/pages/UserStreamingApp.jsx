@@ -903,13 +903,30 @@ const BibleView = ({ language, t, onBack }) => {
   }
 
   // Show snippets if no book selected
-  if (!selectedBook) {
+  if (!selectedBook && !showRangeReader) {
     return (
       <div className="space-y-6 p-4">
         <h1 className="text-2xl font-bold flex items-center gap-3">
           <BookOpen className="text-amber-500" />
           {t('bible.title', 'Biblia na Vitabu vya Dini')}
         </h1>
+
+        {/* Quick Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowRangeReader(true)}
+            className="flex-1 p-4 bg-gradient-to-br from-amber-600 to-orange-700 rounded-xl flex items-center gap-3 hover:from-amber-500 hover:to-orange-600 transition-all"
+            data-testid="open-range-reader"
+          >
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+              <Mic2 size={20} className="text-white" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-white">{t('bible.readRange', 'Soma Mistari')}</p>
+              <p className="text-xs text-amber-100">{t('bible.enterRange', 'Chagua mistari kusoma')}</p>
+            </div>
+          </button>
+        </div>
 
         {/* Featured Snippets */}
         {snippets.length > 0 && (
