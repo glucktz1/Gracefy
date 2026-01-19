@@ -2694,9 +2694,15 @@ export default function UserStreamingApp() {
                   const items = section.items || [];
                   if (items.length === 0) return null;
                   
-                  // If quick_access has albums (not categories), show it as album section
+                  // Determine content type from items
+                  const isChurchSection = section.content_type === 'churches' || 
+                    section.section_type === 'churches' ||
+                    (items[0] && items[0].church_id);
+                  const isChoirSection = section.content_type === 'choirs' || 
+                    section.section_type === 'choirs' ||
+                    (items[0] && items[0].choir_id);
                   const isAlbumSection = section.content_type === 'albums' || 
-                    (items[0] && (items[0].album_id || items[0].title));
+                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection);
 
                   // Alternate layouts for variety
                   const layoutType = idx % 4;
@@ -2709,8 +2715,40 @@ export default function UserStreamingApp() {
                         onSeeMore={items.length > 5 ? () => {} : null}
                       />
 
+                      {/* Churches Section */}
+                      {isChurchSection && (
+                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                          {items.slice(0, 10).map(church => (
+                            <ChurchCard 
+                              key={church.church_id} 
+                              church={church} 
+                              onClick={() => {
+                                // Navigate to church detail if available
+                                console.log('Church clicked:', church.church_id);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Choirs/Artists Section */}
+                      {isChoirSection && (
+                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                          {items.slice(0, 10).map(choir => (
+                            <ChoirCard 
+                              key={choir.choir_id} 
+                              choir={choir} 
+                              onClick={() => {
+                                // Navigate to choir detail if available
+                                console.log('Choir clicked:', choir.choir_id);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+
                       {/* Quick Access Grid (for categories only) */}
-                      {section.section_type === 'quick_access' && !isAlbumSection && (
+                      {section.section_type === 'quick_access' && !isAlbumSection && !isChurchSection && !isChoirSection && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           {items.slice(0, 6).map(item => (
                             <QuickAccessCard 
