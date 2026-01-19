@@ -10623,7 +10623,7 @@ async def generate_passage_range_audio(data: dict):
         raise HTTPException(status_code=400, detail="Passage too long (max ~5000 characters)")
     
     try:
-        result = await tts_service.generate_audio(combined_text, voice)
+        result = await tts_service.generate_audio(combined_text, voice, gender=gender)
         result["reference"] = f"{book_name} {chapter}:{start_verse}-{end_verse}"
         result["verse_count"] = len(verses)
         result["verses"] = verses
