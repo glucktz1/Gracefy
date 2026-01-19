@@ -10646,6 +10646,271 @@ async def get_bible_analytics(days: int = 30):
     return analytics
 
 
+# ============== BIBLE LISTENING LIMITS ==============
+
+@api_router.get("/admin/bible/settings")
+async def get_bible_settings():
+    """Get Bible listening limit settings for admin"""
+    settings = await db.bible_settings.find_one({"setting_id": "listening_limits"})
+    if not settings:
+        # Default settings
+        settings = {
+            "setting_id": "listening_limits",
+            "free_user_minutes_before_prompt": 5,
+            "free_user_additional_minutes": 2,
+            "paid_user_limit_type": "daily",  # daily, monthly, unlimited
+            "paid_user_daily_minutes": 60,
+            "paid_user_monthly_minutes": 1800,
+            "donation_prompt_message_sw": "Kusikiliza biblia ni bure lakini teknolojia hii ina gharama, changia kidogo kuwezesha uendelee kufurahia",
+            "donation_prompt_message_en": "Listening to the Bible is free but this technology has costs, contribute a little to continue enjoying",
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        await db.bible_settings.insert_one(settings)
+    
+    settings.pop("_id", None)
+    return settings
+
+
+@api_router.put("/admin/bible/settings")
+async def update_bible_settings(data: dict):
+    """Update Bible listening limit settings"""
+    allowed_fields = [
+        "free_user_minutes_before_prompt",
+        "free_user_additional_minutes", 
+        "paid_user_limit_type",
+        "paid_user_daily_minutes",
+        "paid_user_monthly_minutes",
+        "donation_prompt_message_sw",
+        "donation_prompt_message_en",
+        "is_active"
+    ]
+    
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    update_data["updated_at"] = datetime.utcnow()
+    
+    result = await db.bible_settings.update_one(
+        {"setting_id": "listening_limits"},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    return {"success": True, "message": "Settings updated"}
+
+
+@api_router.get("/bible/listening-status")
+async def get_listening_status(user_id: str = None):
+    """Get user's Bible listening status and remaining time"""
+    # Get settings
+    settings = await db.bible_settings.find_one({"setting_id": "listening_limits"})
+    if not settings:
+        settings = {
+            "free_user_minutes_before_prompt": 5,
+            "free_user_additional_minutes": 2,
+            "paid_user_limit_type": "daily",
+            "paid_user_daily_minutes": 60,
+            "paid_user_monthly_minutes": 1800,
+            "donation_prompt_message_sw": "Kusikiliza biblia ni bure lakini teknolojia hii ina gharama, changia kidogo kuwezesha uendelee kufurahia",
+            "donation_prompt_message_en": "Listening to the Bible is free but this technology has costs, contribute a little to continue enjoying",
+            "is_active": True
+        }
+    
+    # Check if limits are active
+    if not settings.get("is_active", True):
+        return {
+            "limits_active": False,
+            "can_listen": True,
+            "remaining_seconds": -1,  # Unlimited
+            "is_paid_user": False,
+            "prompt_message_sw": settings.get("donation_prompt_message_sw", ""),
+            "prompt_message_en": settings.get("donation_prompt_message_en", "")
+        }
+    
+    # Check if user is paid/subscribed
+    is_paid_user = False
+    if user_id:
+        user = await db.users.find_one({"user_id": user_id})
+        if user:
+            subscription = user.get("subscription", {})
+            is_paid_user = subscription.get("is_active", False) or subscription.get("plan") in ["premium", "annual"]
+    
+    # Get today's date for daily reset
+    today = datetime.utcnow().date()
+    today_str = today.isoformat()
+    
+    # Get this month for monthly reset
+    month_str = today.strftime("%Y-%m")
+    
+    # Get or create user listening record
+    listening_key = user_id if user_id else "anonymous"
+    record = await db.bible_listening.find_one({"user_key": listening_key})
+    
+    if not record:
+        record = {
+            "user_key": listening_key,
+            "user_id": user_id,
+            "daily_seconds": 0,
+            "daily_date": today_str,
+            "monthly_seconds": 0,
+            "monthly_period": month_str,
+            "total_seconds": 0,
+            "prompt_count": 0,
+            "last_prompt_at": None,
+            "created_at": datetime.utcnow()
+        }
+        await db.bible_listening.insert_one(record)
+    
+    # Reset daily counter if new day
+    if record.get("daily_date") != today_str:
+        record["daily_seconds"] = 0
+        record["daily_date"] = today_str
+        record["prompt_count"] = 0  # Reset prompt count daily
+        await db.bible_listening.update_one(
+            {"user_key": listening_key},
+            {"$set": {"daily_seconds": 0, "daily_date": today_str, "prompt_count": 0}}
+        )
+    
+    # Reset monthly counter if new month
+    if record.get("monthly_period") != month_str:
+        record["monthly_seconds"] = 0
+        record["monthly_period"] = month_str
+        await db.bible_listening.update_one(
+            {"user_key": listening_key},
+            {"$set": {"monthly_seconds": 0, "monthly_period": month_str}}
+        )
+    
+    # Calculate remaining time based on user type
+    used_seconds = record.get("daily_seconds", 0)
+    prompt_count = record.get("prompt_count", 0)
+    
+    if is_paid_user:
+        limit_type = settings.get("paid_user_limit_type", "daily")
+        if limit_type == "unlimited":
+            remaining_seconds = -1  # Unlimited
+        elif limit_type == "monthly":
+            limit_seconds = settings.get("paid_user_monthly_minutes", 1800) * 60
+            used_seconds = record.get("monthly_seconds", 0)
+            remaining_seconds = max(0, limit_seconds - used_seconds)
+        else:  # daily
+            limit_seconds = settings.get("paid_user_daily_minutes", 60) * 60
+            remaining_seconds = max(0, limit_seconds - used_seconds)
+    else:
+        # Free user - calculate based on prompts shown
+        initial_minutes = settings.get("free_user_minutes_before_prompt", 5)
+        additional_minutes = settings.get("free_user_additional_minutes", 2)
+        
+        if prompt_count == 0:
+            # First session - full initial time
+            limit_seconds = initial_minutes * 60
+        else:
+            # After prompt - additional time per prompt
+            limit_seconds = (initial_minutes + (prompt_count * additional_minutes)) * 60
+        
+        remaining_seconds = max(0, limit_seconds - used_seconds)
+    
+    return {
+        "limits_active": True,
+        "can_listen": remaining_seconds != 0,
+        "remaining_seconds": remaining_seconds,
+        "used_seconds_today": record.get("daily_seconds", 0),
+        "used_seconds_month": record.get("monthly_seconds", 0),
+        "is_paid_user": is_paid_user,
+        "prompt_count": prompt_count,
+        "limit_type": settings.get("paid_user_limit_type", "daily") if is_paid_user else "free",
+        "prompt_message_sw": settings.get("donation_prompt_message_sw", ""),
+        "prompt_message_en": settings.get("donation_prompt_message_en", "")
+    }
+
+
+@api_router.post("/bible/listening-track")
+async def track_listening_time(data: dict):
+    """Track user's Bible listening time"""
+    user_id = data.get("user_id")
+    seconds_listened = data.get("seconds", 0)
+    
+    if seconds_listened <= 0:
+        return {"success": False, "message": "Invalid seconds value"}
+    
+    listening_key = user_id if user_id else "anonymous"
+    today_str = datetime.utcnow().date().isoformat()
+    month_str = datetime.utcnow().strftime("%Y-%m")
+    
+    # Update listening record
+    result = await db.bible_listening.update_one(
+        {"user_key": listening_key},
+        {
+            "$inc": {
+                "daily_seconds": seconds_listened,
+                "monthly_seconds": seconds_listened,
+                "total_seconds": seconds_listened
+            },
+            "$set": {
+                "daily_date": today_str,
+                "monthly_period": month_str,
+                "updated_at": datetime.utcnow()
+            },
+            "$setOnInsert": {
+                "user_key": listening_key,
+                "user_id": user_id,
+                "prompt_count": 0,
+                "created_at": datetime.utcnow()
+            }
+        },
+        upsert=True
+    )
+    
+    return {"success": True, "seconds_added": seconds_listened}
+
+
+@api_router.post("/bible/prompt-shown")
+async def record_prompt_shown(data: dict):
+    """Record that donation prompt was shown to user"""
+    user_id = data.get("user_id")
+    listening_key = user_id if user_id else "anonymous"
+    
+    result = await db.bible_listening.update_one(
+        {"user_key": listening_key},
+        {
+            "$inc": {"prompt_count": 1},
+            "$set": {"last_prompt_at": datetime.utcnow()}
+        }
+    )
+    
+    return {"success": True}
+
+
+@api_router.get("/admin/bible/listening-stats")
+async def get_listening_stats():
+    """Get overall Bible listening statistics for admin"""
+    # Total listeners
+    total_listeners = await db.bible_listening.count_documents({})
+    
+    # Today's listeners
+    today_str = datetime.utcnow().date().isoformat()
+    today_listeners = await db.bible_listening.count_documents({"daily_date": today_str, "daily_seconds": {"$gt": 0}})
+    
+    # Total listening time
+    pipeline = [
+        {"$group": {"_id": None, "total": {"$sum": "$total_seconds"}}}
+    ]
+    total_time = await db.bible_listening.aggregate(pipeline).to_list(1)
+    total_seconds = total_time[0]["total"] if total_time else 0
+    
+    # Prompts shown today
+    prompts_today = await db.bible_listening.count_documents({
+        "daily_date": today_str,
+        "prompt_count": {"$gt": 0}
+    })
+    
+    return {
+        "total_listeners": total_listeners,
+        "today_listeners": today_listeners,
+        "total_listening_hours": round(total_seconds / 3600, 2),
+        "prompts_shown_today": prompts_today
+    }
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
