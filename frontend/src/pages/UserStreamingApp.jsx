@@ -442,6 +442,8 @@ const QuickAccessCard = ({ item, onClick }) => {
     gradient = 'from-orange-500 to-amber-500';
   }
   
+  const thumbUrl = getThumbnail(item);
+  
   return (
     <button
       onClick={onClick}
@@ -449,8 +451,8 @@ const QuickAccessCard = ({ item, onClick }) => {
       data-testid={`quick-${item.id || item.category_id || item.album_id || item.type}`}
     >
       <div className={`w-14 h-14 bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
-        {item.thumbnail ? (
-          <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+        {thumbUrl ? (
+          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <IconComponent size={22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
@@ -463,6 +465,7 @@ const QuickAccessCard = ({ item, onClick }) => {
 // Album Card - Standard
 const AlbumCard = ({ album, onPlay, onOpen, size = 'md' }) => {
   const sizeClasses = { sm: 'w-36', md: 'w-44', lg: 'w-52' };
+  const thumbUrl = getThumbnail(album);
   return (
     <button
       onClick={() => onOpen(album.album_id)}
@@ -470,8 +473,8 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md' }) => {
       data-testid={`album-${album.album_id}`}
     >
       <div className="aspect-square rounded-md bg-zinc-800 mb-3 overflow-hidden relative shadow-lg">
-        {album.thumbnail ? (
-          <img src={album.thumbnail} alt={album.title} className="w-full h-full object-cover" />
+        {thumbUrl ? (
+          <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-800 to-emerald-700">
             <Music2 size={size === 'lg' ? 48 : 36} className="text-white/40" />
@@ -488,26 +491,28 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md' }) => {
 };
 
 // Wide Album Card
-const WideAlbumCard = ({ album, onOpen }) => (
-  <button
-    onClick={() => onOpen(album.album_id)}
-    className="flex-shrink-0 w-80 h-44 rounded-lg overflow-hidden relative group"
-    data-testid={`wide-${album.album_id}`}
-  >
-    {album.thumbnail ? (
-      <img src={album.thumbnail} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-    ) : (
-      <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
-        <Music2 size={56} className="text-white/30" />
+const WideAlbumCard = ({ album, onOpen }) => {
+  const thumbUrl = getThumbnail(album);
+  return (
+    <button
+      onClick={() => onOpen(album.album_id)}
+      className="flex-shrink-0 w-80 h-44 rounded-lg overflow-hidden relative group"
+      data-testid={`wide-${album.album_id}`}
+    >
+      {thumbUrl ? (
+        <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
+          <Music2 size={56} className="text-white/30" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <h3 className="font-bold text-lg text-white truncate">{album.title}</h3>
+        <p className="text-sm text-zinc-300 truncate">{album.artist_name}</p>
       </div>
-    )}
-    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-    <div className="absolute bottom-0 left-0 right-0 p-4">
-      <h3 className="font-bold text-lg text-white truncate">{album.title}</h3>
-      <p className="text-sm text-zinc-300 truncate">{album.artist_name}</p>
-    </div>
-    <div className="absolute bottom-4 right-4 w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
-      <Play size={22} fill="black" className="text-black ml-0.5" />
+      <div className="absolute bottom-4 right-4 w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
+        <Play size={22} fill="black" className="text-black ml-0.5" />
     </div>
   </button>
 );
