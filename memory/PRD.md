@@ -55,9 +55,10 @@ Complete Bible reading and listening module with AI text-to-speech:
 
 **Technical Notes:**
 - Bible data from SourceForge public domain (Swahili NT)
-- TTS uses OpenAI via Emergent LLM Key (EMERGENT_LLM_KEY)
+- TTS uses **Google Cloud TTS** with Chirp3-HD Swahili voices
 - Audio cached in MongoDB to avoid regeneration
 - Analytics tracked with time-of-day classification
+- Supports 11 voices including 8 Swahili and 3 English options
 
 ### Translation Management System
 Complete internationalization (i18n) system for mobile app and PWA:
