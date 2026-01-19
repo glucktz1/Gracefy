@@ -10566,6 +10566,62 @@ async def get_snippet_with_audio(snippet_id: str):
     return snippet
 
 
+@api_router.get("/bible/featured-snippets")
+async def get_featured_bible_snippets(language: str = "sw", limit: int = 10):
+    """Get featured Bible snippets for home page cards"""
+    snippets = await db.bible_snippets.find(
+        {"is_active": True, "language": language},
+        {"_id": 0, "audio_base64": 0, "text": 0}
+    ).sort([("is_featured", -1), ("display_order", 1), ("created_at", -1)]).limit(limit).to_list(limit)
+    return {"snippets": snippets}
+
+
+@api_router.post("/bible/tts/passage-range")
+async def generate_passage_range_audio(data: dict):
+    """Generate audio for a custom verse range entered by user"""
+    book_name = data.get("book_name")
+    chapter = data.get("chapter")
+    start_verse = data.get("start_verse")
+    end_verse = data.get("end_verse")
+    language = data.get("language", "sw")
+    voice = data.get("voice")
+    
+    if not all([book_name, chapter, start_verse, end_verse]):
+        raise HTTPException(status_code=400, detail="book_name, chapter, start_verse, and end_verse are required")
+    
+    # Get the verses
+    verses = await db.bible_verses.find(
+        {
+            "book_name": book_name,
+            "chapter": chapter,
+            "verse": {"$gte": start_verse, "$lte": end_verse},
+            "language": language
+        },
+        {"_id": 0}
+    ).sort("verse", 1).to_list(200)
+    
+    if not verses:
+        raise HTTPException(status_code=404, detail="Verses not found")
+    
+    combined_text = " ".join([v["text"] for v in verses])
+    
+    if len(combined_text) > 5000:
+        raise HTTPException(status_code=400, detail="Passage too long (max ~5000 characters)")
+    
+    try:
+        result = await tts_service.generate_audio(combined_text, voice)
+        result["reference"] = f"{book_name} {chapter}:{start_verse}-{end_verse}"
+        result["verse_count"] = len(verses)
+        result["verses"] = verses
+        
+        # Track analytics
+        await tts_service._track_listening_analytics(f"custom_{book_name}_{chapter}", book_name, chapter)
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== BIBLE ANALYTICS ==============
 
 @api_router.get("/admin/bible/analytics")
