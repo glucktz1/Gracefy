@@ -10598,6 +10598,7 @@ async def generate_passage_range_audio(data: dict):
     end_verse = data.get("end_verse")
     language = data.get("language", "sw")
     voice = data.get("voice")
+    gender = data.get("gender")  # "male" or "female"
     
     if not all([book_name, chapter, start_verse, end_verse]):
         raise HTTPException(status_code=400, detail="book_name, chapter, start_verse, and end_verse are required")
