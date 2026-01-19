@@ -10704,7 +10704,7 @@ if cors_origins == '*':
     allowed_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://christian-radio-3.preview.emergentagent.com"
+        "https://biblestream-1.preview.emergentagent.com"
     ]
 else:
     allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
