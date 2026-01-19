@@ -454,8 +454,9 @@ const TafakariSection = ({ title, items, onItemPress, onPlay }) => {
                   </View>
                 </View>
               </View>
-          </TouchableOpacity>
-        )}
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
