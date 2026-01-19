@@ -688,6 +688,69 @@ export default function BibleManagementPage() {
                 />
               </div>
             </div>
+
+            {/* Devotional Card Fields */}
+            <div className="pt-4 border-t border-zinc-800">
+              <p className="text-sm font-medium text-amber-400 mb-3">Home Page Card Settings</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Card Heading</label>
+                  <Input
+                    value={snippetForm.heading}
+                    onChange={(e) => setSnippetForm({ ...snippetForm, heading: e.target.value })}
+                    placeholder="e.g., Somo la Leo"
+                    className="bg-zinc-950 border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Card Type</label>
+                  <Select 
+                    value={snippetForm.card_type} 
+                    onValueChange={(v) => setSnippetForm({ ...snippetForm, card_type: v })}
+                  >
+                    <SelectTrigger className="bg-zinc-950 border-zinc-700">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectItem value="snippet">Regular Snippet</SelectItem>
+                      <SelectItem value="daily_devotion">Daily Devotion</SelectItem>
+                      <SelectItem value="featured">Featured</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="text-sm text-zinc-400 mb-1 block">Subtitle (shows in italic)</label>
+                <Input
+                  value={snippetForm.subtitle}
+                  onChange={(e) => setSnippetForm({ ...snippetForm, subtitle: e.target.value })}
+                  placeholder="e.g., Yesu anawatokea wanafunzi wake"
+                  className="bg-zinc-950 border-zinc-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Display Order</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={snippetForm.display_order}
+                    onChange={(e) => setSnippetForm({ ...snippetForm, display_order: parseInt(e.target.value) || 0 })}
+                    className="bg-zinc-950 border-zinc-700"
+                  />
+                </div>
+                <div className="flex items-center gap-3 pt-6">
+                  <Switch
+                    checked={snippetForm.is_featured}
+                    onCheckedChange={(v) => setSnippetForm({ ...snippetForm, is_featured: v })}
+                  />
+                  <label className="text-sm text-zinc-300">Featured on Home</label>
+                </div>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
