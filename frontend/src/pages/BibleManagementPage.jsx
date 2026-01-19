@@ -689,7 +689,7 @@ export default function BibleManagementPage() {
                     <SelectValue placeholder="Auto (based on gender)" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    <SelectItem value="">Auto (based on gender)</SelectItem>
+                    <SelectItem value="auto">Auto (based on gender)</SelectItem>
                     {(snippetForm.gender === "male" ? maleVoices : femaleVoices).map(voice => (
                       <SelectItem key={voice.id} value={voice.id}>
                         {voice.name} - {voice.description}
