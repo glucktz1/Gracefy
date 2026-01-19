@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import { Alert, Share, AppState } from 'react-native';
+import { Alert, Share, AppState, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { sessionService, getAudioUrl, contentService, libraryService } from '../services/api';
 import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from '../services/downloadService';
@@ -36,6 +36,7 @@ export const PlayerProvider = ({ children }) => {
   const isLoadingRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
   const lastPositionRef = useRef(0);
+  const isHandlingSongEnd = useRef(false);
   
   // Use refs to track current state for callbacks (avoids stale closure issues)
   const queueRef = useRef([]);
@@ -43,6 +44,7 @@ export const PlayerProvider = ({ children }) => {
   const repeatRef = useRef('all');
   const shuffleRef = useRef(false);
   const currentAlbumRef = useRef(null);
+  const currentSongRef = useRef(null);
   const allAlbumsRef = useRef([]);
   
   // Keep refs in sync with state
@@ -51,6 +53,7 @@ export const PlayerProvider = ({ children }) => {
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
   useEffect(() => { currentAlbumRef.current = currentAlbum; }, [currentAlbum]);
+  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
   useEffect(() => { allAlbumsRef.current = allAlbums; }, [allAlbums]);
 
   // Configure audio for background/lock screen playback
@@ -99,19 +102,18 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const savePlaybackState = async () => {
-    if (!currentSong) return;
+    if (!currentSongRef.current) return;
     
     try {
       const state = {
-        songId: currentSong.song_id,
-        songData: currentSong,
-        albumData: currentAlbum,
+        songId: currentSongRef.current.song_id,
+        songData: currentSongRef.current,
+        albumData: currentAlbumRef.current,
         position: lastPositionRef.current || position,
-        queueIndex: queueIndex,
+        queueIndex: queueIndexRef.current,
         timestamp: Date.now(),
       };
       await SecureStore.setItemAsync(PLAYBACK_STATE_KEY, JSON.stringify(state));
-      console.log('Saved playback state at position:', state.position);
     } catch (e) {
       console.log('Error saving playback state:', e);
     }
@@ -141,14 +143,14 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const resumeFromLastPosition = async () => {
-    if (!currentSong) return;
+    if (!currentSongRef.current) return;
     
     try {
       const savedState = await SecureStore.getItemAsync(PLAYBACK_STATE_KEY);
       if (savedState) {
         const state = JSON.parse(savedState);
-        if (state.songId === currentSong.song_id && state.position > 0) {
-          await loadAndPlaySong(currentSong, currentAlbum, state.position);
+        if (state.songId === currentSongRef.current.song_id && state.position > 0) {
+          await loadAndPlaySong(currentSongRef.current, currentAlbumRef.current, state.position);
           return true;
         }
       }
@@ -156,7 +158,7 @@ export const PlayerProvider = ({ children }) => {
       console.log('Error resuming:', e);
     }
     
-    await loadAndPlaySong(currentSong, currentAlbum);
+    await loadAndPlaySong(currentSongRef.current, currentAlbumRef.current);
     return false;
   };
 
@@ -175,6 +177,7 @@ export const PlayerProvider = ({ children }) => {
       });
       setAllAlbums(albums);
       allAlbumsRef.current = albums;
+      console.log('Loaded', albums.length, 'albums for continuous playback');
     } catch (error) {
       console.log('Error fetching albums:', error);
     }
@@ -183,19 +186,23 @@ export const PlayerProvider = ({ children }) => {
   const stopAndUnloadSound = async () => {
     try {
       if (globalSoundRef) {
-        const status = await globalSoundRef.getStatusAsync();
-        if (status.isLoaded) {
-          await globalSoundRef.stopAsync();
-          await globalSoundRef.unloadAsync();
-        }
+        try {
+          const status = await globalSoundRef.getStatusAsync();
+          if (status.isLoaded) {
+            await globalSoundRef.stopAsync();
+            await globalSoundRef.unloadAsync();
+          }
+        } catch (e) {}
         globalSoundRef = null;
       }
       if (soundRef.current) {
-        const status = await soundRef.current.getStatusAsync();
-        if (status.isLoaded) {
-          await soundRef.current.stopAsync();
-          await soundRef.current.unloadAsync();
-        }
+        try {
+          const status = await soundRef.current.getStatusAsync();
+          if (status.isLoaded) {
+            await soundRef.current.stopAsync();
+            await soundRef.current.unloadAsync();
+          }
+        } catch (e) {}
         soundRef.current = null;
       }
     } catch (e) {
@@ -203,19 +210,91 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // FIXED: Handle song end with refs to avoid stale closures
-  const handleSongEnd = useCallback(async () => {
-    const currentQueue = queueRef.current;
-    const currentIndex = queueIndexRef.current;
-    const currentRepeat = repeatRef.current;
-    const currentShuffle = shuffleRef.current;
-    const album = currentAlbumRef.current;
-    const albums = allAlbumsRef.current;
+  // Play next song in queue or next album
+  const playNextSongInternal = async () => {
+    if (isHandlingSongEnd.current) {
+      console.log('Already handling song end, skipping...');
+      return;
+    }
     
-    console.log('Song ended. Repeat:', currentRepeat, 'Queue:', currentQueue.length, 'Index:', currentIndex);
+    isHandlingSongEnd.current = true;
+    
+    try {
+      const currentQueue = queueRef.current;
+      const currentIndex = queueIndexRef.current;
+      const currentRepeat = repeatRef.current;
+      const currentShuffle = shuffleRef.current;
+      const album = currentAlbumRef.current;
+      const albums = allAlbumsRef.current;
+      
+      console.log('=== PLAY NEXT ===');
+      console.log('Queue length:', currentQueue.length);
+      console.log('Current index:', currentIndex);
+      console.log('Repeat mode:', currentRepeat);
+      
+      // Calculate next index
+      let nextIndex;
+      if (currentShuffle) {
+        do {
+          nextIndex = Math.floor(Math.random() * currentQueue.length);
+        } while (nextIndex === currentIndex && currentQueue.length > 1);
+      } else {
+        nextIndex = currentIndex + 1;
+      }
+      
+      console.log('Next index:', nextIndex);
+      
+      // If there's a next song in the queue, play it
+      if (nextIndex < currentQueue.length) {
+        console.log('Playing next song in queue');
+        const item = currentQueue[nextIndex];
+        const nextSong = item.song || item;
+        const nextAlbum = item.album || album;
+        
+        setQueueIndex(nextIndex);
+        queueIndexRef.current = nextIndex;
+        
+        await loadAndPlaySong(nextSong, nextAlbum);
+        return;
+      }
+      
+      // Queue exhausted
+      console.log('Queue exhausted');
+      
+      if (currentRepeat === 'all' && currentQueue.length > 0) {
+        // Loop back to start of queue
+        console.log('Looping back to start of queue');
+        const item = currentQueue[0];
+        const nextSong = item.song || item;
+        const nextAlbum = item.album || album;
+        
+        setQueueIndex(0);
+        queueIndexRef.current = 0;
+        
+        await loadAndPlaySong(nextSong, nextAlbum);
+        return;
+      }
+      
+      // Play next album for continuous playback
+      console.log('Attempting to play next album...');
+      await playNextAlbumInternal(album, albums);
+      
+    } catch (error) {
+      console.error('Error in playNextSongInternal:', error);
+    } finally {
+      isHandlingSongEnd.current = false;
+    }
+  };
+
+  // Handle song end - called when playback finishes
+  const handleSongEnd = async () => {
+    console.log('=== SONG ENDED ===');
+    
+    const currentRepeat = repeatRef.current;
     
     // Repeat one - loop the same song
     if (currentRepeat === 'one') {
+      console.log('Repeat ONE - restarting song');
       if (soundRef.current) {
         try {
           await soundRef.current.setPositionAsync(0);
@@ -227,51 +306,22 @@ export const PlayerProvider = ({ children }) => {
       return;
     }
     
-    // Calculate next index
-    let nextIndex;
-    if (currentShuffle) {
-      // Random next song from queue
-      do {
-        nextIndex = Math.floor(Math.random() * currentQueue.length);
-      } while (nextIndex === currentIndex && currentQueue.length > 1);
-    } else {
-      nextIndex = currentIndex + 1;
-    }
-    
-    // If there's a next song in the queue, play it
-    if (nextIndex < currentQueue.length) {
-      console.log('Playing next song in queue:', nextIndex);
-      setQueueIndex(nextIndex);
-      queueIndexRef.current = nextIndex;
-      const item = currentQueue[nextIndex];
-      await loadAndPlaySong(item.song || item, item.album || album);
-      return;
-    }
-    
-    // Queue exhausted - check repeat mode
-    if (currentRepeat === 'all') {
-      // Loop back to start of queue
-      console.log('Looping back to start of queue');
-      setQueueIndex(0);
-      queueIndexRef.current = 0;
-      const item = currentQueue[0];
-      await loadAndPlaySong(item.song || item, item.album || album);
-      return;
-    }
-    
-    // Repeat is 'off' - play next album automatically for continuous playback
-    console.log('Queue finished, looking for next album...');
-    await playNextAlbumInternal(album, albums);
-  }, []);
+    // Play next song
+    await playNextSongInternal();
+  };
 
-  // Internal function to play next album (uses parameters instead of state)
+  // Internal function to play next album
   const playNextAlbumInternal = async (currentAlbumData, albumsList) => {
-    if (!currentAlbumData || !albumsList || albumsList.length === 0) {
-      console.log('No more albums to play');
+    if (!albumsList || albumsList.length === 0) {
+      console.log('No albums available for auto-play');
       return;
     }
     
-    const currentIndex = albumsList.findIndex(a => a.album_id === currentAlbumData.album_id);
+    let currentIndex = -1;
+    if (currentAlbumData) {
+      currentIndex = albumsList.findIndex(a => a.album_id === currentAlbumData.album_id);
+    }
+    
     let nextIndex = currentIndex + 1;
     
     // If we've reached the end, loop back to start
@@ -279,14 +329,14 @@ export const PlayerProvider = ({ children }) => {
       nextIndex = 0;
     }
     
-    // Avoid playing the same album if only one exists
-    if (albumsList.length === 1) {
-      console.log('Only one album available, not auto-playing');
-      return;
+    // If only one album and we're already on it, restart it
+    if (albumsList.length === 1 && currentIndex === 0) {
+      console.log('Only one album - restarting it');
+      nextIndex = 0;
     }
     
     const nextAlbum = albumsList[nextIndex];
-    console.log('Auto-playing next album:', nextAlbum.title);
+    console.log('Auto-playing album:', nextAlbum.title);
     
     try {
       const albumData = await contentService.getAlbum(nextAlbum.album_id);
@@ -298,10 +348,15 @@ export const PlayerProvider = ({ children }) => {
         queueRef.current = newQueue;
         setQueueIndex(0);
         queueIndexRef.current = 0;
+        
         await loadAndPlaySong(songs[0], albumData.album || nextAlbum);
       } else {
+        console.log('Album has no songs, trying next...');
         // Try the next album if this one has no songs
-        await playNextAlbumInternal(nextAlbum, albumsList);
+        const remainingAlbums = albumsList.filter((_, i) => i !== nextIndex);
+        if (remainingAlbums.length > 0) {
+          await playNextAlbumInternal(nextAlbum, remainingAlbums);
+        }
       }
     } catch (error) {
       console.error('Error loading next album:', error);
@@ -312,7 +367,8 @@ export const PlayerProvider = ({ children }) => {
     await playNextAlbumInternal(currentAlbumRef.current, allAlbumsRef.current);
   };
 
-  const onPlaybackStatusUpdate = useCallback((status) => {
+  // Playback status update handler - uses ref for handleSongEnd to avoid stale closure
+  const onPlaybackStatusUpdate = (status) => {
     if (status.isLoaded) {
       setPosition(status.positionMillis / 1000);
       setDuration(status.durationMillis / 1000 || 0);
@@ -320,17 +376,24 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(status.isBuffering);
       setError(null);
       
-      // FIXED: Check for song end
+      // Check for song end
       if (status.didJustFinish && !status.isLooping) {
-        console.log('Playback finished, triggering handleSongEnd');
-        handleSongEnd();
+        console.log('*** Playback didJustFinish ***');
+        // Use setTimeout to ensure state is settled
+        setTimeout(() => {
+          handleSongEnd();
+        }, 100);
       }
     } else if (status.error) {
       console.error('Playback error:', status.error);
       setError(status.error);
       setIsLoading(false);
+      // On error, try next song
+      setTimeout(() => {
+        playNextSongInternal();
+      }, 500);
     }
-  }, [handleSongEnd]);
+  };
 
   const loadAndPlaySong = async (song, album, startPosition = 0) => {
     if (isLoadingRef.current) {
@@ -343,7 +406,7 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       
-      console.log('Loading:', song.title, startPosition > 0 ? `from position ${startPosition}s` : '');
+      console.log('Loading:', song.title);
       
       await stopAndUnloadSound();
       
@@ -371,14 +434,15 @@ export const PlayerProvider = ({ children }) => {
         audioUrl = song.audio_url ? getAudioUrl(song.audio_url) : SAMPLE_AUDIO;
       }
       
-      console.log('Creating sound from:', audioUrl.substring(0, 50) + '...');
+      console.log('Playing from:', audioUrl.substring(0, 60) + '...');
       
+      // Create sound with status update callback
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
         { 
           shouldPlay: true,
           progressUpdateIntervalMillis: 500,
-          isLooping: repeatRef.current === 'one',
+          isLooping: false, // We handle looping manually
           positionMillis: startPosition * 1000,
         },
         onPlaybackStatusUpdate
@@ -387,12 +451,15 @@ export const PlayerProvider = ({ children }) => {
       soundRef.current = sound;
       globalSoundRef = sound;
       
+      // Update state
       setCurrentSong(song);
+      currentSongRef.current = song;
       setCurrentAlbum(album);
       currentAlbumRef.current = album;
       
       await checkIfLiked(song.song_id);
       
+      // Start session
       try {
         const userId = await SecureStore.getItemAsync('user_id');
         const session = await sessionService.startSession(song.song_id, userId);
@@ -413,7 +480,7 @@ export const PlayerProvider = ({ children }) => {
       // If loading fails, try next song after a short delay
       setTimeout(() => {
         console.log('Load failed, trying next song...');
-        playNextInternal();
+        playNextSongInternal();
       }, 1000);
     }
   };
@@ -433,11 +500,17 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const playSong = async (song, album, songQueue = [], index = 0) => {
+    console.log('=== PLAY SONG ===');
+    console.log('Song:', song.title);
+    console.log('Queue size:', songQueue.length);
+    console.log('Index:', index);
+    
     const newQueue = songQueue.length > 0 ? songQueue : [{ song, album }];
     setQueue(newQueue);
     queueRef.current = newQueue;
     setQueueIndex(index);
     queueIndexRef.current = index;
+    
     await loadAndPlaySong(song, album);
   };
 
@@ -458,40 +531,8 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  const playNextInternal = async () => {
-    const currentQueue = queueRef.current;
-    const currentIndex = queueIndexRef.current;
-    const currentShuffle = shuffleRef.current;
-    const currentRepeat = repeatRef.current;
-    const album = currentAlbumRef.current;
-    
-    if (currentQueue.length === 0) return;
-    
-    let nextIndex;
-    if (currentShuffle) {
-      do {
-        nextIndex = Math.floor(Math.random() * currentQueue.length);
-      } while (nextIndex === currentIndex && currentQueue.length > 1);
-    } else {
-      nextIndex = currentIndex + 1;
-      if (nextIndex >= currentQueue.length) {
-        if (currentRepeat === 'all') {
-          nextIndex = 0;
-        } else {
-          await playNextAlbum();
-          return;
-        }
-      }
-    }
-    
-    setQueueIndex(nextIndex);
-    queueIndexRef.current = nextIndex;
-    const item = currentQueue[nextIndex];
-    await loadAndPlaySong(item.song || item, item.album || album);
-  };
-
   const playNext = async () => {
-    await playNextInternal();
+    await playNextSongInternal();
   };
 
   const playPrevious = async () => {
@@ -509,10 +550,14 @@ export const PlayerProvider = ({ children }) => {
     if (currentQueue.length === 0) return;
     
     const prevIndex = currentIndex === 0 ? currentQueue.length - 1 : currentIndex - 1;
+    const item = currentQueue[prevIndex];
+    const prevSong = item.song || item;
+    const prevAlbum = item.album || album;
+    
     setQueueIndex(prevIndex);
     queueIndexRef.current = prevIndex;
-    const item = currentQueue[prevIndex];
-    await loadAndPlaySong(item.song || item, item.album || album);
+    
+    await loadAndPlaySong(prevSong, prevAlbum);
   };
 
   const seekTo = async (seconds) => {
@@ -526,27 +571,30 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const cycleRepeat = () => {
-    const newRepeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
+    const modes = ['all', 'one', 'off'];
+    const currentIndex = modes.indexOf(repeat);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    const newRepeat = modes[nextIndex];
+    
+    console.log('Repeat mode changed to:', newRepeat);
     setRepeat(newRepeat);
     repeatRef.current = newRepeat;
-    if (soundRef.current) {
-      soundRef.current.setIsLoopingAsync(newRepeat === 'one');
-    }
   };
 
   const toggleShuffle = () => {
     setShuffle(prev => {
       const newValue = !prev;
       shuffleRef.current = newValue;
+      console.log('Shuffle:', newValue);
       return newValue;
     });
   };
 
   const toggleLike = async () => {
-    if (!currentSong) return;
+    if (!currentSongRef.current) return;
     
     try {
-      const songId = currentSong.song_id;
+      const songId = currentSongRef.current.song_id;
       const newLiked = !liked;
       
       let localFavorites = [];
@@ -572,9 +620,8 @@ export const PlayerProvider = ({ children }) => {
         } else {
           await libraryService.removeFavorite(songId);
         }
-        console.log('Like synced to backend:', newLiked);
       } catch (e) {
-        console.log('Backend sync failed (will retry later):', e.message);
+        console.log('Backend sync failed:', e.message);
       }
       
     } catch (error) {
@@ -583,12 +630,12 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const shareSong = async () => {
-    if (!currentSong) return;
+    if (!currentSongRef.current) return;
     
     try {
       await Share.share({
-        message: `🎵 Check out "${currentSong.title}" by ${currentAlbum?.artist_name || 'Unknown Artist'} on Spirit Songs!`,
-        title: `${currentSong.title} - Spirit Songs`,
+        message: `🎵 Check out "${currentSongRef.current.title}" by ${currentAlbumRef.current?.artist_name || 'Unknown Artist'} on Gracefy!`,
+        title: `${currentSongRef.current.title} - Gracefy`,
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -596,7 +643,7 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const downloadCurrentSong = async () => {
-    if (!currentSong || !currentAlbum) return;
+    if (!currentSongRef.current || !currentAlbumRef.current) return;
     
     if (isDownloaded) {
       Alert.alert(
@@ -609,7 +656,7 @@ export const PlayerProvider = ({ children }) => {
             style: 'destructive',
             onPress: async () => {
               try {
-                await removeDownload(currentSong.song_id);
+                await removeDownload(currentSongRef.current.song_id);
                 setIsDownloaded(false);
                 Alert.alert('Removed', 'Song removed from downloads');
               } catch (error) {
@@ -624,7 +671,7 @@ export const PlayerProvider = ({ children }) => {
       setDownloadProgress(0);
       
       try {
-        await downloadSong(currentSong, currentAlbum, (progress) => {
+        await downloadSong(currentSongRef.current, currentAlbumRef.current, (progress) => {
           setDownloadProgress(progress);
         });
         setIsDownloaded(true);
