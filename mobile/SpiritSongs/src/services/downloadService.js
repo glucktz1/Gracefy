@@ -1,68 +1,138 @@
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { getAudioUrl } from './api';
 
-// Use documentDirectory for iOS and cacheDirectory for Android (more reliable on Android)
-const getDownloadsDir = () => {
-  if (Platform.OS === 'android') {
-    return `${FileSystem.cacheDirectory}gracefy_songs/`;
+// Use multiple fallback directories for maximum compatibility
+const getDownloadsDirOptions = () => {
+  const options = [];
+  
+  // Primary: cache directory (more reliable on Android)
+  if (FileSystem.cacheDirectory) {
+    options.push(`${FileSystem.cacheDirectory}gracefy_songs/`);
   }
-  return `${FileSystem.documentDirectory}songs/`;
+  
+  // Secondary: document directory (persistent storage)
+  if (FileSystem.documentDirectory) {
+    options.push(`${FileSystem.documentDirectory}songs/`);
+  }
+  
+  // Tertiary: another cache path
+  if (FileSystem.cacheDirectory) {
+    options.push(`${FileSystem.cacheDirectory}gracefy_downloads/`);
+  }
+  
+  return options;
 };
 
-const DOWNLOADS_DIR = getDownloadsDir();
 const DOWNLOADS_INDEX_KEY = 'downloaded_songs';
+const WORKING_DIR_KEY = 'working_downloads_dir';
 
-// Ensure downloads directory exists with retry and better error handling
-const ensureDownloadsDir = async (retries = 3) => {
-  for (let attempt = 0; attempt < retries; attempt++) {
+// Get the working downloads directory (cached once found)
+let workingDir = null;
+
+// Request Android storage permissions if needed
+const requestStoragePermission = async () => {
+  if (Platform.OS !== 'android') return true;
+  
+  try {
+    // For Android 13+, we don't need to request legacy storage permissions
+    // since we're using app-specific directories
+    if (Platform.Version >= 33) {
+      return true;
+    }
+    
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      {
+        title: 'Storage Permission',
+        message: 'Gracefy needs storage access to download songs for offline listening.',
+        buttonNeutral: 'Ask Me Later',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK',
+      },
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch (err) {
+    console.log('Permission request error:', err);
+    return true; // Continue anyway with app-specific storage
+  }
+};
+
+// Ensure downloads directory exists with multiple fallbacks
+const ensureDownloadsDir = async (forceRefresh = false) => {
+  // Return cached working directory if available
+  if (!forceRefresh && workingDir) {
     try {
-      // First check if the parent directory is accessible
-      const parentDir = Platform.OS === 'android' 
-        ? FileSystem.cacheDirectory 
-        : FileSystem.documentDirectory;
-      
-      const parentInfo = await FileSystem.getInfoAsync(parentDir);
-      if (!parentInfo.exists) {
-        console.error('Parent directory does not exist:', parentDir);
-        throw new Error('Storage not accessible');
+      const dirInfo = await FileSystem.getInfoAsync(workingDir);
+      if (dirInfo.exists) {
+        return { success: true, dir: workingDir };
       }
-      
-      const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(DOWNLOADS_DIR, { intermediates: true });
-        console.log('Downloads directory created:', DOWNLOADS_DIR);
-      }
-      
-      // Verify it was created
-      const verifyInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
-      if (verifyInfo.exists) {
-        return { success: true, dir: DOWNLOADS_DIR };
-      }
-    } catch (error) {
-      console.error(`Attempt ${attempt + 1} - Error creating downloads directory:`, error);
-      
-      if (attempt === retries - 1) {
-        // Last attempt - try alternative location (cache directory on both platforms)
-        try {
-          const altDir = `${FileSystem.cacheDirectory}gracefy_downloads/`;
-          const altDirInfo = await FileSystem.getInfoAsync(altDir);
-          if (!altDirInfo.exists) {
-            await FileSystem.makeDirectoryAsync(altDir, { intermediates: true });
-          }
-          console.log('Using alternative cache directory:', altDir);
-          return { success: true, dir: altDir };
-        } catch (altError) {
-          console.error('Alternative directory also failed:', altError);
-          return { success: false, dir: null };
+    } catch (e) {
+      console.log('Cached dir no longer valid, finding new one...');
+    }
+    workingDir = null;
+  }
+  
+  // Try to get saved working directory
+  if (!forceRefresh) {
+    try {
+      const savedDir = await SecureStore.getItemAsync(WORKING_DIR_KEY);
+      if (savedDir) {
+        const dirInfo = await FileSystem.getInfoAsync(savedDir);
+        if (dirInfo.exists) {
+          workingDir = savedDir;
+          return { success: true, dir: savedDir };
         }
       }
-      // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (e) {
+      console.log('Error checking saved dir:', e);
     }
   }
-  return { success: false, dir: null };
+  
+  // Request permissions first on Android
+  await requestStoragePermission();
+  
+  // Try each directory option
+  const dirOptions = getDownloadsDirOptions();
+  
+  for (const dir of dirOptions) {
+    try {
+      console.log('Trying directory:', dir);
+      
+      // Check if directory exists
+      const dirInfo = await FileSystem.getInfoAsync(dir);
+      
+      if (!dirInfo.exists) {
+        // Try to create it
+        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+        console.log('Created directory:', dir);
+      }
+      
+      // Verify directory is accessible by creating a test file
+      const testFile = `${dir}test_${Date.now()}.tmp`;
+      try {
+        await FileSystem.writeAsStringAsync(testFile, 'test', { encoding: FileSystem.EncodingType.UTF8 });
+        await FileSystem.deleteAsync(testFile, { idempotent: true });
+        console.log('Directory is writable:', dir);
+        
+        // Save this as the working directory
+        workingDir = dir;
+        await SecureStore.setItemAsync(WORKING_DIR_KEY, dir);
+        
+        return { success: true, dir: dir };
+      } catch (testError) {
+        console.log('Directory not writable:', dir, testError.message);
+        continue;
+      }
+    } catch (error) {
+      console.log('Error with directory:', dir, error.message);
+      continue;
+    }
+  }
+  
+  console.error('All directory options failed');
+  return { success: false, dir: null, error: 'No writable directory found' };
 };
 
 // Get list of downloaded songs
@@ -85,26 +155,15 @@ const saveDownloadedSongs = async (songs) => {
   }
 };
 
-// Check if a song is downloaded - checks both index and file existence
+// Check if a song is downloaded
 export const isSongDownloaded = async (songId) => {
   try {
-    // First check from index (has the actual path)
     const downloads = await getDownloadedSongs();
     const downloaded = downloads.find(d => d.song_id === songId);
     if (downloaded && downloaded.local_path) {
       const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
       return fileInfo.exists;
     }
-    
-    // Fallback: check in standard directory
-    const dirResult = await ensureDownloadsDir();
-    if (dirResult.success) {
-      const safeId = songId.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const downloadPath = `${dirResult.dir}${safeId}.mp3`;
-      const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-      return fileInfo.exists;
-    }
-    
     return false;
   } catch (error) {
     console.error('Error checking download status:', error);
@@ -112,15 +171,18 @@ export const isSongDownloaded = async (songId) => {
   }
 };
 
-// Download a song - Using callback-based download
+// Download a song
 export const downloadSong = async (song, album, onProgress) => {
   try {
     console.log('Download requested for:', song.title);
     
+    // Ensure directory is available
     const dirResult = await ensureDownloadsDir();
     if (!dirResult.success) {
       console.error('Directory creation failed');
-      throw new Error('Could not create downloads directory. Please check app permissions or try again.');
+      throw new Error(
+        'Unable to access storage. Please try again or check that the app has storage permission.'
+      );
     }
     
     const downloadDir = dirResult.dir;
@@ -134,11 +196,41 @@ export const downloadSong = async (song, album, onProgress) => {
     console.log('Starting download from:', audioUrl);
     console.log('Download directory:', downloadDir);
     
-    // Sanitize filename - remove special characters
+    // Sanitize filename
     const safeId = song.song_id.replace(/[^a-zA-Z0-9_-]/g, '_');
-    let downloadPath = `${downloadDir}${safeId}.mp3`;
+    const downloadPath = `${downloadDir}${safeId}.mp3`;
     
-    // Use callback-based download with progress
+    // Check if already downloaded
+    try {
+      const existingFile = await FileSystem.getInfoAsync(downloadPath);
+      if (existingFile.exists && existingFile.size > 0) {
+        console.log('Song already downloaded at:', downloadPath);
+        
+        // Update index
+        const downloads = await getDownloadedSongs();
+        if (!downloads.find(d => d.song_id === song.song_id)) {
+          const songData = {
+            song_id: song.song_id,
+            title: song.title,
+            artist_name: song.artist_name || album?.artist_name || 'Unknown Artist',
+            duration: song.duration,
+            thumbnail: song.thumbnail || song.thumbnail_url || album?.thumbnail || album?.thumbnail_url,
+            album_id: album?.album_id,
+            album_title: album?.title,
+            downloaded_at: new Date().toISOString(),
+            local_path: downloadPath,
+          };
+          downloads.push(songData);
+          await saveDownloadedSongs(downloads);
+        }
+        
+        return { success: true, path: downloadPath };
+      }
+    } catch (e) {
+      // File doesn't exist, continue with download
+    }
+    
+    // Progress callback
     const callback = (downloadProgress) => {
       if (downloadProgress.totalBytesExpectedToWrite > 0) {
         const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
@@ -166,11 +258,13 @@ export const downloadSong = async (song, album, onProgress) => {
     if (result && result.uri) {
       console.log('Download complete:', result.uri);
       
-      // Verify file exists and has content
+      // Verify file
       const fileInfo = await FileSystem.getInfoAsync(result.uri);
       if (!fileInfo.exists || fileInfo.size === 0) {
         throw new Error('Downloaded file is empty or missing');
       }
+      
+      console.log('File size:', fileInfo.size, 'bytes');
       
       // Update downloads index
       const downloads = await getDownloadedSongs();
@@ -183,10 +277,10 @@ export const downloadSong = async (song, album, onProgress) => {
         album_id: album?.album_id,
         album_title: album?.title,
         downloaded_at: new Date().toISOString(),
-        local_path: result.uri, // Use the actual result URI
+        local_path: result.uri,
+        file_size: fileInfo.size,
       };
       
-      // Remove existing entry if any, then add new
       const filtered = downloads.filter(d => d.song_id !== song.song_id);
       filtered.push(songData);
       await saveDownloadedSongs(filtered);
@@ -194,9 +288,17 @@ export const downloadSong = async (song, album, onProgress) => {
       return { success: true, path: result.uri };
     }
     
-    throw new Error('Download failed - no result');
+    throw new Error('Download failed - no result returned');
   } catch (error) {
     console.error('Error downloading song:', error);
+    
+    // Try to refresh directory cache and give a helpful error
+    workingDir = null;
+    
+    if (error.message.includes('permission') || error.message.includes('access')) {
+      throw new Error('Storage permission denied. Please allow storage access in app settings.');
+    }
+    
     throw error;
   }
 };
@@ -204,25 +306,17 @@ export const downloadSong = async (song, album, onProgress) => {
 // Remove a downloaded song
 export const removeDownload = async (songId) => {
   try {
-    // First check from index (has the actual path)
     const downloads = await getDownloadedSongs();
     const downloaded = downloads.find(d => d.song_id === songId);
     
     if (downloaded && downloaded.local_path) {
-      const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
-      if (fileInfo.exists) {
-        await FileSystem.deleteAsync(downloaded.local_path, { idempotent: true });
-      }
-    } else {
-      // Fallback: try standard location
-      const dirResult = await ensureDownloadsDir();
-      if (dirResult.success) {
-        const safeId = songId.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const downloadPath = `${dirResult.dir}${safeId}.mp3`;
-        const fileInfo = await FileSystem.getInfoAsync(downloadPath);
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
         if (fileInfo.exists) {
-          await FileSystem.deleteAsync(downloadPath, { idempotent: true });
+          await FileSystem.deleteAsync(downloaded.local_path, { idempotent: true });
         }
+      } catch (e) {
+        console.log('Error deleting file:', e);
       }
     }
     
@@ -240,7 +334,6 @@ export const removeDownload = async (songId) => {
 // Get local path for a downloaded song
 export const getLocalSongPath = async (songId) => {
   try {
-    // First check from index (has the actual path)
     const downloads = await getDownloadedSongs();
     const downloaded = downloads.find(d => d.song_id === songId);
     
@@ -248,17 +341,6 @@ export const getLocalSongPath = async (songId) => {
       const fileInfo = await FileSystem.getInfoAsync(downloaded.local_path);
       if (fileInfo.exists) {
         return downloaded.local_path;
-      }
-    }
-    
-    // Fallback: check in standard directory
-    const dirResult = await ensureDownloadsDir();
-    if (dirResult.success) {
-      const safeId = songId.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const downloadPath = `${dirResult.dir}${safeId}.mp3`;
-      const fileInfo = await FileSystem.getInfoAsync(downloadPath);
-      if (fileInfo.exists) {
-        return downloadPath;
       }
     }
     
@@ -276,7 +358,9 @@ export const getDownloadsSize = async () => {
     let totalSize = 0;
     
     for (const download of downloads) {
-      if (download.local_path) {
+      if (download.file_size) {
+        totalSize += download.file_size;
+      } else if (download.local_path) {
         try {
           const fileInfo = await FileSystem.getInfoAsync(download.local_path);
           if (fileInfo.exists && fileInfo.size) {
@@ -298,8 +382,8 @@ export const getDownloadsSize = async () => {
 // Clear all downloads
 export const clearAllDownloads = async () => {
   try {
-    // Delete all files from downloaded songs index
     const downloads = await getDownloadedSongs();
+    
     for (const download of downloads) {
       if (download.local_path) {
         try {
@@ -313,21 +397,33 @@ export const clearAllDownloads = async () => {
       }
     }
     
-    // Also try to clean up the download directory
-    const dirResult = await ensureDownloadsDir();
-    if (dirResult.success) {
-      try {
-        await FileSystem.deleteAsync(dirResult.dir, { idempotent: true });
-      } catch (e) {
-        console.log('Error deleting directory:', e);
-      }
-    }
+    // Clear working directory cache
+    workingDir = null;
+    await SecureStore.deleteItemAsync(WORKING_DIR_KEY);
     
     await saveDownloadedSongs([]);
     return { success: true };
   } catch (error) {
     console.error('Error clearing downloads:', error);
     throw error;
+  }
+};
+
+// Test storage accessibility
+export const testStorageAccess = async () => {
+  try {
+    const result = await ensureDownloadsDir(true);
+    return {
+      success: result.success,
+      directory: result.dir,
+      error: result.error,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      directory: null,
+      error: error.message,
+    };
   }
 };
 
@@ -339,4 +435,5 @@ export default {
   getLocalSongPath,
   getDownloadsSize,
   clearAllDownloads,
+  testStorageAccess,
 };
