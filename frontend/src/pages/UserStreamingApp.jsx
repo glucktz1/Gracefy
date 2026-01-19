@@ -1705,6 +1705,32 @@ export default function UserStreamingApp() {
     }
   };
 
+  // Bible audio handler
+  const handlePlayBibleSnippet = async (snippet) => {
+    if (bibleAudioPlaying === snippet.snippet_id) {
+      // Stop playing
+      if (bibleAudioElement) {
+        bibleAudioElement.pause();
+        bibleAudioElement.currentTime = 0;
+      }
+      setBibleAudioPlaying(null);
+      return;
+    }
+    
+    try {
+      const res = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
+      if (bibleAudioElement) bibleAudioElement.pause();
+      
+      const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      audio.onended = () => setBibleAudioPlaying(null);
+      audio.play();
+      setBibleAudioElement(audio);
+      setBibleAudioPlaying(snippet.snippet_id);
+    } catch (e) {
+      toast.error("Failed to play audio");
+    }
+  };
+
   // Auth handlers
   const handleLogin = async () => {
     try {
