@@ -2702,8 +2702,8 @@ export default function UserStreamingApp() {
 
               <div className="flex flex-col md:flex-row gap-6 mb-8">
                 <div className="w-48 h-48 md:w-52 md:h-52 flex-shrink-0 mx-auto md:mx-0">
-                  {selectedAlbum.thumbnail ? (
-                    <img src={selectedAlbum.thumbnail} alt={selectedAlbum.title} className="w-full h-full object-cover rounded-lg shadow-2xl" />
+                  {getThumbnail(selectedAlbum) ? (
+                    <img src={getThumbnail(selectedAlbum)} alt={selectedAlbum.title} className="w-full h-full object-cover rounded-lg shadow-2xl" />
                   ) : (
                     <div className="w-full h-full rounded-lg bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center shadow-2xl">
                       <Music2 size={64} className="text-white/40" />
