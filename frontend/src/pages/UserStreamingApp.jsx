@@ -586,6 +586,163 @@ const SectionHeader = ({ title, subtitle, onSeeMore }) => (
   </div>
 );
 
+// Bible Devotional Cards Section - Beautiful horizontal scroll
+const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
+  const [snippets, setSnippets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [playingId, setPlayingId] = useState(null);
+
+  useEffect(() => {
+    const fetchSnippets = async () => {
+      try {
+        const res = await axios.get(`${API}/bible/featured-snippets?language=${language}&limit=10`);
+        setSnippets(res.data.snippets || []);
+      } catch (e) {
+        console.error("Error fetching Bible snippets:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSnippets();
+  }, [language]);
+
+  const handlePlay = async (snippet) => {
+    if (playingId === snippet.snippet_id) {
+      setPlayingId(null);
+      if (onPlaySnippet) onPlaySnippet({ ...snippet, stop: true });
+      return;
+    }
+    setPlayingId(snippet.snippet_id);
+    if (onPlaySnippet) onPlaySnippet(snippet);
+  };
+
+  if (loading || snippets.length === 0) return null;
+
+  return (
+    <section className="relative" data-testid="bible-devotional-section">
+      {/* Section Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <BookOpen size={20} className="text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">{t('bible.devotionals', 'Biblia na Masomo')}</h2>
+            <p className="text-xs text-zinc-400">{t('bible.listenToWord', 'Sikiliza Neno la Mungu')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Horizontal Scroll Cards */}
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+        {/* Main Bible Card - Opens Bible Reader */}
+        <div 
+          className="flex-shrink-0 w-44 md:w-52 group cursor-pointer"
+          onClick={() => window.dispatchEvent(new CustomEvent('openBibleReader'))}
+          data-testid="bible-main-card"
+        >
+          <div className="relative h-52 md:h-60 rounded-2xl overflow-hidden bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 shadow-xl shadow-amber-900/30 group-hover:shadow-amber-500/30 transition-all duration-300 group-hover:scale-[1.02]">
+            {/* Decorative Pattern */}
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-4 left-4 w-20 h-20 border border-amber-400/30 rounded-full" />
+              <div className="absolute bottom-4 right-4 w-16 h-16 border border-amber-400/30 rounded-full" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-amber-400/20 rounded-full" />
+            </div>
+            
+            {/* Bible Icon */}
+            <div className="absolute top-6 left-1/2 -translate-x-1/2">
+              <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <BookOpen size={32} className="text-amber-300" />
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+              <h3 className="text-lg font-bold text-white mb-1">Biblia</h3>
+              <p className="text-xs text-amber-200 italic">Soma na Sikiliza</p>
+              <p className="text-[10px] text-zinc-400 mt-1">Agano Jipya • Kiswahili</p>
+            </div>
+            
+            {/* Play Indicator */}
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronRight size={16} className="text-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* Devotional Snippet Cards */}
+        {snippets.map((snippet, idx) => (
+          <div 
+            key={snippet.snippet_id}
+            className="flex-shrink-0 w-44 md:w-52 group cursor-pointer"
+            onClick={() => handlePlay(snippet)}
+            data-testid={`bible-card-${snippet.snippet_id}`}
+          >
+            <div className={`relative h-52 md:h-60 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group-hover:scale-[1.02] ${
+              idx % 4 === 0 ? 'bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 shadow-violet-900/30 group-hover:shadow-violet-500/30' :
+              idx % 4 === 1 ? 'bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 shadow-emerald-900/30 group-hover:shadow-emerald-500/30' :
+              idx % 4 === 2 ? 'bg-gradient-to-br from-rose-900 via-pink-800 to-red-900 shadow-rose-900/30 group-hover:shadow-rose-500/30' :
+              'bg-gradient-to-br from-blue-900 via-indigo-800 to-slate-900 shadow-blue-900/30 group-hover:shadow-blue-500/30'
+            }`}>
+              {/* Decorative Elements */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-2 right-2 w-24 h-24 rounded-full bg-white/20 blur-2xl" />
+                <div className="absolute bottom-2 left-2 w-16 h-16 rounded-full bg-white/20 blur-xl" />
+              </div>
+
+              {/* Card Type Badge */}
+              {snippet.is_featured && (
+                <div className="absolute top-3 left-3 px-2 py-0.5 bg-amber-500/90 rounded-full">
+                  <span className="text-[10px] font-bold text-black uppercase">Featured</span>
+                </div>
+              )}
+              
+              {/* Play Button - Shows on hover or when playing */}
+              <div className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                playingId === snippet.snippet_id 
+                  ? 'bg-white text-black scale-110' 
+                  : 'bg-white/20 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100'
+              }`}>
+                {playingId === snippet.snippet_id ? (
+                  <Pause size={18} className="animate-pulse" />
+                ) : (
+                  <Play size={18} className="ml-0.5" />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+                {/* Heading */}
+                <p className="text-xs font-semibold text-amber-300 uppercase tracking-wide mb-1">
+                  {snippet.heading || snippet.card_type?.replace('_', ' ') || 'Somo'}
+                </p>
+                
+                {/* Reference */}
+                <h3 className="text-base font-bold text-white leading-tight mb-1">
+                  {snippet.reference}
+                </h3>
+                
+                {/* Subtitle in italic */}
+                <p className="text-xs text-zinc-300 italic line-clamp-2">
+                  {snippet.subtitle || snippet.description || snippet.title}
+                </p>
+                
+                {/* Duration indicator */}
+                <div className="flex items-center gap-2 mt-2">
+                  <Volume2 size={12} className="text-zinc-400" />
+                  <span className="text-[10px] text-zinc-400">
+                    ~{Math.round(snippet.duration_estimate || 30)}s
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 // Bible View Component
 const BibleView = ({ language, t, onBack }) => {
   const [books, setBooks] = useState([]);
