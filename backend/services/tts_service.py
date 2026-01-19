@@ -19,24 +19,23 @@ logger = logging.getLogger(__name__)
 
 # Google Cloud TTS voices - Swahili and multilingual options
 AVAILABLE_VOICES = [
-    # Swahili voices
-    {"id": "sw-KE-Standard-A", "name": "Swahili Female", "description": "Standard Swahili female voice", "language": "sw-KE"},
-    {"id": "sw-TZ-Standard-A", "name": "Swahili TZ Female", "description": "Swahili (Tanzania) female", "language": "sw-TZ"},
-    # English voices (for English Bible)
-    {"id": "en-US-Neural2-A", "name": "English Female (Neural)", "description": "High-quality US English female", "language": "en-US"},
-    {"id": "en-US-Neural2-D", "name": "English Male (Neural)", "description": "High-quality US English male", "language": "en-US"},
-    {"id": "en-US-Studio-O", "name": "English Female (Studio)", "description": "Premium US English female", "language": "en-US"},
-    {"id": "en-US-Studio-Q", "name": "English Male (Studio)", "description": "Premium US English male", "language": "en-US"},
-    {"id": "en-GB-Neural2-A", "name": "British Female", "description": "British English female", "language": "en-GB"},
-    {"id": "en-GB-Neural2-B", "name": "British Male", "description": "British English male", "language": "en-GB"},
-    # Multilingual voices
-    {"id": "cmn-CN-Standard-A", "name": "Chinese Female", "description": "Mandarin Chinese female", "language": "cmn-CN"},
-    {"id": "fr-FR-Neural2-A", "name": "French Female", "description": "French female", "language": "fr-FR"},
-    {"id": "es-ES-Neural2-A", "name": "Spanish Female", "description": "Spanish female", "language": "es-ES"},
+    # Swahili voices (Kenya - Chirp3-HD high quality)
+    {"id": "sw-KE-Chirp3-HD-Achernar", "name": "Achernar (Female)", "description": "Swahili female voice - calm", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Aoede", "name": "Aoede (Female)", "description": "Swahili female voice - warm", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Gacrux", "name": "Gacrux (Female)", "description": "Swahili female voice - clear", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Zephyr", "name": "Zephyr (Female)", "description": "Swahili female voice - gentle", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Achird", "name": "Achird (Male)", "description": "Swahili male voice - deep", "language": "sw-KE", "gender": "MALE"},
+    {"id": "sw-KE-Chirp3-HD-Charon", "name": "Charon (Male)", "description": "Swahili male voice - authoritative", "language": "sw-KE", "gender": "MALE"},
+    {"id": "sw-KE-Chirp3-HD-Fenrir", "name": "Fenrir (Male)", "description": "Swahili male voice - strong", "language": "sw-KE", "gender": "MALE"},
+    {"id": "sw-KE-Chirp3-HD-Orus", "name": "Orus (Male)", "description": "Swahili male voice - narrative", "language": "sw-KE", "gender": "MALE"},
+    # English voices for English Bible content
+    {"id": "en-US-Chirp3-HD-Achernar", "name": "English Achernar (F)", "description": "English female voice", "language": "en-US", "gender": "FEMALE"},
+    {"id": "en-US-Chirp3-HD-Charon", "name": "English Charon (M)", "description": "English male voice", "language": "en-US", "gender": "MALE"},
+    {"id": "en-GB-Chirp3-HD-Aoede", "name": "British Aoede (F)", "description": "British female voice", "language": "en-GB", "gender": "FEMALE"},
 ]
 
 # Default voice for Swahili Bible
-DEFAULT_VOICE = "sw-KE-Standard-A"
+DEFAULT_VOICE = "sw-KE-Chirp3-HD-Achernar"
 DEFAULT_LANGUAGE = "sw-KE"
 
 
