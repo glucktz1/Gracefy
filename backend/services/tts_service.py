@@ -148,7 +148,10 @@ class TTSService:
                 "male": DEFAULT_MALE_VOICE,
                 "female": DEFAULT_FEMALE_VOICE,
             }
-            }
+            
+            # Handle gender preference
+            if gender and not voice:
+                voice = self.get_voice_by_gender(gender)
             
             # Use default or mapped voice
             if not voice or voice in voice_mapping:
