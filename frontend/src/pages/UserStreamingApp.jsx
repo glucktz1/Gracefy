@@ -1694,6 +1694,13 @@ export default function UserStreamingApp() {
   // i18n - Translation hook
   const { t, language, changeLanguage, availableLanguages, getGreeting } = useLanguage();
 
+  // Listen for Bible reader open event
+  useEffect(() => {
+    const handleOpenBibleReader = () => setView('bible');
+    window.addEventListener('openBibleReader', handleOpenBibleReader);
+    return () => window.removeEventListener('openBibleReader', handleOpenBibleReader);
+  }, []);
+
   // Restore playback on page load
   useEffect(() => {
     const restorePlayback = async () => {
