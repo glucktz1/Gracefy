@@ -1377,8 +1377,8 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
         {/* Song Info */}
         <button onClick={onExpand} className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-12 h-12 lg:w-14 lg:h-14 rounded overflow-hidden flex-shrink-0">
-            {player.currentAlbum?.thumbnail ? (
-              <img src={player.currentAlbum.thumbnail} alt="" className="w-full h-full object-cover" />
+            {getThumbnail(player.currentAlbum) ? (
+              <img src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
                 <Music2 size={20} className="text-zinc-500" />
