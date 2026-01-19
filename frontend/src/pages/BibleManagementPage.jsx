@@ -597,7 +597,7 @@ export default function BibleManagementPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-amber-500">{listeningStats.today_listeners}</p>
-                    <p className="text-xs text-zinc-400">Today's Listeners</p>
+                    <p className="text-xs text-zinc-400">Today&apos;s Listeners</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-500">{listeningStats.total_listening_hours}h</p>
@@ -638,10 +638,11 @@ export default function BibleManagementPage() {
                       })}
                       className="bg-zinc-800 border-zinc-700 mt-1"
                     />
-                    <p className="text-xs text-zinc-500 mt-1">Extra minutes when user clicks "Later"</p>
+                    <p className="text-xs text-zinc-500 mt-1">Extra minutes when user clicks &quot;Later&quot;</p>
                   </div>
                 </div>
               </div>
+
 
               {/* Paid User Settings */}
               <div className="space-y-4">
