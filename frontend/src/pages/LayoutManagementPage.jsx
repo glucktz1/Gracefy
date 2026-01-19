@@ -873,16 +873,20 @@ export default function LayoutManagementPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [sectionsRes, burnersRes, categoriesRes, albumsRes] = await Promise.all([
+      const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes] = await Promise.all([
         axios.get(`${API}/layout/sections`, { withCredentials: true }),
         axios.get(`${API}/layout/burners`, { withCredentials: true }),
         axios.get(`${API}/categories`, { withCredentials: true }),
-        axios.get(`${API}/albums`, { withCredentials: true })
+        axios.get(`${API}/albums`, { withCredentials: true }),
+        axios.get(`${API}/churches`, { withCredentials: true }).catch(() => ({ data: { churches: [] } })),
+        axios.get(`${API}/admin/choirs`, { withCredentials: true }).catch(() => ({ data: { choirs: [] } }))
       ]);
       setSections(sectionsRes.data.sections || []);
       setBurners(burnersRes.data.burners || []);
       setCategories(categoriesRes.data.categories || []);
       setAlbums(albumsRes.data.albums || []);
+      setChurches(churchesRes.data.churches || []);
+      setChoirs(choirsRes.data.choirs || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load layout data");
