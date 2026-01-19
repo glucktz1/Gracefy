@@ -16,19 +16,54 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 19, 2026)
 
-### 📖 Biblia na Vitabu vya Dini Module (NEW)
+### ⏱️ Bible Listening Limits & Donation Prompt (NEW)
+Implemented listening time limits and donation prompts to manage TTS costs:
+
+**Feature Details:**
+- **Free Users**: Get configurable initial minutes (default: 5 mins) of free Bible audio
+- **Donation Prompt**: After time expires, shows Swahili message: "Kusikiliza biblia ni bure lakini teknolojia hii ina gharama, changia kidogo kuwezesha uendelee kufurahia"
+- **Dismiss & Continue**: Free users get additional minutes (default: 2 mins) after dismissing the prompt
+- **Paid Users**: Configurable limits - daily (default: 60 mins), monthly, or unlimited
+- **Daily Reset**: Listening counters reset at midnight
+
+**Admin Controls (Settings Tab):**
+- Enable/disable listening limits
+- Set free user minutes before prompt
+- Set additional minutes after dismiss
+- Configure paid user limits (daily/monthly/unlimited)
+- Customize donation messages (Swahili & English)
+- View listening statistics (total listeners, today's listeners, total hours, prompts shown)
+
+**API Endpoints (NEW):**
+- `GET /api/admin/bible/settings` - Get listening limit settings
+- `PUT /api/admin/bible/settings` - Update listening settings
+- `GET /api/bible/listening-status` - Get user's remaining time
+- `POST /api/bible/listening-track` - Track listening time
+- `POST /api/bible/prompt-shown` - Record prompt display
+- `GET /api/admin/bible/listening-stats` - Overall statistics
+
+**Mobile App Integration:**
+- Real-time countdown timer displayed in header
+- Automatic audio pause when limit reached
+- Beautiful donation modal with "Changia Sasa" button
+- Navigation to Subscription page for payment
+
+### 📖 Biblia na Vitabu vya Dini Module
 Complete Bible reading and listening module with AI text-to-speech:
 
 **User Features:**
 - **Browse Bible books** (26 books, 7853 verses - Swahili New Testament)
 - **Navigate chapters and verses** with intuitive UI
-- **AI Audio Reading** - Listen to any verse with OpenAI TTS
+- **AI Audio Reading** - Listen to any verse with Google Cloud TTS
 - **Featured Snippets** - Admin-curated passages with pre-generated audio
+- **Verse Range Selection** - Select custom range (e.g., Matthew 9:13-25) for continuous playback
+- **Voice Gender Selection** - Choose male or female voice
 - **Language support** - Swahili with localized book names (Mathayo, Marko, Luka, etc.)
 
 **Admin Features:**
 - **Bible Snippet Management** - Create, edit, delete curated passages
-- **TTS Voice Selection** - 9 voices (alloy, ash, coral, echo, fable, nova, onyx, sage, shimmer)
+- **TTS Voice Selection** - Google Cloud Chirp3-HD voices (male/female)
+- **Devotional Cards** - Create featured cards for home page with custom headings
 - **Analytics Dashboard** - Track listening patterns
   - Total listens (30-day period)
   - Most popular Bible books
@@ -43,20 +78,24 @@ Complete Bible reading and listening module with AI text-to-speech:
 - `GET /api/bible/books/{book}/chapters/{chapter}` - Get verses
 - `POST /api/bible/tts/verse` - Generate TTS audio for a verse
 - `POST /api/bible/tts/passage` - Generate TTS for a passage
+- `POST /api/bible/tts/passage-range` - Generate TTS for custom verse range
 - `GET /api/bible/snippets` - Get featured snippets (user)
+- `GET /api/bible/featured-snippets` - Get devotional cards for home page
 - `POST /api/admin/bible/snippets` - Create snippet with audio
 - `GET /api/admin/bible/analytics` - Bible listening analytics
 
 **Files Created:**
 - `/app/backend/services/bible_service.py` - Bible data management
-- `/app/backend/services/tts_service.py` - TTS generation via OpenAI/Emergent
-- `/app/frontend/src/pages/BibleManagementPage.jsx` - Admin page
+- `/app/backend/services/tts_service.py` - TTS generation via Google Cloud
+- `/app/frontend/src/pages/BibleManagementPage.jsx` - Admin page with settings
+- `/app/mobile/SpiritSongs/src/screens/BibleScreen.js` - Mobile Bible screen with listening limits
 - BibleView component in `UserStreamingApp.jsx` - User Bible interface
 
 **Technical Notes:**
 - Bible data from SourceForge public domain (Swahili NT)
 - TTS uses **Google Cloud TTS** with Chirp3-HD Swahili voices
 - Audio cached in MongoDB to avoid regeneration
+- Listening time tracked per user in `bible_listening` collection
 - Analytics tracked with time-of-day classification
 - Supports 11 voices including 8 Swahili and 3 English options
 
