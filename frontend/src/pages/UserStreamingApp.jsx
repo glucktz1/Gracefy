@@ -559,28 +559,29 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
             title="Add to Playlist"
           >
             <Plus size={18} className="text-zinc-400" />
-        </button>
-      )}
-      {onDownload && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDownload(item); }}
-          className="p-2 hover:bg-zinc-700 rounded-full"
-          title="Download"
-        >
-          <Download size={18} className="text-zinc-400" />
-        </button>
+          </button>
+        )}
+        {onDownload && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDownload(item); }}
+            className="p-2 hover:bg-zinc-700 rounded-full"
+            title="Download"
+          >
+            <Download size={18} className="text-zinc-400" />
+          </button>
+        )}
+      </div>
+      
+      {isActive && isPlaying && (
+        <div className="flex items-end gap-0.5 h-4 mr-2">
+          <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '40%'}} />
+          <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '100%', animationDelay: '0.15s'}} />
+          <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '60%', animationDelay: '0.3s'}} />
+        </div>
       )}
     </div>
-    
-    {isActive && isPlaying && (
-      <div className="flex items-end gap-0.5 h-4 mr-2">
-        <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '40%'}} />
-        <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '100%', animationDelay: '0.15s'}} />
-        <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '60%', animationDelay: '0.3s'}} />
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // Artist Card (Circular)
 const ArtistCard = ({ artist }) => (
