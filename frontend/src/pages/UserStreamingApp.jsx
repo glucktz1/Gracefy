@@ -755,6 +755,16 @@ const BibleView = ({ language, t, onBack }) => {
   const [playingAudio, setPlayingAudio] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
+  
+  // Custom verse range reader
+  const [showRangeReader, setShowRangeReader] = useState(false);
+  const [rangeBook, setRangeBook] = useState('');
+  const [rangeChapter, setRangeChapter] = useState(1);
+  const [rangeStart, setRangeStart] = useState(1);
+  const [rangeEnd, setRangeEnd] = useState(5);
+  const [rangeChapters, setRangeChapters] = useState([]);
+  const [rangeLoading, setRangeLoading] = useState(false);
+  const [rangeResult, setRangeResult] = useState(null);
 
   // Fetch books and snippets on mount
   useEffect(() => {
