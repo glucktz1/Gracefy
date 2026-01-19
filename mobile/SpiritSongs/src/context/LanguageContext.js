@@ -12,6 +12,7 @@ const translations = {
     search: 'Tafuta',
     library: 'Maktaba',
     profile: 'Wasifu',
+    bible: 'Biblia',
     
     // Home Screen
     featured: 'ILIYOANGAZIWA',
@@ -27,6 +28,20 @@ const translations = {
     // New Sections
     mahubirinaTafakari: 'Mahubiri na Tafakari',
     mafundishoNaKatekesi: 'Mafundisho na Katekesi',
+    
+    // Bible Screen
+    'bible.title': 'Biblia',
+    'bible.listenToWord': 'Sikiliza Neno la Mungu',
+    'bible.featuredSnippets': 'Vifungu Maarufu',
+    'bible.selectBook': 'Chagua Kitabu',
+    'bible.readRange': 'Soma Mistari',
+    'bible.enterRange': 'Chagua mistari kusoma',
+    'bible.book': 'Kitabu',
+    'bible.chapter': 'Sura',
+    'bible.startVerse': 'Mstari Kuanzia',
+    'bible.endVerse': 'Mstari Mwisho',
+    'bible.voice': 'Sauti',
+    'bible.listenNow': 'Sikiliza Sasa',
     
     // Library Screen
     yourLibrary: 'Maktaba Yako',
@@ -104,6 +119,7 @@ const translations = {
     search: 'Search',
     library: 'Library',
     profile: 'Profile',
+    bible: 'Bible',
     
     // Home Screen
     featured: 'FEATURED',
@@ -119,6 +135,20 @@ const translations = {
     // New Sections
     mahubirinaTafakari: 'Sermons & Reflections',
     mafundishoNaKatekesi: 'Teachings & Catechesis',
+    
+    // Bible Screen
+    'bible.title': 'Bible',
+    'bible.listenToWord': 'Listen to the Word of God',
+    'bible.featuredSnippets': 'Featured Passages',
+    'bible.selectBook': 'Select Book',
+    'bible.readRange': 'Read Verses',
+    'bible.enterRange': 'Select verses to read',
+    'bible.book': 'Book',
+    'bible.chapter': 'Chapter',
+    'bible.startVerse': 'Start Verse',
+    'bible.endVerse': 'End Verse',
+    'bible.voice': 'Voice',
+    'bible.listenNow': 'Listen Now',
     
     // Library Screen
     yourLibrary: 'Your Library',
