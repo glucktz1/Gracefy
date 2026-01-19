@@ -10374,27 +10374,39 @@ async def search_bible(q: str, language: str = "sw", limit: int = 50):
 # ============== BIBLE TTS (Text-to-Speech) ==============
 
 @api_router.get("/bible/tts/voices")
-async def get_tts_voices():
-    """Get available TTS voices"""
-    voices = tts_service.get_available_voices()
-    return {"voices": voices}
+async def get_tts_voices(gender: str = None):
+    """Get available TTS voices, optionally filtered by gender"""
+    voices = tts_service.get_voices_by_gender(gender)
+    return {
+        "voices": voices,
+        "male_voices": tts_service.get_voices_by_gender("male"),
+        "female_voices": tts_service.get_voices_by_gender("female")
+    }
+
+
+@api_router.get("/bible/tts/cache-stats")
+async def get_tts_cache_stats():
+    """Get statistics about the TTS audio cache"""
+    stats = await tts_service.get_cache_stats()
+    return stats
 
 
 @api_router.post("/bible/tts/generate")
 async def generate_bible_audio(data: dict):
     """Generate audio from Bible text on-demand"""
     text = data.get("text")
-    voice = data.get("voice", "nova")
+    voice = data.get("voice")
     speed = data.get("speed", 1.0)
+    gender = data.get("gender")  # "male" or "female"
     
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")
     
-    if len(text) > 4000:
-        raise HTTPException(status_code=400, detail="Text too long (max 4000 characters)")
+    if len(text) > 5000:
+        raise HTTPException(status_code=400, detail="Text too long (max 5000 characters)")
     
     try:
-        result = await tts_service.generate_audio(text, voice, speed)
+        result = await tts_service.generate_audio(text, voice, speed, gender=gender)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
