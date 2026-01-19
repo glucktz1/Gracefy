@@ -27,6 +27,7 @@ import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
 import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
 import ChurchDetailScreen from './src/screens/ChurchDetailScreen';
+import BibleScreen from './src/screens/BibleScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
@@ -37,7 +38,7 @@ import { COLORS } from './src/config';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Bottom Tab Navigator with Profile
+// Bottom Tab Navigator with Profile and Bible
 function TabNavigator() {
   const insets = useSafeAreaInsets();
   
@@ -60,6 +61,8 @@ function TabNavigator() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
+          } else if (route.name === 'Bible') {
+            iconName = focused ? 'book' : 'book-outline';
           } else if (route.name === 'Library') {
             iconName = focused ? 'library' : 'library-outline';
           } else if (route.name === 'ProfileTab') {
@@ -71,6 +74,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Bible" component={BibleScreen} options={{ tabBarLabel: 'Biblia' }} />
       <Tab.Screen name="Library" component={LibraryScreen} />
       <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
