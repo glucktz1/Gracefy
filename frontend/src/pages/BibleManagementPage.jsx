@@ -111,10 +111,37 @@ export default function BibleManagementPage() {
     }
   }, []);
 
+  const fetchListeningSettings = useCallback(async () => {
+    try {
+      const [settingsRes, statsRes] = await Promise.all([
+        axios.get(`${API}/admin/bible/settings`),
+        axios.get(`${API}/admin/bible/listening-stats`)
+      ]);
+      setListeningSettings(settingsRes.data);
+      setListeningStats(statsRes.data);
+    } catch (e) {
+      console.error("Error fetching listening settings:", e);
+    }
+  }, []);
+
+  const saveListeningSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await axios.put(`${API}/admin/bible/settings`, listeningSettings);
+      toast.success("Settings saved successfully");
+    } catch (e) {
+      console.error("Error saving settings:", e);
+      toast.error("Failed to save settings");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchAnalytics();
-  }, [fetchData, fetchAnalytics]);
+    fetchListeningSettings();
+  }, [fetchData, fetchAnalytics, fetchListeningSettings]);
 
   // Initialize Bible data
   const handleInitializeBible = async (language = "sw") => {
