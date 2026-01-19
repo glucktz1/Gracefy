@@ -633,106 +633,119 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
         </div>
       </div>
 
-      {/* Horizontal Scroll Cards */}
+      {/* Horizontal Scroll Cards - Wider Design */}
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
         {/* Main Bible Card - Opens Bible Reader */}
         <div 
-          className="flex-shrink-0 w-44 md:w-52 group cursor-pointer"
+          className="flex-shrink-0 w-72 md:w-80 group cursor-pointer"
           onClick={() => window.dispatchEvent(new CustomEvent('openBibleReader'))}
           data-testid="bible-main-card"
         >
-          <div className="relative h-52 md:h-60 rounded-2xl overflow-hidden bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 shadow-xl shadow-amber-900/30 group-hover:shadow-amber-500/30 transition-all duration-300 group-hover:scale-[1.02]">
-            {/* Decorative Pattern */}
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute top-4 left-4 w-20 h-20 border border-amber-400/30 rounded-full" />
-              <div className="absolute bottom-4 right-4 w-16 h-16 border border-amber-400/30 rounded-full" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-amber-400/20 rounded-full" />
+          <div className="relative h-44 rounded-2xl overflow-hidden bg-gradient-to-br from-amber-900 via-amber-800 to-orange-900 shadow-xl shadow-amber-900/30 group-hover:shadow-amber-500/30 transition-all duration-300 group-hover:scale-[1.02]">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-amber-400 blur-3xl" />
             </div>
             
-            {/* Bible Icon */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2">
-              <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <BookOpen size={32} className="text-amber-300" />
+            {/* Content Layout */}
+            <div className="relative h-full p-5 flex flex-col justify-between">
+              {/* Top: Icon and Title */}
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={28} className="text-amber-300" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white">Biblia</h3>
+                  <p className="text-sm text-amber-200 mt-0.5">Agano Jipya • Kiswahili</p>
+                </div>
               </div>
-            </div>
-            
-            {/* Content */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-              <h3 className="text-lg font-bold text-white mb-1">Biblia</h3>
-              <p className="text-xs text-amber-200 italic">Soma na Sikiliza</p>
-              <p className="text-[10px] text-zinc-400 mt-1">Agano Jipya • Kiswahili</p>
-            </div>
-            
-            {/* Play Indicator */}
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <ChevronRight size={16} className="text-white" />
+              
+              {/* Bottom: Action Button */}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-amber-100/70 italic">Soma na Sikiliza Neno la Mungu</p>
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-full">
+                  <Headphones size={16} className="text-white" />
+                  <span className="text-sm font-medium text-white">Fungua</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Devotional Snippet Cards */}
+        {/* Devotional Snippet Cards - Wider Horizontal */}
         {snippets.map((snippet, idx) => (
           <div 
             key={snippet.snippet_id}
-            className="flex-shrink-0 w-44 md:w-52 group cursor-pointer"
+            className="flex-shrink-0 w-72 md:w-80 group cursor-pointer"
             onClick={() => handlePlay(snippet)}
             data-testid={`bible-card-${snippet.snippet_id}`}
           >
-            <div className={`relative h-52 md:h-60 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group-hover:scale-[1.02] ${
+            <div className={`relative h-44 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group-hover:scale-[1.02] ${
               idx % 4 === 0 ? 'bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 shadow-violet-900/30 group-hover:shadow-violet-500/30' :
               idx % 4 === 1 ? 'bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 shadow-emerald-900/30 group-hover:shadow-emerald-500/30' :
               idx % 4 === 2 ? 'bg-gradient-to-br from-rose-900 via-pink-800 to-red-900 shadow-rose-900/30 group-hover:shadow-rose-500/30' :
               'bg-gradient-to-br from-blue-900 via-indigo-800 to-slate-900 shadow-blue-900/30 group-hover:shadow-blue-500/30'
             }`}>
-              {/* Decorative Elements */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-2 right-2 w-24 h-24 rounded-full bg-white/20 blur-2xl" />
-                <div className="absolute bottom-2 left-2 w-16 h-16 rounded-full bg-white/20 blur-xl" />
+              {/* Background Blur */}
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white blur-3xl" />
               </div>
 
-              {/* Card Type Badge */}
-              {snippet.is_featured && (
-                <div className="absolute top-3 left-3 px-2 py-0.5 bg-amber-500/90 rounded-full">
-                  <span className="text-[10px] font-bold text-black uppercase">Featured</span>
+              {/* Content Layout */}
+              <div className="relative h-full p-5 flex flex-col justify-between">
+                {/* Top: Badge and Reference */}
+                <div>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {snippet.is_featured && (
+                        <span className="px-2 py-0.5 bg-amber-500/90 rounded-full text-[10px] font-bold text-black uppercase">
+                          Featured
+                        </span>
+                      )}
+                      <span className="text-xs font-semibold text-amber-300 uppercase tracking-wide">
+                        {snippet.heading || snippet.card_type?.replace('_', ' ') || 'Somo'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Reference */}
+                  <h3 className="text-lg font-bold text-white leading-tight">
+                    {snippet.reference}
+                  </h3>
+                  
+                  {/* Subtitle - Can show more text now */}
+                  <p className="text-sm text-zinc-300 italic mt-1 line-clamp-2">
+                    {snippet.subtitle || snippet.description || snippet.title}
+                  </p>
                 </div>
-              )}
-              
-              {/* Play Button - Shows on hover or when playing */}
-              <div className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                playingId === snippet.snippet_id 
-                  ? 'bg-white text-black scale-110' 
-                  : 'bg-white/20 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100'
-              }`}>
-                {playingId === snippet.snippet_id ? (
-                  <Pause size={18} className="animate-pulse" />
-                ) : (
-                  <Play size={18} className="ml-0.5" />
-                )}
-              </div>
-
-              {/* Content */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-                {/* Heading */}
-                <p className="text-xs font-semibold text-amber-300 uppercase tracking-wide mb-1">
-                  {snippet.heading || snippet.card_type?.replace('_', ' ') || 'Somo'}
-                </p>
                 
-                {/* Reference */}
-                <h3 className="text-base font-bold text-white leading-tight mb-1">
-                  {snippet.reference}
-                </h3>
-                
-                {/* Subtitle in italic */}
-                <p className="text-xs text-zinc-300 italic line-clamp-2">
-                  {snippet.subtitle || snippet.description || snippet.title}
-                </p>
-                
-                {/* Duration indicator */}
-                <div className="flex items-center gap-2 mt-2">
-                  <Volume2 size={12} className="text-zinc-400" />
-                  <span className="text-[10px] text-zinc-400">
-                    ~{Math.round(snippet.duration_estimate || 30)}s
-                  </span>
+                {/* Bottom: Play Button */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Volume2 size={14} />
+                    <span className="text-xs">~{Math.round(snippet.duration_estimate || 30)}s</span>
+                    {snippet.voice_gender && (
+                      <span className="text-xs">• {snippet.voice_gender === 'male' ? '♂' : '♀'}</span>
+                    )}
+                  </div>
+                  
+                  <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                    playingId === snippet.snippet_id 
+                      ? 'bg-white text-black' 
+                      : 'bg-white/20 text-white group-hover:bg-white/30'
+                  }`}>
+                    {playingId === snippet.snippet_id ? (
+                      <>
+                        <Pause size={16} className="animate-pulse" />
+                        <span className="text-sm font-medium">Simamisha</span>
+                      </>
+                    ) : (
+                      <>
+                        <Headphones size={16} />
+                        <span className="text-sm font-medium">Sikiliza Sasa</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
