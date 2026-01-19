@@ -1255,8 +1255,8 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
       {/* Album Art */}
       <div className="flex-1 flex items-center justify-center px-8 py-4">
         <div className="w-full max-w-sm aspect-square rounded-lg overflow-hidden shadow-2xl">
-          {player.currentAlbum?.thumbnail ? (
-            <img src={player.currentAlbum.thumbnail} alt="" className="w-full h-full object-cover" />
+          {getThumbnail(player.currentAlbum) ? (
+            <img src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
               <Music2 size={100} className="text-white/30" />
