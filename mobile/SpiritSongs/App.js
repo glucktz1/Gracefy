@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
 
 // Contexts
 import { AuthProvider } from './src/context/AuthContext';
@@ -28,6 +29,7 @@ import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
 import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
 import ChurchDetailScreen from './src/screens/ChurchDetailScreen';
 import BibleScreen from './src/screens/BibleScreen';
+import PermissionsScreen from './src/screens/PermissionsScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
