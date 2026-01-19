@@ -96,6 +96,16 @@ export const contentService = {
     return response.data;
   },
   
+  getBibleSnippets: async (language = 'sw', limit = 10) => {
+    const response = await api.get(`/bible/featured-snippets?language=${language}&limit=${limit}`);
+    return response.data;
+  },
+  
+  getBibleBooks: async (language = 'sw') => {
+    const response = await api.get(`/bible/books?language=${language}`);
+    return response.data;
+  },
+  
   getCategoryAlbums: async (categoryId) => {
     const response = await api.get(`/user/browse/category/${categoryId}`);
     return response.data;
