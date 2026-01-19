@@ -2044,6 +2044,9 @@ export default function UserStreamingApp() {
                   </div>
                 </section>
 
+                {/* Bible Devotional Cards - Horizontal Scroll */}
+                <BibleDevotionalSection language={language} t={t} onPlaySnippet={handlePlayBibleSnippet} />
+
                 {/* Category Filter Pills */}
                 {!activeCategory && (
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
