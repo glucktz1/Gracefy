@@ -566,11 +566,11 @@ export default function BibleManagementPage() {
 
       {/* Create Snippet Modal */}
       <Dialog open={isSnippetModalOpen} onOpenChange={setIsSnippetModalOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Bible Snippet</DialogTitle>
+            <DialogTitle>Create Bible Devotional Card</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Select a Bible passage and generate AI audio
+              Select a Bible passage and create a beautiful card for the home page
             </DialogDescription>
           </DialogHeader>
 
