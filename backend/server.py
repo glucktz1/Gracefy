@@ -10484,7 +10484,14 @@ async def create_bible_snippet(data: dict):
             language=data.get("language", "sw"),
             voice=data.get("voice", "nova"),
             speed=data.get("speed", 1.0),
-            created_by=data.get("created_by")
+            created_by=data.get("created_by"),
+            # New devotional card fields
+            heading=data.get("heading"),
+            subtitle=data.get("subtitle"),
+            card_type=data.get("card_type", "snippet"),
+            thumbnail_url=data.get("thumbnail_url"),
+            is_featured=data.get("is_featured", False),
+            display_order=data.get("display_order", 0)
         )
         return snippet
     except ValueError as e:
