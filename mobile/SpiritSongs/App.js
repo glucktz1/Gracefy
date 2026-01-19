@@ -147,7 +147,8 @@ function AppContainer() {
   );
 }
 
-export default function App() {
+// Main App wrapper with permissions check
+function MainApp() {
   const [currentRoute, setCurrentRoute] = React.useState('');
   
   // Helper to get active route name from navigation state
@@ -161,23 +162,79 @@ export default function App() {
   };
   
   return (
+    <NavigationStateContext.Provider value={{ currentRoute }}>
+      <NavigationContainer
+        onStateChange={(state) => {
+          const routeName = getActiveRouteName(state);
+          setCurrentRoute(routeName);
+        }}
+      >
+        <StatusBar style="light" />
+        <AppContainer />
+      </NavigationContainer>
+    </NavigationStateContext.Provider>
+  );
+}
+
+export default function App() {
+  const [permissionsReady, setPermissionsReady] = useState(false);
+  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
+
+  useEffect(() => {
+    checkPermissionsSetup();
+  }, []);
+
+  const checkPermissionsSetup = async () => {
+    try {
+      const setupComplete = await SecureStore.getItemAsync('permissions_setup_complete');
+      if (setupComplete === 'true') {
+        setPermissionsReady(true);
+      }
+    } catch (e) {
+      console.log('Error checking permissions setup:', e);
+    } finally {
+      setIsCheckingPermissions(false);
+    }
+  };
+
+  const handlePermissionsComplete = () => {
+    setPermissionsReady(true);
+  };
+
+  // Show loading while checking
+  if (isCheckingPermissions) {
+    return (
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <View style={styles.loadingContainer}>
+            <StatusBar style="light" />
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
+
+  // Show permissions screen if not yet granted
+  if (!permissionsReady) {
+    return (
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <PermissionsScreen onComplete={handlePermissionsComplete} />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
+
+  // Main app
+  return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <LanguageProvider>
           <AuthProvider>
             <SubscriptionProvider>
               <PlayerProvider>
-                <NavigationStateContext.Provider value={{ currentRoute }}>
-                  <NavigationContainer
-                    onStateChange={(state) => {
-                      const routeName = getActiveRouteName(state);
-                      setCurrentRoute(routeName);
-                    }}
-                  >
-                    <StatusBar style="light" />
-                    <AppContainer />
-                  </NavigationContainer>
-                </NavigationStateContext.Provider>
+                <MainApp />
               </PlayerProvider>
             </SubscriptionProvider>
           </AuthProvider>
