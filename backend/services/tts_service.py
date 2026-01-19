@@ -73,14 +73,14 @@ class TTSService:
         try:
             # Map old voice names to Google voices
             voice_mapping = {
-                "nova": "sw-KE-Standard-A",
-                "alloy": "en-US-Neural2-A",
-                "echo": "en-US-Neural2-D",
-                "fable": "en-GB-Neural2-A",
-                "onyx": "en-US-Studio-Q",
-                "shimmer": "en-US-Studio-O",
-                "Rachel": "sw-KE-Standard-A",
-                "Josh": "en-US-Neural2-D",
+                "nova": "sw-KE-Chirp3-HD-Achernar",
+                "alloy": "sw-KE-Chirp3-HD-Aoede",
+                "echo": "sw-KE-Chirp3-HD-Charon",
+                "fable": "sw-KE-Chirp3-HD-Gacrux",
+                "onyx": "sw-KE-Chirp3-HD-Fenrir",
+                "shimmer": "sw-KE-Chirp3-HD-Zephyr",
+                "Rachel": "sw-KE-Chirp3-HD-Achernar",
+                "Josh": "sw-KE-Chirp3-HD-Charon",
             }
             
             # Use default or mapped voice
