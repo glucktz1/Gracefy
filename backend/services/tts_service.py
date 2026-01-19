@@ -331,7 +331,8 @@ class TTSService:
     
     async def update_snippet(self, snippet_id: str, updates: Dict) -> bool:
         """Update a snippet"""
-        allowed_fields = ["title", "description", "is_active"]
+        allowed_fields = ["title", "description", "is_active", "heading", "subtitle", 
+                         "card_type", "thumbnail_url", "is_featured", "display_order"]
         filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
         filtered_updates["updated_at"] = datetime.now(timezone.utc)
         
