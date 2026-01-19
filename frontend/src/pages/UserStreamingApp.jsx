@@ -2424,8 +2424,14 @@ export default function UserStreamingApp() {
           {/* HOME VIEW */}
           {view === 'home' && homeData && (
             <div>
-              {/* Hero Section - Full Width */}
-              {homeData.burners?.[0] && (
+              {/* Hero Section - Dynamic Albums Carousel or Static Burner */}
+              {homeData.hero?.hero_type === 'dynamic_content' && homeData.hero?.items?.length > 0 ? (
+                <DynamicHeroSection 
+                  hero={homeData.hero} 
+                  onAlbumClick={openAlbum}
+                  getThumbnail={getThumbnail}
+                />
+              ) : homeData.burners?.[0] && (
                 <div 
                   className="relative w-full h-56 md:h-72 overflow-hidden"
                   style={{ background: homeData.burners[0].background_gradient || homeData.burners[0].background_color || 'linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)' }}
