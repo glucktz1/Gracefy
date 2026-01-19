@@ -601,6 +601,122 @@ const ArtistCard = ({ artist }) => (
   </div>
 );
 
+// Dynamic Hero Section - Album Carousel
+const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const items = hero?.items || [];
+  
+  // Auto-rotate effect
+  useEffect(() => {
+    if (!hero?.auto_rotate || items.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % items.length);
+    }, hero.rotation_interval || 5000);
+    
+    return () => clearInterval(interval);
+  }, [hero?.auto_rotate, hero?.rotation_interval, items.length]);
+  
+  if (items.length === 0) return null;
+  
+  const currentItem = items[currentIndex];
+  const thumbUrl = getThumbnail(currentItem);
+  
+  return (
+    <div 
+      className="relative w-full h-64 md:h-80 overflow-hidden"
+      data-testid="hero-section-dynamic"
+    >
+      {/* Background Image with blur */}
+      {thumbUrl && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ 
+            backgroundImage: `url(${thumbUrl})`,
+            filter: 'blur(20px)',
+            transform: 'scale(1.1)'
+          }}
+        />
+      )}
+      
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/80" />
+      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-black/40" />
+      
+      {/* Content */}
+      <div className="relative h-full flex items-center justify-center px-6 lg:px-12">
+        <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10 max-w-4xl">
+          {/* Album Art */}
+          <button 
+            onClick={() => onAlbumClick(currentItem.album_id)}
+            className="w-40 h-40 md:w-52 md:h-52 rounded-lg overflow-hidden shadow-2xl flex-shrink-0 hover:scale-105 transition-transform duration-300"
+          >
+            {thumbUrl ? (
+              <img src={thumbUrl} alt={currentItem.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
+                <Music2 size={64} className="text-white/40" />
+              </div>
+            )}
+          </button>
+          
+          {/* Album Info */}
+          <div className="text-center md:text-left">
+            <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1">Featured Album</p>
+            <h2 className="text-2xl md:text-4xl font-bold mb-2 text-white">{currentItem.title}</h2>
+            <p className="text-sm md:text-base text-zinc-300 mb-1">{currentItem.artist_name}</p>
+            {currentItem.description && (
+              <p className="text-xs text-zinc-400 mb-4 line-clamp-2 max-w-md">{currentItem.description}</p>
+            )}
+            <button 
+              onClick={() => onAlbumClick(currentItem.album_id)}
+              className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-full text-sm inline-flex items-center gap-2"
+            >
+              <Play size={16} fill="currentColor" />
+              Play Now
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Navigation Dots */}
+      {hero?.show_navigation && items.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+          {items.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                idx === currentIndex 
+                  ? 'bg-emerald-400 w-6' 
+                  : 'bg-zinc-500 hover:bg-zinc-400'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+      
+      {/* Arrow Navigation */}
+      {items.length > 1 && (
+        <>
+          <button 
+            onClick={() => setCurrentIndex((currentIndex - 1 + items.length) % items.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <button 
+            onClick={() => setCurrentIndex((currentIndex + 1) % items.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors"
+          >
+            <ChevronRight size={24} />
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
 // Section Header
 const SectionHeader = ({ title, subtitle, onSeeMore }) => (
   <div className="flex items-end justify-between mb-4">
