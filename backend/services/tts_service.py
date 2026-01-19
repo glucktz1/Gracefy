@@ -227,7 +227,7 @@ class TTSService:
             
             # Select appropriate voice based on language
             if not voice:
-                voice = "sw-KE-Standard-A" if language == "sw" else "en-US-Neural2-A"
+                voice = "sw-KE-Chirp3-HD-Achernar" if language == "sw" else "en-US-Chirp3-HD-Achernar"
             
             # Generate audio
             audio_result = await self.generate_audio(
