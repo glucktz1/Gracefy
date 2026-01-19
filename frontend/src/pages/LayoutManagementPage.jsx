@@ -1831,12 +1831,13 @@ export default function LayoutManagementPage() {
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Assign Content to {selectedSection?.display_name}</DialogTitle>
-            <DialogDescription className="text-zinc-400">Select categories or albums to display in this section</DialogDescription>
+            <DialogDescription className="text-zinc-400">Select content to display in this section</DialogDescription>
           </DialogHeader>
           <Tabs defaultValue="categories" className="py-4">
             <TabsList className="bg-zinc-800">
               <TabsTrigger value="categories">Categories</TabsTrigger>
               <TabsTrigger value="albums">Albums</TabsTrigger>
+              <TabsTrigger value="other">Other</TabsTrigger>
             </TabsList>
             <TabsContent value="categories" className="space-y-2 mt-4 max-h-80 overflow-y-auto">
               {categories.map((cat) => (
@@ -1876,6 +1877,69 @@ export default function LayoutManagementPage() {
                   </div>
                 </label>
               ))}
+            </TabsContent>
+            <TabsContent value="other" className="space-y-4 mt-4 max-h-80 overflow-y-auto">
+              {/* Churches Section */}
+              <div>
+                <h4 className="text-sm font-medium text-emerald-400 mb-2 flex items-center gap-2">
+                  <Church size={16} /> Churches ({churches.length})
+                </h4>
+                <div className="space-y-2">
+                  {churches.length > 0 ? churches.map((church) => (
+                    <label key={church.church_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                      <input
+                        type="checkbox"
+                        defaultChecked={selectedSection?.content_ids?.includes(church.church_id)}
+                        className="rounded border-zinc-700"
+                        data-id={church.church_id}
+                        data-type="churches"
+                      />
+                      <div className="w-10 h-10 rounded bg-emerald-600/20 flex items-center justify-center">
+                        <Church size={16} className="text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-white">{church.name}</p>
+                        <p className="text-xs text-zinc-500">{church.location}</p>
+                      </div>
+                    </label>
+                  )) : (
+                    <p className="text-zinc-500 text-sm p-3">No churches available</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Choirs/Artists Section */}
+              <div>
+                <h4 className="text-sm font-medium text-violet-400 mb-2 flex items-center gap-2">
+                  <Users size={16} /> Choirs / Artists ({choirs.length})
+                </h4>
+                <div className="space-y-2">
+                  {choirs.length > 0 ? choirs.map((choir) => (
+                    <label key={choir.choir_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                      <input
+                        type="checkbox"
+                        defaultChecked={selectedSection?.content_ids?.includes(choir.choir_id)}
+                        className="rounded border-zinc-700"
+                        data-id={choir.choir_id}
+                        data-type="choirs"
+                      />
+                      {choir.profile_image ? (
+                        <img src={choir.profile_image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-violet-600/20 flex items-center justify-center">
+                          <Users size={16} className="text-violet-400" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white">{choir.name}</p>
+                        <p className="text-xs text-zinc-500">{choir.church_affiliation || choir.location || 'Artist'}</p>
+                      </div>
+                    </label>
+                  )) : (
+                    <p className="text-zinc-500 text-sm p-3">No choirs/artists available</p>
+                  )}
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
           <DialogFooter>
