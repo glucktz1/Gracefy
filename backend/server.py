@@ -10419,8 +10419,9 @@ async def generate_verse_audio(data: dict):
     chapter = data.get("chapter")
     verse = data.get("verse")
     language = data.get("language", "sw")
-    voice = data.get("voice", "nova")
+    voice = data.get("voice")
     speed = data.get("speed", 1.0)
+    gender = data.get("gender")  # "male" or "female"
     
     if not all([book_name, chapter, verse]):
         raise HTTPException(status_code=400, detail="book_name, chapter, and verse are required")
@@ -10431,7 +10432,7 @@ async def generate_verse_audio(data: dict):
         raise HTTPException(status_code=404, detail="Verse not found")
     
     try:
-        result = await tts_service.generate_audio(verse_data["text"], voice, speed)
+        result = await tts_service.generate_audio(verse_data["text"], voice, speed, gender=gender)
         result["reference"] = verse_data["reference"]
         result["verse_text"] = verse_data["text"]
         
