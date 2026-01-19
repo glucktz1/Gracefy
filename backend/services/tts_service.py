@@ -2,6 +2,7 @@
 TTS Service - Text-to-Speech using Google Cloud TTS
 Generates audio from Bible text and stores for reuse
 Supports Swahili and multiple languages with high-quality voices
+Smart caching system to reduce API costs
 """
 import os
 import uuid
@@ -17,25 +18,31 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Google Cloud TTS voices - Swahili and multilingual options
-AVAILABLE_VOICES = [
-    # Swahili voices (Kenya - Chirp3-HD high quality)
-    {"id": "sw-KE-Chirp3-HD-Achernar", "name": "Achernar (Female)", "description": "Swahili female voice - calm", "language": "sw-KE", "gender": "FEMALE"},
-    {"id": "sw-KE-Chirp3-HD-Aoede", "name": "Aoede (Female)", "description": "Swahili female voice - warm", "language": "sw-KE", "gender": "FEMALE"},
-    {"id": "sw-KE-Chirp3-HD-Gacrux", "name": "Gacrux (Female)", "description": "Swahili female voice - clear", "language": "sw-KE", "gender": "FEMALE"},
-    {"id": "sw-KE-Chirp3-HD-Zephyr", "name": "Zephyr (Female)", "description": "Swahili female voice - gentle", "language": "sw-KE", "gender": "FEMALE"},
-    {"id": "sw-KE-Chirp3-HD-Achird", "name": "Achird (Male)", "description": "Swahili male voice - deep", "language": "sw-KE", "gender": "MALE"},
-    {"id": "sw-KE-Chirp3-HD-Charon", "name": "Charon (Male)", "description": "Swahili male voice - authoritative", "language": "sw-KE", "gender": "MALE"},
-    {"id": "sw-KE-Chirp3-HD-Fenrir", "name": "Fenrir (Male)", "description": "Swahili male voice - strong", "language": "sw-KE", "gender": "MALE"},
-    {"id": "sw-KE-Chirp3-HD-Orus", "name": "Orus (Male)", "description": "Swahili male voice - narrative", "language": "sw-KE", "gender": "MALE"},
-    # English voices for English Bible content
-    {"id": "en-US-Chirp3-HD-Achernar", "name": "English Achernar (F)", "description": "English female voice", "language": "en-US", "gender": "FEMALE"},
-    {"id": "en-US-Chirp3-HD-Charon", "name": "English Charon (M)", "description": "English male voice", "language": "en-US", "gender": "MALE"},
-    {"id": "en-GB-Chirp3-HD-Aoede", "name": "British Aoede (F)", "description": "British female voice", "language": "en-GB", "gender": "FEMALE"},
+# Google Cloud TTS voices - organized by gender for easy selection
+MALE_VOICES = [
+    {"id": "sw-KE-Chirp3-HD-Achird", "name": "Achird", "description": "Sauti ya kiume - kina", "language": "sw-KE", "gender": "MALE"},
+    {"id": "sw-KE-Chirp3-HD-Charon", "name": "Charon", "description": "Sauti ya kiume - mamlaka", "language": "sw-KE", "gender": "MALE"},
+    {"id": "sw-KE-Chirp3-HD-Fenrir", "name": "Fenrir", "description": "Sauti ya kiume - imara", "language": "sw-KE", "gender": "MALE"},
+    {"id": "sw-KE-Chirp3-HD-Orus", "name": "Orus", "description": "Sauti ya kiume - simulizi", "language": "sw-KE", "gender": "MALE"},
+    {"id": "en-US-Chirp3-HD-Charon", "name": "English Charon", "description": "English male voice", "language": "en-US", "gender": "MALE"},
 ]
 
-# Default voice for Swahili Bible
-DEFAULT_VOICE = "sw-KE-Chirp3-HD-Achernar"
+FEMALE_VOICES = [
+    {"id": "sw-KE-Chirp3-HD-Achernar", "name": "Achernar", "description": "Sauti ya kike - tulivu", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Aoede", "name": "Aoede", "description": "Sauti ya kike - joto", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Gacrux", "name": "Gacrux", "description": "Sauti ya kike - wazi", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "sw-KE-Chirp3-HD-Zephyr", "name": "Zephyr", "description": "Sauti ya kike - laini", "language": "sw-KE", "gender": "FEMALE"},
+    {"id": "en-US-Chirp3-HD-Achernar", "name": "English Achernar", "description": "English female voice", "language": "en-US", "gender": "FEMALE"},
+    {"id": "en-GB-Chirp3-HD-Aoede", "name": "British Aoede", "description": "British female voice", "language": "en-GB", "gender": "FEMALE"},
+]
+
+# Combined list
+AVAILABLE_VOICES = FEMALE_VOICES + MALE_VOICES
+
+# Default voices
+DEFAULT_FEMALE_VOICE = "sw-KE-Chirp3-HD-Achernar"
+DEFAULT_MALE_VOICE = "sw-KE-Chirp3-HD-Charon"
+DEFAULT_VOICE = DEFAULT_FEMALE_VOICE
 DEFAULT_LANGUAGE = "sw-KE"
 
 
