@@ -10495,9 +10495,10 @@ async def create_bible_snippet(data: dict):
             start_verse=data.get("start_verse"),
             end_verse=data.get("end_verse"),
             language=data.get("language", "sw"),
-            voice=data.get("voice", "nova"),
+            voice=data.get("voice"),
             speed=data.get("speed", 1.0),
             created_by=data.get("created_by"),
+            gender=data.get("gender"),  # "male" or "female"
             # New devotional card fields
             heading=data.get("heading"),
             subtitle=data.get("subtitle"),
