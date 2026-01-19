@@ -303,19 +303,26 @@ class TTSService:
             full_text = " ".join([v["text"] for v in verses])
             reference = f"{book_name} {chapter}:{start_verse}-{end_verse}" if start_verse != end_verse else f"{book_name} {chapter}:{start_verse}"
             
-            # Select appropriate voice based on language
+            # Select appropriate voice based on gender or language
             if not voice:
-                voice = "sw-KE-Chirp3-HD-Achernar" if language == "sw" else "en-US-Chirp3-HD-Achernar"
+                if gender:
+                    voice = self.get_voice_by_gender(gender, language[:2] if language else "sw")
+                else:
+                    voice = "sw-KE-Chirp3-HD-Achernar" if language == "sw" else "en-US-Chirp3-HD-Achernar"
             
             # Generate audio
             audio_result = await self.generate_audio(
                 text=full_text,
                 voice=voice,
                 speed=speed,
+                gender=gender,
                 cache=True
             )
             
             snippet_id = f"snippet_{uuid.uuid4().hex[:12]}"
+            
+            # Determine gender from voice
+            voice_gender = "male" if voice in [v["id"] for v in MALE_VOICES] else "female"
             
             snippet_doc = {
                 "snippet_id": snippet_id,
@@ -329,6 +336,7 @@ class TTSService:
                 "language": language,
                 "text": full_text,
                 "voice": audio_result.get("voice", voice),
+                "voice_gender": voice_gender,
                 "speed": speed,
                 "audio_id": audio_result["audio_id"],
                 "audio_base64": audio_result["audio_base64"],
