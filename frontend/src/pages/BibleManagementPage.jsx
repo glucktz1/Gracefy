@@ -567,6 +567,172 @@ export default function BibleManagementPage() {
 
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-4">
+          {/* Listening Limits Section */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Clock size={20} className="text-amber-500" />
+                    Listening Limits & Donation Prompt
+                  </CardTitle>
+                  <CardDescription>Configure free/paid user listening limits and donation messages</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-400">Enable Limits</span>
+                  <Switch
+                    checked={listeningSettings.is_active}
+                    onCheckedChange={(v) => setListeningSettings({...listeningSettings, is_active: v})}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Listening Stats */}
+              {listeningStats && (
+                <div className="grid grid-cols-4 gap-4 p-4 bg-zinc-800/50 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{listeningStats.total_listeners}</p>
+                    <p className="text-xs text-zinc-400">Total Listeners</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-amber-500">{listeningStats.today_listeners}</p>
+                    <p className="text-xs text-zinc-400">Today's Listeners</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-500">{listeningStats.total_listening_hours}h</p>
+                    <p className="text-xs text-zinc-400">Total Hours</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-purple-500">{listeningStats.prompts_shown_today}</p>
+                    <p className="text-xs text-zinc-400">Prompts Today</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Free User Settings */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-amber-500">Free Users</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-zinc-400">Minutes Before Prompt</label>
+                    <Input
+                      type="number"
+                      value={listeningSettings.free_user_minutes_before_prompt}
+                      onChange={(e) => setListeningSettings({
+                        ...listeningSettings, 
+                        free_user_minutes_before_prompt: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-zinc-800 border-zinc-700 mt-1"
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">Initial free minutes before donation prompt</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400">Additional Minutes After Dismiss</label>
+                    <Input
+                      type="number"
+                      value={listeningSettings.free_user_additional_minutes}
+                      onChange={(e) => setListeningSettings({
+                        ...listeningSettings, 
+                        free_user_additional_minutes: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-zinc-800 border-zinc-700 mt-1"
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">Extra minutes when user clicks "Later"</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Paid User Settings */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-green-500">Paid/Subscribed Users</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs text-zinc-400">Limit Type</label>
+                    <Select
+                      value={listeningSettings.paid_user_limit_type}
+                      onValueChange={(v) => setListeningSettings({...listeningSettings, paid_user_limit_type: v})}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily Limit</SelectItem>
+                        <SelectItem value="monthly">Monthly Limit</SelectItem>
+                        <SelectItem value="unlimited">Unlimited</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400">Daily Minutes</label>
+                    <Input
+                      type="number"
+                      value={listeningSettings.paid_user_daily_minutes}
+                      onChange={(e) => setListeningSettings({
+                        ...listeningSettings, 
+                        paid_user_daily_minutes: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-zinc-800 border-zinc-700 mt-1"
+                      disabled={listeningSettings.paid_user_limit_type === "unlimited"}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400">Monthly Minutes</label>
+                    <Input
+                      type="number"
+                      value={listeningSettings.paid_user_monthly_minutes}
+                      onChange={(e) => setListeningSettings({
+                        ...listeningSettings, 
+                        paid_user_monthly_minutes: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-zinc-800 border-zinc-700 mt-1"
+                      disabled={listeningSettings.paid_user_limit_type !== "monthly"}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Donation Messages */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-purple-500">Donation Prompt Messages</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-zinc-400">Swahili Message</label>
+                    <Textarea
+                      value={listeningSettings.donation_prompt_message_sw}
+                      onChange={(e) => setListeningSettings({
+                        ...listeningSettings, 
+                        donation_prompt_message_sw: e.target.value
+                      })}
+                      placeholder="Kusikiliza biblia ni bure lakini teknolojia hii ina gharama..."
+                      className="bg-zinc-800 border-zinc-700 mt-1 h-20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400">English Message</label>
+                    <Textarea
+                      value={listeningSettings.donation_prompt_message_en}
+                      onChange={(e) => setListeningSettings({
+                        ...listeningSettings, 
+                        donation_prompt_message_en: e.target.value
+                      })}
+                      placeholder="Listening to the Bible is free but this technology has costs..."
+                      className="bg-zinc-800 border-zinc-700 mt-1 h-20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                onClick={saveListeningSettings}
+                disabled={savingSettings}
+                className="w-full bg-amber-600 hover:bg-amber-700"
+              >
+                {savingSettings ? "Saving..." : "Save Listening Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
