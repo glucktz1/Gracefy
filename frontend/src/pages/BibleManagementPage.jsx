@@ -144,7 +144,8 @@ export default function BibleManagementPage() {
   const resetSnippetForm = () => {
     setSnippetForm({
       title: "", description: "", book_name: "", chapter: 1,
-      start_verse: 1, end_verse: 1, language: "sw", voice: "nova", speed: 1.0
+      start_verse: 1, end_verse: 1, language: "sw", voice: "sw-KE-Chirp3-HD-Achernar", speed: 1.0,
+      heading: "", subtitle: "", card_type: "snippet", thumbnail_url: "", is_featured: false, display_order: 0
     });
   };
 
