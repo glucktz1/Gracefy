@@ -988,6 +988,134 @@ const BibleView = ({ language, t, onBack }) => {
     );
   }
 
+  // Verse Range Reader View
+  if (showRangeReader) {
+    return (
+      <div className="space-y-6 p-4">
+        <button 
+          onClick={() => { setShowRangeReader(false); setRangeResult(null); }}
+          className="flex items-center gap-2 text-zinc-400 hover:text-white"
+        >
+          <ChevronLeft size={20} /> {t('action.back', 'Rudi')}
+        </button>
+        
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mx-auto mb-4">
+            <Mic2 size={28} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">{t('bible.readRange', 'Soma Mistari')}</h1>
+          <p className="text-zinc-400 text-sm">{t('bible.enterRangeDesc', 'Chagua kitabu, sura na mistari kusoma')}</p>
+        </div>
+
+        {/* Range Selection Form */}
+        <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800 space-y-4">
+          {/* Book Selection */}
+          <div>
+            <label className="text-sm text-zinc-400 mb-2 block">{t('bible.book', 'Kitabu')}</label>
+            <select
+              value={rangeBook}
+              onChange={(e) => { setRangeBook(e.target.value); setRangeChapter(1); }}
+              className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-amber-500 outline-none"
+            >
+              <option value="">{t('bible.selectBook', 'Chagua Kitabu')}</option>
+              {books.map(book => (
+                <option key={book.book_id} value={book.name}>{book.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Chapter Selection */}
+          <div>
+            <label className="text-sm text-zinc-400 mb-2 block">{t('bible.chapter', 'Sura')}</label>
+            <select
+              value={rangeChapter}
+              onChange={(e) => setRangeChapter(parseInt(e.target.value))}
+              disabled={!rangeBook}
+              className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-amber-500 outline-none disabled:opacity-50"
+            >
+              {rangeChapters.map(ch => (
+                <option key={ch} value={ch}>{ch}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Verse Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">{t('bible.startVerse', 'Mstari wa Kuanzia')}</label>
+              <input
+                type="number"
+                min={1}
+                value={rangeStart}
+                onChange={(e) => setRangeStart(parseInt(e.target.value) || 1)}
+                className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-amber-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">{t('bible.endVerse', 'Mstari wa Mwisho')}</label>
+              <input
+                type="number"
+                min={rangeStart}
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(parseInt(e.target.value) || rangeStart)}
+                className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-amber-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Reference Preview */}
+          {rangeBook && (
+            <div className="text-center py-3 bg-amber-500/10 rounded-xl border border-amber-500/30">
+              <p className="text-amber-400 font-medium">{rangeBook} {rangeChapter}:{rangeStart}-{rangeEnd}</p>
+            </div>
+          )}
+
+          {/* Read Button */}
+          <button
+            onClick={handleReadRange}
+            disabled={!rangeBook || rangeLoading}
+            className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {rangeLoading ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                {t('bible.generating', 'Inatengeneza sauti...')}
+              </>
+            ) : playingAudio === `range_${rangeBook}_${rangeChapter}` ? (
+              <>
+                <Pause size={20} />
+                {t('bible.stop', 'Simamisha')}
+              </>
+            ) : (
+              <>
+                <Volume2 size={20} />
+                {t('bible.listenNow', 'Sikiliza Sasa')}
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Result - Shows verses being read */}
+        {rangeResult && (
+          <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-white">{rangeResult.reference}</h3>
+              <span className="text-xs text-zinc-500">{rangeResult.verse_count} {t('bible.verses', 'mistari')}</span>
+            </div>
+            <div className="space-y-3 max-h-60 overflow-y-auto">
+              {rangeResult.verses?.map(verse => (
+                <div key={verse.verse_id} className="flex gap-3">
+                  <span className="text-amber-500 font-bold text-sm w-6 flex-shrink-0">{verse.verse}</span>
+                  <p className="text-zinc-300 text-sm leading-relaxed">{verse.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Show chapters if book selected but no chapter
   if (!selectedChapter) {
     return (
