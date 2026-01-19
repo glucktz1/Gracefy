@@ -840,6 +840,8 @@ export default function LayoutManagementPage() {
   const [burners, setBurners] = useState([]);
   const [categories, setCategories] = useState([]);
   const [albums, setAlbums] = useState([]);
+  const [churches, setChurches] = useState([]);
+  const [choirs, setChoirs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("sections");
   const [previewPlatform, setPreviewPlatform] = useState("app");
