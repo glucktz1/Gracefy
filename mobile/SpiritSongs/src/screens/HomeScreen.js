@@ -798,6 +798,14 @@ export default function HomeScreen({ navigation }) {
           navigation={navigation}
         />
 
+        {/* Biblia na Masomo - Bible Devotional Section */}
+        <BibleDevotionalSection
+          title="Biblia na Masomo"
+          snippets={bibleSnippets}
+          onPress={(snippet) => navigation.navigate('Bible', { snippet })}
+          onNavigateToBible={() => navigation.navigate('Bible')}
+        />
+
         {/* Churches Section */}
         <ChurchesSection 
           churches={churches}
