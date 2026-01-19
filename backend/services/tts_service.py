@@ -203,7 +203,14 @@ class TTSService:
         language: str = "sw",
         voice: str = None,
         speed: float = 1.0,
-        created_by: str = None
+        created_by: str = None,
+        # New devotional card fields
+        heading: str = None,
+        subtitle: str = None,
+        card_type: str = "snippet",  # "snippet", "daily_devotion", "featured"
+        thumbnail_url: str = None,
+        is_featured: bool = False,
+        display_order: int = 0
     ) -> Dict[str, Any]:
         """Create a pre-generated Bible snippet with audio"""
         try:
@@ -259,6 +266,13 @@ class TTSService:
                 "is_active": True,
                 "play_count": 0,
                 "created_by": created_by,
+                # New devotional card fields
+                "heading": heading or title,
+                "subtitle": subtitle or description,
+                "card_type": card_type,
+                "thumbnail_url": thumbnail_url,
+                "is_featured": is_featured,
+                "display_order": display_order,
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc)
             }
