@@ -663,7 +663,22 @@ export default function BibleManagementPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Gender</label>
+                <Select 
+                  value={snippetForm.gender} 
+                  onValueChange={(v) => setSnippetForm({ ...snippetForm, gender: v, voice: "" })}
+                >
+                  <SelectTrigger className="bg-zinc-950 border-zinc-700">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value="female">♀ Kike (Female)</SelectItem>
+                    <SelectItem value="male">♂ Kiume (Male)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Voice</label>
                 <Select 
@@ -671,10 +686,11 @@ export default function BibleManagementPage() {
                   onValueChange={(v) => setSnippetForm({ ...snippetForm, voice: v })}
                 >
                   <SelectTrigger className="bg-zinc-950 border-zinc-700">
-                    <SelectValue />
+                    <SelectValue placeholder="Auto (based on gender)" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    {voices.map(voice => (
+                    <SelectItem value="">Auto (based on gender)</SelectItem>
+                    {(snippetForm.gender === "male" ? maleVoices : femaleVoices).map(voice => (
                       <SelectItem key={voice.id} value={voice.id}>
                         {voice.name} - {voice.description}
                       </SelectItem>
