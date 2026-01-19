@@ -513,9 +513,10 @@ const WideAlbumCard = ({ album, onOpen }) => {
       </div>
       <div className="absolute bottom-4 right-4 w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
         <Play size={22} fill="black" className="text-black ml-0.5" />
-    </div>
-  </button>
-);
+      </div>
+    </button>
+  );
+};
 
 // Compact List Item
 const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPlaylist, onDownload, isLiked }) => {
