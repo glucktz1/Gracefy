@@ -326,18 +326,19 @@ const ChurchesSection = ({ churches, onChurchPress, title = 'Churches' }) => {
                     <Ionicons name="business" size={32} color="rgba(255,255,255,0.4)" />
                   </LinearGradient>
                 )}
-              {item.denomination && (
-                <View style={styles.churchDenomBadge}>
-                  <Text style={styles.churchDenomText}>{item.denomination.slice(0, 3).toUpperCase()}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.churchName} numberOfLines={2}>{item.name}</Text>
-            <Text style={styles.churchLocation} numberOfLines={1}>
-              <Ionicons name="location-outline" size={10} color={COLORS.textMuted} /> {item.location}
-            </Text>
-          </TouchableOpacity>
-        )}
+                {item.denomination && (
+                  <View style={styles.churchDenomBadge}>
+                    <Text style={styles.churchDenomText}>{item.denomination.slice(0, 3).toUpperCase()}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.churchName} numberOfLines={2}>{item.name}</Text>
+              <Text style={styles.churchLocation} numberOfLines={1}>
+                <Ionicons name="location-outline" size={10} color={COLORS.textMuted} /> {item.location}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
