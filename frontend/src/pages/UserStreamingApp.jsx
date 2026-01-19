@@ -40,6 +40,27 @@ const formatTime = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// Get thumbnail URL helper - handles both thumbnail and thumbnail_url fields
+const getThumbnail = (item) => {
+  if (!item) return null;
+  // Prefer direct thumbnail URL, then thumbnail_url field, then thumbnail field
+  if (item.thumbnail_url) {
+    // If it's a relative URL, prepend the backend URL
+    if (item.thumbnail_url.startsWith('/')) {
+      return `${BACKEND_URL}${item.thumbnail_url}`;
+    }
+    return item.thumbnail_url;
+  }
+  if (item.thumbnail) {
+    // If it's a relative URL, prepend the backend URL
+    if (item.thumbnail.startsWith('/')) {
+      return `${BACKEND_URL}${item.thumbnail}`;
+    }
+    return item.thumbnail;
+  }
+  return null;
+};
+
 // ==================== AUDIO PLAYER HOOK ====================
 const useAudioPlayer = () => {
   const [currentSong, setCurrentSong] = useState(null);
