@@ -601,6 +601,55 @@ const ArtistCard = ({ artist }) => (
   </div>
 );
 
+// Church Card
+const ChurchCard = ({ church, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-44 flex-shrink-0 p-3 rounded-lg bg-zinc-900/40 hover:bg-zinc-800/60 transition-all duration-300 group text-left"
+    data-testid={`church-${church.church_id}`}
+  >
+    <div className="aspect-square rounded-lg bg-gradient-to-br from-emerald-800 to-teal-900 mb-3 overflow-hidden relative shadow-lg flex items-center justify-center">
+      {church.thumbnail ? (
+        <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
+      ) : (
+        <Church size={48} className="text-emerald-400/60" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className="absolute bottom-2 left-2 right-2">
+        <span className="text-xs bg-emerald-500/80 text-white px-2 py-0.5 rounded-full">
+          {church.denomination || 'Church'}
+        </span>
+      </div>
+    </div>
+    <h3 className="font-semibold text-sm truncate text-white">{church.name}</h3>
+    <p className="text-xs text-zinc-400 truncate mt-0.5">{church.location}</p>
+    {church.priest_name && (
+      <p className="text-xs text-zinc-500 truncate mt-0.5">Fr. {church.priest_name}</p>
+    )}
+  </button>
+);
+
+// Choir/Artist Card
+const ChoirCard = ({ choir, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-40 flex-shrink-0 p-3 rounded-lg bg-zinc-900/40 hover:bg-zinc-800/60 transition-all duration-300 group text-left"
+    data-testid={`choir-${choir.choir_id}`}
+  >
+    <div className="aspect-square rounded-full bg-gradient-to-br from-violet-800 to-purple-900 mb-3 overflow-hidden relative shadow-lg mx-auto">
+      {choir.profile_image ? (
+        <img src={choir.profile_image} alt={choir.name} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Users size={40} className="text-violet-400/60" />
+        </div>
+      )}
+    </div>
+    <h3 className="font-semibold text-sm truncate text-white text-center">{choir.name}</h3>
+    <p className="text-xs text-zinc-400 truncate mt-0.5 text-center">{choir.church_affiliation || 'Artist'}</p>
+  </button>
+);
+
 // Dynamic Hero Section - Album Carousel
 const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
