@@ -469,6 +469,7 @@ export default function HomeScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [allAlbums, setAllAlbums] = useState([]);
   const [churches, setChurches] = useState([]);
+  const [bibleSnippets, setBibleSnippets] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -483,18 +484,21 @@ export default function HomeScreen({ navigation }) {
   const fetchData = useCallback(async () => {
     try {
       console.log('Fetching home data...');
-      const [home, cats, churchesRes] = await Promise.all([
+      const [home, cats, churchesRes, snippetsRes] = await Promise.all([
         contentService.getHome(),
         contentService.getCategories(),
         contentService.getChurches().catch(() => ({ churches: [] })),
+        contentService.getBibleSnippets().catch(() => ({ snippets: [] })),
       ]);
       console.log('Home data received:', home?.sections?.length, 'sections');
       console.log('Categories received:', cats?.categories?.length, 'categories');
       console.log('Churches received:', churchesRes?.churches?.length, 'churches');
+      console.log('Bible snippets received:', snippetsRes?.snippets?.length, 'snippets');
       
       setHomeData(home);
       setCategories(cats.categories || []);
       setChurches(churchesRes.churches || []);
+      setBibleSnippets(snippetsRes.snippets || []);
       
       // Collect all albums from sections
       const albums = [];
