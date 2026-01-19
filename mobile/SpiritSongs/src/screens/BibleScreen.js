@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
   FlatList,
   Modal,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import * as SecureStore from 'expo-secure-store';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 
@@ -26,6 +28,8 @@ const COLORS = {
   text: '#ffffff',
   textSecondary: '#9ca3af',
   accent: '#8b5cf6',
+  donation: '#10b981',
+  donationDark: '#059669',
 };
 
 const BibleScreen = ({ navigation }) => {
@@ -50,13 +54,136 @@ const BibleScreen = ({ navigation }) => {
   const [rangeGender, setRangeGender] = useState('female');
   const [rangeLoading, setRangeLoading] = useState(false);
 
+  // Listening limit state
+  const [listeningStatus, setListeningStatus] = useState(null);
+  const [showDonationModal, setShowDonationModal] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(-1);
+  const listeningStartTime = useRef(null);
+  const trackingInterval = useRef(null);
+  const userId = useRef(null);
+
+  // Get user ID on mount
+  useEffect(() => {
+    const getUserId = async () => {
+      try {
+        const id = await SecureStore.getItemAsync('user_id');
+        userId.current = id;
+      } catch (e) {
+        console.log('Error getting user ID:', e);
+      }
+    };
+    getUserId();
+  }, []);
+
+  // Fetch listening status
+  const fetchListeningStatus = useCallback(async () => {
+    try {
+      const userIdParam = userId.current ? `?user_id=${userId.current}` : '';
+      const res = await api.get(`/bible/listening-status${userIdParam}`);
+      setListeningStatus(res.data);
+      if (res.data.remaining_seconds >= 0) {
+        setRemainingTime(res.data.remaining_seconds);
+      }
+      return res.data;
+    } catch (error) {
+      console.error('Error fetching listening status:', error);
+      return null;
+    }
+  }, []);
+
+  // Track listening time
+  const trackListeningTime = useCallback(async (seconds) => {
+    try {
+      await api.post('/bible/listening-track', {
+        user_id: userId.current,
+        seconds: seconds
+      });
+    } catch (error) {
+      console.error('Error tracking listening time:', error);
+    }
+  }, []);
+
+  // Record prompt shown
+  const recordPromptShown = useCallback(async () => {
+    try {
+      await api.post('/bible/prompt-shown', {
+        user_id: userId.current
+      });
+    } catch (error) {
+      console.error('Error recording prompt:', error);
+    }
+  }, []);
+
+  // Check if user can listen and handle limit
+  const checkListeningLimit = useCallback(async () => {
+    const status = await fetchListeningStatus();
+    if (!status || !status.limits_active) return true;
+    
+    if (status.remaining_seconds === 0) {
+      // Stop any playing audio
+      if (sound) {
+        await sound.stopAsync();
+        await sound.unloadAsync();
+        setSound(null);
+        setPlayingId(null);
+      }
+      
+      // Show donation modal
+      await recordPromptShown();
+      setShowDonationModal(true);
+      return false;
+    }
+    
+    return true;
+  }, [fetchListeningStatus, recordPromptShown, sound]);
+
+  // Start tracking when audio plays
+  const startListeningTracking = useCallback(() => {
+    listeningStartTime.current = Date.now();
+    
+    // Update remaining time every second
+    if (trackingInterval.current) {
+      clearInterval(trackingInterval.current);
+    }
+    
+    trackingInterval.current = setInterval(async () => {
+      if (listeningStatus?.limits_active && remainingTime > 0) {
+        setRemainingTime(prev => {
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            // Time's up - trigger limit check
+            checkListeningLimit();
+          }
+          return newTime;
+        });
+      }
+    }, 1000);
+  }, [listeningStatus, remainingTime, checkListeningLimit]);
+
+  // Stop tracking and sync time
+  const stopListeningTracking = useCallback(async () => {
+    if (trackingInterval.current) {
+      clearInterval(trackingInterval.current);
+      trackingInterval.current = null;
+    }
+    
+    if (listeningStartTime.current) {
+      const listenedSeconds = Math.round((Date.now() - listeningStartTime.current) / 1000);
+      if (listenedSeconds > 0) {
+        await trackListeningTime(listenedSeconds);
+      }
+      listeningStartTime.current = null;
+    }
+  }, [trackListeningTime]);
+
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [booksRes, snippetsRes] = await Promise.all([
           api.get(`/bible/books?language=${language}`),
-          api.get(`/bible/featured-snippets?language=${language}&limit=10`)
+          api.get(`/bible/featured-snippets?language=${language}&limit=10`),
+          fetchListeningStatus()
         ]);
         setBooks(booksRes.data.books || []);
         setSnippets(snippetsRes.data.snippets || []);
@@ -67,7 +194,7 @@ const BibleScreen = ({ navigation }) => {
       }
     };
     fetchData();
-  }, [language]);
+  }, [language, fetchListeningStatus]);
 
   // Fetch chapters when book selected
   useEffect(() => {
@@ -87,23 +214,29 @@ const BibleScreen = ({ navigation }) => {
     }
   }, [selectedBook, selectedChapter, language]);
 
-  // Cleanup sound on unmount
+  // Cleanup sound and tracking on unmount
   useEffect(() => {
     return () => {
       if (sound) {
         sound.unloadAsync();
       }
+      stopListeningTracking();
     };
-  }, [sound]);
+  }, [sound, stopListeningTracking]);
 
   // Play snippet audio
   const playSnippet = async (snippet) => {
     try {
+      // Check listening limit before playing
+      const canListen = await checkListeningLimit();
+      if (!canListen) return;
+
       if (playingId === snippet.snippet_id) {
         // Stop playing
         if (sound) {
           await sound.stopAsync();
           await sound.unloadAsync();
+          await stopListeningTracking();
         }
         setPlayingId(null);
         setSound(null);
@@ -115,6 +248,7 @@ const BibleScreen = ({ navigation }) => {
       
       if (sound) {
         await sound.unloadAsync();
+        await stopListeningTracking();
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -122,10 +256,15 @@ const BibleScreen = ({ navigation }) => {
         { shouldPlay: true }
       );
       
-      newSound.setOnPlaybackStatusUpdate((status) => {
+      startListeningTracking();
+      
+      newSound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.didJustFinish) {
+          await stopListeningTracking();
           setPlayingId(null);
           setSound(null);
+          // Refresh listening status after playback
+          fetchListeningStatus();
         }
       });
       
@@ -140,6 +279,10 @@ const BibleScreen = ({ navigation }) => {
   // Generate verse audio
   const playVerse = async (verse) => {
     try {
+      // Check listening limit before playing
+      const canListen = await checkListeningLimit();
+      if (!canListen) return;
+
       setGeneratingAudio(true);
       setPlayingId(`verse_${verse.verse}`);
       
@@ -153,6 +296,7 @@ const BibleScreen = ({ navigation }) => {
 
       if (sound) {
         await sound.unloadAsync();
+        await stopListeningTracking();
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -160,10 +304,14 @@ const BibleScreen = ({ navigation }) => {
         { shouldPlay: true }
       );
       
-      newSound.setOnPlaybackStatusUpdate((status) => {
+      startListeningTracking();
+      
+      newSound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.didJustFinish) {
+          await stopListeningTracking();
           setPlayingId(null);
           setSound(null);
+          fetchListeningStatus();
         }
       });
       
@@ -184,6 +332,10 @@ const BibleScreen = ({ navigation }) => {
       return;
     }
 
+    // Check listening limit before playing
+    const canListen = await checkListeningLimit();
+    if (!canListen) return;
+
     try {
       setRangeLoading(true);
       
@@ -198,6 +350,7 @@ const BibleScreen = ({ navigation }) => {
 
       if (sound) {
         await sound.unloadAsync();
+        await stopListeningTracking();
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -205,10 +358,14 @@ const BibleScreen = ({ navigation }) => {
         { shouldPlay: true }
       );
       
-      newSound.setOnPlaybackStatusUpdate((status) => {
+      startListeningTracking();
+      
+      newSound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.didJustFinish) {
+          await stopListeningTracking();
           setPlayingId(null);
           setSound(null);
+          fetchListeningStatus();
         }
       });
       
@@ -222,6 +379,90 @@ const BibleScreen = ({ navigation }) => {
       setRangeLoading(false);
     }
   };
+
+  // Handle donation modal dismiss
+  const handleDismissDonation = async () => {
+    setShowDonationModal(false);
+    // Refresh status to get additional minutes
+    await fetchListeningStatus();
+  };
+
+  // Handle go to payment
+  const handleGoToPayment = () => {
+    setShowDonationModal(false);
+    navigation.navigate('Subscription');
+  };
+
+  // Format time for display
+  const formatTime = (seconds) => {
+    if (seconds < 0) return '∞';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Render remaining time indicator
+  const renderTimeIndicator = () => {
+    if (!listeningStatus?.limits_active || remainingTime < 0) return null;
+    
+    const isLow = remainingTime < 60;
+    
+    return (
+      <View style={[styles.timeIndicator, isLow && styles.timeIndicatorLow]}>
+        <Ionicons name="time-outline" size={14} color={isLow ? '#ef4444' : COLORS.textSecondary} />
+        <Text style={[styles.timeIndicatorText, isLow && styles.timeIndicatorTextLow]}>
+          {formatTime(remainingTime)}
+        </Text>
+      </View>
+    );
+  };
+
+  // Render donation modal
+  const renderDonationModal = () => (
+    <Modal visible={showDonationModal} animationType="fade" transparent>
+      <View style={styles.donationOverlay}>
+        <View style={styles.donationContent}>
+          <View style={styles.donationIcon}>
+            <Ionicons name="heart" size={48} color={COLORS.donation} />
+          </View>
+          
+          <Text style={styles.donationTitle}>
+            {language === 'sw' ? 'Muda Umekwisha' : 'Time Limit Reached'}
+          </Text>
+          
+          <Text style={styles.donationMessage}>
+            {listeningStatus?.prompt_message_sw || 
+              'Kusikiliza biblia ni bure lakini teknolojia hii ina gharama, changia kidogo kuwezesha uendelee kufurahia'}
+          </Text>
+          
+          <TouchableOpacity
+            style={styles.donationButton}
+            onPress={handleGoToPayment}
+          >
+            <Ionicons name="gift" size={20} color="#fff" />
+            <Text style={styles.donationButtonText}>
+              {language === 'sw' ? 'Changia Sasa' : 'Donate Now'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={handleDismissDonation}
+          >
+            <Text style={styles.dismissButtonText}>
+              {language === 'sw' ? 'Baadaye' : 'Later'}
+            </Text>
+          </TouchableOpacity>
+          
+          <Text style={styles.donationNote}>
+            {language === 'sw' 
+              ? 'Utapata dakika chache za ziada ukibonyeza "Baadaye"'
+              : 'You will get a few extra minutes by pressing "Later"'}
+          </Text>
+        </View>
+      </View>
+    </Modal>
+  );
 
   // Render featured snippets section
   const renderSnippets = () => (
@@ -291,10 +532,11 @@ const BibleScreen = ({ navigation }) => {
             <View style={styles.headerIcon}>
               <Ionicons name="book" size={28} color={COLORS.primary} />
             </View>
-            <View>
+            <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>{t('bible.title', 'Biblia')}</Text>
               <Text style={styles.headerSubtitle}>{t('bible.listenToWord', 'Sikiliza Neno la Mungu')}</Text>
             </View>
+            {renderTimeIndicator()}
           </View>
 
           {/* Range Reader Button */}
@@ -441,6 +683,9 @@ const BibleScreen = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+
+        {/* Donation Modal */}
+        {renderDonationModal()}
       </SafeAreaView>
     );
   }
@@ -454,6 +699,7 @@ const BibleScreen = ({ navigation }) => {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.navTitle}>{selectedBook.name}</Text>
+          {renderTimeIndicator()}
         </View>
         <ScrollView contentContainerStyle={styles.chapterGrid}>
           {chapters.map(ch => (
@@ -466,6 +712,7 @@ const BibleScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        {renderDonationModal()}
       </SafeAreaView>
     );
   }
@@ -478,7 +725,10 @@ const BibleScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>{selectedBook.name} {selectedChapter}</Text>
-        <Text style={styles.verseCount}>{verses.length} mistari</Text>
+        <View style={styles.navRight}>
+          {renderTimeIndicator()}
+          <Text style={styles.verseCount}>{verses.length} mistari</Text>
+        </View>
       </View>
       <FlatList
         data={verses}
@@ -506,6 +756,7 @@ const BibleScreen = ({ navigation }) => {
           </View>
         )}
       />
+      {renderDonationModal()}
     </SafeAreaView>
   );
 };
@@ -534,6 +785,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerTextContainer: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -542,6 +796,98 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: COLORS.textSecondary,
+  },
+  // Time indicator styles
+  timeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  timeIndicatorLow: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  timeIndicatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  timeIndicatorTextLow: {
+    color: '#ef4444',
+  },
+  // Donation modal styles
+  donationOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  donationContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  donationIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  donationTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  donationMessage: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  donationButton: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.donation,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  donationButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  dismissButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    marginTop: 12,
+  },
+  dismissButtonText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  donationNote: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 16,
+    fontStyle: 'italic',
   },
   rangeButton: {
     flexDirection: 'row',
@@ -678,6 +1024,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
     flex: 1,
+  },
+  navRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   verseCount: {
     fontSize: 12,
