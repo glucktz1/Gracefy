@@ -462,6 +462,92 @@ const TafakariSection = ({ title, items, onItemPress, onPlay }) => {
   );
 };
 
+// Bible Devotional Cards - Wide horizontal cards with listen button
+const BibleDevotionalSection = ({ title, snippets, onPress, onNavigateToBible }) => {
+  if (!snippets || snippets.length === 0) return null;
+  
+  const cardColors = [
+    ['#4c1d95', '#7c3aed'], // Purple
+    ['#065f46', '#10b981'], // Green
+    ['#831843', '#ec4899'], // Pink
+    ['#1e3a5f', '#3b82f6'], // Blue
+    ['#7c2d12', '#f97316'], // Orange
+  ];
+  
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <Ionicons name="book" size={20} color="#f59e0b" style={{ marginRight: 8 }} />
+          <Text style={styles.sectionTitle}>{title || 'Biblia na Masomo'}</Text>
+        </View>
+        {onNavigateToBible && (
+          <TouchableOpacity onPress={onNavigateToBible}>
+            <Text style={styles.seeAll}>Tazama Zote</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <FlatList
+        horizontal
+        data={snippets}
+        keyExtractor={(item, idx) => item.snippet_id || `bible-${idx}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+        renderItem={({ item, index }) => {
+          const colors = cardColors[index % cardColors.length];
+          return (
+            <TouchableOpacity 
+              style={styles.bibleCard} 
+              onPress={() => onPress(item)} 
+              activeOpacity={0.9}
+            >
+              <LinearGradient 
+                colors={colors} 
+                style={styles.bibleCardGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                {/* Featured badge */}
+                {item.is_featured && (
+                  <View style={styles.bibleFeaturedBadge}>
+                    <Text style={styles.bibleFeaturedText}>FEATURED</Text>
+                  </View>
+                )}
+                
+                {/* Heading */}
+                <Text style={styles.bibleHeading}>
+                  {item.heading || 'SOMO LA LEO'}
+                </Text>
+                
+                {/* Reference */}
+                <Text style={styles.bibleReference}>{item.reference || item.title}</Text>
+                
+                {/* Subtitle */}
+                {item.subtitle && (
+                  <Text style={styles.bibleSubtitle} numberOfLines={2}>
+                    {item.subtitle}
+                  </Text>
+                )}
+                
+                {/* Footer with duration and listen button */}
+                <View style={styles.bibleFooter}>
+                  <Text style={styles.bibleDuration}>
+                    ~{Math.round(item.duration_estimate || 30)}s
+                  </Text>
+                  <View style={styles.bibleListenBtn}>
+                    <Ionicons name="headset" size={14} color="#fff" />
+                    <Text style={styles.bibleListenText}>Sikiliza Sasa</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    </View>
+  );
+};
+
 // ============ MAIN HOME SCREEN ============
 
 export default function HomeScreen({ navigation }) {
