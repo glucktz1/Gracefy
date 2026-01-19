@@ -274,6 +274,7 @@ class TTSService:
         voice: str = None,
         speed: float = 1.0,
         created_by: str = None,
+        gender: str = None,  # "male" or "female"
         # New devotional card fields
         heading: str = None,
         subtitle: str = None,
