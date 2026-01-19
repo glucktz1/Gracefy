@@ -62,11 +62,67 @@ class TTSService:
         for v in AVAILABLE_VOICES:
             if v["id"] == voice_id:
                 return v["language"]
-        # Extract language from voice ID (e.g., "sw-KE-Standard-A" -> "sw-KE")
         parts = voice_id.split("-")
         if len(parts) >= 2:
             return f"{parts[0]}-{parts[1]}"
         return DEFAULT_LANGUAGE
+    
+    def get_voice_by_gender(self, gender: str = "female", language: str = "sw") -> str:
+        """Get default voice based on gender preference"""
+        voices = FEMALE_VOICES if gender.lower() == "female" else MALE_VOICES
+        # Find voice matching language
+        for v in voices:
+            if language in v["language"].lower():
+                return v["id"]
+        # Fallback to first voice of that gender
+        return voices[0]["id"] if voices else DEFAULT_VOICE
+    
+    def get_voices_by_gender(self, gender: str = None) -> List[Dict]:
+        """Get voices filtered by gender"""
+        if gender and gender.lower() == "male":
+            return MALE_VOICES
+        elif gender and gender.lower() == "female":
+            return FEMALE_VOICES
+        return AVAILABLE_VOICES
+    
+    async def get_cached_audio(self, text: str, voice: str = None, speed: float = 1.0) -> Optional[Dict]:
+        """Check if audio is already cached for this text"""
+        if not voice:
+            voice = DEFAULT_VOICE
+        audio_hash = self._generate_audio_hash(text, voice, speed)
+        
+        cached = await self.db.bible_audio_cache.find_one(
+            {"audio_hash": audio_hash},
+            {"_id": 0}
+        )
+        
+        if cached:
+            # Update access stats
+            await self.db.bible_audio_cache.update_one(
+                {"audio_hash": audio_hash},
+                {
+                    "$inc": {"access_count": 1},
+                    "$set": {"last_accessed": datetime.now(timezone.utc)}
+                }
+            )
+            return cached
+        return None
+    
+    async def get_cache_stats(self) -> Dict:
+        """Get statistics about the audio cache"""
+        total_cached = await self.db.bible_audio_cache.count_documents({})
+        total_size_pipeline = [
+            {"$group": {"_id": None, "total_size": {"$sum": "$file_size_bytes"}, "total_accesses": {"$sum": "$access_count"}}}
+        ]
+        size_result = await self.db.bible_audio_cache.aggregate(total_size_pipeline).to_list(1)
+        
+        return {
+            "total_cached_audio": total_cached,
+            "total_size_bytes": size_result[0]["total_size"] if size_result else 0,
+            "total_size_mb": round((size_result[0]["total_size"] if size_result else 0) / (1024 * 1024), 2),
+            "total_accesses": size_result[0]["total_accesses"] if size_result else 0,
+            "estimated_api_calls_saved": size_result[0]["total_accesses"] - total_cached if size_result else 0
+        }
     
     async def generate_audio(
         self,
@@ -74,9 +130,10 @@ class TTSService:
         voice: str = None,
         speed: float = 1.0,
         pitch: float = 0.0,
+        gender: str = None,
         cache: bool = True
     ) -> Dict[str, Any]:
-        """Generate audio from text using Google Cloud TTS"""
+        """Generate audio from text using Google Cloud TTS with smart caching"""
         try:
             # Map old voice names to Google voices
             voice_mapping = {
@@ -88,6 +145,9 @@ class TTSService:
                 "shimmer": "sw-KE-Chirp3-HD-Zephyr",
                 "Rachel": "sw-KE-Chirp3-HD-Achernar",
                 "Josh": "sw-KE-Chirp3-HD-Charon",
+                "male": DEFAULT_MALE_VOICE,
+                "female": DEFAULT_FEMALE_VOICE,
+            }
             }
             
             # Use default or mapped voice
