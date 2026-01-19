@@ -853,6 +853,47 @@ const BibleView = ({ language, t, onBack }) => {
     }
   };
 
+  // Fetch chapters for range reader when book changes
+  useEffect(() => {
+    if (rangeBook) {
+      axios.get(`${API}/bible/books/${rangeBook}/chapters?language=${language}`)
+        .then(res => setRangeChapters(res.data.chapters || []))
+        .catch(() => setRangeChapters([]));
+    }
+  }, [rangeBook, language]);
+
+  // Generate audio for custom verse range
+  const handleReadRange = async () => {
+    if (!rangeBook || !rangeChapter || !rangeStart || !rangeEnd) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    
+    setRangeLoading(true);
+    try {
+      const res = await axios.post(`${API}/bible/tts/passage-range`, {
+        book_name: rangeBook,
+        chapter: rangeChapter,
+        start_verse: rangeStart,
+        end_verse: rangeEnd,
+        language: language
+      });
+      
+      setRangeResult(res.data);
+      
+      if (audioElement) audioElement.pause();
+      const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      audio.onended = () => setPlayingAudio(null);
+      audio.play();
+      setAudioElement(audio);
+      setPlayingAudio(`range_${rangeBook}_${rangeChapter}`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to generate audio");
+    } finally {
+      setRangeLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
