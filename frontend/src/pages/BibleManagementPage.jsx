@@ -63,6 +63,20 @@ export default function BibleManagementPage() {
   // Bible initialization
   const [initializing, setInitializing] = useState(false);
 
+  // Listening limit settings
+  const [listeningSettings, setListeningSettings] = useState({
+    free_user_minutes_before_prompt: 5,
+    free_user_additional_minutes: 2,
+    paid_user_limit_type: "daily",
+    paid_user_daily_minutes: 60,
+    paid_user_monthly_minutes: 1800,
+    donation_prompt_message_sw: "",
+    donation_prompt_message_en: "",
+    is_active: true
+  });
+  const [listeningStats, setListeningStats] = useState(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       const [statsRes, snippetsRes, voicesRes] = await Promise.all([
