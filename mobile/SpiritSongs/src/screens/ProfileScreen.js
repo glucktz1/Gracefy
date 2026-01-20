@@ -93,16 +93,56 @@ const SubscriptionCard = ({ plan, currentPlan, onSelect }) => {
 
 export default function ProfileScreen({ navigation }) {
   const { user, isAuthenticated, logout } = useAuth();
-  const { isPremium, isTrial, trialInfo, features, subscriptionExpiry, subscriptionInfo, refresh, getTrialDaysRemaining, isTrialExpiringSoon } = useSubscription();
+  const { isPremium, isTrial, trialInfo, features, subscriptionExpiry, subscriptionInfo, refresh, getTrialDaysRemaining, isTrialExpiringSoon, billingEnabled } = useSubscription();
   const { t, language, changeLanguage, availableLanguages } = useLanguage();
   const [currentPlan, setCurrentPlan] = useState(isPremium ? 'premium' : 'free');
   const [loading, setLoading] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [likedSongsCount, setLikedSongsCount] = useState(0);
+  const [playlistsCount, setPlaylistsCount] = useState(0);
+  const [downloadsCount, setDownloadsCount] = useState(0);
 
   // Update current plan when subscription changes
   useEffect(() => {
     setCurrentPlan(isPremium ? 'premium' : 'free');
   }, [isPremium]);
+
+  // Load user stats
+  useEffect(() => {
+    loadUserStats();
+  }, [isAuthenticated]);
+
+  const loadUserStats = async () => {
+    try {
+      // Get downloads count
+      const downloadedSongs = await getDownloadedSongs();
+      setDownloadsCount(downloadedSongs.length);
+      
+      // Get liked songs count from local storage
+      const localFavorites = await SecureStore.getItemAsync('local_favorites');
+      if (localFavorites) {
+        const favList = JSON.parse(localFavorites);
+        setLikedSongsCount(favList.length);
+      }
+      
+      // Get playlists count if authenticated
+      if (isAuthenticated) {
+        try {
+          const libraryData = await libraryService.getLibrary();
+          setPlaylistsCount(libraryData.playlists?.length || 0);
+          
+          // Merge backend favorites count
+          const backendFavCount = libraryData.favorites?.length || 0;
+          const localCount = localFavorites ? JSON.parse(localFavorites).length : 0;
+          setLikedSongsCount(Math.max(backendFavCount, localCount));
+        } catch (e) {
+          console.log('Could not load library stats:', e.message);
+        }
+      }
+    } catch (error) {
+      console.log('Error loading stats:', error);
+    }
+  };
 
   const handleSelectPlan = (plan) => {
     if (plan.id === 'free') return;
