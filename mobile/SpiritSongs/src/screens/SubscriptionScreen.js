@@ -108,41 +108,16 @@ export default function SubscriptionScreen({ navigation, route }) {
       return;
     }
 
-    setProcessing(true);
-    setSelectedPlan(plan.plan_id);
-
-    try {
-      const token = await SecureStore.getItemAsync('user_token');
-      
-      // Call subscribe endpoint (this would integrate with real payment in production)
-      const response = await axios.post(
-        `${API_URL}/user/subscribe`,
-        { plan_id: plan.plan_id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.payment_url) {
-        // Open payment URL
-        await Linking.openURL(response.data.payment_url);
-      } else if (response.data.success) {
-        Alert.alert(
-          'Success!',
-          'Your subscription is now active. Enjoy premium features!',
-          [{ text: 'OK', onPress: () => {
-            refresh();
-            navigation.goBack();
-          }}]
-        );
-      } else {
-        // Mock successful subscription for demo
-        Alert.alert(
-          'Payment Required',
-          `To complete subscription to ${plan.display_name}, please make a payment of TZS ${plan.price.toLocaleString()}.\n\nPayment integration coming soon!`,
-          [{ text: 'OK' }]
-        );
+    // Navigate to checkout page
+    navigation.navigate('Checkout', {
+      plan: {
+        id: plan.plan_id,
+        name: plan.display_name,
+        price: plan.price,
+        duration: plan.duration_days
       }
-    } catch (error) {
-      console.log('Subscribe error:', error);
+    });
+  };
       Alert.alert(
         'Payment Required',
         `To subscribe to ${plan.display_name}, please make a payment of TZS ${plan.price.toLocaleString()}.\n\nPayment integration coming soon!`,
