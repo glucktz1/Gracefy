@@ -16,6 +16,27 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
+### 📱 Mobile App Bug Fixes & Bible Search
+Fixed critical mobile app issues and added Bible book search functionality:
+
+**Bug Fixes:**
+1. **Continuous Playback Fix**: Refactored `PlayerContext.js` to use inline status handler within `loadAndPlaySong` to ensure fresh closure captures current queue/index state
+2. **Download Permission Fix**: Improved `downloadService.js` with better Android permission handling for API 29-33+, clearer error messages, and robust directory creation with proper error catching
+
+**Bible Book Search Feature:**
+- Added search input in Bible screen to filter books by typing
+- Added search functionality in Range Reader modal for quick book selection
+- Added "no results" feedback when search doesn't match any books
+- Swahili placeholder: "Tafuta kitabu..."
+
+**Files Modified:**
+- `/app/mobile/SpiritSongs/src/context/PlayerContext.js` - Continuous playback fix
+- `/app/mobile/SpiritSongs/src/services/downloadService.js` - Download permission fix
+- `/app/mobile/SpiritSongs/src/screens/BibleScreen.js` - Added book search
+- `/app/mobile/SpiritSongs/src/screens/HomeScreen.js` - Added missing Bible card styles
+
+---
+
 ### 🎵 Audio Encoding Service (NEW)
 Implemented asynchronous audio encoding with FFmpeg for adaptive streaming:
 
