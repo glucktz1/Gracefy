@@ -1954,6 +1954,101 @@ export default function LayoutManagementPage() {
                   )}
                 </div>
               </div>
+
+              {/* Religious Leaders Section */}
+              <div>
+                <h4 className="text-sm font-medium text-amber-400 mb-2 flex items-center gap-2">
+                  <UserCircle size={16} /> Religious Leaders ({religiousLeaders.length})
+                </h4>
+                <div className="space-y-2">
+                  {religiousLeaders.length > 0 ? religiousLeaders.map((leader) => (
+                    <label key={leader.leader_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                      <input
+                        type="checkbox"
+                        defaultChecked={selectedSection?.content_ids?.includes(leader.leader_id)}
+                        className="rounded border-zinc-700"
+                        data-id={leader.leader_id}
+                        data-type="religious_leaders"
+                      />
+                      {leader.photo ? (
+                        <img src={leader.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-amber-600/20 flex items-center justify-center">
+                          <UserCircle size={16} className="text-amber-400" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white">{leader.name}</p>
+                        <p className="text-xs text-zinc-500">{leader.title} {leader.church_name ? `• ${leader.church_name}` : ''}</p>
+                      </div>
+                    </label>
+                  )) : (
+                    <p className="text-zinc-500 text-sm p-3">No religious leaders available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Bible Snippets Section */}
+              <div>
+                <h4 className="text-sm font-medium text-blue-400 mb-2 flex items-center gap-2">
+                  <Book size={16} /> Biblia na Vitabu ({bibleSnippets.length})
+                </h4>
+                <div className="space-y-2">
+                  {bibleSnippets.length > 0 ? bibleSnippets.map((snippet) => (
+                    <label key={snippet.snippet_id || snippet.card_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                      <input
+                        type="checkbox"
+                        defaultChecked={selectedSection?.content_ids?.includes(snippet.snippet_id || snippet.card_id)}
+                        className="rounded border-zinc-700"
+                        data-id={snippet.snippet_id || snippet.card_id}
+                        data-type="bible_content"
+                      />
+                      <div className="w-10 h-10 rounded bg-blue-600/20 flex items-center justify-center">
+                        <Book size={16} className="text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-white">{snippet.heading || snippet.title}</p>
+                        <p className="text-xs text-zinc-500">{snippet.reference || snippet.verse_ref}</p>
+                      </div>
+                    </label>
+                  )) : (
+                    <p className="text-zinc-500 text-sm p-3">No bible content available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Special Mixes Section */}
+              <div>
+                <h4 className="text-sm font-medium text-pink-400 mb-2 flex items-center gap-2">
+                  <Disc size={16} /> Special Mixes ({specialMixes.length})
+                </h4>
+                <div className="space-y-2">
+                  {specialMixes.length > 0 ? specialMixes.map((mix) => (
+                    <label key={mix.mix_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                      <input
+                        type="checkbox"
+                        defaultChecked={selectedSection?.content_ids?.includes(mix.mix_id)}
+                        className="rounded border-zinc-700"
+                        data-id={mix.mix_id}
+                        data-type="special_mixes"
+                      />
+                      {mix.thumbnail ? (
+                        <img src={mix.thumbnail} alt="" className="w-10 h-10 rounded object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-pink-600/20 flex items-center justify-center">
+                          <Disc size={16} className="text-pink-400" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white">{mix.title}</p>
+                        <p className="text-xs text-zinc-500">{mix.songs_count || 0} songs</p>
+                      </div>
+                    </label>
+                  )) : (
+                    <p className="text-zinc-500 text-sm p-3">No special mixes available</p>
+                  )}
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
           <DialogFooter>
