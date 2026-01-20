@@ -2862,6 +2862,39 @@ async def get_churches_for_layout():
     ).to_list(500)
     return {"churches": churches, "total": len(churches)}
 
+@api_router.get("/layout/religious-leaders")
+async def get_religious_leaders_for_layout():
+    """Get religious leaders for layout manager selection"""
+    leaders = await db.religious_leaders.find(
+        {"status": "approved"},
+        {"_id": 0, "leader_id": 1, "name": 1, "title": 1, "photo": 1, "church_name": 1, "followers": 1}
+    ).to_list(500)
+    return {"leaders": leaders, "total": len(leaders)}
+
+@api_router.get("/layout/bible-content")
+async def get_bible_content_for_layout():
+    """Get bible snippets/devotional cards for layout manager selection"""
+    snippets = await db.bible_snippets.find(
+        {"status": "active"},
+        {"_id": 0, "snippet_id": 1, "heading": 1, "reference": 1, "verse_ref": 1, "book_name": 1}
+    ).to_list(100)
+    cards = await db.bible_devotional_cards.find(
+        {"is_active": True},
+        {"_id": 0, "card_id": 1, "heading": 1, "reference": 1, "verse_ref": 1}
+    ).to_list(100)
+    # Combine and return
+    all_content = list(snippets) + list(cards)
+    return {"content": all_content, "total": len(all_content)}
+
+@api_router.get("/layout/special-mixes")
+async def get_special_mixes_for_layout():
+    """Get special mixes for layout manager selection"""
+    mixes = await db.special_mixes.find(
+        {"status": "active"},
+        {"_id": 0, "mix_id": 1, "title": 1, "thumbnail": 1, "songs_count": 1, "is_featured": 1}
+    ).to_list(100)
+    return {"mixes": mixes, "total": len(mixes)}
+
 # ============== RELIGIOUS LEADERS MANAGEMENT ==============
 
 @api_router.get("/leaders")
