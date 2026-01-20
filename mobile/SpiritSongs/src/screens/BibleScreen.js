@@ -45,14 +45,28 @@ const BibleScreen = ({ navigation }) => {
   const [sound, setSound] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   
+  // Book search
+  const [bookSearchQuery, setBookSearchQuery] = useState('');
+  
   // Range reader modal
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [rangeBook, setRangeBook] = useState('');
+  const [rangeBookSearch, setRangeBookSearch] = useState('');
   const [rangeChapter, setRangeChapter] = useState('1');
   const [rangeStart, setRangeStart] = useState('1');
   const [rangeEnd, setRangeEnd] = useState('5');
   const [rangeGender, setRangeGender] = useState('female');
   const [rangeLoading, setRangeLoading] = useState(false);
+  
+  // Filter books based on search query
+  const filteredBooks = books.filter(book => 
+    book.name.toLowerCase().includes(bookSearchQuery.toLowerCase())
+  );
+  
+  // Filter books for range modal
+  const filteredRangeBooks = books.filter(book => 
+    book.name.toLowerCase().includes(rangeBookSearch.toLowerCase())
+  );
 
   // Listening limit state
   const [listeningStatus, setListeningStatus] = useState(null);
