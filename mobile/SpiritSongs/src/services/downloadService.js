@@ -132,30 +132,60 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
   
   // Try each directory option
   const dirOptions = getDownloadsDirOptions();
+  console.log('Trying directory options:', dirOptions.length);
   
   for (const dir of dirOptions) {
     try {
       console.log('Trying directory:', dir);
       
       // Check if directory exists
-      const dirInfo = await FileSystem.getInfoAsync(dir);
+      let dirInfo;
+      try {
+        dirInfo = await FileSystem.getInfoAsync(dir);
+      } catch (infoError) {
+        console.log('Error checking directory info:', dir, infoError.message);
+        continue;
+      }
       
       if (!dirInfo.exists) {
-        // Try to create it
-        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-        console.log('Created directory:', dir);
+        // Try to create it with proper error handling
+        try {
+          await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+          console.log('Created directory:', dir);
+        } catch (mkdirError) {
+          console.log('Failed to create directory:', dir, mkdirError.message);
+          // Check if it was created despite the error
+          try {
+            const recheckInfo = await FileSystem.getInfoAsync(dir);
+            if (!recheckInfo.exists) {
+              console.log('Directory still does not exist after creation attempt');
+              continue;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
       }
       
       // Verify directory is accessible by creating a test file
       const testFile = `${dir}test_${Date.now()}.tmp`;
       try {
         await FileSystem.writeAsStringAsync(testFile, 'test', { encoding: FileSystem.EncodingType.UTF8 });
-        await FileSystem.deleteAsync(testFile, { idempotent: true });
+        // Try to delete test file
+        try {
+          await FileSystem.deleteAsync(testFile, { idempotent: true });
+        } catch (deleteError) {
+          // Ignore delete errors
+        }
         console.log('Directory is writable:', dir);
         
         // Save this as the working directory
         workingDir = dir;
-        await SecureStore.setItemAsync(WORKING_DIR_KEY, dir);
+        try {
+          await SecureStore.setItemAsync(WORKING_DIR_KEY, dir);
+        } catch (saveError) {
+          console.log('Could not save working dir to SecureStore:', saveError.message);
+        }
         
         return { success: true, dir: dir };
       } catch (testError) {
@@ -169,7 +199,7 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
   }
   
   console.error('All directory options failed');
-  return { success: false, dir: null, error: 'No writable directory found' };
+  return { success: false, dir: null, error: 'Unable to find writable storage directory. Please check app permissions in Settings.' };
 };
 
 // Get list of downloaded songs
