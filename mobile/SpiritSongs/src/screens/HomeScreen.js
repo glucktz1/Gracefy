@@ -894,48 +894,77 @@ export default function HomeScreen({ navigation }) {
           onItemPress={handleAlbumPress}
         />
 
-        {/* Dynamic sections from admin */}
+        {/* Dynamic sections from admin - rendered based on layout_style */}
         {sections.map((section, idx) => {
-          // Skip hero (handled above), but show other sections including quick_access with albums
+          // Skip hero (handled above)
           if (section.section_type === 'hero') return null;
+          // Skip quick_access with categories (handled by QuickAccessGrid)
+          if (section.section_type === 'quick_access') return null;
+          // Skip bible_content (handled by BibleDevotionalSection)
+          if (section.section_type === 'bible_content') return null;
+          // Skip churches (handled by ChurchesSection)
+          if (section.section_type === 'churches') return null;
           
           const items = section.items || [];
           if (items.length === 0) return null;
           
-          // Check if items are albums (have album_id) or categories
-          const isAlbumSection = items[0] && (items[0].album_id || items[0].mix_id);
-
-          // For quick_access with categories, skip (handled by QuickAccessGrid)
-          if (section.section_type === 'quick_access' && !isAlbumSection) return null;
-
-          // Vary layout based on section position
-          if (idx % 3 === 0) {
-            return (
-              <HorizontalSmallTiles
-                key={section.section_id || `section-${idx}`}
-                title={section.title}
-                items={items}
-                onItemPress={handleAlbumPress}
-              />
-            );
-          } else if (idx % 3 === 1) {
-            return (
-              <GridSection
-                key={section.section_id || `section-${idx}`}
-                title={section.title}
-                items={items}
-                onItemPress={handleAlbumPress}
-              />
-            );
-          } else {
-            return (
-              <LargeCardsSection
-                key={section.section_id || `section-${idx}`}
-                title={section.title}
-                items={items}
-                onItemPress={handleAlbumPress}
-              />
-            );
+          const layoutStyle = section.layout_style || 'horizontal_small';
+          const title = section.title || section.display_name;
+          
+          // Render based on layout_style
+          switch (layoutStyle) {
+            case 'vertical_list':
+              return (
+                <VerticalListSection
+                  key={section.section_id || `section-${idx}`}
+                  title={title}
+                  items={items}
+                  onItemPress={handleAlbumPress}
+                />
+              );
+            
+            case 'grid':
+              return (
+                <GridSection
+                  key={section.section_id || `section-${idx}`}
+                  title={title}
+                  items={items}
+                  onItemPress={handleAlbumPress}
+                />
+              );
+            
+            case 'horizontal_large':
+              return (
+                <LargeCardsSection
+                  key={section.section_id || `section-${idx}`}
+                  title={title}
+                  items={items}
+                  onItemPress={handleAlbumPress}
+                />
+              );
+            
+            case 'tafakari_cards':
+              return (
+                <TafakariSection
+                  key={section.section_id || `section-${idx}`}
+                  title={title}
+                  items={items}
+                  onItemPress={handleAlbumPress}
+                  onPlay={handleAlbumPress}
+                />
+              );
+            
+            case 'horizontal_cards':
+            case 'horizontal_small':
+            default:
+              return (
+                <HorizontalSmallTiles
+                  key={section.section_id || `section-${idx}`}
+                  title={title}
+                  items={items}
+                  onItemPress={handleAlbumPress}
+                />
+              );
           }
         })}
       </ScrollView>
