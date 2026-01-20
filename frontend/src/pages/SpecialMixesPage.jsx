@@ -595,15 +595,29 @@ export default function SpecialMixesPage() {
                         <div className="bg-zinc-950/50 divide-y divide-zinc-800/50">
                           {album.songs?.map((song) => {
                             const isSelected = selectedSongs.some(s => s.song_id === song.song_id);
+                            const isDisabled = !isSelected && selectedSongs.length >= MAX_SONGS_PER_MIX;
                             return (
                               <div
                                 key={song.song_id}
-                                onClick={() => toggleSongSelection(song, album)}
-                                className={`flex items-center gap-3 p-2 pl-6 cursor-pointer transition-colors ${isSelected ? 'bg-violet-600/10' : 'hover:bg-zinc-800/30'}`}
+                                onClick={() => !isDisabled && toggleSongSelection(song, album)}
+                                className={`flex items-center gap-3 p-2 pl-6 cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-violet-600/10' : 
+                                  isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-800/30'
+                                }`}
                               >
-                                <Checkbox checked={isSelected} className="pointer-events-none" />
+                                <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm text-zinc-300 truncate">{song.title}</p>
+                                  {/* Show song categories if present */}
+                                  {song.song_category_names?.length > 0 && (
+                                    <div className="flex gap-1 mt-0.5">
+                                      {song.song_category_names.slice(0, 2).map((catName, idx) => (
+                                        <span key={idx} className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                                          {catName}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="text-xs text-zinc-500">{song.duration_formatted || formatDuration(song.duration)}</span>
                               </div>
@@ -612,7 +626,8 @@ export default function SpecialMixesPage() {
                         </div>
                       )}
                     </div>
-                  ))}
+                  ))
+                  )}
                 </div>
                 
                 {/* Selected Songs */}
