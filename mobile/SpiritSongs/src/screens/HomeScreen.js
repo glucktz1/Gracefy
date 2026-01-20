@@ -771,14 +771,21 @@ export default function HomeScreen({ navigation }) {
           onSelect={setActiveCategory}
         />
 
-        {/* Quick Access Grid - 2 columns x 4 rows (8 items) */}
-        <QuickAccessGrid 
-          items={quickAccessItems}
-          likedSongsCount={likedSongsCount}
-          playlistsCount={playlistsCount}
-          downloadsCount={downloadsCount}
-          navigation={navigation}
-        />
+        {/* Quick Access Grid - configurable from Layout Manager */}
+        {(() => {
+          const quickAccessSection = sections.find(s => s.section_type === 'quick_access');
+          return (
+            <QuickAccessGrid 
+              items={quickAccessItems}
+              section={quickAccessSection}
+              likedSongsCount={likedSongsCount}
+              playlistsCount={playlistsCount}
+              downloadsCount={downloadsCount}
+              navigation={navigation}
+              language={language}
+            />
+          );
+        })()}
 
         {/* Biblia na Masomo - Bible Devotional Section */}
         {bibleSnippets.length > 0 && (
