@@ -622,6 +622,7 @@ const BibleScreen = ({ navigation }) => {
             </View>
           </View>
         </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Range Reader Modal */}
         <Modal visible={showRangeModal} animationType="slide" transparent>
