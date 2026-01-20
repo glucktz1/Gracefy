@@ -65,6 +65,15 @@ const CONTENT_TYPES = [
   { value: "leader_content", label: "Leader Content (Teachings, Sermons)" },
 ];
 
+const LAYOUT_STYLES = [
+  { value: "horizontal_small", label: "Horizontal Small Tiles" },
+  { value: "horizontal_large", label: "Horizontal Large Cards" },
+  { value: "horizontal_cards", label: "Horizontal Cards" },
+  { value: "vertical_list", label: "Vertical List" },
+  { value: "grid", label: "Grid (2x2)" },
+  { value: "tafakari_cards", label: "Tafakari Style Cards" },
+];
+
 const ICONS = [
   "crown", "gift", "music", "heart", "star", "zap", "trophy", "diamond", "ticket", "headphones"
 ];
