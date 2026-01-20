@@ -54,6 +54,7 @@ const SystemSettingsPage = lazy(() => import("@/pages/SystemSettingsPage"));
 const BibleManagementPage = lazy(() => import("@/pages/BibleManagementPage"));
 const CDNManagementPage = lazy(() => import("@/pages/CDNManagementPage"));
 const SongCategoriesPage = lazy(() => import("@/pages/SongCategoriesPage"));
+const TransactionsPage = lazy(() => import("@/pages/TransactionsPage"));
 
 // Icons
 import { 
