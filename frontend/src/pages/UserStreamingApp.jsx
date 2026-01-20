@@ -370,17 +370,8 @@ const useAudioPlayer = () => {
     // Update MediaSession for lock screen controls
     updateMediaSession(song, album);
 
-    // Handle different audio URL formats
-    let audioUrl = song.audio_url;
-    if (audioUrl) {
-      // If it's a relative streaming URL, prepend the backend URL
-      if (audioUrl.startsWith('/api/files/')) {
-        audioUrl = `${BACKEND_URL}${audioUrl}`;
-      }
-    } else {
-      // Fallback to sample audio
-      audioUrl = SAMPLE_AUDIO_URL;
-    }
+    // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
+    const audioUrl = getAudioUrl(song.audio_url);
     
     audioRef.current.src = audioUrl;
     
