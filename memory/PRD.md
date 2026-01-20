@@ -16,6 +16,47 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
+### 📱 Mobile App Fixes (Code Complete - Awaiting Build)
+
+**Continuous Playback Fix:**
+- PlayerContext.js refactored with proper ref-based state management
+- Queue handling now uses refs to avoid stale closure issues
+- Song end detection improved with `didJustFinish` callback
+- Auto-advance to next song/album works even when app is in background
+- Error recovery: automatically tries next song on playback failure
+
+**Download Service Fix:**
+- Multiple fallback directories for storage (cache, documents)
+- Proper Android 13+ permission handling (no permission needed for app-specific storage)
+- Robust directory creation with test file verification
+- Cached working directory for faster subsequent downloads
+
+**Profile Functions Fixed:**
+- Liked songs count now shows actual count from local storage + backend
+- Playlists count fetches from backend library
+- Downloads count shows actual downloaded songs
+- Listening History tab now shows actual recently played songs
+- Menu items now navigate to correct Library tabs
+
+**Billing Toggle Integration:**
+- `/api/user/subscription-status` endpoint now includes `billing_enabled` field
+- SubscriptionContext.js updated to track `billingEnabled` state
+- ProfileScreen.js hides subscription plans when billing is disabled
+- Premium banner hidden when billing is off
+- Subscription menu item hidden when billing is off
+
+**Files Modified:**
+- `/app/mobile/SpiritSongs/src/context/PlayerContext.js`
+- `/app/mobile/SpiritSongs/src/context/SubscriptionContext.js`
+- `/app/mobile/SpiritSongs/src/screens/ProfileScreen.js`
+- `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js`
+- `/app/mobile/SpiritSongs/src/services/downloadService.js`
+- `/app/backend/server.py` - Added billing_enabled to subscription-status
+
+**Build Status:** EAS Build free tier limit reached. Build will reset on Feb 1, 2026.
+
+---
+
 ### 🏷️ Song Categories System (NEW!)
 Complete song categorization system for organizing songs by liturgical season/purpose:
 
