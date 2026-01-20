@@ -7542,6 +7542,10 @@ async def update_burner(burner_id: str, data: dict):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Burner not found")
     
+    # Clear cache so changes take effect immediately
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
+    
     return {"message": "Burner updated"}
 
 @api_router.delete("/layout/burners/{burner_id}")
@@ -7550,6 +7554,9 @@ async def delete_burner(burner_id: str):
     result = await db.layout_burners.delete_one({"burner_id": burner_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Burner not found")
+    # Clear cache
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
     return {"message": "Burner deleted"}
 
 @api_router.put("/layout/burners/{burner_id}/toggle")
