@@ -251,6 +251,7 @@ export const SubscriptionProvider = ({ children }) => {
     features,
     loading,
     subscriptionExpiry,
+    billingEnabled,
     canPerformAction,
     canSkip,
     useSkip,
