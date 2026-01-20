@@ -1029,7 +1029,8 @@ export default function LayoutManagementPage() {
       background_gradient: section.background_gradient || "",
       link_type: section.link_type || "",
       link_target: section.link_target || "",
-      layout_style: section.layout_style || "horizontal_small"
+      layout_style: section.layout_style || "horizontal_small",
+      quick_access_items: section.quick_access_items || []
     });
     setIsSectionModalOpen(true);
   };
@@ -1040,7 +1041,8 @@ export default function LayoutManagementPage() {
       section_type: "custom", description: "",
       platforms: ["app", "web"], content_type: "", content_count: 10,
       background_color: "", background_gradient: "", link_type: "", link_target: "",
-      layout_style: "horizontal_small"
+      layout_style: "horizontal_small",
+      quick_access_items: []
     });
   };
 
