@@ -1543,6 +1543,10 @@ async def create_special_mix(data: dict):
     if not songs or len(songs) == 0:
         raise HTTPException(status_code=400, detail="At least one song is required")
     
+    # Enforce 14 song limit
+    if len(songs) > 14:
+        raise HTTPException(status_code=400, detail="Special mix can have a maximum of 14 songs")
+    
     # Validate songs exist and get their details
     song_ids = [s.get("song_id") for s in songs]
     existing_songs = await db.songs.find({"song_id": {"$in": song_ids}}, {"_id": 0}).to_list(100)
