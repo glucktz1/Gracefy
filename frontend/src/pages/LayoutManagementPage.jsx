@@ -41,6 +41,8 @@ const SECTION_TYPES = [
   { value: "leader_content", label: "Leader Content", icon: BookOpen },
   { value: "choirs", label: "Choirs & Artists", icon: Users },
   { value: "churches", label: "Churches", icon: Church },
+  { value: "religious_leaders", label: "Religious Leaders", icon: UserCircle },
+  { value: "bible_content", label: "Biblia na Vitabu", icon: Book },
   { value: "special_mixes", label: "Special Mixes", icon: Disc },
   { value: "seasonal", label: "Seasonal Section", icon: Calendar },
   { value: "trending", label: "Trending/Popular", icon: Crown },
