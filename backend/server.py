@@ -7324,6 +7324,10 @@ async def update_layout_section(section_id: str, data: dict):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Section not found")
     
+    # Clear cache so changes take effect immediately
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
+    
     return {"message": "Section updated"}
 
 @api_router.delete("/layout/sections/{section_id}")
