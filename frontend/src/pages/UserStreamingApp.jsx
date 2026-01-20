@@ -93,21 +93,8 @@ const formatTime = (seconds) => {
 const getThumbnail = (item) => {
   if (!item) return null;
   // Prefer direct thumbnail URL, then thumbnail_url field, then thumbnail field
-  if (item.thumbnail_url) {
-    // If it's a relative URL, prepend the backend URL
-    if (item.thumbnail_url.startsWith('/')) {
-      return `${BACKEND_URL}${item.thumbnail_url}`;
-    }
-    return item.thumbnail_url;
-  }
-  if (item.thumbnail) {
-    // If it's a relative URL, prepend the backend URL
-    if (item.thumbnail.startsWith('/')) {
-      return `${BACKEND_URL}${item.thumbnail}`;
-    }
-    return item.thumbnail;
-  }
-  return null;
+  const url = item.thumbnail_url || item.thumbnail;
+  return getImageUrl(url);
 };
 
 // ==================== AUDIO PLAYER HOOK ====================
