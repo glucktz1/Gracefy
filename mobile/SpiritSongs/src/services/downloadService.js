@@ -36,12 +36,49 @@ const requestStoragePermission = async () => {
   if (Platform.OS !== 'android') return true;
   
   try {
-    // For Android 13+, we don't need to request legacy storage permissions
-    // since we're using app-specific directories
+    // For Android 13+ (API 33+), we use app-specific directories which don't need permissions
     if (Platform.Version >= 33) {
+      console.log('Android 13+: Using app-specific storage (no permission needed)');
       return true;
     }
     
+    // For Android 10-12, try to request WRITE_EXTERNAL_STORAGE
+    if (Platform.Version >= 29) {
+      // Check if already granted
+      const hasPermission = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+      );
+      if (hasPermission) {
+        console.log('Storage permission already granted');
+        return true;
+      }
+      
+      // Request permission
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        {
+          title: 'Storage Permission Required',
+          message: 'Gracefy needs storage access to download songs for offline listening.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'Allow',
+        },
+      );
+      
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Storage permission granted');
+        return true;
+      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+        console.log('Storage permission permanently denied - using app storage');
+        // Fall back to app-specific storage
+        return true;
+      } else {
+        console.log('Storage permission denied - using app storage');
+        return true; // Continue with app-specific storage
+      }
+    }
+    
+    // For Android 9 and below
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
       {
