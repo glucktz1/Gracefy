@@ -1140,6 +1140,53 @@ export default function AlbumsPage() {
                 </Select>
               </div>
               
+              {/* Song Categories Selection */}
+              <div className="form-group">
+                <label className="form-label">Song Categories</label>
+                <p className="text-xs text-zinc-500 mb-2">Select categories this song belongs to (e.g., Christmas, Easter)</p>
+                <div className="flex flex-wrap gap-2 p-3 bg-zinc-950 border border-zinc-800 rounded-lg max-h-32 overflow-y-auto">
+                  {songCategories.length === 0 ? (
+                    <p className="text-xs text-zinc-500">No song categories available. Add categories in Song Categories page.</p>
+                  ) : (
+                    songCategories.map((cat) => {
+                      const isSelected = (songFormData.song_categories || []).includes(cat.song_category_id);
+                      return (
+                        <button
+                          key={cat.song_category_id}
+                          type="button"
+                          onClick={() => {
+                            const currentIds = songFormData.song_categories || [];
+                            const currentNames = songFormData.song_category_names || [];
+                            if (isSelected) {
+                              setSongFormData({
+                                ...songFormData,
+                                song_categories: currentIds.filter(id => id !== cat.song_category_id),
+                                song_category_names: currentNames.filter(n => n !== cat.name)
+                              });
+                            } else {
+                              setSongFormData({
+                                ...songFormData,
+                                song_categories: [...currentIds, cat.song_category_id],
+                                song_category_names: [...currentNames, cat.name]
+                              });
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                            isSelected 
+                              ? 'text-white' 
+                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                          }`}
+                          style={isSelected ? { backgroundColor: cat.color } : {}}
+                        >
+                          {isSelected && <Check size={12} />}
+                          {cat.name}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+              
               <div className="form-group">
                 <label className="form-label">Lyrics (optional)</label>
                 <Textarea
