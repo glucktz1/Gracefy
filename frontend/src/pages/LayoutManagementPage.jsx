@@ -1717,6 +1717,184 @@ export default function LayoutManagementPage() {
                 </div>
               )}
 
+              {/* Quick Access Items Editor - only show for quick_access section type */}
+              {sectionForm.section_type === "quick_access" && (
+                <div className="border-t border-zinc-800 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm text-zinc-400">Quick Access Items</label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        const newItem = {
+                          id: `item_${Date.now()}`,
+                          name: "New Item",
+                          name_sw: "",
+                          icon: "star",
+                          gradient: ["#6366f1", "#8b5cf6"],
+                          navigation: "Library",
+                          navigation_params: {},
+                          sort_order: (sectionForm.quick_access_items?.length || 0) + 1,
+                          is_active: true
+                        };
+                        setSectionForm({
+                          ...sectionForm,
+                          quick_access_items: [...(sectionForm.quick_access_items || []), newItem]
+                        });
+                      }}
+                      className="bg-violet-600 hover:bg-violet-700 h-7 text-xs"
+                    >
+                      <Plus size={14} className="mr-1" /> Add Item
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {(sectionForm.quick_access_items || []).map((item, idx) => (
+                      <div key={item.id || idx} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                        <div className="flex items-start gap-3">
+                          {/* Color Preview */}
+                          <div 
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: `linear-gradient(135deg, ${item.gradient?.[0] || '#6366f1'}, ${item.gradient?.[1] || '#8b5cf6'})` }}
+                          >
+                            <span className="text-white text-lg">
+                              {item.icon === 'heart' && '❤️'}
+                              {item.icon === 'download' && '⬇️'}
+                              {item.icon === 'list' && '📋'}
+                              {item.icon === 'library' && '📚'}
+                              {item.icon === 'star' && '⭐'}
+                              {item.icon === 'time' && '🕐'}
+                              {!['heart', 'download', 'list', 'library', 'star', 'time'].includes(item.icon) && '🎵'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex-1 grid grid-cols-2 gap-2">
+                            <Input
+                              value={item.name}
+                              onChange={(e) => {
+                                const updated = [...sectionForm.quick_access_items];
+                                updated[idx] = { ...updated[idx], name: e.target.value };
+                                setSectionForm({ ...sectionForm, quick_access_items: updated });
+                              }}
+                              placeholder="Name (English)"
+                              className="bg-zinc-900 border-zinc-700 text-white text-sm h-8"
+                            />
+                            <Input
+                              value={item.name_sw}
+                              onChange={(e) => {
+                                const updated = [...sectionForm.quick_access_items];
+                                updated[idx] = { ...updated[idx], name_sw: e.target.value };
+                                setSectionForm({ ...sectionForm, quick_access_items: updated });
+                              }}
+                              placeholder="Name (Swahili)"
+                              className="bg-zinc-900 border-zinc-700 text-white text-sm h-8"
+                            />
+                            <Select
+                              value={item.icon}
+                              onValueChange={(v) => {
+                                const updated = [...sectionForm.quick_access_items];
+                                updated[idx] = { ...updated[idx], icon: v };
+                                setSectionForm({ ...sectionForm, quick_access_items: updated });
+                              }}
+                            >
+                              <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-sm h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-900 border-zinc-800">
+                                <SelectItem value="heart">❤️ Heart (Liked)</SelectItem>
+                                <SelectItem value="download">⬇️ Download</SelectItem>
+                                <SelectItem value="list">📋 List (Playlists)</SelectItem>
+                                <SelectItem value="library">📚 Library</SelectItem>
+                                <SelectItem value="star">⭐ Star</SelectItem>
+                                <SelectItem value="time">🕐 Time (Recent)</SelectItem>
+                                <SelectItem value="musical-notes">🎵 Music</SelectItem>
+                                <SelectItem value="albums">💿 Albums</SelectItem>
+                                <SelectItem value="people">👥 Artists</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={item.navigation}
+                              onValueChange={(v) => {
+                                const updated = [...sectionForm.quick_access_items];
+                                const navParams = v === 'Library' ? { activeTab: item.id } : {};
+                                updated[idx] = { ...updated[idx], navigation: v, navigation_params: navParams };
+                                setSectionForm({ ...sectionForm, quick_access_items: updated });
+                              }}
+                            >
+                              <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-sm h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-900 border-zinc-800">
+                                <SelectItem value="Library">Library Screen</SelectItem>
+                                <SelectItem value="Search">Search Screen</SelectItem>
+                                <SelectItem value="Profile">Profile Screen</SelectItem>
+                                <SelectItem value="Bible">Bible Screen</SelectItem>
+                                <SelectItem value="Subscription">Subscription</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="flex gap-1">
+                              <Input
+                                type="color"
+                                value={item.gradient?.[0] || '#6366f1'}
+                                onChange={(e) => {
+                                  const updated = [...sectionForm.quick_access_items];
+                                  updated[idx] = { ...updated[idx], gradient: [e.target.value, item.gradient?.[1] || '#8b5cf6'] };
+                                  setSectionForm({ ...sectionForm, quick_access_items: updated });
+                                }}
+                                className="w-8 h-8 p-0.5 bg-zinc-900 border-zinc-700 rounded"
+                                title="Gradient Start"
+                              />
+                              <Input
+                                type="color"
+                                value={item.gradient?.[1] || '#8b5cf6'}
+                                onChange={(e) => {
+                                  const updated = [...sectionForm.quick_access_items];
+                                  updated[idx] = { ...updated[idx], gradient: [item.gradient?.[0] || '#6366f1', e.target.value] };
+                                  setSectionForm({ ...sectionForm, quick_access_items: updated });
+                                }}
+                                className="w-8 h-8 p-0.5 bg-zinc-900 border-zinc-700 rounded"
+                                title="Gradient End"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={item.is_active !== false}
+                                onCheckedChange={(checked) => {
+                                  const updated = [...sectionForm.quick_access_items];
+                                  updated[idx] = { ...updated[idx], is_active: checked };
+                                  setSectionForm({ ...sectionForm, quick_access_items: updated });
+                                }}
+                                className="data-[state=checked]:bg-emerald-600"
+                              />
+                              <span className="text-xs text-zinc-500">Active</span>
+                            </div>
+                          </div>
+                          
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              const updated = sectionForm.quick_access_items.filter((_, i) => i !== idx);
+                              setSectionForm({ ...sectionForm, quick_access_items: updated });
+                            }}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-8 w-8 p-0"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {(!sectionForm.quick_access_items || sectionForm.quick_access_items.length === 0) && (
+                      <div className="text-center py-6 text-zinc-500 text-sm">
+                        No quick access items. Click "Add Item" to create one.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="border-t border-zinc-800 pt-4">
                 <label className="text-sm text-zinc-400 mb-2 block">Link Section To</label>
                 <div className="grid grid-cols-2 gap-4">
