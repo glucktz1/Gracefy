@@ -16,6 +16,49 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
+### 🎛️ Dynamic Layout Manager System (NEW)
+Comprehensive layout management system allowing admin to control all mobile app sections:
+
+**New Features:**
+- **Default Sections Auto-Created**: 15 pre-configured sections matching mobile app design
+- **Layout Styles**: Admin can choose how each section is displayed:
+  - `horizontal_small` - Small horizontal scrollable tiles
+  - `horizontal_large` - Large horizontal cards
+  - `horizontal_cards` - Standard horizontal cards
+  - `vertical_list` - Vertical scrollable list
+  - `grid` - 2x2 grid layout
+  - `tafakari_cards` - Tafakari style cards
+- **Sync Defaults Button**: One-click to add all missing default sections
+- **Bilingual Labels**: Support for Swahili (display_name_sw) and English (display_name_en)
+
+**Default Sections Created:**
+1. Hero Section
+2. Quick Access
+3. Biblia na Masomo (Bible & Lessons)
+4. Makanisa (Churches)
+5. Endelea Kusikiliza (Continue Listening)
+6. Albam Maarufu (Popular Albums)
+7. Mpya Chaguo Bora (New Top Picks)
+8. Albam Zinazosikilizwa Zaidi (Most Listened Albums)
+9. Nyimbo za Krismasi (Christmas Songs)
+10. Nyimbo za Kwaresima (Lent Songs)
+11. Mahubiri na Tafakari (Sermons & Reflections)
+12. Mafundisho na Katekesi (Teachings & Catechesis)
+13. Mpya (New Releases)
+14. Kwaya na Wasanii (Choirs & Artists)
+15. Viongozi wa Dini (Religious Leaders)
+
+**New API Endpoints:**
+- `POST /api/layout/sections/sync-defaults` - Add missing default sections
+- `POST /api/layout/sections/reset-all` - Reset all sections to defaults
+
+**Files Modified:**
+- `/app/backend/server.py` - New DEFAULT_SECTIONS, sync/reset endpoints
+- `/app/frontend/src/pages/LayoutManagementPage.jsx` - Layout style selector, sync button
+- `/app/mobile/SpiritSongs/src/screens/HomeScreen.js` - Dynamic section rendering
+
+---
+
 ### 📱 Mobile App Bug Fixes & Bible Search
 Fixed critical mobile app issues and added Bible book search functionality:
 
@@ -37,7 +80,7 @@ Fixed critical mobile app issues and added Bible book search functionality:
 
 ---
 
-### 🎵 Audio Encoding Service (NEW)
+### 🎵 Audio Encoding Service
 Implemented asynchronous audio encoding with FFmpeg for adaptive streaming:
 
 **Feature Details:**
