@@ -26,12 +26,24 @@ Implemented Bunny CDN for fast global media delivery:
 - **Admin Dashboard UI**: Full CDN management page at `/admin/cdn`
 - **Migration Tool**: One-click migrate MongoDB files to CDN
 - **Max File Size**: 100MB for audio, 10MB for images
+- **App & Web CDN Support**: Both PWA and mobile app handle CDN URLs seamlessly
 
 **Admin Dashboard Features:**
 - Overview: Total storage, audio files, images, MongoDB files count
 - Storage breakdown with progress bars per folder
 - Files browser: View, open, and delete CDN files
 - Migration tab: Migrate existing MongoDB files to CDN with progress tracking
+
+**Frontend CDN Support (PWA):**
+- `getAudioUrl()` helper - Handles CDN URLs, relative URLs, and file IDs
+- `getImageUrl()` helper - Handles CDN URLs for thumbnails/images
+- Updated `playSong()`, `playSongAtIndex()`, `handleDownloadSong()` to use CDN URLs
+- MediaSession artwork properly loads from CDN
+
+**Mobile App CDN Support:**
+- `getAudioUrl()` in api.js already handles CDN URLs (http/https)
+- `getThumbnailUrl()` in api.js handles CDN image URLs
+- Download service uses `getAudioUrl()` for CDN downloads
 
 **Configuration:**
 - Storage Zone: `gracefy-media`
@@ -49,9 +61,10 @@ Implemented Bunny CDN for fast global media delivery:
 - `POST /api/admin/cdn/migrate` - Start migration of MongoDB files to CDN
 - `POST /api/admin/cdn/migrate-songs` - Migrate song audio URLs to CDN
 
-**Files Created:**
+**Files Created/Modified:**
 - `/app/backend/services/bunny_cdn_service.py` - CDN service
 - `/app/frontend/src/pages/CDNManagementPage.jsx` - Admin dashboard page
+- `/app/frontend/src/pages/UserStreamingApp.jsx` - Added CDN URL helpers
 
 **Environment Variables:**
 - `BUNNY_STORAGE_ZONE` - Storage zone name
