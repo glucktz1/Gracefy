@@ -7153,6 +7153,52 @@ async def reorder_sections(data: dict):
     
     return {"message": "Sections reordered", "new_order": section_order}
 
+@api_router.post("/layout/sections/sync-defaults")
+async def sync_default_sections():
+    """Sync/add default sections - only adds missing ones, doesn't delete existing"""
+    existing_ids = await db.layout_sections.distinct("section_id")
+    added = []
+    
+    for section in DEFAULT_SECTIONS:
+        if section["section_id"] not in existing_ids:
+            data_copy = {**section}
+            data_copy["created_at"] = datetime.now(timezone.utc).isoformat()
+            data_copy["updated_at"] = datetime.now(timezone.utc).isoformat()
+            await db.layout_sections.insert_one(data_copy)
+            added.append(section["section_id"])
+    
+    # Invalidate cache
+    await invalidate_home_cache()
+    await invalidate_layout_cache()
+    
+    return {
+        "message": f"Synced {len(added)} new sections",
+        "added_sections": added,
+        "total_default_sections": len(DEFAULT_SECTIONS)
+    }
+
+@api_router.post("/layout/sections/reset-all")
+async def reset_all_sections():
+    """Reset all sections to defaults - WARNING: deletes all custom sections"""
+    # Delete all existing sections
+    await db.layout_sections.delete_many({})
+    
+    # Insert defaults
+    for section in DEFAULT_SECTIONS:
+        data_copy = {**section}
+        data_copy["created_at"] = datetime.now(timezone.utc).isoformat()
+        data_copy["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.layout_sections.insert_one(data_copy)
+    
+    # Invalidate cache
+    await invalidate_home_cache()
+    await invalidate_layout_cache()
+    
+    return {
+        "message": f"Reset {len(DEFAULT_SECTIONS)} sections to defaults",
+        "sections": [s["section_id"] for s in DEFAULT_SECTIONS]
+    }
+
 @api_router.put("/layout/sections/{section_id}/toggle")
 async def toggle_section(section_id: str, data: dict):
     """Toggle section active status"""
