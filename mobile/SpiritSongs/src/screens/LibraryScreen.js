@@ -82,11 +82,13 @@ const PlaylistGridCard = ({ playlist, onPress }) => (
   </TouchableOpacity>
 );
 
-export default function LibraryScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('liked');
+export default function LibraryScreen({ navigation, route }) {
+  const initialTab = route?.params?.activeTab || 'liked';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [library, setLibrary] = useState(null);
   const [likedSongs, setLikedSongs] = useState([]);
   const [downloads, setDownloads] = useState([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState([]);
   const [downloadsSize, setDownloadsSize] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -94,6 +96,13 @@ export default function LibraryScreen({ navigation }) {
   
   const { currentSong, playSong } = usePlayer();
   const { isAuthenticated, user } = useAuth();
+
+  // Update tab when route params change
+  useEffect(() => {
+    if (route?.params?.activeTab) {
+      setActiveTab(route.params.activeTab);
+    }
+  }, [route?.params?.activeTab]);
 
   const fetchLibrary = useCallback(async () => {
     try {
@@ -113,6 +122,9 @@ export default function LibraryScreen({ navigation }) {
         try {
           const data = await libraryService.getLibrary();
           setLibrary(data);
+          
+          // Set recently played from backend
+          setRecentlyPlayed(data.recently_played || []);
           
           // Merge backend favorites with local
           const backendFavIds = (data.favorites || []).map(f => f.item?.song_id || f.id);
