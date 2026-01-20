@@ -59,6 +59,8 @@ const CONTENT_TYPES = [
   { value: "playlists", label: "Playlists" },
   { value: "choirs", label: "Choirs / Artists" },
   { value: "churches", label: "Churches" },
+  { value: "religious_leaders", label: "Religious Leaders" },
+  { value: "bible_content", label: "Bible Content (Snippets)" },
   { value: "special_mixes", label: "Special Mixes" },
   { value: "leader_content", label: "Leader Content (Teachings, Sermons)" },
 ];
