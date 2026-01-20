@@ -13,12 +13,6 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-# Bunny CDN Configuration
-BUNNY_STORAGE_ZONE = os.environ.get('BUNNY_STORAGE_ZONE', 'gracefy-media')
-BUNNY_API_KEY = os.environ.get('BUNNY_API_KEY', '')
-BUNNY_CDN_URL = os.environ.get('BUNNY_CDN_URL', 'https://gracefy-cdn.b-cdn.net')
-BUNNY_STORAGE_REGION = os.environ.get('BUNNY_STORAGE_REGION', 'de')
-
 # Storage API base URL (region-specific)
 STORAGE_REGION_URLS = {
     'de': 'https://storage.bunnycdn.com',  # Germany (default)
@@ -32,7 +26,16 @@ STORAGE_REGION_URLS = {
     'jh': 'https://jh.storage.bunnycdn.com',  # Johannesburg
 }
 
-def get_storage_base_url() -> str:
+def get_bunny_config():
+    """Get Bunny CDN configuration from environment (called lazily)"""
+    return {
+        'storage_zone': os.environ.get('BUNNY_STORAGE_ZONE', 'gracefy-media'),
+        'api_key': os.environ.get('BUNNY_API_KEY', ''),
+        'cdn_url': os.environ.get('BUNNY_CDN_URL', 'https://gracefy-cdn.b-cdn.net'),
+        'storage_region': os.environ.get('BUNNY_STORAGE_REGION', 'de'),
+    }
+
+def get_storage_base_url(region: str = None) -> str:
     """Get the storage API base URL for the configured region"""
     return STORAGE_REGION_URLS.get(BUNNY_STORAGE_REGION, STORAGE_REGION_URLS['de'])
 
