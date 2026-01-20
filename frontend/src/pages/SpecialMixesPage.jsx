@@ -200,6 +200,8 @@ export default function SpecialMixesPage() {
       songs: mix.songs || []
     });
     setSelectedSongs(mix.songs || []);
+    setThumbnailFile(null);
+    setSongCategoryFilter("");
     setIsModalOpen(true);
   };
 
@@ -217,6 +219,8 @@ export default function SpecialMixesPage() {
     });
     setSelectedSongs([]);
     setSongSearch("");
+    setThumbnailFile(null);
+    setSongCategoryFilter("");
   };
 
   const toggleSongSelection = (song, albumInfo) => {
