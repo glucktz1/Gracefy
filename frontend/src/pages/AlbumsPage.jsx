@@ -244,7 +244,9 @@ export default function AlbumsPage() {
       audio_url: "",
       lyrics: "",
       track_number: albumSongs.length + 1,
-      status: "active"
+      status: "active",
+      song_categories: [],
+      song_category_names: []
     });
   };
 
