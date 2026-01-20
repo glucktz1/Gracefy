@@ -7518,6 +7518,10 @@ async def create_burner(data: dict):
     doc["created_at"] = doc["created_at"].isoformat()
     await db.layout_burners.insert_one(doc)
     
+    # Clear cache
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
+    
     return {"burner_id": doc["burner_id"], "message": "Burner created"}
 
 @api_router.put("/layout/burners/{burner_id}")
