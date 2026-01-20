@@ -37,17 +37,20 @@ def get_bunny_config():
 
 def get_storage_base_url(region: str = None) -> str:
     """Get the storage API base URL for the configured region"""
-    return STORAGE_REGION_URLS.get(BUNNY_STORAGE_REGION, STORAGE_REGION_URLS['de'])
+    if region is None:
+        region = get_bunny_config()['storage_region']
+    return STORAGE_REGION_URLS.get(region, STORAGE_REGION_URLS['de'])
 
 
 class BunnyCDNService:
     """Service for uploading files to Bunny CDN and managing media"""
     
     def __init__(self):
-        self.storage_zone = BUNNY_STORAGE_ZONE
-        self.api_key = BUNNY_API_KEY
-        self.cdn_url = BUNNY_CDN_URL.rstrip('/')
-        self.storage_url = get_storage_base_url()
+        config = get_bunny_config()
+        self.storage_zone = config['storage_zone']
+        self.api_key = config['api_key']
+        self.cdn_url = config['cdn_url'].rstrip('/')
+        self.storage_url = get_storage_base_url(config['storage_region'])
         
         if not self.api_key:
             logger.warning("BUNNY_API_KEY not set - CDN uploads will fail")
