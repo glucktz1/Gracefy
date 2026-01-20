@@ -7965,6 +7965,188 @@ async def delete_cdn_file(folder: str, filename: str):
     
     return {"message": "File deleted", "path": storage_path}
 
+# Global migration status
+_migration_status = {
+    "status": None,
+    "total": 0,
+    "migrated": 0,
+    "failed": 0,
+    "progress": 0,
+    "errors": []
+}
+
+@api_router.get("/admin/cdn/migration-status")
+async def get_migration_status():
+    """Get current migration status"""
+    return _migration_status
+
+@api_router.post("/admin/cdn/migrate")
+async def migrate_mongodb_to_cdn():
+    """Migrate all MongoDB-stored files to Bunny CDN"""
+    global bunny_service, _migration_status
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    if _migration_status.get("status") == "running":
+        raise HTTPException(status_code=400, detail="Migration already in progress")
+    
+    # Find all files stored in MongoDB (have 'data' field)
+    files_to_migrate = await db.files.find(
+        {"data": {"$exists": True}, "storage_type": {"$ne": "cdn"}},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    if not files_to_migrate:
+        return {"message": "No files to migrate", "count": 0}
+    
+    # Start migration in background
+    import asyncio
+    asyncio.create_task(_run_migration(files_to_migrate))
+    
+    return {
+        "message": f"Migration started for {len(files_to_migrate)} files",
+        "count": len(files_to_migrate)
+    }
+
+async def _run_migration(files):
+    """Background task to migrate files"""
+    global bunny_service, _migration_status
+    
+    _migration_status = {
+        "status": "running",
+        "total": len(files),
+        "migrated": 0,
+        "failed": 0,
+        "progress": 0,
+        "errors": []
+    }
+    
+    for idx, file_doc in enumerate(files):
+        try:
+            # Decode file content
+            content = base64.b64decode(file_doc["data"])
+            filename = file_doc.get("filename", f"file_{file_doc['file_id']}")
+            content_type = file_doc.get("content_type", "application/octet-stream")
+            
+            # Determine folder based on content type
+            if content_type.startswith("audio"):
+                folder = "audio"
+            elif content_type.startswith("image"):
+                folder = "images"
+            else:
+                folder = "files"
+            
+            # Upload to CDN
+            result = await bunny_service.upload_file(content, filename, folder, content_type)
+            
+            if result.get("success"):
+                # Update database record
+                await db.files.update_one(
+                    {"file_id": file_doc["file_id"]},
+                    {
+                        "$set": {
+                            "cdn_url": result["cdn_url"],
+                            "storage_path": result["storage_path"],
+                            "storage_type": "cdn"
+                        },
+                        "$unset": {"data": ""}  # Remove base64 data to save space
+                    }
+                )
+                _migration_status["migrated"] += 1
+            else:
+                _migration_status["failed"] += 1
+                _migration_status["errors"].append({
+                    "file_id": file_doc["file_id"],
+                    "error": result.get("error", "Unknown error")
+                })
+        except Exception as e:
+            _migration_status["failed"] += 1
+            _migration_status["errors"].append({
+                "file_id": file_doc.get("file_id", "unknown"),
+                "error": str(e)
+            })
+        
+        # Update progress
+        _migration_status["progress"] = int(((idx + 1) / len(files)) * 100)
+    
+    _migration_status["status"] = "completed"
+
+@api_router.post("/admin/cdn/migrate-songs")
+async def migrate_songs_to_cdn():
+    """Migrate all song audio_urls from MongoDB storage to CDN"""
+    global bunny_service
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    # Find songs with local audio URLs (starting with /api/files/)
+    songs = await db.songs.find(
+        {"audio_url": {"$regex": "^/api/files/"}},
+        {"_id": 0, "song_id": 1, "audio_url": 1, "title": 1}
+    ).to_list(1000)
+    
+    migrated = 0
+    failed = 0
+    
+    for song in songs:
+        try:
+            # Extract file_id from URL
+            file_id = song["audio_url"].split("/")[-2] if "/stream" in song["audio_url"] else song["audio_url"].split("/")[-1]
+            
+            # Get file from database
+            file_doc = await db.files.find_one({"file_id": file_id})
+            
+            if file_doc and file_doc.get("cdn_url"):
+                # File already migrated, just update song
+                await db.songs.update_one(
+                    {"song_id": song["song_id"]},
+                    {"$set": {"audio_url": file_doc["cdn_url"]}}
+                )
+                migrated += 1
+            elif file_doc and file_doc.get("data"):
+                # Migrate file first
+                content = base64.b64decode(file_doc["data"])
+                result = await bunny_service.upload_audio(
+                    content, 
+                    file_doc.get("filename", f"{song['song_id']}.mp3"),
+                    file_doc.get("content_type", "audio/mpeg")
+                )
+                
+                if result.get("success"):
+                    # Update file and song
+                    await db.files.update_one(
+                        {"file_id": file_id},
+                        {
+                            "$set": {"cdn_url": result["cdn_url"], "storage_path": result["storage_path"], "storage_type": "cdn"},
+                            "$unset": {"data": ""}
+                        }
+                    )
+                    await db.songs.update_one(
+                        {"song_id": song["song_id"]},
+                        {"$set": {"audio_url": result["cdn_url"]}}
+                    )
+                    migrated += 1
+                else:
+                    failed += 1
+            else:
+                failed += 1
+        except Exception as e:
+            logger.error(f"Failed to migrate song {song.get('song_id')}: {e}")
+            failed += 1
+    
+    return {
+        "message": f"Migration complete: {migrated} songs migrated, {failed} failed",
+        "migrated": migrated,
+        "failed": failed
+    }
+
 # ============== AUDIO ENCODING ENDPOINTS ==============
 
 @api_router.get("/encoding/job/{job_id}")
