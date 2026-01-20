@@ -16,6 +16,68 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
+### 🏷️ Song Categories System (NEW!)
+Complete song categorization system for organizing songs by liturgical season/purpose:
+
+**Features:**
+- **Pre-populated Categories**: Christmas, Easter, Lent, Advent, Wedding, Funeral, Praise & Worship, General
+- **Multi-category Support**: Songs can belong to multiple categories (e.g., both Christmas and Praise & Worship)
+- **Admin CRUD**: Create, edit, delete categories with color coding and icons
+- **Swahili Names**: Each category has both English and Swahili names (Krismasi, Pasaka, Kwaresima, etc.)
+- **System Categories**: Default categories cannot be deleted
+- **Sync Defaults**: One-click button to add any missing default categories
+
+**Admin Features:**
+- Song Categories management page at `/song-categories`
+- Color picker with 10 preset colors
+- Icon selector (gift, sun, cross, heart, flower, music, disc, tags)
+- Sort order for category display
+
+**Song Form Integration:**
+- When adding/editing songs in Albums page, admin can select multiple categories
+- Visual category badges in song selection UI
+
+**API Endpoints:**
+- `GET /api/song-categories` - Get active song categories
+- `GET /api/song-categories/all` - Get all including inactive
+- `POST /api/song-categories` - Create new category
+- `PUT /api/song-categories/{id}` - Update category
+- `DELETE /api/song-categories/{id}` - Delete (non-system only)
+- `POST /api/song-categories/sync-defaults` - Sync default categories
+- `GET /api/albums/songs-by-category?song_category_id=xxx` - Get songs filtered by category
+
+**Files Created:**
+- `/app/frontend/src/pages/SongCategoriesPage.jsx` - Admin management page
+
+**Files Modified:**
+- `/app/backend/server.py` - Added SongCategory model and endpoints
+- `/app/frontend/src/pages/AlbumsPage.jsx` - Song category selection in song form
+- `/app/frontend/src/App.js` - Added route and sidebar link
+
+---
+
+### 🎵 Enhanced Special Mixes (NEW!)
+Major enhancements to Special Mix creation for curated playlists:
+
+**Features:**
+- **Category Filter**: Filter songs by song category (Christmas, Easter, etc.) when creating mixes
+- **14 Song Limit**: Maximum 14 songs per mix (enforced on both frontend and backend)
+- **Thumbnail Upload**: Upload custom mix thumbnail instead of just URL input
+- **Visual Progress**: Shows selected songs count with warning when approaching limit
+- **Category Badges**: Shows song categories in the song selection list
+
+**UI Improvements:**
+- Category filter dropdown above song search
+- Clear filter badge showing active category filter
+- Disabled song selection when at max limit
+- Upload preview with thumbnail image
+
+**API Changes:**
+- `POST /api/special-mixes` - Now enforces 14 song maximum
+- `PUT /api/special-mixes/{id}` - Also enforces 14 song limit
+
+---
+
 ### 🐰 Bunny CDN Integration
 Implemented Bunny CDN for fast global media delivery:
 
