@@ -799,37 +799,26 @@ export default function HomeScreen({ navigation }) {
         />
 
         {/* Biblia na Masomo - Bible Devotional Section */}
-        <BibleDevotionalSection
-          title="Biblia na Masomo"
-          snippets={bibleSnippets}
-          onPress={(snippet) => navigation.navigate('Bible', { snippet })}
-          onNavigateToBible={() => navigation.navigate('Bible')}
-        />
-
-        {/* Churches Section */}
-        <ChurchesSection 
-          churches={churches}
-          onChurchPress={handleChurchPress}
-          title={t('churches')}
-        />
-
-        {/* Debug info - remove after fixing */}
-        {__DEV__ && (
-          <View style={{ padding: 16, backgroundColor: '#1a1a1a', margin: 8, borderRadius: 8 }}>
-            <Text style={{ color: '#fff', fontSize: 12 }}>Debug: sections={sections.length}, albums={allAlbums.length}</Text>
-            <Text style={{ color: '#fff', fontSize: 12 }}>Featured: {featuredAlbums.length}, Continue: {continuePlayingItems.length}</Text>
-          </View>
+        {bibleSnippets.length > 0 && (
+          <BibleDevotionalSection
+            title="Biblia na Masomo"
+            snippets={bibleSnippets}
+            onPress={(snippet) => navigation.navigate('Bible', { snippet })}
+            onNavigateToBible={() => navigation.navigate('Bible')}
+          />
         )}
 
-        {/* Continue Playing - Horizontal small tiles */}
-        <HorizontalSmallTiles
-          title={t('continuePlayingTitle')}
-          items={continuePlayingItems}
-          onItemPress={handleAlbumPress}
-        />
+        {/* Churches Section */}
+        {churches.length > 0 && (
+          <ChurchesSection 
+            churches={churches}
+            onChurchPress={handleChurchPress}
+            title={t('churches')}
+          />
+        )}
 
         {/* Fallback when no content */}
-        {allAlbums.length === 0 && featuredAlbums.length === 0 && (
+        {allAlbums.length === 0 && sections.length === 0 && (
           <View style={{ padding: 32, alignItems: 'center' }}>
             <Ionicons name="musical-notes" size={48} color="#666" />
             <Text style={{ color: '#888', marginTop: 12, textAlign: 'center' }}>
@@ -846,53 +835,6 @@ export default function HomeScreen({ navigation }) {
             onItemPress={handleAlbumPress}
           />
         )}
-
-        {/* Popular Albums - Vertical list */}
-        <VerticalListSection
-          title={t('popularAlbums')}
-          items={popularItems}
-          onItemPress={handleAlbumPress}
-        />
-
-        {/* Top Picks - Changed to Horizontal scroll */}
-        <HorizontalSmallTiles
-          title={t('topPicks')}
-          items={gridItems}
-          onItemPress={handleAlbumPress}
-        />
-
-        {/* New Releases */}
-        <HorizontalSmallTiles
-          title={t('newReleases')}
-          items={newReleasesItems}
-          onItemPress={handleAlbumPress}
-        />
-
-        {/* Mahubiri na Tafakari - New Section with Tafakari style cards */}
-        {allAlbums.length > 2 && (
-          <TafakariSection
-            title={t('mahubirinaTafakari')}
-            items={allAlbums.slice(2, 8)}
-            onItemPress={handleAlbumPress}
-            onPlay={handleAlbumPress}
-          />
-        )}
-
-        {/* Mafundisho na Katekesi - New Section */}
-        {allAlbums.length > 4 && (
-          <HorizontalSmallTiles
-            title={t('mafundishoNaKatekesi')}
-            items={allAlbums.slice(4, 12)}
-            onItemPress={handleAlbumPress}
-          />
-        )}
-
-        {/* Bestselling - Large vertical cards */}
-        <LargeCardsSection
-          title={t('bestselling')}
-          items={bestsellingItems}
-          onItemPress={handleAlbumPress}
-        />
 
         {/* Dynamic sections from admin - rendered based on layout_style */}
         {sections.map((section, idx) => {
