@@ -172,14 +172,8 @@ const useAudioPlayer = () => {
     setCurrentAlbum(album);
     setIsLoading(true);
 
-    let audioUrl = song.audio_url;
-    if (audioUrl) {
-      if (audioUrl.startsWith('/api/files/')) {
-        audioUrl = `${BACKEND_URL}${audioUrl}`;
-      }
-    } else {
-      audioUrl = SAMPLE_AUDIO_URL;
-    }
+    // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
+    const audioUrl = getAudioUrl(song.audio_url);
     
     audioRef.current.src = audioUrl;
     
