@@ -310,17 +310,17 @@ export default function ProfileScreen({ navigation }) {
         {isAuthenticated && (
           <View style={styles.statsSection}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{playlistsCount}</Text>
               <Text style={styles.statLabel}>Playlists</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{likedSongsCount}</Text>
               <Text style={styles.statLabel}>Liked Songs</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{downloadsCount}</Text>
               <Text style={styles.statLabel}>Downloads</Text>
             </View>
           </View>
