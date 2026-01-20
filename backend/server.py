@@ -7636,6 +7636,213 @@ async def get_file_info(file_id: str):
         raise HTTPException(status_code=404, detail="File not found")
     return file_doc
 
+# ============== AUDIO ENCODING ENDPOINTS ==============
+
+@api_router.get("/encoding/job/{job_id}")
+async def get_encoding_job_status(job_id: str):
+    """Get the status of an encoding job"""
+    global encoding_service
+    if encoding_service is None:
+        encoding_service = get_encoding_service(db)
+    
+    job = await encoding_service.get_job_status(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Encoding job not found")
+    
+    return job
+
+@api_router.get("/files/{file_id}/variants")
+async def get_file_variants(file_id: str):
+    """Get all available variants for a file"""
+    file_doc = await db.files.find_one({"file_id": file_id}, {"_id": 0, "data": 0})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    variants = await db.audio_variants.find(
+        {"file_id": file_id},
+        {"_id": 0, "data": 0}
+    ).to_list(20)
+    
+    return {
+        "file_id": file_id,
+        "encoding_status": file_doc.get("encoding_status"),
+        "has_variants": file_doc.get("has_variants", False),
+        "variants": variants
+    }
+
+@api_router.get("/files/{file_id}/variant/{quality}/{format}")
+async def stream_file_variant(file_id: str, quality: str, format: str, request: Request):
+    """Stream a specific variant of an encoded file"""
+    global encoding_service
+    if encoding_service is None:
+        encoding_service = get_encoding_service(db)
+    
+    # Validate quality and format
+    if quality not in ["low", "medium", "high"]:
+        raise HTTPException(status_code=400, detail="Invalid quality. Use: low, medium, high")
+    if format not in ["mp3", "m4a"]:
+        raise HTTPException(status_code=400, detail="Invalid format. Use: mp3, m4a")
+    
+    variant = await encoding_service.get_variant(file_id, quality, format)
+    
+    if not variant:
+        # Fallback to original file if variant not available
+        file_doc = await db.files.find_one({"file_id": file_id})
+        if not file_doc:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        content = base64.b64decode(file_doc["data"])
+        content_type = file_doc.get("content_type", "audio/mpeg")
+    else:
+        content = base64.b64decode(variant["data"])
+        content_type = variant.get("content_type", f"audio/{'mpeg' if format == 'mp3' else 'mp4'}")
+    
+    file_size = len(content)
+    
+    # Handle range requests for audio seeking
+    range_header = request.headers.get("Range")
+    
+    if range_header:
+        range_match = range_header.replace("bytes=", "").split("-")
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if range_match[1] else file_size - 1
+        
+        if start >= file_size:
+            start = 0
+        if end >= file_size:
+            end = file_size - 1
+        
+        chunk = content[start:end + 1]
+        
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(len(chunk)),
+            "Content-Type": content_type,
+            "X-Audio-Quality": quality,
+            "X-Audio-Format": format
+        }
+        
+        return Response(content=chunk, status_code=206, headers=headers, media_type=content_type)
+    
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(file_size),
+        "Content-Type": content_type,
+        "X-Audio-Quality": quality,
+        "X-Audio-Format": format
+    }
+    
+    return Response(content=content, headers=headers, media_type=content_type)
+
+@api_router.get("/files/{file_id}/best-variant")
+async def get_best_variant_url(file_id: str, preferred_format: str = "m4a"):
+    """Get URL to the best available variant for a file"""
+    global encoding_service
+    if encoding_service is None:
+        encoding_service = get_encoding_service(db)
+    
+    variant = await encoding_service.get_best_variant(file_id, preferred_format)
+    
+    if variant:
+        return {
+            "file_id": file_id,
+            "variant_id": variant["variant_id"],
+            "quality": variant["quality"],
+            "format": variant["format"],
+            "bitrate": variant["bitrate"],
+            "size": variant["size"],
+            "url": f"/api/files/{file_id}/variant/{variant['quality']}/{variant['format']}",
+            "has_variant": True
+        }
+    else:
+        # Return original file URL
+        file_doc = await db.files.find_one({"file_id": file_id}, {"_id": 0, "data": 0})
+        if not file_doc:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        return {
+            "file_id": file_id,
+            "url": f"/api/files/{file_id}/stream",
+            "has_variant": False,
+            "encoding_status": file_doc.get("encoding_status")
+        }
+
+@api_router.get("/admin/encoding/stats")
+async def get_encoding_stats():
+    """Get encoding statistics for admin dashboard"""
+    # Count jobs by status
+    pending = await db.encoding_jobs.count_documents({"status": "pending"})
+    processing = await db.encoding_jobs.count_documents({"status": "processing"})
+    completed = await db.encoding_jobs.count_documents({"status": "completed"})
+    failed = await db.encoding_jobs.count_documents({"status": "failed"})
+    
+    # Count total variants
+    total_variants = await db.audio_variants.count_documents({})
+    
+    # Get total size of variants
+    pipeline = [
+        {"$group": {"_id": None, "total_size": {"$sum": "$size"}}}
+    ]
+    size_result = await db.audio_variants.aggregate(pipeline).to_list(1)
+    total_size = size_result[0]["total_size"] if size_result else 0
+    
+    # Get recent jobs
+    recent_jobs = await db.encoding_jobs.find(
+        {},
+        {"_id": 0, "data": 0}
+    ).sort("created_at", -1).limit(10).to_list(10)
+    
+    return {
+        "jobs": {
+            "pending": pending,
+            "processing": processing,
+            "completed": completed,
+            "failed": failed,
+            "total": pending + processing + completed + failed
+        },
+        "variants": {
+            "total": total_variants,
+            "total_size_bytes": total_size,
+            "total_size_mb": round(total_size / (1024 * 1024), 2)
+        },
+        "recent_jobs": recent_jobs
+    }
+
+@api_router.post("/admin/encoding/retry/{job_id}")
+async def retry_encoding_job(job_id: str):
+    """Retry a failed encoding job"""
+    job = await db.encoding_jobs.find_one({"job_id": job_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Encoding job not found")
+    
+    if job["status"] != "failed":
+        raise HTTPException(status_code=400, detail="Can only retry failed jobs")
+    
+    # Get original file
+    file_doc = await db.files.find_one({"file_id": job["file_id"]})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="Original file not found")
+    
+    global encoding_service
+    if encoding_service is None:
+        encoding_service = get_encoding_service(db)
+    
+    # Delete old job and variants
+    await db.encoding_jobs.delete_one({"job_id": job_id})
+    await db.audio_variants.delete_many({"job_id": job_id})
+    
+    # Start new encoding job
+    content = base64.b64decode(file_doc["data"])
+    new_job_id = await encoding_service.start_encoding_job(
+        job["file_id"],
+        content,
+        job["original_filename"],
+        job["original_content_type"]
+    )
+    
+    return {"message": "Encoding job restarted", "new_job_id": new_job_id}
+
 # ============== ROLE-BASED ACCESS CONTROL API ==============
 
 @api_router.get("/rbac/roles")
