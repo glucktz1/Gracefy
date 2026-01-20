@@ -19,6 +19,55 @@ const API = `${BACKEND_URL}/api`;
 // Sample audio for demo (royalty-free)
 const SAMPLE_AUDIO_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
+// Helper function to get proper audio URL - handles CDN URLs, relative URLs, and file IDs
+const getAudioUrl = (audioUrl) => {
+  if (!audioUrl) return SAMPLE_AUDIO_URL;
+  
+  // If it's already a full CDN URL (https://), return as is
+  if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {
+    return audioUrl;
+  }
+  
+  // If it's a relative streaming URL (/api/files/...), prepend backend URL
+  if (audioUrl.startsWith('/api/files/')) {
+    return `${BACKEND_URL}${audioUrl}`;
+  }
+  
+  // If it's just a file ID, construct the streaming URL
+  if (audioUrl && !audioUrl.includes('/')) {
+    return `${BACKEND_URL}/api/files/${audioUrl}/stream`;
+  }
+  
+  // Handle other relative paths
+  if (audioUrl.startsWith('/')) {
+    return `${BACKEND_URL}${audioUrl}`;
+  }
+  
+  return audioUrl;
+};
+
+// Helper function to get proper image/thumbnail URL - handles CDN URLs
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  
+  // If it's already a full URL (https://), return as is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // If it starts with data:, it's a base64 image
+  if (imageUrl.startsWith('data:')) {
+    return imageUrl;
+  }
+  
+  // Handle relative paths
+  if (imageUrl.startsWith('/')) {
+    return `${BACKEND_URL}${imageUrl}`;
+  }
+  
+  return imageUrl;
+};
+
 // Category icons mapping
 const categoryIcons = {
   'prayers': BookOpen,
