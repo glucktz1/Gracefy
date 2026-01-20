@@ -23,6 +23,9 @@ from cache_service import cache, cached, invalidate_home_cache, invalidate_album
 # Import encoding service
 from services.encoding_service import get_encoding_service, EncodingService
 
+# Import Bunny CDN service
+from services.bunny_cdn_service import get_bunny_service, is_cdn_enabled, BunnyCDNService
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -33,6 +36,9 @@ db = client[os.environ['DB_NAME']]
 
 # Initialize encoding service
 encoding_service: EncodingService = None
+
+# Initialize Bunny CDN service
+bunny_service: BunnyCDNService = None
 
 # Create the main app
 app = FastAPI(title="Gracefy Admin API")
