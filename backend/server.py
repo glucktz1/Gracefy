@@ -1700,6 +1700,43 @@ async def get_all_songs_for_mix():
     
     return {"albums": list(songs_by_album.values()), "total_songs": len(songs)}
 
+@api_router.get("/albums/songs-by-category")
+async def get_songs_by_category(song_category_id: Optional[str] = None):
+    """Get all songs grouped by album, optionally filtered by song category"""
+    query = {"status": "active"}
+    
+    # Filter by song category if provided
+    if song_category_id:
+        query["song_categories"] = song_category_id
+    
+    songs = await db.songs.find(query, {"_id": 0}).to_list(10000)
+    
+    # Get unique album IDs
+    album_ids = list(set(song.get("album_id") for song in songs if song.get("album_id")))
+    
+    # Fetch album details
+    albums = await db.albums.find({"album_id": {"$in": album_ids}}, {"_id": 0}).to_list(1000)
+    album_map = {a["album_id"]: a for a in albums}
+    
+    # Group songs by album
+    songs_by_album = {}
+    for song in songs:
+        album_id = song.get("album_id")
+        if not album_id:
+            continue
+        if album_id not in songs_by_album:
+            album_info = album_map.get(album_id, {})
+            songs_by_album[album_id] = {
+                "album_id": album_id,
+                "album_title": album_info.get("title", "Unknown Album"),
+                "album_thumbnail": album_info.get("thumbnail"),
+                "artist_name": album_info.get("artist_name"),
+                "songs": []
+            }
+        songs_by_album[album_id]["songs"].append(song)
+    
+    return {"albums": list(songs_by_album.values()), "total_songs": len(songs)}
+
 # ============== USERS MANAGEMENT ==============
 
 @api_router.get("/users")
