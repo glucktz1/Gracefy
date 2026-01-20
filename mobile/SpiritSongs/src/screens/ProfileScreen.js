@@ -334,25 +334,28 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem} onPress={handleManageSubscription}>
-            <Ionicons name="card-outline" size={24} color="#3498DB" />
-            <Text style={styles.menuText}>Subscription</Text>
-            {isPremium ? (
-              <View style={styles.premiumIndicator}>
-                <Text style={styles.premiumIndicatorText}>Active</Text>
-              </View>
-            ) : (
-              <Text style={styles.upgradeIndicator}>Upgrade</Text>
-            )}
-          </TouchableOpacity>
+          {/* Only show subscription option when billing is enabled */}
+          {billingEnabled && (
+            <TouchableOpacity style={styles.menuItem} onPress={handleManageSubscription}>
+              <Ionicons name="card-outline" size={24} color="#3498DB" />
+              <Text style={styles.menuText}>Subscription</Text>
+              {isPremium ? (
+                <View style={styles.premiumIndicator}>
+                  <Text style={styles.premiumIndicatorText}>Active</Text>
+                </View>
+              ) : (
+                <Text style={styles.upgradeIndicator}>Upgrade</Text>
+              )}
+            </TouchableOpacity>
+          )}
           
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Library')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Library', { activeTab: 'liked' })}>
             <Ionicons name="heart-outline" size={24} color={COLORS.textPrimary} />
             <Text style={styles.menuText}>{t('likedSongs')}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Library', { activeTab: 'downloads' })}>
             <Ionicons name="download-outline" size={24} color={COLORS.textPrimary} />
             <Text style={styles.menuText}>{t('downloads')}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
@@ -368,7 +371,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Library', { activeTab: 'history' })}>
             <Ionicons name="time-outline" size={24} color={COLORS.textPrimary} />
             <Text style={styles.menuText}>{language === 'sw' ? 'Historia ya Kusikiliza' : 'Listening History'}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
@@ -381,20 +384,22 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Subscription Section */}
-        <View style={styles.subscriptionSection}>
-          <Text style={styles.sectionTitle}>Subscription Plans</Text>
-          <Text style={styles.sectionSubtitle}>Choose a plan that works for you</Text>
-          
-          {SUBSCRIPTION_PLANS.map((plan) => (
-            <SubscriptionCard
-              key={plan.id}
-              plan={plan}
-              currentPlan={currentPlan}
-              onSelect={handleSelectPlan}
-            />
-          ))}
-        </View>
+        {/* Subscription Section - Only show when billing is enabled */}
+        {billingEnabled && (
+          <View style={styles.subscriptionSection}>
+            <Text style={styles.sectionTitle}>Subscription Plans</Text>
+            <Text style={styles.sectionSubtitle}>Choose a plan that works for you</Text>
+            
+            {SUBSCRIPTION_PLANS.map((plan) => (
+              <SubscriptionCard
+                key={plan.id}
+                plan={plan}
+                currentPlan={currentPlan}
+                onSelect={handleSelectPlan}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Actions */}
         {isAuthenticated && (
