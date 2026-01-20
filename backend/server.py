@@ -7336,6 +7336,9 @@ async def delete_layout_section(section_id: str):
     result = await db.layout_sections.delete_one({"section_id": section_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Section not found")
+    # Clear cache
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
     return {"message": "Section deleted"}
 
 @api_router.post("/layout/sections/reorder")
@@ -7349,6 +7352,10 @@ async def reorder_sections(data: dict):
             {"section_id": section_id},
             {"$set": {"sort_order": idx + 1, "updated_at": datetime.now(timezone.utc).isoformat()}}
         )
+    
+    # Clear cache so reorder takes effect immediately
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
     
     return {"message": "Sections reordered", "new_order": section_order}
 
