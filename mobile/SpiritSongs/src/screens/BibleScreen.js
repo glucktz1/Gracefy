@@ -1047,6 +1047,59 @@ const styles = StyleSheet.create({
   playButtonTextActive: {
     color: '#000',
   },
+  // Search styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  searchClear: {
+    padding: 4,
+  },
+  noResults: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  // Range book search styles
+  rangeBookSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    height: 40,
+  },
+  rangeSearchIcon: {
+    marginRight: 6,
+  },
+  rangeSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.text,
+  },
   bookGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
