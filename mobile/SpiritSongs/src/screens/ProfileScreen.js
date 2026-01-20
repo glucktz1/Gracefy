@@ -279,8 +279,8 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        {/* Premium Banner for Free Users (non-trial) */}
-        {isAuthenticated && !isPremium && (
+        {/* Premium Banner for Free Users (non-trial) - Only show when billing is enabled */}
+        {isAuthenticated && !isPremium && billingEnabled && (
           <TouchableOpacity 
             style={styles.premiumBanner}
             onPress={handleManageSubscription}
