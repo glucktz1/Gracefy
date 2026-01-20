@@ -14,9 +14,37 @@ Gracefy is a comprehensive Christian music streaming platform with:
 - **Background**: #0A0A1A (Dark with blue tint)
 - **Default Language**: Kiswahili (with English option)
 
-## Latest Updates (Jan 19, 2026)
+## Latest Updates (Jan 20, 2026)
 
-### ⏱️ Bible Listening Limits & Donation Prompt (NEW)
+### 🎛️ Layout Manager Enhancements (NEW)
+Extended the Layout Manager with new section types and content types:
+
+**New Section Types:**
+- `religious_leaders` - Religious Leaders section
+- `bible_content` - Biblia na Vitabu (Bible and Books) section
+
+**New Content Types:**
+- `religious_leaders` - Religious Leaders
+- `bible_content` - Bible Content (Snippets)
+
+**New API Endpoints:**
+- `GET /api/layout/religious-leaders` - Fetch leaders for layout manager
+- `GET /api/layout/bible-content` - Fetch bible snippets for layout
+- `GET /api/layout/special-mixes` - Fetch special mixes for layout
+
+**Content Assignment Modal Updates:**
+- Added Religious Leaders selection tab
+- Added Biblia na Vitabu (Bible snippets) selection tab
+- Added Special Mixes selection tab
+- Fixed choir ID handling (singer_id vs choir_id)
+
+**Files Modified:**
+- `/app/frontend/src/pages/LayoutManagementPage.jsx` - New section types, content types, and modal updates
+- `/app/backend/server.py` - New layout endpoints
+
+## Previous Updates (Jan 19, 2026)
+
+### ⏱️ Bible Listening Limits & Donation Prompt
 Implemented listening time limits and donation prompts to manage TTS costs:
 
 **Feature Details:**
