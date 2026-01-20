@@ -141,7 +141,7 @@ const QuickAccessGrid = ({ items, section, likedSongsCount, playlistsCount, down
                 <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.7)" />
               </LinearGradient>
             )}
-            <Text style={styles.quickAccessText} numberOfLines={2}>{item.name}</Text>
+            <Text style={styles.quickAccessText} numberOfLines={2}>{item.displayName || item.name}</Text>
           </TouchableOpacity>
         );
       })}
