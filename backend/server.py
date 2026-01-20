@@ -3703,6 +3703,10 @@ async def get_user_subscription_status(request: Request):
     trial_info = None
     subscription_info = None
     
+    # Get billing enabled status from app settings
+    app_settings = await db.app_settings.find_one({}, {"_id": 0})
+    billing_enabled = app_settings.get("billing_enabled", True) if app_settings else True
+    
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
         token_doc = await db.user_tokens.find_one({"token": token})
