@@ -96,6 +96,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
     { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
     { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
+    { path: "/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
     // Grouped: Choir and Singers
     { 
       groupId: "choir-singers",
