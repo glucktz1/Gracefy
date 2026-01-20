@@ -3626,6 +3626,378 @@ async def resume_payouts():
     )
     return {"message": "Payouts resumed"}
 
+# ============== PAYMENT GATEWAYS & TRANSACTIONS ==============
+
+# Default payment gateways
+DEFAULT_PAYMENT_GATEWAYS = [
+    {
+        "name": "M-Pesa",
+        "code": "mpesa",
+        "gateway_type": "mobile_money",
+        "country": "TZ",
+        "currency": "TZS",
+        "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/M-PESA_LOGO-01.svg/512px-M-PESA_LOGO-01.svg.png",
+        "is_active": True,
+        "sort_order": 1
+    },
+    {
+        "name": "Tigo Pesa",
+        "code": "tigopesa",
+        "gateway_type": "mobile_money",
+        "country": "TZ",
+        "currency": "TZS",
+        "logo_url": "https://www.tigo.co.tz/sites/default/files/2020-01/tigo-pesa-logo.png",
+        "is_active": True,
+        "sort_order": 2
+    },
+    {
+        "name": "Airtel Money",
+        "code": "airtel",
+        "gateway_type": "mobile_money",
+        "country": "TZ",
+        "currency": "TZS",
+        "logo_url": "https://www.airtel.co.tz/assets/images/airtel-money-logo.png",
+        "is_active": True,
+        "sort_order": 3
+    },
+    {
+        "name": "Halo Pesa",
+        "code": "halopesa",
+        "gateway_type": "mobile_money",
+        "country": "TZ",
+        "currency": "TZS",
+        "logo_url": "https://www.hfrbank.co.tz/assets/images/halopesa-logo.png",
+        "is_active": True,
+        "sort_order": 4
+    },
+    {
+        "name": "Stripe",
+        "code": "stripe",
+        "gateway_type": "card",
+        "country": "GLOBAL",
+        "currency": "USD",
+        "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Stripe_Logo%2C_revised_2016.svg/512px-Stripe_Logo%2C_revised_2016.svg.png",
+        "is_active": True,
+        "sort_order": 5
+    },
+    {
+        "name": "PayPal",
+        "code": "paypal",
+        "gateway_type": "card",
+        "country": "GLOBAL",
+        "currency": "USD",
+        "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/PayPal.svg/512px-PayPal.svg.png",
+        "is_active": True,
+        "sort_order": 6
+    }
+]
+
+@api_router.get("/payment/gateways")
+async def get_payment_gateways():
+    """Get all active payment gateways"""
+    gateways = await db.payment_gateways.find({"is_active": True}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    
+    # Group by type
+    mobile_money = [g for g in gateways if g.get("gateway_type") == "mobile_money"]
+    card = [g for g in gateways if g.get("gateway_type") in ["card", "bank"]]
+    
+    return {
+        "gateways": gateways,
+        "mobile_money": mobile_money,
+        "card": card
+    }
+
+@api_router.post("/payment/gateways/sync-defaults")
+async def sync_default_gateways():
+    """Sync default payment gateways"""
+    added = []
+    existing = await db.payment_gateways.find({}, {"_id": 0}).to_list(100)
+    existing_codes = {g["code"] for g in existing}
+    
+    for gw_data in DEFAULT_PAYMENT_GATEWAYS:
+        if gw_data["code"] not in existing_codes:
+            gw = PaymentGateway(**gw_data)
+            doc = gw.model_dump()
+            doc["created_at"] = doc["created_at"].isoformat()
+            await db.payment_gateways.insert_one(doc)
+            added.append(gw_data["name"])
+    
+    return {"message": f"Synced {len(added)} gateways", "added": added}
+
+@api_router.get("/admin/payment/gateways")
+async def get_all_gateways():
+    """Admin: Get all payment gateways including inactive"""
+    gateways = await db.payment_gateways.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return {"gateways": gateways}
+
+@api_router.put("/admin/payment/gateways/{gateway_id}")
+async def update_gateway(gateway_id: str, data: dict):
+    """Admin: Update payment gateway"""
+    allowed = ["name", "logo_url", "is_active", "sort_order", "config"]
+    update_data = {k: v for k, v in data.items() if k in allowed}
+    result = await db.payment_gateways.update_one({"gateway_id": gateway_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Gateway not found")
+    return {"message": "Gateway updated"}
+
+@api_router.post("/payment/initiate")
+async def initiate_payment(data: dict, request: Request):
+    """Initiate a payment transaction"""
+    user_id = data.get("user_id")
+    plan_id = data.get("plan_id")
+    gateway_code = data.get("gateway_code")
+    phone_number = data.get("phone_number")
+    
+    if not all([user_id, plan_id, gateway_code]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+    
+    # Get subscription plan
+    app_settings = await db.app_settings.find_one({}, {"_id": 0})
+    plans = {
+        "monthly": {
+            "id": "monthly",
+            "name": "Premium Monthly",
+            "amount_tzs": app_settings.get("subscription_price_monthly", 5000) if app_settings else 5000,
+            "amount_usd": 2.99,
+            "duration_days": 30
+        },
+        "yearly": {
+            "id": "yearly", 
+            "name": "Premium Yearly",
+            "amount_tzs": app_settings.get("subscription_price_yearly", 50000) if app_settings else 50000,
+            "amount_usd": 29.99,
+            "duration_days": 365
+        }
+    }
+    
+    plan = plans.get(plan_id)
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    
+    # Get gateway
+    gateway = await db.payment_gateways.find_one({"code": gateway_code, "is_active": True}, {"_id": 0})
+    if not gateway:
+        raise HTTPException(status_code=400, detail="Invalid or inactive payment gateway")
+    
+    # Get user
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
+    
+    # Determine amount and currency
+    amount = plan["amount_tzs"] if gateway.get("currency") == "TZS" else plan["amount_usd"]
+    currency = gateway.get("currency", "TZS")
+    
+    # Create transaction
+    txn = Transaction(
+        user_id=user_id,
+        user_email=user.get("email") if user else None,
+        user_phone=phone_number or (user.get("phone") if user else None),
+        gateway_id=gateway["gateway_id"],
+        gateway_name=gateway["name"],
+        gateway_type=gateway["gateway_type"],
+        payment_method=gateway_code,
+        amount=amount,
+        currency=currency,
+        amount_usd=plan["amount_usd"],
+        plan_id=plan_id,
+        plan_name=plan["name"],
+        plan_duration_days=plan["duration_days"],
+        status="pending",
+        phone_number=phone_number,
+        initiated_at=datetime.now(timezone.utc).isoformat()
+    )
+    
+    doc = txn.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.transactions.insert_one(doc)
+    
+    # Here you would integrate with actual payment gateway
+    # For now, return transaction info for client to proceed
+    
+    return {
+        "transaction_id": doc["transaction_id"],
+        "status": "pending",
+        "amount": amount,
+        "currency": currency,
+        "gateway": gateway["name"],
+        "next_step": "await_payment" if gateway["gateway_type"] == "mobile_money" else "redirect",
+        "message": f"Please complete payment of {currency} {amount:,.0f} via {gateway['name']}"
+    }
+
+@api_router.post("/payment/confirm/{transaction_id}")
+async def confirm_payment(transaction_id: str, data: dict):
+    """Confirm/complete a payment (webhook or manual confirmation)"""
+    external_ref = data.get("external_ref")
+    status = data.get("status", "completed")
+    failure_reason = data.get("failure_reason")
+    
+    txn = await db.transactions.find_one({"transaction_id": transaction_id}, {"_id": 0})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    update_data = {
+        "status": status,
+        "external_ref": external_ref,
+        "completed_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if failure_reason:
+        update_data["failure_reason"] = failure_reason
+    
+    await db.transactions.update_one(
+        {"transaction_id": transaction_id},
+        {"$set": update_data}
+    )
+    
+    # If payment successful, update user subscription
+    if status == "completed":
+        user_id = txn["user_id"]
+        plan_duration = txn["plan_duration_days"]
+        plan_name = txn["plan_name"]
+        
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=plan_duration)).isoformat()
+        
+        await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "subscription.status": "active",
+                "subscription.plan_id": txn["plan_id"],
+                "subscription.plan_name": plan_name,
+                "subscription.started_at": datetime.now(timezone.utc).isoformat(),
+                "subscription.expires_at": expires_at,
+                "subscription.last_payment_id": transaction_id
+            }}
+        )
+        
+        return {"message": "Payment confirmed and subscription activated", "expires_at": expires_at}
+    
+    return {"message": f"Payment status updated to {status}"}
+
+@api_router.get("/payment/status/{transaction_id}")
+async def get_payment_status(transaction_id: str):
+    """Get status of a payment transaction"""
+    txn = await db.transactions.find_one({"transaction_id": transaction_id}, {"_id": 0})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    return {
+        "transaction_id": txn["transaction_id"],
+        "status": txn["status"],
+        "amount": txn["amount"],
+        "currency": txn["currency"],
+        "gateway": txn["gateway_name"],
+        "plan": txn["plan_name"],
+        "initiated_at": txn["initiated_at"],
+        "completed_at": txn.get("completed_at"),
+        "failure_reason": txn.get("failure_reason")
+    }
+
+@api_router.get("/admin/transactions")
+async def get_transactions(
+    status: Optional[str] = None,
+    gateway: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50
+):
+    """Admin: Get all transactions with filters"""
+    query = {}
+    
+    if status:
+        query["status"] = status
+    if gateway:
+        query["payment_method"] = gateway
+    if start_date:
+        query["initiated_at"] = {"$gte": start_date}
+    if end_date:
+        if "initiated_at" in query:
+            query["initiated_at"]["$lte"] = end_date
+        else:
+            query["initiated_at"] = {"$lte": end_date}
+    
+    total = await db.transactions.count_documents(query)
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Get stats
+    stats_pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": "$status",
+            "count": {"$sum": 1},
+            "total_amount": {"$sum": "$amount"}
+        }}
+    ]
+    stats_result = await db.transactions.aggregate(stats_pipeline).to_list(10)
+    stats = {s["_id"]: {"count": s["count"], "total": s["total_amount"]} for s in stats_result}
+    
+    return {
+        "transactions": transactions,
+        "total": total,
+        "stats": stats,
+        "filters": {"status": status, "gateway": gateway, "start_date": start_date, "end_date": end_date}
+    }
+
+@api_router.get("/admin/transactions/export")
+async def export_transactions(
+    status: Optional[str] = None,
+    gateway: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    format: str = "json"
+):
+    """Admin: Export transactions as JSON or CSV"""
+    query = {}
+    if status:
+        query["status"] = status
+    if gateway:
+        query["payment_method"] = gateway
+    if start_date:
+        query["initiated_at"] = {"$gte": start_date}
+    if end_date:
+        if "initiated_at" in query:
+            query["initiated_at"]["$lte"] = end_date
+        else:
+            query["initiated_at"] = {"$lte": end_date}
+    
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    
+    if format == "csv":
+        import csv
+        import io
+        output = io.StringIO()
+        if transactions:
+            writer = csv.DictWriter(output, fieldnames=transactions[0].keys())
+            writer.writeheader()
+            writer.writerows(transactions)
+        
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=transactions.csv"}
+        )
+    
+    return {"transactions": transactions, "count": len(transactions)}
+
+@api_router.get("/user/transactions")
+async def get_user_transactions(request: Request):
+    """Get transactions for current user"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return {"transactions": []}
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        return {"transactions": []}
+    
+    user_id = token_doc.get("user_id")
+    transactions = await db.transactions.find(
+        {"user_id": user_id}, 
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return {"transactions": transactions}
+
 # ============== SUBSCRIPTION FEATURE CONTROLS ==============
 
 DEFAULT_FEATURE_CONTROLS = {
