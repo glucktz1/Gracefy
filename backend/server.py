@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form, Request, Response
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -15,9 +15,13 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import httpx
 import base64
+import io
 
 # Import caching service
 from cache_service import cache, cached, invalidate_home_cache, invalidate_albums_cache, invalidate_layout_cache
+
+# Import encoding service
+from services.encoding_service import get_encoding_service, EncodingService
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -26,6 +30,9 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# Initialize encoding service
+encoding_service: EncodingService = None
 
 # Create the main app
 app = FastAPI(title="Gracefy Admin API")
