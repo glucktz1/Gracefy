@@ -1603,6 +1603,54 @@ export default function LayoutManagementPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Layout Style</label>
+                  <Select value={sectionForm.layout_style} onValueChange={(v) => setSectionForm({ ...sectionForm, layout_style: v })}>
+                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
+                      <SelectValue placeholder="Select layout style" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      {LAYOUT_STYLES.map(style => (
+                        <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Content Count</label>
+                  <Input
+                    type="number"
+                    value={sectionForm.content_count}
+                    onChange={(e) => setSectionForm({ ...sectionForm, content_count: parseInt(e.target.value) || 10 })}
+                    className="bg-zinc-950 border-zinc-800 text-white"
+                    min={1}
+                    max={50}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Display Name (Swahili)</label>
+                  <Input
+                    value={sectionForm.display_name_sw}
+                    onChange={(e) => setSectionForm({ ...sectionForm, display_name_sw: e.target.value })}
+                    placeholder="e.g., Nyimbo za Krismasi"
+                    className="bg-zinc-950 border-zinc-800 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Display Name (English)</label>
+                  <Input
+                    value={sectionForm.display_name_en}
+                    onChange={(e) => setSectionForm({ ...sectionForm, display_name_en: e.target.value })}
+                    placeholder="e.g., Christmas Songs"
+                    className="bg-zinc-950 border-zinc-800 text-white"
+                  />
+                </div>
+              </div>
+
               <div className="border-t border-zinc-800 pt-4">
                 <label className="text-sm text-zinc-400 mb-2 block">Platform Targeting</label>
                 <div className="flex gap-4">
