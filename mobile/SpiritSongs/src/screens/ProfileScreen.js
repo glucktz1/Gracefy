@@ -5,9 +5,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useLanguage } from '../context/LanguageContext';
+import { libraryService } from '../services/api';
+import { getDownloadedSongs } from '../services/downloadService';
 import { COLORS } from '../config';
 
 const { width } = Dimensions.get('window');
