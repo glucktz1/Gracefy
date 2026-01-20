@@ -626,14 +626,33 @@ const BibleScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Book Selection */}
+              {/* Book Selection with Search */}
               <Text style={styles.inputLabel}>{t('bible.book', 'Kitabu')}</Text>
+              <View style={styles.rangeBookSearchContainer}>
+                <Ionicons name="search" size={16} color={COLORS.textSecondary} style={styles.rangeSearchIcon} />
+                <TextInput
+                  style={styles.rangeSearchInput}
+                  placeholder={t('bible.searchBook', 'Tafuta kitabu...')}
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={rangeBookSearch}
+                  onChangeText={setRangeBookSearch}
+                  autoCorrect={false}
+                />
+                {rangeBookSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setRangeBookSearch('')}>
+                    <Ionicons name="close-circle" size={18} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bookPicker}>
-                {books.map(book => (
+                {filteredRangeBooks.map(book => (
                   <TouchableOpacity
                     key={book.book_id}
                     style={[styles.bookPickerItem, rangeBook === book.name && styles.bookPickerItemActive]}
-                    onPress={() => setRangeBook(book.name)}
+                    onPress={() => {
+                      setRangeBook(book.name);
+                      setRangeBookSearch('');
+                    }}
                   >
                     <Text style={[styles.bookPickerText, rangeBook === book.name && styles.bookPickerTextActive]}>
                       {book.name}
