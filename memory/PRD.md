@@ -16,7 +16,41 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
-### 🎛️ Dynamic Layout Manager System (NEW)
+### 🐰 Bunny CDN Integration (NEW)
+Implemented Bunny CDN for fast global media delivery:
+
+**Features:**
+- **Automatic CDN Upload**: All audio/image uploads now go to Bunny CDN by default
+- **Global Edge Delivery**: Files served from worldwide edge locations
+- **MongoDB Fallback**: Automatically falls back if CDN unavailable
+- **Admin Dashboard**: View CDN stats, file counts, storage usage
+- **Max File Size**: 100MB for audio, 10MB for images
+
+**Configuration:**
+- Storage Zone: `gracefy-media`
+- CDN URL: `https://gracefy-cdn.b-cdn.net`
+- Region: Germany (de)
+
+**New API Endpoints:**
+- `POST /api/upload` - Auto-uploads to CDN (with fallback)
+- `POST /api/upload/cdn` - Direct CDN upload
+- `GET /api/admin/cdn/status` - Check CDN configuration
+- `GET /api/admin/cdn/stats` - Storage statistics
+- `GET /api/admin/cdn/files?folder=audio` - List CDN files
+- `DELETE /api/admin/cdn/files/{folder}/{filename}` - Delete CDN file
+
+**Files Created:**
+- `/app/backend/services/bunny_cdn_service.py` - CDN service
+
+**Environment Variables Added:**
+- `BUNNY_STORAGE_ZONE` - Storage zone name
+- `BUNNY_API_KEY` - Storage API key
+- `BUNNY_CDN_URL` - Pull zone URL
+- `BUNNY_STORAGE_REGION` - Storage region (de, ny, la, sg, etc.)
+
+---
+
+### 🎛️ Dynamic Layout Manager System
 Comprehensive layout management system allowing admin to control all mobile app sections:
 
 **New Features:**
