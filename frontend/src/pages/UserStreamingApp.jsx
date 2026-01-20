@@ -2468,7 +2468,8 @@ export default function UserStreamingApp() {
     // For web, we'll open the audio URL in a new tab or trigger download
     if (song.audio_url) {
       const link = document.createElement('a');
-      link.href = song.audio_url;
+      // Use helper to get proper URL (handles CDN URLs)
+      link.href = getAudioUrl(song.audio_url);
       link.download = `${song.title}.mp3`;
       link.target = '_blank';
       document.body.appendChild(link);
