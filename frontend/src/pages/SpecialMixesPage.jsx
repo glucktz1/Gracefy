@@ -672,8 +672,13 @@ export default function SpecialMixesPage() {
             <Button variant="outline" onClick={() => setIsModalOpen(false)} className="border-zinc-700 text-zinc-300">
               Cancel
             </Button>
-            <Button onClick={handleCreateMix} className="bg-violet-600 hover:bg-violet-700">
-              <Save size={16} className="mr-2" /> {editingMix ? 'Update Mix' : 'Create Mix'}
+            <Button 
+              onClick={handleCreateMix} 
+              className="bg-violet-600 hover:bg-violet-700"
+              disabled={isUploading || selectedSongs.length === 0 || selectedSongs.length > MAX_SONGS_PER_MIX}
+            >
+              <Save size={16} className="mr-2" /> 
+              {isUploading ? 'Saving...' : editingMix ? 'Update Mix' : 'Create Mix'}
             </Button>
           </DialogFooter>
         </DialogContent>
