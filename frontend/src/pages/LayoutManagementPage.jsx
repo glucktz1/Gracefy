@@ -4,7 +4,8 @@ import {
   Layout, Plus, Trash2, Edit2, Eye, EyeOff, GripVertical, 
   Smartphone, Monitor, ChevronUp, ChevronDown, Save, RefreshCw,
   Image, Link, Calendar, Crown, Gift, Music2, Grid, Star, Megaphone,
-  X, Check, ExternalLink, Play, Users, Church, Disc, BookOpen, AlertCircle
+  X, Check, ExternalLink, Play, Users, Church, Disc, BookOpen, AlertCircle,
+  Book, UserCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
