@@ -7306,10 +7306,11 @@ async def create_layout_section(data: dict):
 async def update_layout_section(section_id: str, data: dict):
     """Update a layout section"""
     allowed_fields = [
-        "name", "display_name", "section_type", "description", "platforms",
+        "name", "display_name", "display_name_sw", "display_name_en", "section_type", "description", "platforms",
         "is_active", "sort_order", "content_type", "content_ids", "content_count",
         "content_source", "background_image", "background_color", "background_gradient",
-        "link_type", "link_target", "schedule_start", "schedule_end", "last_edited_by"
+        "link_type", "link_target", "schedule_start", "schedule_end", "last_edited_by",
+        "layout_style", "quick_access_items"
     ]
     
     update_data = {k: v for k, v in data.items() if k in allowed_fields}
