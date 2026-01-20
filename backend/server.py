@@ -6922,13 +6922,59 @@ DEFAULT_SECTIONS = [
         "display_name": "Quick Access",
         "display_name_sw": "Ufikiaji wa Haraka",
         "section_type": "quick_access",
-        "description": "Quick access grid for popular categories",
+        "description": "Quick access grid for navigation shortcuts",
         "platforms": ["app", "web"],
         "is_active": True,
         "sort_order": 2,
-        "content_type": "categories",
-        "content_count": 8,
-        "content_ids": [],
+        "content_type": "quick_links",
+        "content_count": 4,
+        "layout_style": "grid_2x2",
+        "quick_access_items": [
+            {
+                "id": "liked",
+                "name": "Liked Songs",
+                "name_sw": "Nyimbo Unazopenda",
+                "icon": "heart",
+                "gradient": ["#7c3aed", "#ec4899"],
+                "navigation": "Library",
+                "navigation_params": {"activeTab": "liked"},
+                "sort_order": 1,
+                "is_active": True
+            },
+            {
+                "id": "playlists",
+                "name": "Playlists",
+                "name_sw": "Orodha za Nyimbo",
+                "icon": "list",
+                "gradient": ["#f97316", "#fb923c"],
+                "navigation": "Library",
+                "navigation_params": {"activeTab": "playlists"},
+                "sort_order": 2,
+                "is_active": True
+            },
+            {
+                "id": "downloads",
+                "name": "Downloads",
+                "name_sw": "Vilivyopakuliwa",
+                "icon": "download",
+                "gradient": ["#22c55e", "#4ade80"],
+                "navigation": "Library",
+                "navigation_params": {"activeTab": "downloads"},
+                "sort_order": 3,
+                "is_active": True
+            },
+            {
+                "id": "library",
+                "name": "Your Library",
+                "name_sw": "Maktaba Yako",
+                "icon": "library",
+                "gradient": ["#3b82f6", "#60a5fa"],
+                "navigation": "Library",
+                "navigation_params": {},
+                "sort_order": 4,
+                "is_active": True
+            }
+        ],
     },
     {
         "section_id": "section_bible_masomo",
