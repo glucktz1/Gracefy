@@ -7869,6 +7869,102 @@ async def get_file_info(file_id: str):
         raise HTTPException(status_code=404, detail="File not found")
     return file_doc
 
+# ============== BUNNY CDN MANAGEMENT ==============
+
+@api_router.get("/admin/cdn/status")
+async def get_cdn_status():
+    """Check CDN configuration status"""
+    global bunny_service
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    return {
+        "enabled": is_cdn_enabled(),
+        "storage_zone": bunny_service.storage_zone,
+        "cdn_url": bunny_service.cdn_url,
+        "storage_region": os.environ.get('BUNNY_STORAGE_REGION', 'de')
+    }
+
+@api_router.get("/admin/cdn/stats")
+async def get_cdn_stats():
+    """Get CDN storage statistics"""
+    global bunny_service
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    stats = await bunny_service.get_storage_stats()
+    
+    if not stats.get("success"):
+        raise HTTPException(status_code=500, detail=stats.get("error", "Failed to get stats"))
+    
+    # Add database stats
+    db_files_count = await db.files.count_documents({"storage_type": "mongodb", "data": {"$exists": True}})
+    cdn_files_count = await db.files.count_documents({"storage_type": "cdn"})
+    
+    stats["database_stats"] = {
+        "mongodb_files": db_files_count,
+        "cdn_files": cdn_files_count,
+        "total_tracked": db_files_count + cdn_files_count
+    }
+    
+    return stats
+
+@api_router.get("/admin/cdn/files")
+async def list_cdn_files(folder: str = "audio", limit: int = 50):
+    """List files in CDN storage"""
+    global bunny_service
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    result = await bunny_service.list_files(folder)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Failed to list files"))
+    
+    files = result.get("files", [])[:limit]
+    
+    # Enhance with CDN URLs
+    for f in files:
+        if f.get("ObjectName"):
+            f["cdn_url"] = bunny_service.get_cdn_url(f"{folder}/{f['ObjectName']}")
+    
+    return {
+        "folder": folder,
+        "files": files,
+        "count": len(files)
+    }
+
+@api_router.delete("/admin/cdn/files/{folder}/{filename}")
+async def delete_cdn_file(folder: str, filename: str):
+    """Delete a file from CDN storage"""
+    global bunny_service
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    storage_path = f"{folder}/{filename}"
+    result = await bunny_service.delete_file(storage_path)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Failed to delete file"))
+    
+    # Also remove from database
+    await db.files.delete_one({"storage_path": storage_path})
+    
+    return {"message": "File deleted", "path": storage_path}
+
 # ============== AUDIO ENCODING ENDPOINTS ==============
 
 @api_router.get("/encoding/job/{job_id}")
