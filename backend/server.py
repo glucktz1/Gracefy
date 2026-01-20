@@ -158,6 +158,23 @@ class Song(BaseModel):
     plays: int = 0
     likes: int = 0
     status: str = "active"  # active, inactive
+    # Song categories (multiple allowed)
+    song_categories: List[str] = []  # List of song_category_id values
+    song_category_names: List[str] = []  # List of category names for display
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SongCategory(BaseModel):
+    """Categories for songs - Christmas, Easter, Lent, etc."""
+    model_config = ConfigDict(extra="ignore")
+    song_category_id: str = Field(default_factory=lambda: f"songcat_{uuid.uuid4().hex[:12]}")
+    name: str
+    name_sw: Optional[str] = None  # Swahili name
+    description: Optional[str] = None
+    color: str = "#6366f1"  # Default indigo color for UI display
+    icon: Optional[str] = None  # Icon name for UI
+    sort_order: int = 0
+    is_system: bool = False  # System categories cannot be deleted
+    status: str = "active"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Church(BaseModel):
