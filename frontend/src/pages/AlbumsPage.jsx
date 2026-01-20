@@ -831,7 +831,9 @@ export default function AlbumsPage() {
                                   audio_url: song.audio_url || "",
                                   lyrics: song.lyrics || "",
                                   track_number: song.track_number || index + 1,
-                                  status: song.status || "active"
+                                  status: song.status || "active",
+                                  song_categories: song.song_categories || [],
+                                  song_category_names: song.song_category_names || []
                                 });
                                 setIsSongModalOpen(true);
                               }} className="text-zinc-300 focus:text-white focus:bg-zinc-800">
