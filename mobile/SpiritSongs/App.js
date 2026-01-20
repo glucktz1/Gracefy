@@ -25,6 +25,7 @@ import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
 import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
 import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
 import ChurchDetailScreen from './src/screens/ChurchDetailScreen';
