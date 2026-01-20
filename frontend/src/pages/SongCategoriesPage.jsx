@@ -351,7 +351,7 @@ export default function SongCategoriesPage() {
                     {Object.keys(CATEGORY_ICONS).map(icon => (
                       <SelectItem key={icon} value={icon} className="text-white">
                         <span className="flex items-center gap-2">
-                          <IconComponent iconName={icon} className="w-4 h-4" />
+                          {renderIcon(icon, "w-4 h-4")}
                           {icon}
                         </span>
                       </SelectItem>
