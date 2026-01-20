@@ -7300,6 +7300,10 @@ async def create_layout_section(data: dict):
     doc["created_at"] = doc["created_at"].isoformat()
     await db.layout_sections.insert_one(doc)
     
+    # Clear cache
+    await cache.delete("home:app:main")
+    await cache.delete("home:web:main")
+    
     return {"section_id": doc["section_id"], "message": "Section created"}
 
 @api_router.put("/layout/sections/{section_id}")
