@@ -368,7 +368,7 @@ export const PlayerProvider = ({ children }) => {
   };
 
   // Playback status update handler - uses ref for handleSongEnd to avoid stale closure
-  const onPlaybackStatusUpdate = (status) => {
+  const onPlaybackStatusUpdate = useCallback((status) => {
     if (status.isLoaded) {
       setPosition(status.positionMillis / 1000);
       setDuration(status.durationMillis / 1000 || 0);
@@ -376,24 +376,26 @@ export const PlayerProvider = ({ children }) => {
       setIsLoading(status.isBuffering);
       setError(null);
       
-      // Check for song end
+      // Check for song end - more robust detection
       if (status.didJustFinish && !status.isLooping) {
-        console.log('*** Playback didJustFinish ***');
-        // Use setTimeout to ensure state is settled
-        setTimeout(() => {
-          handleSongEnd();
-        }, 100);
+        console.log('*** Playback didJustFinish - triggering next song ***');
+        console.log('Current queue length:', queueRef.current.length);
+        console.log('Current index:', queueIndexRef.current);
+        console.log('Repeat mode:', repeatRef.current);
+        
+        // Use immediate execution for more reliable playback
+        handleSongEnd();
       }
     } else if (status.error) {
       console.error('Playback error:', status.error);
       setError(status.error);
       setIsLoading(false);
-      // On error, try next song
+      // On error, try next song after a short delay
       setTimeout(() => {
         playNextSongInternal();
       }, 500);
     }
-  };
+  }, []);
 
   const loadAndPlaySong = async (song, album, startPosition = 0) => {
     if (isLoadingRef.current) {
