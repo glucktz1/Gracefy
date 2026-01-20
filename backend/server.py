@@ -7448,6 +7448,8 @@ async def generate_demo_listening_data():
 @api_router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     """Upload file and return URL (stores in MongoDB)"""
+    global encoding_service
+    
     content = await file.read()
     
     # Check file size (max 50MB for audio, 5MB for images)
@@ -7463,13 +7465,34 @@ async def upload_file(file: UploadFile = File(...)):
         "content_type": file.content_type,
         "size": len(content),
         "data": base64_content,
+        "encoding_status": "pending" if file.content_type and file.content_type.startswith('audio') else None,
+        "has_variants": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     await db.files.insert_one(file_doc)
     
-    # For audio files, return a streaming URL instead of data URL
+    # For audio files, start async encoding job
+    encoding_job_id = None
     if file.content_type and file.content_type.startswith('audio'):
+        if encoding_service is None:
+            encoding_service = get_encoding_service(db)
+        
+        try:
+            encoding_job_id = await encoding_service.start_encoding_job(
+                file_doc["file_id"],
+                content,
+                file.filename,
+                file.content_type
+            )
+            # Update file with encoding job reference
+            await db.files.update_one(
+                {"file_id": file_doc["file_id"]},
+                {"$set": {"encoding_job_id": encoding_job_id, "encoding_status": "processing"}}
+            )
+        except Exception as e:
+            logger.error(f"Failed to start encoding job: {e}")
+        
         url = f"/api/files/{file_doc['file_id']}/stream"
     else:
         # For images, return data URL for immediate display
@@ -7480,12 +7503,15 @@ async def upload_file(file: UploadFile = File(...)):
         "url": url,
         "filename": file.filename,
         "content_type": file.content_type,
-        "size": len(content)
+        "size": len(content),
+        "encoding_job_id": encoding_job_id,
+        "encoding_status": "processing" if encoding_job_id else None
     }
 
 @api_router.post("/upload/multiple")
 async def upload_multiple_files(files: List[UploadFile] = File(...)):
     """Upload multiple files at once (for bulk song upload)"""
+    global encoding_service
     results = []
     
     for file in files:
@@ -7508,6 +7534,8 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
             "content_type": file.content_type,
             "size": len(content),
             "data": base64_content,
+            "encoding_status": "pending" if file.content_type and file.content_type.startswith('audio') else None,
+            "has_variants": False,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         
@@ -7516,8 +7544,26 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
         # Extract song name from filename (remove extension)
         song_name = Path(file.filename).stem if file.filename else "Unknown"
         
-        # For audio, return streaming URL
+        # For audio files, start async encoding job
+        encoding_job_id = None
         if file.content_type and file.content_type.startswith('audio'):
+            if encoding_service is None:
+                encoding_service = get_encoding_service(db)
+            
+            try:
+                encoding_job_id = await encoding_service.start_encoding_job(
+                    file_doc["file_id"],
+                    content,
+                    file.filename,
+                    file.content_type
+                )
+                await db.files.update_one(
+                    {"file_id": file_doc["file_id"]},
+                    {"$set": {"encoding_job_id": encoding_job_id, "encoding_status": "processing"}}
+                )
+            except Exception as e:
+                logger.error(f"Failed to start encoding job: {e}")
+            
             url = f"/api/files/{file_doc['file_id']}/stream"
         else:
             url = f"data:{file.content_type};base64,{base64_content}"
@@ -7528,7 +7574,9 @@ async def upload_multiple_files(files: List[UploadFile] = File(...)):
             "filename": file.filename,
             "song_name": song_name,
             "content_type": file.content_type,
-            "size": len(content)
+            "size": len(content),
+            "encoding_job_id": encoding_job_id,
+            "encoding_status": "processing" if encoding_job_id else None
         })
     
     return {"files": results, "total": len(results)}
