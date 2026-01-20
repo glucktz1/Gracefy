@@ -2,26 +2,28 @@
 The user wants to build a comprehensive Christian music streaming app, Gracefy.
 
 The user's requests in this session were:
-1.  Implement a listening time limit for the Bible audio feature, with different rules for free and paid users, and an admin panel to configure the limits.
-2.  Fix missing album cover thumbnails on the PWA home page.
-3.  Fix the PWA hero section to display dynamic albums from the Layout Manager instead of a static Upgrade to Premium banner.
-4.  Add support for Churches and other content types (choirs, artists) to the Layout Manager and render them on the user-facing app.
-5.  Fix a bug in the React Native app where music playback stops after a single song and does not continue to the next one.
-6.  Fix a file download/permission error on the React Native app.
-7.  Build a new version of the Android app () incorporating the fixes.
-8.  Add a Biblia na masomo (Bible and lessons) section to the mobile app's home screen.
-9.  Add the ability for an admin to delete sections from the Layout Manager.
+1.  Enhance the Layout Manager to allow section deletion and add new content types: biblia na vitabu, religious leaders, choirs, and special mixes.
+2.  Implement a file encoding service for audio uploads to create multiple quality variants (e.g., 128kbps, 256kbps).
+3.  Implement a CDN (Bunny CDN) for storing and serving all media files.
+4.  Fix critical mobile app bugs: continuous playback stopping after one song and file download/storage permission errors.
+5.  Add a search capability to the Bible book selection screen in the mobile app.
+6.  Make the mobile app's home screen layout fully dynamic and controllable from the admin Layout Manager, with specific sections like Lent songs, Nyimbo za krismasi, etc., being horizontally scrollable.
+7.  Add a UI in the admin dashboard to show CDN stats and a script to migrate existing files to the CDN.
+8.  Update both the web and mobile apps to work seamlessly with CDN URLs.
+9.  Remove the now-redundant Supabase integration to simplify the architecture.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a FastAPI backend, a React PWA, and a React Native mobile app. The PWA and backend are mostly feature-complete for the core music streaming and Bible module. The agent has implemented several critical fixes and features in this session, including a listening limit system for the Bible, fixing major UI bugs on the PWA (thumbnails, hero section), and adding Churches to the layout system. On the mobile app, the agent attempted to fix continuous playback and download permissions and successfully produced a new build (). Work to add a Bible section to the mobile home screen has begun.
+A full-stack application (FastAPI, React PWA, React Native mobile app). In this session, the agent has made significant infrastructure and feature updates. A background audio encoding service using FFmpeg was created to transcode uploaded audio into multiple quality bitrates. Bunny CDN was integrated as the primary storage for all new media uploads, and the PWA and mobile apps were updated to handle CDN URLs. The admin panel now features a CDN management page with stats and a migration tool.
+
+On the mobile app, several user requests were implemented in the code: the home screen is now fully dynamic and configurable from the backend Layout Manager, and a search feature was added to the Bible screen. Code-level fixes were applied for the persistent continuous playback and download permission bugs. The Supabase integration was identified as redundant and its removal is currently underway.
 
 **Last working item**:
-    - Last item agent was working: The user requested several enhancements for the Layout Manager page, including the ability to delete sections and add support for new content types like biblia na vitabu, religious leaders, choirs, and special mixes. The agent was beginning to implement these changes.
+    - Last item agent was working: The agent was in the process of removing the redundant Supabase integration from the entire application to simplify the architecture. This involved removing code from the backend (, ), and frontend ().
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? frontend testing agent
+    - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
@@ -32,63 +34,66 @@ A full-stack application with a FastAPI backend, a React PWA, and a React Native
   
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent refactored  to use  to prevent stale state within the  callback. However, the user reported the issue persists.
+     - Attempted fixes: The agent refactored  to more robustly handle the  callback and the  function. The code changes are complete, but they have not been tested on a device.
      - Next debug checklist: 
-        1. Review the  logic again. Specifically, log the , , and  inside the  function to ensure they hold the correct, updated values when a song finishes.
-        2. Verify that the  is consistently being called with .
-        3. Check the  logic to ensure it correctly identifies the next track index based on the play mode (sequence, repeat, shuffle).
+        1.  Build a new  file incorporating the latest changes.
+        2.  Provide the  to the user for testing on a physical device to confirm if the continuous playback issue is resolved.
+        3.  If the issue persists, add remote logging to capture the player state and playback events in a real-world scenario.
      - Why fix this issue and what will be achieved with the fix? This is a critical bug breaking the core user experience of continuous music listening. Fixing it is essential for app usability.
      - Status:  IN PROGRESS
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
   - Issue 2: 
-     - Attempted fixes: The agent created a new  to prompt for  permissions on app startup. The user reported still seeing a permission-related error for downloads.
+     - Attempted fixes: The agent improved the  by adding more robust permission checks and clearer error handling within the  and  functions. The code is ready but not yet tested in a build.
      - Next debug checklist: 
-        1. Verify the  correctly requests both  and  permissions on relevant Android versions.
-        2. In , add more robust logging around the  call to capture the exact error when directory creation fails.
-        3. Ensure the permission request is triggered *before* any download attempt is made.
+        1.  Build a new  file.
+        2.  Have the user test the download functionality to see if the permission errors are gone.
+        3.  Ensure the  is correctly requesting all necessary storage permissions on modern Android versions.
      - Why fix this issue and what will be achieved with the fix? Offline playback is a key feature. This bug prevents users from downloading any content.
      - Status:  IN PROGRESS
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
   - Issue 3: 
-     - Attempted fixes: The agent fixed several JSX syntax errors in  that were breaking the bundler, which led to a successful build.
-     - Next debug checklist: The risk remains. Enforce stricter linting and pre-commit hooks to catch syntax errors before they break the remote build process.
+     - Attempted fixes: None in this session, but the agent has previously fixed syntax errors that caused build failures.
+     - Next debug checklist: Maintain a strict linting process. After completing the current set of tasks, run a full lint check on the  directory before initiating a build.
      - Why fix this issue and what will be achieved with the fix? A stable build process is required to deliver any mobile app changes to the user.
-     - Status:  IN PROGRESS
+     - Status:  NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
   - Issue 4: 
-     - Attempted fixes: None.
-     - Next debug checklist: Propose a plan to the user to break down  into FastAPI routers (e.g., , ) and  into smaller, manageable components (e.g., , ).
+     - Attempted fixes: The removal of Supabase code is a step towards reducing the size of , but the file remains very large.
+     - Next debug checklist: Propose a dedicated refactoring task to the user to break down  into FastAPI routers (e.g., , , ) and  into smaller components.
      - Why fix this issue and what will be achieved with the fix? Reduces complexity, improves maintainability, and lowers the risk of introducing new bugs.
-     - Status:  NOT STARTED
+     - Status:  IN PROGRESS
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1:  (P0) Enhance Layout Manager
+  - Task 1:  (P0) Complete Supabase Integration Removal
      - Where to resume: 
-        1.  **Frontend ():** Add a Delete button to each section card. Wire it to a  function that makes an API call.
-        2.  **Backend ():** Implement a new endpoint  to remove a section from the database.
-        3.  **Frontend/Backend:** Add support for religious leaders and special mixes content types, following the same pattern used to implement churches.
-     - What will be achieved with this? The admin will have full CRUD functionality for home screen layout sections, providing greater control over the app's content presentation.
+        1.  Finish removing all Supabase-related code from . The agent has performed several  operations but must ensure no orphaned functions or variables remain.
+        2.  Delete the file .
+        3.  Delete the file .
+        4.  Remove any Supabase-related environment variables from .
+        5.  Restart and thoroughly test the application, especially file uploads, to ensure no functionality was broken.
+     - What will be achieved with this? The application architecture will be simplified, removing a redundant service and reducing potential points of failure and confusion.
      - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
      - Blocked on something: None
-  - Task 2:  (P1) Add Bible Section to Mobile Home Screen
-     - Where to resume: In , the agent added the state, fetch logic, and  component. The next step is to ensure this section is correctly rendered within the  and that clicking an item navigates or plays audio as expected.
-     - What will be achieved with this? The mobile app home screen will feature the Biblia na masomo devotional cards, achieving feature parity with the PWA.
-     - Status:  IN PROGRESS
+  - Task 2:  (P1) Build and Deliver Mobile App Updates
+     - Where to resume: All code changes for the mobile app are complete. The next step is to initiate a new build for the Android app ().
+     - What will be achieved with this? This will deliver the fixes for continuous playback and downloads, the new Bible search feature, and the dynamic home screen layout to the user for verification.
+     - Status:  BLOCKED
      - Should Test frontend/backend/both after fix? frontend
-     - Blocked on something: None
+     - Blocked on something: Task 1: Complete Supabase Integration Removal (to ensure a clean state before building).
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
+    - (P1) Run CDN Migration Script: The user will need to navigate to the new CDN Management page and trigger the migration to move all existing locally stored files to Bunny CDN.
     - (P1) PWA Play All Button: Add a Play All button to library sections in .
     - (P1) PWA Repeat Logic Review: Review the repeat logic in the PWA's .
 
@@ -99,102 +104,118 @@ A full-stack application with a FastAPI backend, a React PWA, and a React Native
     - Admin: Enforce free user daily song limits and device limits (separate from Bible limits).
 
 **Completed work in this session**
-- **Mobile App Build v1.0.30:** Successfully fixed multiple JSX syntax errors in  and produced a new  file.
-- **PWA Dynamic Hero Section:** Fixed the PWA hero to correctly display dynamic albums from the Layout Manager instead of a static banner.
-- **PWA Thumbnail Fix:** Resolved an issue where album thumbnails were not displaying on the PWA home page by updating  to use the correct  field.
-- **Layout Manager - Churches:** Added functionality to the admin panel to assign churches to layout sections and updated the PWA to render them correctly on the home screen.
-- **Bible Listening Limits:** Implemented a full-stack feature to track and limit Bible listening time for free users, including backend endpoints, mobile app logic, and an admin configuration UI.
-- **Mobile Playback/Download Fixes (Attempted):** Refactored the mobile  to address continuous playback and created a  to handle storage permissions on startup.
+- **Bunny CDN Integration:** Implemented full integration with Bunny CDN for media storage. All new uploads go directly to the CDN, and a service class () was created to manage this.
+- **Asynchronous Audio Encoding:** Created a background encoding service () using FFmpeg and FastAPI's  to transcode uploaded audio into multiple quality variants (MP3/M4A at 128/256/320kbps).
+- **Dynamic Mobile Home Screen:** Refactored the mobile  to dynamically render its entire layout based on an API response from the Layout Manager, including support for horizontally scrolling sections. Default sections were created in the backend.
+- **Layout Manager Enhancements:** Added new section types (bible_content, religious_leaders) and a layout_style selector to the admin panel. Added a Sync Defaults button to auto-populate sections.
+- **CDN Admin Dashboard:** Created a new admin page () with backend endpoints to display CDN stats and manage a migration script for moving old files to the CDN.
+- **Mobile Bible Search:** Implemented a search bar in the  to allow users to filter the list of books by typing.
+- **Mobile App Fixes (Code Implemented):** Applied fixes in  for continuous playback and in  for storage permissions.
+- **App-wide CDN Compatibility:** Updated the PWA () and mobile app () to correctly resolve and play audio/image URLs from both the local server and the new CDN.
 
 **Earlier issues found/mentioned but not fixed**
-   - **PWA Play All Button:** The request to add a Play All button to library sections in the PWA () has not been addressed.
-   - **PWA Repeat Logic Review:** The request to review the repeat logic in the PWA's  has not been addressed.
+   - **PWA Play All Button:** The request to add a Play All button to library sections in the PWA () was not addressed.
+   - **PWA Repeat Logic Review:** The request to review the repeat logic in the PWA's  was not addressed.
 
 **Known issue recurrence from previous fork**
-  - **Mobile App Build Instability:** This remains a recurring risk. Build failures can block all mobile development.
-  - **Mobile App Continuous Playback:** This issue was marked as fixed but the user reported it still occurs.
+  - **Mobile App Build Instability:** Remains a risk; any syntax error can break the remote build.
+  - **Mobile App Continuous Playback:** User reported this issue again. A new fix has been implemented but awaits testing.
+  - **Mobile App Storage Permission/Download:** User reported this issue again. A new fix has been implemented but awaits testing.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **React Native Permissions:** Using  to programmatically request file system access from the user at app startup.
-- **React State vs. Refs:** Using  in React Native to hold values that need to be accessed inside callbacks () without causing re-renders or suffering from stale state closures.
-- **Component-Based UI:** Building new, isolated components (, ) to add complex features to the PWA without breaking existing structures.
-- **API-Driven Layouts:** The user-facing app's layout is dynamically controlled by a Layout Manager admin panel, with the structure and content defined via API responses.
+- **Asynchronous Task Processing (BackgroundTasks):** The backend now uses FastAPI's  to run FFmpeg encoding jobs without blocking the upload request, immediately returning a job ID to the client.
+- **CDN Integration:** The architecture now uses Bunny CDN for media storage. The backend handles uploading files to the CDN's storage zone, and the frontend applications consume the public CDN URL for streaming.
+- **Dynamic UI Rendering from API:** The mobile app's home screen was refactored from a static layout to one that is dynamically generated based on a JSON response from , allowing for full admin control without app updates.
+- **Lazy Loading of Dependencies:** The Bunny CDN service was refactored to initialize its client and read environment variables within a function call rather than at module import time, preventing startup errors before  is loaded.
+- **Audio Transcoding with FFmpeg:** Using the  library to programmatically convert an uploaded audio file into multiple formats (MP3, M4A) and bitrates (128, 256, 320 kbps).
 
 **key DB schema**
   - : (New) 
-  - : (New) 
+  - : (Updated) Now includes . The  field is now a full CDN URL for new uploads.
 
 **changes in tech stack**
-  - ****: Added to the React Native project to handle storage permissions.
+  - **Added:**  (Python lib for Bunny CDN),  (for audio encoding).
+  - **Being Removed:**  (Python lib),  (JS lib).
 
 **All files of reference**
 - **Created:**
-  - : A new screen to handle storage permission requests on app launch.
+  - : Implements asynchronous audio encoding using FFmpeg.
+  - : Handles all interactions with the Bunny CDN storage API.
+  - : A new admin page for CDN statistics and triggering the migration script.
 - **Updated:**
-  - : Major refactoring to fix thumbnails, implement the dynamic hero section, and add rendering for Church sections.
-  - : Updated to support assigning Churches and Choirs as content types.
-  - : Refactored to fix the continuous playback bug.
-  - : Integrated the new  into the app's startup flow.
-  - : Fixed critical JSX syntax errors that were breaking the build and started adding the Bible devotional section.
-  - : Added endpoints for managing and tracking Bible listening limits.
-  - : Updated to reflect the implementation of new features.
+  - : Major changes to integrate encoding and CDN services, add migration endpoints, update layout defaults, and remove Supabase code.
+  - : Completely refactored to render a dynamic layout based on API data.
+  - : Added state and UI for a book search input.
+  - : Reworked logic to fix the continuous playback bug.
+  - : Added helper functions to ensure audio and image URLs work correctly with CDN links.
+  - : Added UI for selecting  and syncing default sections.
+  - : Added the route and sidebar navigation link for the new CDN management page.
+- **To Be Deleted:**
+  - 
+  - 
 
 **Areas that need refactoring**:
-- **:** Still over 10,600 lines. Must be broken into dedicated FastAPI routers.
-- **:** Still over 3,800 lines. Must be broken down into smaller components.
+- **:** Still over 8,000 lines even after removing some code. It urgently needs to be broken down into smaller, domain-specific FastAPI routers.
+- **:** This PWA main file is still a monolith and should be broken into smaller, reusable components.
 
 **key api endpoints**
-- **New & Critical:**
-  - : Retrieves the Bible listening limit configuration.
-  - : Updates the Bible listening limit configuration.
-  - : Checks the current user's remaining listening time.
-  - : Records that a donation prompt was shown to a user, granting them extra time.
+- **New (Encoding & CDN):**
+  - : Overhauled to upload files to Bunny CDN and trigger a background encoding job.
+  - : Check the status of an encoding job.
+  - : Get statistics about files on CDN vs. local.
+  - : Start/stop/get status of the script to migrate local files to CDN.
+- **New (Layout):**
+  - : Populates the layout with a predefined set of sections.
+- **Removed (Supabase):**
+  - All endpoints prefixed with  are being removed.
 
 **Critical Info for New Agent**
-- **Your immediate priority is to fix the two critical bugs reported by the user on the mobile app: continuous playback and the download/storage permission error.** These are P0 issues and block the app from being usable. Do not proceed to other tasks until these are resolved and verified.
-- Once the mobile bugs are fixed, your next task is to complete the Layout Manager enhancements: enabling section deletion and adding the remaining requested content types.
-- You will need to build a new version of the mobile app ( or higher) to deliver the fixes. Be prepared to debug the build process if it fails again.
+- Your first task is to **complete the removal of the Supabase integration**. This is a significant architectural change and must be done cleanly. Ensure you remove all related files and code snippets from .
+- Once Supabase is removed, the highest priority is to **build a new mobile **. The user is blocked waiting for this. This build will contain the fixes for the critical playback/download bugs, the new Bible search, and the dynamic home screen. Be prepared to debug the build process.
+- Do not start new features until the Supabase removal is complete and the mobile app fixes have been delivered to the user for testing.
 
 **documents and test reports created in this job**
-  -  (Updated)
+  -  (Updated several times)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-10. User asks for churches to be added to the Layout Manager and displayed on the front end. (Done)
-9. User reports hero section on PWA is showing Upgrade to Premium instead of dynamic albums. (Done)
-8. User reports thumbnails are not populating and that Bible verse range selection is not working. (Thumbnails fixed; range selection was already working)
-7. Agent finishes implementation of Bible listening limits.
-6. User provides logic for paid vs. free user listening limits.
-5. User requests a prompt to appear after a set time, asking for a donation to continue listening.
-4. Agent fails to call testing agent due to an infrastructure issue.
-3. User asks to build the app and fix a continuous play audio download error with an attached screenshot showing a permission issue. (Attempted)
-2. User asks to fix the mobile app player so it automatically plays the next song. (Attempted)
-1. (LATEST) User asks to enable section deletion in the layout manager and to add several new sections (biblia na vitabu, churches, religious leaders, etc.). (In Progress)
+ - 10. (User) Asks to implement CDN and provides instructions. (Done)
+ - 9. (User) Provides Bunny CDN credentials. (Done)
+ - 8. (User) Asks to add CDN stats to admin dashboard and create a migration script. (Done)
+ - 7. (User) Asks to update the app and web PWA to work with the CDN. (Done)
+ - 6. (User) Asks how Supabase and Bunny CDN will work together. (Answered)
+ - 5. (User) Concludes that Supabase is redundant and asks for it to be removed. (In Progress)
+ - 4. (Agent) Starts removing Supabase.
+ - 3. (Agent) Continues removing Supabase.
+ - 2. (Agent) Continues removing Supabase.
+ - 1. (Agent) Continues removing Supabase.
 
 **Project Health Check:**
 - **Broken:**
-  - **Mobile App Continuous Playback:** The core feature of playing more than one song in a row is not working.
-  - **Mobile App Downloads:** Users cannot download songs due to a persistent permission issue.
+  - **Mobile App Continuous Playback:** The core feature of playing songs sequentially is not working. A fix has been implemented in the code but not yet deployed/tested in a build.
+  - **Mobile App Downloads:** Users cannot download songs due to a persistent permission issue. A fix has been implemented but not yet tested.
 - **Mocked:**
-  - **Redis Caching:** Still not implemented; the backend uses an in-memory fallback.
+  - **Redis Caching:** The backend still uses an in-memory fallback for caching instead of a persistent Redis instance.
 
 **3rd Party Integrations**
-- ** (NEW):** Added to manage storage permissions on Android/iOS.
+- **Bunny CDN (NEW):** Integrated for all media file storage and delivery. Uses  Python library.
+- **FFmpeg (NEW):** Used via  for server-side audio transcoding.
 - **Google Cloud TTS:** Active for Bible audio generation.
 - **Expo Application Services (EAS):** Used for mobile cloud builds.
 - **Emergent-managed Google Auth:** Used for PWA login.
+- **Supabase (REMOVING):** All related libraries and code are currently being deleted.
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Agent encountered an infra issue)
+  - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: No
-  - Known regressions: Continuous playback and download permissions on mobile are regressions or have proven resistant to fixes.
+  - Known regressions: Continuous playback and download permissions on the mobile app are recurring issues that have proven resistant to past fixes. New fixes have been coded but are unverified.
 
 **Credentials to test flow:**
-The Google Cloud TTS credentials are in . The file path is stored under the  key.
+- Bunny CDN credentials are in .
+- Google Cloud TTS credentials are in .
 
 **What agent forgot to execute**
-- The agent did not address the pre-existing requests to add a Play All button to the PWA and to review the PWA's player repeat logic. These tasks have been carried over again.
-- The agent's fixes for mobile continuous playback and download permissions were not successful, requiring immediate re-investigation.</analysis>
+- The agent did not address the pre-existing requests to add a Play All button to the PWA and to review the PWA's player repeat logic. These tasks from the previous session's backlog have been carried over again.</analysis>
