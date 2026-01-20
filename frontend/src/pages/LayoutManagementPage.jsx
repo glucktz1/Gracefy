@@ -874,9 +874,11 @@ export default function LayoutManagementPage() {
 
   // Form states
   const [sectionForm, setSectionForm] = useState({
-    name: "", display_name: "", section_type: "custom", description: "",
+    name: "", display_name: "", display_name_sw: "", display_name_en: "",
+    section_type: "custom", description: "",
     platforms: ["app", "web"], content_type: "", content_count: 10,
-    background_color: "", background_gradient: "", link_type: "", link_target: ""
+    background_color: "", background_gradient: "", link_type: "", link_target: "",
+    layout_style: "horizontal_small"
   });
 
   const [burnerForm, setBurnerForm] = useState({
