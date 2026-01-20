@@ -59,7 +59,7 @@ import {
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
   CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe,
-  ChevronDown, ChevronRight, UsersRound, BookMarked
+  ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
