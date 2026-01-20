@@ -543,21 +543,26 @@ const BibleScreen = ({ navigation }) => {
   if (!selectedBook) {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerIcon}>
-              <Ionicons name="book" size={28} color={COLORS.primary} />
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="book" size={28} color={COLORS.primary} />
+              </View>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerTitle}>{t('bible.title', 'Biblia')}</Text>
+                <Text style={styles.headerSubtitle}>{t('bible.listenToWord', 'Sikiliza Neno la Mungu')}</Text>
+              </View>
+              {renderTimeIndicator()}
             </View>
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>{t('bible.title', 'Biblia')}</Text>
-              <Text style={styles.headerSubtitle}>{t('bible.listenToWord', 'Sikiliza Neno la Mungu')}</Text>
-            </View>
-            {renderTimeIndicator()}
-          </View>
 
-          {/* Range Reader Button */}
-          <TouchableOpacity 
+            {/* Range Reader Button */}
+            <TouchableOpacity 
             style={styles.rangeButton}
             onPress={() => setShowRangeModal(true)}
           >
