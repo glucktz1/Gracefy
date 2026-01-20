@@ -493,10 +493,11 @@ export default function SpecialMixesPage() {
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={mixForm.is_featured}
-                    onCheckedChange={(checked) => setMixForm({ ...mixForm, is_featured: checked })}
-                    className="data-[state=checked]:bg-amber-600"
-                  />
-                  <span className="text-sm text-zinc-300">Featured Mix</span>
+                      onCheckedChange={(checked) => setMixForm({ ...mixForm, is_featured: checked })}
+                      className="data-[state=checked]:bg-amber-600"
+                    />
+                    <span className="text-sm text-zinc-300">Featured Mix</span>
+                  </div>
                 </div>
               </div>
             </div>
