@@ -1776,6 +1776,80 @@ async def delete_category(category_id: str):
         raise HTTPException(status_code=404, detail="Category not found")
     return {"message": "Category deleted successfully"}
 
+# ============== SONG CATEGORIES MANAGEMENT ==============
+
+# Default song categories (pre-populated)
+DEFAULT_SONG_CATEGORIES = [
+    {"name": "Christmas", "name_sw": "Krismasi", "color": "#dc2626", "icon": "gift", "sort_order": 1, "is_system": True},
+    {"name": "Easter", "name_sw": "Pasaka", "color": "#eab308", "icon": "sun", "sort_order": 2, "is_system": True},
+    {"name": "Lent", "name_sw": "Kwaresima", "color": "#7c3aed", "icon": "cross", "sort_order": 3, "is_system": True},
+    {"name": "Advent", "name_sw": "Majilio", "color": "#2563eb", "icon": "candle", "sort_order": 4, "is_system": True},
+    {"name": "Wedding", "name_sw": "Harusi", "color": "#ec4899", "icon": "heart", "sort_order": 5, "is_system": True},
+    {"name": "Funeral", "name_sw": "Mazishi", "color": "#374151", "icon": "flower", "sort_order": 6, "is_system": True},
+    {"name": "Praise & Worship", "name_sw": "Sifa na Ibada", "color": "#f97316", "icon": "music", "sort_order": 7, "is_system": True},
+    {"name": "General", "name_sw": "Kawaida", "color": "#6b7280", "icon": "disc", "sort_order": 8, "is_system": True},
+]
+
+@api_router.get("/song-categories")
+async def get_song_categories():
+    """Get all song categories"""
+    categories = await db.song_categories.find({"status": "active"}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return {"categories": categories, "total": len(categories)}
+
+@api_router.get("/song-categories/all")
+async def get_all_song_categories():
+    """Get all song categories including inactive"""
+    categories = await db.song_categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return {"categories": categories, "total": len(categories)}
+
+@api_router.post("/song-categories")
+async def create_song_category(category: dict):
+    """Create a new song category"""
+    cat_obj = SongCategory(**category)
+    doc = cat_obj.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.song_categories.insert_one(doc)
+    return {"song_category_id": doc["song_category_id"], "message": "Song category created successfully"}
+
+@api_router.put("/song-categories/{song_category_id}")
+async def update_song_category(song_category_id: str, updates: dict):
+    """Update song category"""
+    updates.pop("_id", None)
+    updates.pop("song_category_id", None)
+    updates.pop("is_system", None)  # Cannot change system status
+    result = await db.song_categories.update_one({"song_category_id": song_category_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Song category not found")
+    return {"message": "Song category updated successfully"}
+
+@api_router.delete("/song-categories/{song_category_id}")
+async def delete_song_category(song_category_id: str):
+    """Delete a song category (only non-system categories)"""
+    category = await db.song_categories.find_one({"song_category_id": song_category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="Song category not found")
+    if category.get("is_system"):
+        raise HTTPException(status_code=400, detail="Cannot delete system category")
+    result = await db.song_categories.delete_one({"song_category_id": song_category_id})
+    return {"message": "Song category deleted successfully"}
+
+@api_router.post("/song-categories/sync-defaults")
+async def sync_default_song_categories():
+    """Sync default song categories - adds any missing ones"""
+    added = []
+    existing = await db.song_categories.find({}, {"_id": 0}).to_list(100)
+    existing_names = {cat["name"] for cat in existing}
+    
+    for cat_data in DEFAULT_SONG_CATEGORIES:
+        if cat_data["name"] not in existing_names:
+            cat_obj = SongCategory(**cat_data)
+            doc = cat_obj.model_dump()
+            doc["created_at"] = doc["created_at"].isoformat()
+            await db.song_categories.insert_one(doc)
+            added.append(cat_data["name"])
+    
+    return {"message": f"Synced {len(added)} categories", "added": added}
+
 # ============== ALBUMS MANAGEMENT ==============
 
 @api_router.get("/albums")
