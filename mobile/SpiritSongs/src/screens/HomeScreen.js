@@ -1128,6 +1128,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   sectionTitle: {
     color: '#fff',
     fontSize: 18,
