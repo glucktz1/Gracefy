@@ -629,6 +629,9 @@ export default function SpecialMixesPage() {
                   ))
                   )}
                 </div>
+                
+                {/* Selected Songs */}
+                <div className="max-h-64 overflow-y-auto bg-zinc-950/30">
                   <div className="p-2 bg-zinc-900/50 border-b border-zinc-800 sticky top-0">
                     <p className="text-xs font-medium text-zinc-400 uppercase">Selected Songs (Drag to reorder)</p>
                   </div>
