@@ -83,57 +83,38 @@ const FilterTabs = ({ categories, activeCategory, onSelect }) => {
 };
 
 // Quick Access Grid - 2 columns x 4 rows (8 items total) like Spotify
-const QuickAccessGrid = ({ items, likedSongsCount, playlistsCount, downloadsCount, navigation }) => {
-  // Build 8 quick access items
-  const quickItems = [
-    { 
-      id: 'liked', 
-      name: 'Liked Songs', 
-      icon: 'heart', 
-      gradient: ['#7c3aed', '#ec4899'],
-      count: likedSongsCount,
-    },
-    { 
-      id: 'downloads', 
-      name: 'Downloads', 
-      icon: 'download', 
-      gradient: ['#1e88e5', '#4fc3f7'],
-      count: downloadsCount,
-    },
-    { 
-      id: 'playlists', 
-      name: 'Your Playlists', 
-      icon: 'list', 
-      gradient: ['#4CAF50', '#8BC34A'],
-      count: playlistsCount,
-    },
-    { 
-      id: 'recent', 
-      name: 'Recently Played', 
-      icon: 'time', 
-      gradient: ['#ff6b6b', '#ffa502'],
-    },
-    // Fill remaining slots with albums/categories
-    ...items.slice(0, 4).map((item, idx) => ({
-      ...item,
-      id: item.album_id || item.category_id || `item-${idx}`,
-      name: item.title || item.name,
-      gradient: [
-        ['#FF9800', '#FFB74D'],
-        ['#00BCD4', '#4DD0E1'],
-        ['#1A295E', '#e040fb'],
-        ['#795548', '#A1887F'],
-      ][idx] || ['#333', '#555'],
-    }))
-  ].slice(0, 8);
+const QuickAccessGrid = ({ items, section, likedSongsCount, playlistsCount, downloadsCount, navigation, language }) => {
+  // Use items from section config if available, otherwise use defaults
+  const quickAccessItems = section?.quick_access_items || items || [];
+  
+  // Build quick access items from API config
+  const quickItems = quickAccessItems
+    .filter(item => item.is_active !== false)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .map(item => {
+      // Get count for specific items
+      let count = null;
+      if (item.id === 'liked') count = likedSongsCount;
+      else if (item.id === 'downloads') count = downloadsCount;
+      else if (item.id === 'playlists') count = playlistsCount;
+      
+      return {
+        ...item,
+        displayName: language === 'sw' ? (item.name_sw || item.name) : item.name,
+        count,
+      };
+    });
 
   const handlePress = (item) => {
-    if (item.id === 'liked' || item.id === 'downloads' || item.id === 'playlists' || item.id === 'recent') {
-      navigation.navigate('Library');
+    if (item.navigation) {
+      navigation.navigate(item.navigation, item.navigation_params || {});
     } else if (item.album_id) {
       navigation.navigate('Album', { albumId: item.album_id });
     } else if (item.category_id) {
       navigation.navigate('Category', { category: item });
+    } else {
+      // Default to Library for backward compatibility
+      navigation.navigate('Library');
     }
   };
 
@@ -141,6 +122,7 @@ const QuickAccessGrid = ({ items, likedSongsCount, playlistsCount, downloadsCoun
     <View style={styles.quickAccessContainer}>
       {quickItems.map((item, idx) => {
         const thumbUrl = getItemThumbnail(item);
+        const gradient = Array.isArray(item.gradient) ? item.gradient : ['#333', '#555'];
         return (
           <TouchableOpacity 
             key={item.id || idx}
@@ -149,13 +131,13 @@ const QuickAccessGrid = ({ items, likedSongsCount, playlistsCount, downloadsCoun
             activeOpacity={0.8}
           >
             {item.icon ? (
-              <LinearGradient colors={item.gradient} style={styles.quickAccessIconBox}>
+              <LinearGradient colors={gradient} style={styles.quickAccessIconBox}>
                 <Ionicons name={item.icon} size={22} color="#fff" />
               </LinearGradient>
             ) : thumbUrl ? (
               <Image source={{ uri: thumbUrl }} style={styles.quickAccessImg} />
             ) : (
-              <LinearGradient colors={item.gradient || ['#333', '#111']} style={styles.quickAccessIconBox}>
+              <LinearGradient colors={gradient} style={styles.quickAccessIconBox}>
                 <Ionicons name="musical-notes" size={18} color="rgba(255,255,255,0.7)" />
               </LinearGradient>
             )}
