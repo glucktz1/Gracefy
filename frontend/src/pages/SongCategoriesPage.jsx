@@ -292,7 +292,7 @@ export default function SongCategoriesPage() {
         {filteredCategories.length === 0 && (
           <div className="col-span-full text-center py-12 text-zinc-500">
             <Tags size={48} className="mx-auto mb-4 opacity-50" />
-            <p>No categories found. Click "Sync Defaults" to add default categories.</p>
+            <p>No categories found. Click &quot;Sync Defaults&quot; to add default categories.</p>
           </div>
         )}
       </div>
