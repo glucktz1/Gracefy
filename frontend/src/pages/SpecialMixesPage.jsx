@@ -228,6 +228,11 @@ export default function SpecialMixesPage() {
     if (isSelected) {
       setSelectedSongs(selectedSongs.filter(s => s.song_id !== song.song_id));
     } else {
+      // Enforce max songs limit
+      if (selectedSongs.length >= MAX_SONGS_PER_MIX) {
+        toast.error(`Maximum ${MAX_SONGS_PER_MIX} songs allowed per mix`);
+        return;
+      }
       setSelectedSongs([...selectedSongs, {
         ...song,
         album_id: albumInfo.album_id,
