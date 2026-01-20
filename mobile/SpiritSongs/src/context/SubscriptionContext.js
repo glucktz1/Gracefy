@@ -73,6 +73,7 @@ export const SubscriptionProvider = ({ children }) => {
   const [lastSkipReset, setLastSkipReset] = useState(Date.now());
   const [subscriptionExpiry, setSubscriptionExpiry] = useState(null);
   const [subscriptionInfo, setSubscriptionInfo] = useState(null);
+  const [billingEnabled, setBillingEnabled] = useState(true);
   const upgradeCallbackRef = useRef(null);
 
   // Set the callback for navigating to upgrade screen
@@ -95,6 +96,7 @@ export const SubscriptionProvider = ({ children }) => {
       setSubscriptionInfo(data.subscription || null);
       setFeatures(data.features || (data.is_premium ? DEFAULT_PREMIUM_FEATURES : DEFAULT_FREE_FEATURES));
       setSubscriptionExpiry(data.subscription?.expires_at || data.trial?.expires_at || null);
+      setBillingEnabled(data.billing_enabled !== false); // Default to true if not specified
       
     } catch (error) {
       console.log('Error fetching subscription status:', error.message);
