@@ -489,15 +489,46 @@ export default function LibraryScreen({ navigation, route }) {
             </>
           )}
 
-          {/* Recent */}
-          {activeTab === 'recent' && (
-            <View style={styles.emptyState}>
-              <LinearGradient colors={['#ff6b6b', '#ffa502']} style={styles.emptyIcon}>
-                <Ionicons name="time-outline" size={40} color="#fff" />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>Recently Played</Text>
-              <Text style={styles.emptySubtitle}>Your listening history will appear here</Text>
-            </View>
+          {/* Recent / History */}
+          {activeTab === 'recent' && activeTab === 'history' ? null : null}
+          {(activeTab === 'recent' || activeTab === 'history') && (
+            <>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Listening History</Text>
+                  <Text style={styles.sectionSubtitle}>{recentlyPlayed.length} songs</Text>
+                </View>
+              </View>
+              {recentlyPlayed.length > 0 ? (
+                <View style={styles.songsList}>
+                  {recentlyPlayed.map((item, index) => (
+                    <SongCard
+                      key={item.song?.song_id || index}
+                      song={{
+                        ...item.song,
+                        artist_name: item.song?.artist_name || item.album?.artist_name
+                      }}
+                      onPress={() => {
+                        const queue = recentlyPlayed.map(r => ({
+                          song: r.song,
+                          album: r.album
+                        }));
+                        playSong(item.song, item.album, queue, index);
+                      }}
+                      isCurrentSong={currentSong?.song_id === item.song?.song_id}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <LinearGradient colors={['#ff6b6b', '#ffa502']} style={styles.emptyIcon}>
+                    <Ionicons name="time-outline" size={40} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.emptyTitle}>No History Yet</Text>
+                  <Text style={styles.emptySubtitle}>Start listening to see your history here</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
