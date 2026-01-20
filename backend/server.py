@@ -3787,7 +3787,8 @@ async def get_user_subscription_status(request: Request):
         "features": user_controls,
         "subscription": subscription_info,
         "trial": trial_info,
-        "trial_settings": trial_settings
+        "trial_settings": trial_settings,
+        "billing_enabled": billing_enabled
     }
 
 # ============== LISTENING SESSIONS (for tracking) ==============
