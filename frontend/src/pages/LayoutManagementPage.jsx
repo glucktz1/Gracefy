@@ -942,6 +942,29 @@ export default function LayoutManagementPage() {
     }
   };
 
+  const handleSyncDefaultSections = async () => {
+    try {
+      const response = await axios.post(`${API}/layout/sections/sync-defaults`, {}, { withCredentials: true });
+      toast.success(response.data.message);
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to sync default sections");
+    }
+  };
+
+  const handleResetAllSections = async () => {
+    if (!window.confirm("WARNING: This will delete all custom sections and reset to defaults. Are you sure?")) return;
+    if (!window.confirm("This action cannot be undone. Confirm again to proceed.")) return;
+    
+    try {
+      const response = await axios.post(`${API}/layout/sections/reset-all`, {}, { withCredentials: true });
+      toast.success(response.data.message);
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to reset sections");
+    }
+  };
+
   const handleDeleteSection = async (sectionId) => {
     if (!window.confirm("Are you sure you want to delete this section?")) return;
     try {
