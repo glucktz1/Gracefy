@@ -517,12 +517,12 @@ export default function SpecialMixesPage() {
                 
                 {/* Category Filter */}
                 <div className="flex gap-2 mb-2">
-                  <Select value={songCategoryFilter} onValueChange={setSongCategoryFilter}>
+                  <Select value={songCategoryFilter || "all"} onValueChange={(v) => setSongCategoryFilter(v === "all" ? "" : v)}>
                     <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white text-sm h-8 w-48">
                       <SelectValue placeholder="Filter by category" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-zinc-800">
-                      <SelectItem value="">All Songs</SelectItem>
+                      <SelectItem value="all">All Songs</SelectItem>
                       {songCategories.map(cat => (
                         <SelectItem key={cat.song_category_id} value={cat.song_category_id}>
                           <span className="flex items-center gap-2">
