@@ -1172,7 +1172,7 @@ export default function LayoutManagementPage() {
           </h1>
           <p className="page-subtitle">Control the layout of your app and web platform</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
           <div className="flex items-center gap-2 mr-4">
             <Button
               variant={previewPlatform === "app" ? "default" : "outline"}
@@ -1191,6 +1191,9 @@ export default function LayoutManagementPage() {
               <Monitor size={14} className="mr-1" /> Web
             </Button>
           </div>
+          <Button variant="outline" onClick={handleSyncDefaultSections} className="border-amber-700 text-amber-400 hover:bg-amber-900/30" data-testid="sync-defaults-btn">
+            <RefreshCw size={16} className="mr-2" /> Sync Defaults
+          </Button>
           <Button variant="outline" onClick={fetchData} className="border-zinc-700 text-zinc-300">
             <RefreshCw size={16} className="mr-2" /> Refresh
           </Button>
