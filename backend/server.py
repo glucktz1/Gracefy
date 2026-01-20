@@ -8864,60 +8864,111 @@ async def log_role_change(
     log_doc["created_at"] = log_doc["created_at"].isoformat()
     await db.role_change_logs.insert_one(log_doc)
 
-# ============== SUPABASE HIGH-PERFORMANCE STREAMING ==============
+# ============== LEADER CONTENT FILE UPLOADS (Bunny CDN) ==============
 
-# Import Supabase service
-try:
-    from supabase_service import (
-        get_track_service, get_storage_service, get_supabase_client,
-        SCHEMA_SQL, SupabaseTrackService, SupabaseStorageService
-    )
-    SUPABASE_AVAILABLE = True
-except ImportError:
-    SUPABASE_AVAILABLE = False
-    print("WARNING: Supabase service not available")
-
-@api_router.get("/supabase/status")
-async def get_supabase_status():
-    """Check Supabase connection status"""
-    if not SUPABASE_AVAILABLE:
-        return {"status": "unavailable", "message": "Supabase service not configured"}
+@api_router.post("/content/upload-thumbnail")
+async def upload_content_thumbnail(file: UploadFile = File(...)):
+    """Upload thumbnail image for leader content to Bunny CDN"""
+    global bunny_service
     
-    try:
-        client = get_supabase_client()
-        # Test connection by querying tracks
-        result = client.table("tracks").select("count", count="exact").limit(1).execute()
-        return {
-            "status": "connected",
-            "track_count": result.count if result.count else 0,
-            "message": "Supabase connected successfully"
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@api_router.get("/supabase/schema")
-async def get_supabase_schema():
-    """Get the SQL schema for Supabase setup"""
+    if not file.content_type or not file.content_type.startswith("image"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    content = await file.read()
+    
+    # Max 10MB for images
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Max 10MB")
+    
+    # Try Bunny CDN first
+    if is_cdn_enabled():
+        if bunny_service is None:
+            bunny_service = get_bunny_service()
+        
+        try:
+            result = await bunny_service.upload_thumbnail(content, file.filename, file.content_type)
+            if result.get("success"):
+                return {
+                    "url": result["cdn_url"],
+                    "storage_path": result["storage_path"],
+                    "size": len(content),
+                    "storage_type": "cdn"
+                }
+        except Exception as e:
+            logger.error(f"CDN upload failed, falling back to MongoDB: {e}")
+    
+    # Fallback to MongoDB
+    base64_content = base64.b64encode(content).decode('utf-8')
+    file_doc = {
+        "file_id": f"file_{uuid.uuid4().hex[:12]}",
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "size": len(content),
+        "data": base64_content,
+        "file_type": "content_thumbnail",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    
     return {
-        "schema_sql": SCHEMA_SQL if SUPABASE_AVAILABLE else None,
-        "instructions": "Run this SQL in your Supabase SQL Editor to set up the schema"
+        "url": f"data:{file.content_type};base64,{base64_content}",
+        "file_id": file_doc["file_id"],
+        "size": len(content),
+        "storage_type": "mongodb"
     }
 
-@api_router.post("/supabase/sync/artists")
-async def sync_artists_to_supabase():
-    """Sync all artists from MongoDB to Supabase"""
-    if not SUPABASE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Supabase not available")
+@api_router.post("/content/upload-audio")
+async def upload_content_audio(file: UploadFile = File(...)):
+    """Upload audio file for leader content episodes to Bunny CDN"""
+    global bunny_service
     
-    try:
-        track_service = get_track_service()
-        artists = await db.singers.find({}, {"_id": 0}).to_list(1000)
+    if not file.content_type or not file.content_type.startswith("audio"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+    
+    content = await file.read()
+    
+    # Max 100MB for audio
+    if len(content) > 100 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Audio file too large. Max 100MB")
+    
+    # Try Bunny CDN first
+    if is_cdn_enabled():
+        if bunny_service is None:
+            bunny_service = get_bunny_service()
         
-        synced = 0
-        for artist in artists:
-            result = await track_service.sync_artist_from_mongodb(artist)
-            if result:
-                synced += 1
+        try:
+            result = await bunny_service.upload_audio(content, file.filename, file.content_type or "audio/mpeg")
+            if result.get("success"):
+                return {
+                    "url": result["cdn_url"],
+                    "storage_path": result["storage_path"],
+                    "size": len(content),
+                    "storage_type": "cdn"
+                }
+        except Exception as e:
+            logger.error(f"CDN audio upload failed, falling back to MongoDB: {e}")
+    
+    # Fallback to MongoDB
+    base64_content = base64.b64encode(content).decode('utf-8')
+    file_doc = {
+        "file_id": f"file_{uuid.uuid4().hex[:12]}",
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "size": len(content),
+        "data": base64_content,
+        "file_type": "content_audio",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    
+    return {
+        "url": f"/api/files/{file_doc['file_id']}/stream",
+        "file_id": file_doc["file_id"],
+        "size": len(content),
+        "storage_type": "mongodb"
+    }
+
+# ============== USER CATEGORY PERMISSIONS MANAGEMENT ==============
         
         return {"synced": synced, "total": len(artists)}
     except Exception as e:
