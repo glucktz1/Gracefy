@@ -16,33 +16,44 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
-### 🐰 Bunny CDN Integration (NEW)
+### 🐰 Bunny CDN Integration
 Implemented Bunny CDN for fast global media delivery:
 
 **Features:**
 - **Automatic CDN Upload**: All audio/image uploads now go to Bunny CDN by default
 - **Global Edge Delivery**: Files served from worldwide edge locations
 - **MongoDB Fallback**: Automatically falls back if CDN unavailable
-- **Admin Dashboard**: View CDN stats, file counts, storage usage
+- **Admin Dashboard UI**: Full CDN management page at `/admin/cdn`
+- **Migration Tool**: One-click migrate MongoDB files to CDN
 - **Max File Size**: 100MB for audio, 10MB for images
+
+**Admin Dashboard Features:**
+- Overview: Total storage, audio files, images, MongoDB files count
+- Storage breakdown with progress bars per folder
+- Files browser: View, open, and delete CDN files
+- Migration tab: Migrate existing MongoDB files to CDN with progress tracking
 
 **Configuration:**
 - Storage Zone: `gracefy-media`
 - CDN URL: `https://gracefy-cdn.b-cdn.net`
 - Region: Germany (de)
 
-**New API Endpoints:**
+**API Endpoints:**
 - `POST /api/upload` - Auto-uploads to CDN (with fallback)
 - `POST /api/upload/cdn` - Direct CDN upload
 - `GET /api/admin/cdn/status` - Check CDN configuration
 - `GET /api/admin/cdn/stats` - Storage statistics
 - `GET /api/admin/cdn/files?folder=audio` - List CDN files
 - `DELETE /api/admin/cdn/files/{folder}/{filename}` - Delete CDN file
+- `GET /api/admin/cdn/migration-status` - Get migration progress
+- `POST /api/admin/cdn/migrate` - Start migration of MongoDB files to CDN
+- `POST /api/admin/cdn/migrate-songs` - Migrate song audio URLs to CDN
 
 **Files Created:**
 - `/app/backend/services/bunny_cdn_service.py` - CDN service
+- `/app/frontend/src/pages/CDNManagementPage.jsx` - Admin dashboard page
 
-**Environment Variables Added:**
+**Environment Variables:**
 - `BUNNY_STORAGE_ZONE` - Storage zone name
 - `BUNNY_API_KEY` - Storage API key
 - `BUNNY_CDN_URL` - Pull zone URL
