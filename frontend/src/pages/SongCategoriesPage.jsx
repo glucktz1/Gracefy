@@ -171,11 +171,6 @@ export default function SongCategoriesPage() {
     cat.name_sw?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const IconComponent = ({ iconName, className }) => {
-    const Icon = CATEGORY_ICONS[iconName] || Tags;
-    return <Icon className={className} />;
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -183,6 +178,12 @@ export default function SongCategoriesPage() {
       </div>
     );
   }
+
+  // Helper function to render icons
+  const renderIcon = (iconName, className, style) => {
+    const Icon = CATEGORY_ICONS[iconName] || Tags;
+    return <Icon className={className} style={style} />;
+  };
 
   return (
     <div className="p-6 space-y-6" data-testid="song-categories-page">
