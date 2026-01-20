@@ -438,6 +438,28 @@ export const PlayerProvider = ({ children }) => {
       
       console.log('Playing from:', audioUrl.substring(0, 60) + '...');
       
+      // Create the status update handler inline to ensure fresh closure
+      const statusUpdateHandler = (status) => {
+        if (status.isLoaded) {
+          setPosition(status.positionMillis / 1000);
+          setDuration(status.durationMillis / 1000 || 0);
+          setIsPlaying(status.isPlaying);
+          setIsLoading(status.isBuffering);
+          setError(null);
+          
+          // Check for song end
+          if (status.didJustFinish && !status.isLooping) {
+            console.log('*** Song finished! Queue:', queueRef.current.length, 'Index:', queueIndexRef.current, 'Repeat:', repeatRef.current);
+            handleSongEnd();
+          }
+        } else if (status.error) {
+          console.error('Playback error:', status.error);
+          setError(status.error);
+          setIsLoading(false);
+          setTimeout(() => playNextSongInternal(), 500);
+        }
+      };
+      
       // Create sound with status update callback
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
@@ -447,7 +469,7 @@ export const PlayerProvider = ({ children }) => {
           isLooping: false, // We handle looping manually
           positionMillis: startPosition * 1000,
         },
-        onPlaybackStatusUpdate
+        statusUpdateHandler
       );
       
       soundRef.current = sound;
