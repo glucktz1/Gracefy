@@ -40,6 +40,7 @@ export default function AlbumsPage() {
   const [albums, setAlbums] = useState([]);
   const [categories, setCategories] = useState([]);
   const [singers, setSingers] = useState([]);
+  const [songCategories, setSongCategories] = useState([]);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [albumSongs, setAlbumSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +77,9 @@ export default function AlbumsPage() {
     audio_url: "",
     lyrics: "",
     track_number: 1,
-    status: "active"
+    status: "active",
+    song_categories: [],
+    song_category_names: []
   });
 
   const [bulkSongs, setBulkSongs] = useState([]);
