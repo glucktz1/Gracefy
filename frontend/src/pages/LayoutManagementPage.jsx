@@ -1018,6 +1018,8 @@ export default function LayoutManagementPage() {
     setSectionForm({
       name: section.name || "",
       display_name: section.display_name || "",
+      display_name_sw: section.display_name_sw || section.display_name || "",
+      display_name_en: section.display_name_en || "",
       section_type: section.section_type || "custom",
       description: section.description || "",
       platforms: section.platforms || ["app", "web"],
@@ -1026,16 +1028,19 @@ export default function LayoutManagementPage() {
       background_color: section.background_color || "",
       background_gradient: section.background_gradient || "",
       link_type: section.link_type || "",
-      link_target: section.link_target || ""
+      link_target: section.link_target || "",
+      layout_style: section.layout_style || "horizontal_small"
     });
     setIsSectionModalOpen(true);
   };
 
   const resetSectionForm = () => {
     setSectionForm({
-      name: "", display_name: "", section_type: "custom", description: "",
+      name: "", display_name: "", display_name_sw: "", display_name_en: "",
+      section_type: "custom", description: "",
       platforms: ["app", "web"], content_type: "", content_count: 10,
-      background_color: "", background_gradient: "", link_type: "", link_target: ""
+      background_color: "", background_gradient: "", link_type: "", link_target: "",
+      layout_style: "horizontal_small"
     });
   };
 
