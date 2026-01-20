@@ -716,6 +716,60 @@ class LayoutBurner(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[str] = None
 
+# ============== PAYMENT MODELS ==============
+
+class PaymentGateway(BaseModel):
+    """Payment gateway configuration"""
+    model_config = ConfigDict(extra="ignore")
+    gateway_id: str = Field(default_factory=lambda: f"gw_{uuid.uuid4().hex[:12]}")
+    name: str  # M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa, Stripe, PayPal
+    code: str  # mpesa, tigopesa, airtel, halopesa, stripe, paypal
+    gateway_type: str  # mobile_money, card, bank
+    country: str = "TZ"
+    currency: str = "TZS"
+    logo_url: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 0
+    config: dict = {}  # Gateway-specific configuration
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Transaction(BaseModel):
+    """Payment transaction record"""
+    model_config = ConfigDict(extra="ignore")
+    transaction_id: str = Field(default_factory=lambda: f"txn_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    user_email: Optional[str] = None
+    user_phone: Optional[str] = None
+    
+    # Payment details
+    gateway_id: str
+    gateway_name: str
+    gateway_type: str  # mobile_money, card, bank
+    payment_method: str  # mpesa, tigopesa, airtel, halopesa, stripe, paypal
+    
+    # Amount
+    amount: float
+    currency: str = "TZS"
+    amount_usd: Optional[float] = None
+    
+    # Subscription details
+    plan_id: str
+    plan_name: str
+    plan_duration_days: int = 30
+    
+    # Status
+    status: str = "pending"  # pending, processing, completed, failed, refunded
+    failure_reason: Optional[str] = None
+    
+    # Gateway reference
+    external_ref: Optional[str] = None  # Reference from payment gateway
+    phone_number: Optional[str] = None  # For mobile money
+    
+    # Timestamps
+    initiated_at: str = ""
+    completed_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class LayoutConfig(BaseModel):
     """Global layout configuration"""
     model_config = ConfigDict(extra="ignore")
