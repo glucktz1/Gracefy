@@ -4064,6 +4064,354 @@ async def get_user_transactions(request: Request):
     
     return {"transactions": transactions}
 
+# ============== NAVIGATION ANALYTICS ==============
+
+@api_router.post("/analytics/track-pageview")
+async def track_pageview(data: dict, request: Request):
+    """Track a page view event"""
+    session_id = data.get("session_id") or f"anon_{uuid.uuid4().hex[:12]}"
+    
+    # Get user ID from auth if available
+    user_id = data.get("user_id")
+    if not user_id:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            token_doc = await db.user_tokens.find_one({"token": token})
+            if token_doc:
+                user_id = token_doc.get("user_id")
+    
+    # Check if this is entry point (first page in session)
+    existing_views = await db.page_views.count_documents({"session_id": session_id})
+    is_entry = existing_views == 0
+    
+    # Update time_on_page for previous page
+    if not is_entry:
+        last_view = await db.page_views.find_one(
+            {"session_id": session_id},
+            sort=[("created_at", -1)]
+        )
+        if last_view and not last_view.get("time_on_page"):
+            try:
+                last_timestamp = datetime.fromisoformat(last_view["timestamp"].replace("Z", "+00:00"))
+                time_on_page = int((datetime.now(timezone.utc) - last_timestamp).total_seconds())
+                await db.page_views.update_one(
+                    {"view_id": last_view["view_id"]},
+                    {"$set": {"time_on_page": time_on_page}}
+                )
+            except:
+                pass
+    
+    # Create page view record
+    page_view = PageView(
+        user_id=user_id,
+        session_id=session_id,
+        device_id=data.get("device_id"),
+        page_name=data.get("page_name", "Unknown"),
+        page_path=data.get("page_path"),
+        page_params=data.get("page_params", {}),
+        referrer_page=data.get("referrer_page"),
+        entry_point=is_entry,
+        platform=data.get("platform", "web"),
+        device_type=data.get("device_type"),
+        app_version=data.get("app_version"),
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        country=data.get("country"),
+        city=data.get("city")
+    )
+    
+    doc = page_view.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.page_views.insert_one(doc)
+    
+    # Update or create navigation session
+    nav_session = await db.nav_sessions.find_one({"session_id": session_id})
+    if nav_session:
+        pages = nav_session.get("pages_visited", [])
+        pages.append(data.get("page_name", "Unknown"))
+        
+        update_data = {
+            "pages_visited": pages,
+            "page_count": len(pages),
+            "exit_page": data.get("page_name"),
+            "bounced": len(pages) == 1
+        }
+        
+        # Track conversion
+        if data.get("page_name") == "Checkout":
+            update_data["reached_checkout"] = True
+        
+        await db.nav_sessions.update_one(
+            {"session_id": session_id},
+            {"$set": update_data}
+        )
+    else:
+        # Create new session
+        new_session = NavigationSession(
+            session_id=session_id,
+            user_id=user_id,
+            device_id=data.get("device_id"),
+            platform=data.get("platform", "web"),
+            started_at=datetime.now(timezone.utc).isoformat(),
+            pages_visited=[data.get("page_name", "Unknown")],
+            page_count=1,
+            entry_page=data.get("page_name"),
+            exit_page=data.get("page_name"),
+            bounced=True
+        )
+        doc = new_session.model_dump()
+        doc["created_at"] = doc["created_at"].isoformat()
+        await db.nav_sessions.insert_one(doc)
+    
+    return {"success": True, "view_id": page_view.view_id}
+
+@api_router.post("/analytics/end-session")
+async def end_navigation_session(data: dict):
+    """Mark a navigation session as ended"""
+    session_id = data.get("session_id")
+    if not session_id:
+        return {"success": False}
+    
+    nav_session = await db.nav_sessions.find_one({"session_id": session_id})
+    if nav_session:
+        started_at = nav_session.get("started_at")
+        total_duration = 0
+        if started_at:
+            try:
+                start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                total_duration = int((datetime.now(timezone.utc) - start).total_seconds())
+            except:
+                pass
+        
+        await db.nav_sessions.update_one(
+            {"session_id": session_id},
+            {"$set": {
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+                "total_duration": total_duration,
+                "completed_purchase": data.get("completed_purchase", False)
+            }}
+        )
+    
+    return {"success": True}
+
+@api_router.get("/admin/analytics/navigation")
+async def get_navigation_analytics(
+    platform: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    days: int = 7
+):
+    """Get navigation analytics for admin dashboard"""
+    
+    # Build date query
+    if not start_date:
+        start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    
+    query = {"timestamp": {"$gte": start_date}}
+    if end_date:
+        query["timestamp"]["$lte"] = end_date
+    if platform:
+        query["platform"] = platform
+    
+    # Get page view counts
+    page_views_pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": "$page_name",
+            "views": {"$sum": 1},
+            "unique_users": {"$addToSet": "$user_id"},
+            "avg_time": {"$avg": {"$ifNull": ["$time_on_page", 0]}}
+        }},
+        {"$project": {
+            "page": "$_id",
+            "views": 1,
+            "unique_visitors": {"$size": "$unique_users"},
+            "avg_time_on_page": {"$round": ["$avg_time", 0]}
+        }},
+        {"$sort": {"views": -1}},
+        {"$limit": 20}
+    ]
+    
+    top_pages = await db.page_views.aggregate(page_views_pipeline).to_list(20)
+    
+    # Get entry pages (landing pages)
+    entry_pipeline = [
+        {"$match": {**query, "entry_point": True}},
+        {"$group": {"_id": "$page_name", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    entry_pages = await db.page_views.aggregate(entry_pipeline).to_list(10)
+    
+    # Get exit pages
+    session_query = {}
+    if start_date:
+        session_query["started_at"] = {"$gte": start_date}
+    if platform:
+        session_query["platform"] = platform
+    
+    exit_pipeline = [
+        {"$match": session_query},
+        {"$group": {"_id": "$exit_page", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    exit_pages = await db.nav_sessions.aggregate(exit_pipeline).to_list(10)
+    
+    # Get platform breakdown
+    platform_pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$platform", "views": {"$sum": 1}}},
+        {"$sort": {"views": -1}}
+    ]
+    platforms = await db.page_views.aggregate(platform_pipeline).to_list(10)
+    
+    # Get daily trend
+    daily_pipeline = [
+        {"$match": query},
+        {"$addFields": {
+            "date": {"$substr": ["$timestamp", 0, 10]}
+        }},
+        {"$group": {
+            "_id": "$date",
+            "views": {"$sum": 1},
+            "unique_sessions": {"$addToSet": "$session_id"}
+        }},
+        {"$project": {
+            "date": "$_id",
+            "views": 1,
+            "sessions": {"$size": "$unique_sessions"}
+        }},
+        {"$sort": {"date": 1}}
+    ]
+    daily_trend = await db.page_views.aggregate(daily_pipeline).to_list(30)
+    
+    # Get session stats
+    total_sessions = await db.nav_sessions.count_documents(session_query)
+    bounce_sessions = await db.nav_sessions.count_documents({**session_query, "bounced": True})
+    bounce_rate = round((bounce_sessions / total_sessions * 100) if total_sessions > 0 else 0, 1)
+    
+    checkout_sessions = await db.nav_sessions.count_documents({**session_query, "reached_checkout": True})
+    purchase_sessions = await db.nav_sessions.count_documents({**session_query, "completed_purchase": True})
+    
+    # Avg pages per session
+    avg_pages_pipeline = [
+        {"$match": session_query},
+        {"$group": {"_id": None, "avg_pages": {"$avg": "$page_count"}}}
+    ]
+    avg_result = await db.nav_sessions.aggregate(avg_pages_pipeline).to_list(1)
+    avg_pages_per_session = round(avg_result[0]["avg_pages"], 1) if avg_result else 0
+    
+    # Get common navigation flows (page sequences)
+    flow_pipeline = [
+        {"$match": session_query},
+        {"$match": {"page_count": {"$gte": 2, "$lte": 5}}},
+        {"$project": {
+            "flow": {
+                "$reduce": {
+                    "input": {"$slice": ["$pages_visited", 4]},
+                    "initialValue": "",
+                    "in": {"$concat": ["$$value", {"$cond": [{"$eq": ["$$value", ""]}, "", " → "]}, "$$this"]}
+                }
+            }
+        }},
+        {"$group": {"_id": "$flow", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    common_flows = await db.nav_sessions.aggregate(flow_pipeline).to_list(10)
+    
+    # Total stats
+    total_views = await db.page_views.count_documents(query)
+    
+    return {
+        "summary": {
+            "total_page_views": total_views,
+            "total_sessions": total_sessions,
+            "bounce_rate": bounce_rate,
+            "avg_pages_per_session": avg_pages_per_session,
+            "checkout_rate": round((checkout_sessions / total_sessions * 100) if total_sessions > 0 else 0, 1),
+            "conversion_rate": round((purchase_sessions / total_sessions * 100) if total_sessions > 0 else 0, 1)
+        },
+        "top_pages": top_pages,
+        "entry_pages": [{"page": p["_id"], "count": p["count"]} for p in entry_pages],
+        "exit_pages": [{"page": p["_id"], "count": p["count"]} for p in exit_pages],
+        "platforms": [{"platform": p["_id"], "views": p["views"]} for p in platforms],
+        "daily_trend": daily_trend,
+        "common_flows": [{"flow": f["_id"], "count": f["count"]} for f in common_flows if f["_id"]],
+        "funnel": {
+            "home": total_views,
+            "reached_checkout": checkout_sessions,
+            "completed_purchase": purchase_sessions
+        }
+    }
+
+@api_router.get("/admin/analytics/page-detail/{page_name}")
+async def get_page_analytics_detail(
+    page_name: str,
+    days: int = 7
+):
+    """Get detailed analytics for a specific page"""
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    query = {"page_name": page_name, "timestamp": {"$gte": start_date}}
+    
+    # Total views
+    total_views = await db.page_views.count_documents(query)
+    
+    # Unique visitors
+    unique_pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "count"}
+    ]
+    unique_result = await db.page_views.aggregate(unique_pipeline).to_list(1)
+    unique_visitors = unique_result[0]["count"] if unique_result else 0
+    
+    # Avg time on page
+    time_pipeline = [
+        {"$match": {**query, "time_on_page": {"$gt": 0}}},
+        {"$group": {"_id": None, "avg": {"$avg": "$time_on_page"}}}
+    ]
+    time_result = await db.page_views.aggregate(time_pipeline).to_list(1)
+    avg_time = round(time_result[0]["avg"], 0) if time_result else 0
+    
+    # Where users came from
+    referrer_pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$referrer_page", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    referrers = await db.page_views.aggregate(referrer_pipeline).to_list(10)
+    
+    # Where users went next
+    next_page_pipeline = [
+        {"$match": {"referrer_page": page_name, "timestamp": {"$gte": start_date}}},
+        {"$group": {"_id": "$page_name", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    next_pages = await db.page_views.aggregate(next_page_pipeline).to_list(10)
+    
+    # Daily views
+    daily_pipeline = [
+        {"$match": query},
+        {"$addFields": {"date": {"$substr": ["$timestamp", 0, 10]}}},
+        {"$group": {"_id": "$date", "views": {"$sum": 1}}},
+        {"$sort": {"date": 1}}
+    ]
+    daily_views = await db.page_views.aggregate(daily_pipeline).to_list(30)
+    
+    return {
+        "page_name": page_name,
+        "total_views": total_views,
+        "unique_visitors": unique_visitors,
+        "avg_time_on_page": avg_time,
+        "referrers": [{"page": r["_id"] or "Direct", "count": r["count"]} for r in referrers],
+        "next_pages": [{"page": n["_id"], "count": n["count"]} for n in next_pages],
+        "daily_views": daily_views
+    }
+
 # ============== SUBSCRIPTION FEATURE CONTROLS ==============
 
 DEFAULT_FEATURE_CONTROLS = {
