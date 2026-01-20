@@ -16,7 +16,38 @@ Gracefy is a comprehensive Christian music streaming platform with:
 
 ## Latest Updates (Jan 20, 2026)
 
-### 🎛️ Layout Manager Enhancements (NEW)
+### 🎵 Audio Encoding Service (NEW)
+Implemented asynchronous audio encoding with FFmpeg for adaptive streaming:
+
+**Feature Details:**
+- **Async Encoding**: Upload returns immediately, encoding happens in background
+- **Multiple Quality Variants**: Creates 6 variants for each uploaded audio file
+  - Low quality: 128kbps (MP3 + AAC)
+  - Medium quality: 256kbps (MP3 + AAC)
+  - High quality: 320kbps (MP3 + AAC)
+- **Dual Formats**: Both MP3 and M4A (AAC) for maximum device compatibility
+- **Range Request Support**: Proper HTTP range headers for audio seeking
+- **Admin Dashboard Stats**: View encoding jobs, variant counts, storage usage
+
+**New API Endpoints:**
+- `GET /api/encoding/job/{job_id}` - Get encoding job status and progress
+- `GET /api/files/{file_id}/variants` - List all variants for a file
+- `GET /api/files/{file_id}/variant/{quality}/{format}` - Stream specific variant
+- `GET /api/files/{file_id}/best-variant` - Get best available variant URL
+- `GET /api/admin/encoding/stats` - Encoding statistics for admin
+- `POST /api/admin/encoding/retry/{job_id}` - Retry failed encoding job
+
+**Files Created/Modified:**
+- `/app/backend/services/encoding_service.py` (NEW) - FFmpeg encoding service
+- `/app/backend/server.py` - Upload endpoints updated with encoding integration
+
+**Database Collections:**
+- `encoding_jobs` - Tracks encoding job status and progress
+- `audio_variants` - Stores encoded file variants
+
+---
+
+### 🎛️ Layout Manager Enhancements
 Extended the Layout Manager with new section types and content types:
 
 **New Section Types:**
