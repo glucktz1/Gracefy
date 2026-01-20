@@ -770,6 +770,72 @@ class Transaction(BaseModel):
     completed_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ============== NAVIGATION ANALYTICS MODELS ==============
+
+class PageView(BaseModel):
+    """Track page views for navigation analytics"""
+    model_config = ConfigDict(extra="ignore")
+    view_id: str = Field(default_factory=lambda: f"pv_{uuid.uuid4().hex[:12]}")
+    
+    # User info
+    user_id: Optional[str] = None
+    session_id: str  # Browser/app session ID
+    device_id: Optional[str] = None
+    
+    # Page info
+    page_name: str  # e.g., "Home", "Album", "Checkout", "Profile"
+    page_path: Optional[str] = None  # e.g., "/album/123", "/checkout"
+    page_params: dict = {}  # Additional params like album_id, category_id
+    
+    # Navigation context
+    referrer_page: Optional[str] = None  # Previous page
+    entry_point: bool = False  # Is this the first page of session?
+    
+    # Platform & Device
+    platform: str = "web"  # web, android, ios
+    device_type: Optional[str] = None  # mobile, tablet, desktop
+    app_version: Optional[str] = None
+    
+    # Timing
+    timestamp: str = ""
+    time_on_page: Optional[int] = None  # Seconds spent on page (updated on next navigation)
+    
+    # Location (optional)
+    country: Optional[str] = None
+    city: Optional[str] = None
+    
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class NavigationSession(BaseModel):
+    """Track user navigation sessions"""
+    model_config = ConfigDict(extra="ignore")
+    session_id: str = Field(default_factory=lambda: f"nav_{uuid.uuid4().hex[:12]}")
+    user_id: Optional[str] = None
+    device_id: Optional[str] = None
+    
+    # Session info
+    platform: str = "web"
+    started_at: str = ""
+    ended_at: Optional[str] = None
+    
+    # Navigation path
+    pages_visited: List[str] = []  # Ordered list of page names
+    page_count: int = 0
+    
+    # Entry/Exit
+    entry_page: Optional[str] = None
+    exit_page: Optional[str] = None
+    
+    # Engagement
+    total_duration: int = 0  # Total session duration in seconds
+    bounced: bool = False  # True if only visited 1 page
+    
+    # Conversion tracking
+    reached_checkout: bool = False
+    completed_purchase: bool = False
+    
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class LayoutConfig(BaseModel):
     """Global layout configuration"""
     model_config = ConfigDict(extra="ignore")
