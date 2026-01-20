@@ -130,17 +130,34 @@ export default function SpecialMixesPage() {
       toast.error("Select at least one song");
       return;
     }
+    if (selectedSongs.length > MAX_SONGS_PER_MIX) {
+      toast.error(`Maximum ${MAX_SONGS_PER_MIX} songs allowed per mix`);
+      return;
+    }
 
-    const payload = {
-      ...mixForm,
-      songs: selectedSongs.map((song, index) => ({
-        song_id: song.song_id,
-        album_id: song.album_id,
-        order: index + 1
-      }))
-    };
-
+    setIsUploading(true);
+    
     try {
+      // Upload thumbnail if file selected
+      let thumbnailUrl = mixForm.thumbnail;
+      if (thumbnailFile) {
+        thumbnailUrl = await handleFileUpload(thumbnailFile);
+        if (!thumbnailUrl) {
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      const payload = {
+        ...mixForm,
+        thumbnail: thumbnailUrl,
+        songs: selectedSongs.map((song, index) => ({
+          song_id: song.song_id,
+          album_id: song.album_id,
+          order: index + 1
+        }))
+      };
+
       if (editingMix) {
         await axios.put(`${API}/special-mixes/${editingMix.mix_id}`, payload, { withCredentials: true });
         toast.success("Special mix updated successfully");
@@ -153,6 +170,8 @@ export default function SpecialMixesPage() {
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "Failed to save mix");
+    } finally {
+      setIsUploading(false);
     }
   };
 
