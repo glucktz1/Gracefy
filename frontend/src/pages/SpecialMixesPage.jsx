@@ -28,13 +28,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const MAX_SONGS_PER_MIX = 14;
 
 export default function SpecialMixesPage() {
   const [mixes, setMixes] = useState([]);
   const [albums, setAlbums] = useState([]);
+  const [allAlbums, setAllAlbums] = useState([]); // Keep original unfiltered
   const [categories, setCategories] = useState([]);
+  const [songCategories, setSongCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Create/Edit Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,17 +59,21 @@ export default function SpecialMixesPage() {
   const [expandedAlbum, setExpandedAlbum] = useState(null);
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [songSearch, setSongSearch] = useState("");
+  const [songCategoryFilter, setSongCategoryFilter] = useState(""); // Filter songs by category
 
   const fetchData = async () => {
     try {
-      const [mixesRes, albumsRes, categoriesRes] = await Promise.all([
+      const [mixesRes, albumsRes, categoriesRes, songCategoriesRes] = await Promise.all([
         axios.get(`${API}/special-mixes`, { withCredentials: true }),
         axios.get(`${API}/albums/all-songs`, { withCredentials: true }),
-        axios.get(`${API}/categories`, { withCredentials: true })
+        axios.get(`${API}/categories`, { withCredentials: true }),
+        axios.get(`${API}/song-categories`, { withCredentials: true })
       ]);
       setMixes(mixesRes.data.mixes || []);
       setAlbums(albumsRes.data.albums || []);
+      setAllAlbums(albumsRes.data.albums || []);
       setCategories(categoriesRes.data.categories || []);
+      setSongCategories(songCategoriesRes.data.categories || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load data");
@@ -73,9 +82,44 @@ export default function SpecialMixesPage() {
     }
   };
 
+  // Fetch songs filtered by category
+  const fetchSongsByCategory = async (categoryId) => {
+    if (!categoryId) {
+      setAlbums(allAlbums);
+      return;
+    }
+    try {
+      const response = await axios.get(`${API}/albums/songs-by-category?song_category_id=${categoryId}`, { withCredentials: true });
+      setAlbums(response.data.albums || []);
+    } catch (error) {
+      console.error("Error fetching filtered songs:", error);
+      toast.error("Failed to filter songs");
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // When category filter changes, fetch filtered songs
+  useEffect(() => {
+    fetchSongsByCategory(songCategoryFilter);
+  }, [songCategoryFilter]);
+
+  const handleFileUpload = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await axios.post(`${API}/upload`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return response.data.url;
+    } catch (error) {
+      toast.error("Failed to upload thumbnail");
+      return null;
+    }
+  };
 
   const handleCreateMix = async () => {
     if (!mixForm.title.trim()) {
