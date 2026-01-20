@@ -7554,69 +7554,156 @@ async def generate_demo_listening_data():
     
     return {"message": f"Generated {generated} listening sessions"}
 
-# ============== FILE UPLOAD (Base64 for now, Firebase can be integrated) ==============
+# ============== FILE UPLOAD (Bunny CDN + MongoDB fallback) ==============
 
 @api_router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Upload file and return URL (stores in MongoDB)"""
-    global encoding_service
+async def upload_file(file: UploadFile = File(...), use_cdn: bool = True):
+    """Upload file and return URL (uses Bunny CDN if enabled, falls back to MongoDB)"""
+    global encoding_service, bunny_service
     
     content = await file.read()
     
-    # Check file size (max 50MB for audio, 5MB for images)
-    max_size = 50 * 1024 * 1024 if file.content_type and file.content_type.startswith('audio') else 5 * 1024 * 1024
+    # Check file size (max 100MB for audio with CDN, 50MB without; 10MB for images)
+    is_audio = file.content_type and file.content_type.startswith('audio')
+    is_image = file.content_type and file.content_type.startswith('image')
+    
+    if is_audio:
+        max_size = 100 * 1024 * 1024 if is_cdn_enabled() else 50 * 1024 * 1024
+    else:
+        max_size = 10 * 1024 * 1024
+    
     if len(content) > max_size:
         raise HTTPException(status_code=400, detail=f"File too large. Max size is {max_size // (1024*1024)}MB")
     
-    base64_content = base64.b64encode(content).decode('utf-8')
+    file_id = f"file_{uuid.uuid4().hex[:12]}"
+    cdn_url = None
+    storage_path = None
     
+    # Try CDN upload first if enabled
+    if use_cdn and is_cdn_enabled():
+        if bunny_service is None:
+            bunny_service = get_bunny_service()
+        
+        try:
+            if is_audio:
+                cdn_result = await bunny_service.upload_audio(content, file.filename, file.content_type)
+            elif is_image:
+                cdn_result = await bunny_service.upload_image(content, file.filename, file.content_type)
+            else:
+                cdn_result = await bunny_service.upload_file(content, file.filename, "files", file.content_type)
+            
+            if cdn_result.get("success"):
+                cdn_url = cdn_result["cdn_url"]
+                storage_path = cdn_result["storage_path"]
+                logger.info(f"Uploaded to CDN: {cdn_url}")
+            else:
+                logger.warning(f"CDN upload failed, falling back to MongoDB: {cdn_result.get('error')}")
+        except Exception as e:
+            logger.error(f"CDN upload error: {e}")
+    
+    # Prepare file document
     file_doc = {
-        "file_id": f"file_{uuid.uuid4().hex[:12]}",
+        "file_id": file_id,
         "filename": file.filename,
         "content_type": file.content_type,
         "size": len(content),
-        "data": base64_content,
-        "encoding_status": "pending" if file.content_type and file.content_type.startswith('audio') else None,
+        "cdn_url": cdn_url,
+        "storage_path": storage_path,
+        "storage_type": "cdn" if cdn_url else "mongodb",
+        "encoding_status": "pending" if is_audio else None,
         "has_variants": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
+    # Only store in MongoDB if CDN failed
+    if not cdn_url:
+        base64_content = base64.b64encode(content).decode('utf-8')
+        file_doc["data"] = base64_content
+    
     await db.files.insert_one(file_doc)
     
-    # For audio files, start async encoding job
+    # For audio files, start async encoding job (if not using CDN)
     encoding_job_id = None
-    if file.content_type and file.content_type.startswith('audio'):
+    if is_audio and not cdn_url:
         if encoding_service is None:
             encoding_service = get_encoding_service(db)
         
         try:
             encoding_job_id = await encoding_service.start_encoding_job(
-                file_doc["file_id"],
-                content,
-                file.filename,
-                file.content_type
+                file_id, content, file.filename, file.content_type
             )
-            # Update file with encoding job reference
             await db.files.update_one(
-                {"file_id": file_doc["file_id"]},
+                {"file_id": file_id},
                 {"$set": {"encoding_job_id": encoding_job_id, "encoding_status": "processing"}}
             )
         except Exception as e:
             logger.error(f"Failed to start encoding job: {e}")
-        
-        url = f"/api/files/{file_doc['file_id']}/stream"
+    
+    # Determine URL to return
+    if cdn_url:
+        url = cdn_url
+    elif is_audio:
+        url = f"/api/files/{file_id}/stream"
     else:
-        # For images, return data URL for immediate display
+        base64_content = base64.b64encode(content).decode('utf-8')
         url = f"data:{file.content_type};base64,{base64_content}"
     
     return {
-        "file_id": file_doc["file_id"],
+        "file_id": file_id,
         "url": url,
+        "cdn_url": cdn_url,
         "filename": file.filename,
         "content_type": file.content_type,
         "size": len(content),
+        "storage_type": "cdn" if cdn_url else "mongodb",
         "encoding_job_id": encoding_job_id,
         "encoding_status": "processing" if encoding_job_id else None
+    }
+
+@api_router.post("/upload/cdn")
+async def upload_to_cdn(file: UploadFile = File(...), folder: str = "audio"):
+    """Upload file directly to Bunny CDN"""
+    global bunny_service
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    if bunny_service is None:
+        bunny_service = get_bunny_service()
+    
+    content = await file.read()
+    
+    # Check file size (max 100MB)
+    if len(content) > 100 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max size is 100MB")
+    
+    result = await bunny_service.upload_file(content, file.filename, folder, file.content_type)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "CDN upload failed"))
+    
+    # Save reference to database
+    file_doc = {
+        "file_id": f"file_{uuid.uuid4().hex[:12]}",
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "size": len(content),
+        "cdn_url": result["cdn_url"],
+        "storage_path": result["storage_path"],
+        "storage_type": "cdn",
+        "folder": folder,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.files.insert_one(file_doc)
+    
+    return {
+        "file_id": file_doc["file_id"],
+        "url": result["cdn_url"],
+        "cdn_url": result["cdn_url"],
+        "storage_path": result["storage_path"],
+        "filename": file.filename,
+        "size": len(content)
     }
 
 @api_router.post("/upload/multiple")
