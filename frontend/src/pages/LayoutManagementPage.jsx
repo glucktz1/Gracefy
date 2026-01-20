@@ -1929,16 +1929,16 @@ export default function LayoutManagementPage() {
                 </h4>
                 <div className="space-y-2">
                   {choirs.length > 0 ? choirs.map((choir) => (
-                    <label key={choir.choir_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                    <label key={choir.singer_id || choir.choir_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
                       <input
                         type="checkbox"
-                        defaultChecked={selectedSection?.content_ids?.includes(choir.choir_id)}
+                        defaultChecked={selectedSection?.content_ids?.includes(choir.singer_id || choir.choir_id)}
                         className="rounded border-zinc-700"
-                        data-id={choir.choir_id}
+                        data-id={choir.singer_id || choir.choir_id}
                         data-type="choirs"
                       />
-                      {choir.profile_image ? (
-                        <img src={choir.profile_image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      {choir.profile_image || choir.photo ? (
+                        <img src={choir.profile_image || choir.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-violet-600/20 flex items-center justify-center">
                           <Users size={16} className="text-violet-400" />
