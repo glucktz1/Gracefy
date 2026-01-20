@@ -504,27 +504,74 @@ export default function SpecialMixesPage() {
             {/* Song Selection */}
             <div className="border border-zinc-800 rounded-lg overflow-hidden">
               <div className="bg-zinc-950 p-3 border-b border-zinc-800">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-white">Select Songs</h3>
-                  <Badge variant="outline" className="text-zinc-400">
-                    {selectedSongs.length} selected
+                  <Badge 
+                    variant="outline" 
+                    className={selectedSongs.length >= MAX_SONGS_PER_MIX ? "text-red-400 border-red-600" : "text-zinc-400"}
+                  >
+                    {selectedSongs.length}/{MAX_SONGS_PER_MIX} selected
                   </Badge>
                 </div>
-                <div className="relative mt-2">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500" size={14} />
-                  <Input
-                    placeholder="Search albums or songs..."
-                    value={songSearch}
-                    onChange={(e) => setSongSearch(e.target.value)}
-                    className="pl-9 bg-zinc-900 border-zinc-800 text-white text-sm h-8"
-                  />
+                
+                {/* Category Filter */}
+                <div className="flex gap-2 mb-2">
+                  <Select value={songCategoryFilter} onValueChange={setSongCategoryFilter}>
+                    <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white text-sm h-8 w-48">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectItem value="">All Songs</SelectItem>
+                      {songCategories.map(cat => (
+                        <SelectItem key={cat.song_category_id} value={cat.song_category_id}>
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }}></span>
+                            {cat.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500" size={14} />
+                    <Input
+                      placeholder="Search albums or songs..."
+                      value={songSearch}
+                      onChange={(e) => setSongSearch(e.target.value)}
+                      className="pl-9 bg-zinc-900 border-zinc-800 text-white text-sm h-8"
+                    />
+                  </div>
                 </div>
+                
+                {songCategoryFilter && (
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                    <span>Showing songs tagged with:</span>
+                    <Badge 
+                      className="text-xs"
+                      style={{ backgroundColor: songCategories.find(c => c.song_category_id === songCategoryFilter)?.color }}
+                    >
+                      {songCategories.find(c => c.song_category_id === songCategoryFilter)?.name}
+                    </Badge>
+                    <button 
+                      onClick={() => setSongCategoryFilter("")}
+                      className="text-zinc-500 hover:text-white"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-0 divide-x divide-zinc-800">
                 {/* Available Songs */}
                 <div className="max-h-64 overflow-y-auto">
-                  {filteredAlbums.map((album) => (
+                  {filteredAlbums.length === 0 ? (
+                    <div className="p-4 text-center text-zinc-500 text-sm">
+                      {songCategoryFilter ? "No songs found with this category" : "No albums found"}
+                    </div>
+                  ) : (
+                  filteredAlbums.map((album) => (
                     <div key={album.album_id} className="border-b border-zinc-800 last:border-0">
                       <button
                         onClick={() => setExpandedAlbum(expandedAlbum === album.album_id ? null : album.album_id)}
