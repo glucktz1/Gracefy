@@ -1285,6 +1285,7 @@ export default function LayoutManagementPage() {
                         <h4 className={`font-semibold ${section.is_active ? 'text-white' : 'text-zinc-500'}`}>{section.display_name}</h4>
                         {getPlatformBadge(section.platforms)}
                         <Badge className="bg-zinc-700 text-zinc-300">{section.section_type}</Badge>
+                        {section.layout_style && <Badge className="bg-blue-500/20 text-blue-400">{section.layout_style}</Badge>}
                         {!section.is_active && <Badge className="bg-red-500/20 text-red-400">Hidden</Badge>}
                         {section.is_active && <Badge className="bg-emerald-500/20 text-emerald-400">Live</Badge>}
                       </div>
