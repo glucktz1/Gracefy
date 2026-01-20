@@ -238,7 +238,7 @@ export default function SongCategoriesPage() {
                   className="w-12 h-12 rounded-lg flex items-center justify-center"
                   style={{ backgroundColor: category.color + '20' }}
                 >
-                  <IconComponent iconName={category.icon} className="w-6 h-6" style={{ color: category.color }} />
+                  {renderIcon(category.icon, "w-6 h-6", { color: category.color })}
                 </div>
                 <div className="flex gap-1">
                   {category.is_system && (
