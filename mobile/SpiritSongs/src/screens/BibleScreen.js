@@ -571,8 +571,27 @@ const BibleScreen = ({ navigation }) => {
           {/* Book List */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('bible.selectBook', 'Chagua Kitabu')}</Text>
+            
+            {/* Book Search Input */}
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={t('bible.searchBook', 'Tafuta kitabu...')}
+                placeholderTextColor={COLORS.textSecondary}
+                value={bookSearchQuery}
+                onChangeText={setBookSearchQuery}
+                autoCorrect={false}
+              />
+              {bookSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setBookSearchQuery('')} style={styles.searchClear}>
+                  <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            
             <View style={styles.bookGrid}>
-              {books.map(book => (
+              {filteredBooks.map(book => (
                 <TouchableOpacity
                   key={book.book_id}
                   style={styles.bookCard}
@@ -584,6 +603,14 @@ const BibleScreen = ({ navigation }) => {
                   </Text>
                 </TouchableOpacity>
               ))}
+              {filteredBooks.length === 0 && bookSearchQuery.length > 0 && (
+                <View style={styles.noResults}>
+                  <Ionicons name="search-outline" size={32} color={COLORS.textSecondary} />
+                  <Text style={styles.noResultsText}>
+                    {t('bible.noBookFound', 'Hakuna kitabu kilichopatikana')}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </ScrollView>
