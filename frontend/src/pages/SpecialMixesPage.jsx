@@ -374,7 +374,7 @@ export default function SpecialMixesPage() {
               {editingMix ? 'Edit Special Mix' : 'Create Special Mix'}
             </DialogTitle>
             <DialogDescription>
-              Combine songs from different albums into a unique mix
+              Combine songs from different albums into a unique mix (max {MAX_SONGS_PER_MIX} songs)
             </DialogDescription>
           </DialogHeader>
           
@@ -421,33 +421,78 @@ export default function SpecialMixesPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            {/* Thumbnail Upload */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-zinc-400 mb-1 block">Thumbnail URL</label>
-                <Input
-                  value={mixForm.thumbnail}
-                  onChange={(e) => setMixForm({ ...mixForm, thumbnail: e.target.value })}
-                  placeholder="https://..."
-                  className="bg-zinc-950 border-zinc-800 text-white"
-                />
+                <label className="text-sm text-zinc-400 mb-1 block">Thumbnail</label>
+                <div className="flex gap-2">
+                  <label className="flex-1 cursor-pointer">
+                    <div className="border-2 border-dashed border-zinc-700 rounded-lg p-4 text-center hover:border-violet-500 transition-colors">
+                      {thumbnailFile ? (
+                        <div className="flex items-center justify-center gap-2 text-zinc-300">
+                          <Image size={20} />
+                          <span className="text-sm truncate">{thumbnailFile.name}</span>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); setThumbnailFile(null); }}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : mixForm.thumbnail ? (
+                        <div className="flex items-center justify-center gap-2 text-zinc-300">
+                          <Check size={16} className="text-green-500" />
+                          <span className="text-sm">Thumbnail set</span>
+                        </div>
+                      ) : (
+                        <div className="text-zinc-500">
+                          <Image size={24} className="mx-auto mb-1" />
+                          <p className="text-xs">Click to upload thumbnail</p>
+                        </div>
+                      )}
+                    </div>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          setThumbnailFile(e.target.files[0]);
+                          setMixForm({ ...mixForm, thumbnail: "" }); // Clear URL if uploading file
+                        }
+                      }}
+                    />
+                  </label>
+                  {(thumbnailFile || mixForm.thumbnail) && (
+                    <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
+                      <img 
+                        src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : mixForm.thumbnail} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="text-sm text-zinc-400 mb-1 block">Monetization</label>
-                <Select value={mixForm.monetization_type} onValueChange={(value) => setMixForm({ ...mixForm, monetization_type: value })}>
-                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800">
-                    <SelectItem value="free">Free</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={mixForm.is_featured}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Monetization</label>
+                  <Select value={mixForm.monetization_type} onValueChange={(value) => setMixForm({ ...mixForm, monetization_type: value })}>
+                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="premium">Premium</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={mixForm.is_featured}
                     onCheckedChange={(checked) => setMixForm({ ...mixForm, is_featured: checked })}
                     className="data-[state=checked]:bg-amber-600"
                   />
