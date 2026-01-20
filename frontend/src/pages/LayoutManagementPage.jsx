@@ -881,13 +881,16 @@ export default function LayoutManagementPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes] = await Promise.all([
+      const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes, leadersRes, snippetsRes, mixesRes] = await Promise.all([
         axios.get(`${API}/layout/sections`, { withCredentials: true }),
         axios.get(`${API}/layout/burners`, { withCredentials: true }),
         axios.get(`${API}/categories`, { withCredentials: true }),
         axios.get(`${API}/albums`, { withCredentials: true }),
         axios.get(`${API}/churches`, { withCredentials: true }).catch(() => ({ data: { churches: [] } })),
-        axios.get(`${API}/admin/choirs`, { withCredentials: true }).catch(() => ({ data: { choirs: [] } }))
+        axios.get(`${API}/admin/choirs`, { withCredentials: true }).catch(() => ({ data: { choirs: [] } })),
+        axios.get(`${API}/leaders`, { withCredentials: true }).catch(() => ({ data: { leaders: [] } })),
+        axios.get(`${API}/bible/featured-snippets`, { withCredentials: true }).catch(() => ({ data: { snippets: [] } })),
+        axios.get(`${API}/special-mixes`, { withCredentials: true }).catch(() => ({ data: { mixes: [] } }))
       ]);
       setSections(sectionsRes.data.sections || []);
       setBurners(burnersRes.data.burners || []);
@@ -895,6 +898,9 @@ export default function LayoutManagementPage() {
       setAlbums(albumsRes.data.albums || []);
       setChurches(churchesRes.data.churches || []);
       setChoirs(choirsRes.data.choirs || []);
+      setReligiousLeaders(leadersRes.data.leaders || []);
+      setBibleSnippets(snippetsRes.data.snippets || snippetsRes.data || []);
+      setSpecialMixes(mixesRes.data.mixes || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load layout data");
