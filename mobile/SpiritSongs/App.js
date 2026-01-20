@@ -128,6 +128,11 @@ const MainNavigator = React.forwardRef((props, ref) => {
         component={ChurchDetailScreen}
         options={{ animation: 'slide_from_right' }}
       />
+      <Stack.Screen 
+        name="Checkout" 
+        component={CheckoutScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
     </Stack.Navigator>
   );
 });
