@@ -327,12 +327,13 @@ const useAudioPlayer = () => {
   // Setup MediaSession API for lock screen/notification controls (web)
   const updateMediaSession = useCallback((song, album) => {
     if ('mediaSession' in navigator && song) {
+      const artworkUrl = getImageUrl(album?.thumbnail);
       navigator.mediaSession.metadata = new MediaMetadata({
         title: song.title || 'Unknown Track',
         artist: album?.artist_name || 'Gracefy',
         album: album?.title || 'Gracefy',
-        artwork: album?.thumbnail ? [
-          { src: album.thumbnail, sizes: '512x512', type: 'image/jpeg' }
+        artwork: artworkUrl ? [
+          { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }
         ] : []
       });
     }
