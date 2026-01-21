@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as SecureStore from 'expo-secure-store';
 import { useLanguage } from '../context/LanguageContext';
+import { usePlayer } from '../context/PlayerContext';
 import api from '../services/api';
 
 const COLORS = {
