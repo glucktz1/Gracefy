@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { Alert, Share, AppState, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
 import { sessionService, getAudioUrl, contentService, libraryService } from '../services/api';
 import { getLocalSongPath, downloadSong, isSongDownloaded, removeDownload } from '../services/downloadService';
 
@@ -9,8 +11,10 @@ const PlayerContext = createContext(null);
 
 const SAMPLE_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 const PLAYBACK_STATE_KEY = 'playback_state';
+const BACKGROUND_PLAYBACK_TASK = 'BACKGROUND_PLAYBACK_CHECK';
 
 let globalSoundRef = null;
+let playNextCallback = null;
 
 export const PlayerProvider = ({ children }) => {
   const [currentSong, setCurrentSong] = useState(null);
