@@ -281,6 +281,9 @@ const BibleScreen = ({ navigation }) => {
         return;
       }
 
+      // Pause music player if playing
+      await pauseMusicIfPlaying();
+
       setPlayingId(snippet.snippet_id);
       const res = await api.get(`/bible/snippets/${snippet.snippet_id}`);
       
