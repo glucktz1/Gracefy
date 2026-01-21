@@ -1153,6 +1153,35 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
+  // Testament filter styles
+  testamentFilter: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  testamentTab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  testamentTabActive: {
+    backgroundColor: COLORS.primary,
+  },
+  testamentTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  testamentTabTextActive: {
+    color: '#000',
+  },
   // Range book search styles
   rangeBookSearchContainer: {
     flexDirection: 'row',
