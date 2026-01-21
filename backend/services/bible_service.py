@@ -125,7 +125,13 @@ class BibleService:
                 for book_data in books_list:
                     book_number = int(book_data.get("book_number", 0))
                     book_name = book_data.get("book_name", "Unknown")
-                    chapters = book_data.get("CHAPTER", [])
+                    chapters_raw = book_data.get("CHAPTER", [])
+                    
+                    # Handle single-chapter books where CHAPTER is a dict instead of list
+                    if isinstance(chapters_raw, dict):
+                        chapters = [chapters_raw]
+                    else:
+                        chapters = chapters_raw
                     
                     # Determine testament based on book number (1-39 OT, 40-66 NT)
                     testament = "old" if book_number <= 39 else "new"
@@ -151,7 +157,13 @@ class BibleService:
                     # Process chapters
                     for chapter_data in chapters:
                         chapter_num = int(chapter_data.get("chapter_number", 1))
-                        verses = chapter_data.get("VERSES", [])
+                        verses_raw = chapter_data.get("VERSES", [])
+                        
+                        # Handle single-verse chapters where VERSES might be a dict
+                        if isinstance(verses_raw, dict):
+                            verses = [verses_raw]
+                        else:
+                            verses = verses_raw
                         
                         for verse_data in verses:
                             verse_num = int(verse_data.get("verse_number", 1))
