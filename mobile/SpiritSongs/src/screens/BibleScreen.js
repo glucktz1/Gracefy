@@ -1213,6 +1213,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
   },
+  bookCardOld: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#8b5cf6',
+  },
   bookName: {
     fontSize: 14,
     fontWeight: '600',
@@ -1221,6 +1225,7 @@ const styles = StyleSheet.create({
   bookTestament: {
     fontSize: 11,
     color: COLORS.textSecondary,
+    marginTop: 2,
   },
   navHeader: {
     flexDirection: 'row',
