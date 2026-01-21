@@ -135,12 +135,13 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
     }
   }
   
-  // Request permissions first on Android
-  await requestStoragePermission();
+  // Request/check permissions first on Android (for logging purposes)
+  const permResult = await requestStoragePermission();
+  console.log('Storage permission result:', permResult.message);
   
-  // Try each directory option
+  // Try each directory option - prioritize documentDirectory as it's persistent
   const dirOptions = getDownloadsDirOptions();
-  console.log('Trying directory options:', dirOptions.length);
+  console.log('Trying', dirOptions.length, 'directory options...');
   
   for (const dir of dirOptions) {
     try {
@@ -156,7 +157,7 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
       }
       
       if (!dirInfo.exists) {
-        // Try to create it with proper error handling
+        // Try to create it
         try {
           await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
           console.log('Created directory:', dir);
@@ -207,7 +208,11 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
   }
   
   console.error('All directory options failed');
-  return { success: false, dir: null, error: 'Unable to find writable storage directory. Please check app permissions in Settings.' };
+  return { 
+    success: false, 
+    dir: null, 
+    error: 'Imeshindwa kupata nafasi ya kuhifadhi. Tafadhali jaribu tena.' 
+  };
 };
 
 // Get list of downloaded songs
