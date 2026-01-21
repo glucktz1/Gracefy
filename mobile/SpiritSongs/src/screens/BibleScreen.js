@@ -38,6 +38,7 @@ const COLORS = {
 
 const BibleScreen = ({ navigation }) => {
   const { t, language } = useLanguage();
+  const { isPlaying: musicIsPlaying, togglePlay: toggleMusicPlay, currentSong } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [books, setBooks] = useState([]);
   const [snippets, setSnippets] = useState([]);
@@ -49,8 +50,14 @@ const BibleScreen = ({ navigation }) => {
   const [sound, setSound] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   
+  // Track if we paused music to play Bible audio
+  const pausedMusicForBible = useRef(false);
+  
   // Book search
   const [bookSearchQuery, setBookSearchQuery] = useState('');
+  
+  // Testament filter
+  const [testamentFilter, setTestamentFilter] = useState('all'); // 'all', 'old', 'new'
   
   // Range reader modal
   const [showRangeModal, setShowRangeModal] = useState(false);
@@ -62,15 +69,28 @@ const BibleScreen = ({ navigation }) => {
   const [rangeGender, setRangeGender] = useState('female');
   const [rangeLoading, setRangeLoading] = useState(false);
   
-  // Filter books based on search query
-  const filteredBooks = books.filter(book => 
-    book.name.toLowerCase().includes(bookSearchQuery.toLowerCase())
-  );
+  // Filter books based on search query and testament filter
+  const filteredBooks = books.filter(book => {
+    const matchesSearch = book.name.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
+      (book.name_localized && book.name_localized.toLowerCase().includes(bookSearchQuery.toLowerCase()));
+    const matchesTestament = testamentFilter === 'all' || book.testament === testamentFilter;
+    return matchesSearch && matchesTestament;
+  });
   
   // Filter books for range modal
   const filteredRangeBooks = books.filter(book => 
-    book.name.toLowerCase().includes(rangeBookSearch.toLowerCase())
+    book.name.toLowerCase().includes(rangeBookSearch.toLowerCase()) ||
+    (book.name_localized && book.name_localized.toLowerCase().includes(rangeBookSearch.toLowerCase()))
   );
+  
+  // Helper to pause music player before playing Bible audio
+  const pauseMusicIfPlaying = useCallback(async () => {
+    if (musicIsPlaying && currentSong) {
+      console.log('Pausing music player for Bible audio');
+      await toggleMusicPlay();
+      pausedMusicForBible.current = true;
+    }
+  }, [musicIsPlaying, currentSong, toggleMusicPlay]);
 
   // Listening limit state
   const [listeningStatus, setListeningStatus] = useState(null);
