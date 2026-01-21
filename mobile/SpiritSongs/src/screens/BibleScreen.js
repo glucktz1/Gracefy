@@ -610,6 +610,34 @@ const BibleScreen = ({ navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('bible.selectBook', 'Chagua Kitabu')}</Text>
             
+            {/* Testament Filter Tabs */}
+            <View style={styles.testamentFilter}>
+              <TouchableOpacity
+                style={[styles.testamentTab, testamentFilter === 'all' && styles.testamentTabActive]}
+                onPress={() => setTestamentFilter('all')}
+              >
+                <Text style={[styles.testamentTabText, testamentFilter === 'all' && styles.testamentTabTextActive]}>
+                  {language === 'sw' ? 'Yote' : 'All'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.testamentTab, testamentFilter === 'old' && styles.testamentTabActive]}
+                onPress={() => setTestamentFilter('old')}
+              >
+                <Text style={[styles.testamentTabText, testamentFilter === 'old' && styles.testamentTabTextActive]}>
+                  {language === 'sw' ? 'Agano la Kale' : 'Old Testament'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.testamentTab, testamentFilter === 'new' && styles.testamentTabActive]}
+                onPress={() => setTestamentFilter('new')}
+              >
+                <Text style={[styles.testamentTabText, testamentFilter === 'new' && styles.testamentTabTextActive]}>
+                  {language === 'sw' ? 'Agano Jipya' : 'New Testament'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
             {/* Book Search Input */}
             <View style={styles.searchContainer}>
               <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
