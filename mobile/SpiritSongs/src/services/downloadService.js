@@ -1,25 +1,20 @@
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import { getAudioUrl } from './api';
 
-// Use multiple fallback directories for maximum compatibility
+// Use app-specific directories that don't require permissions on modern Android
 const getDownloadsDirOptions = () => {
   const options = [];
   
-  // Primary: cache directory (more reliable on Android)
-  if (FileSystem.cacheDirectory) {
-    options.push(`${FileSystem.cacheDirectory}gracefy_songs/`);
-  }
-  
-  // Secondary: document directory (persistent storage)
+  // Primary: document directory (persistent, app-specific, NO PERMISSIONS NEEDED)
   if (FileSystem.documentDirectory) {
     options.push(`${FileSystem.documentDirectory}songs/`);
   }
   
-  // Tertiary: another cache path
+  // Secondary: cache directory (also no permissions needed)
   if (FileSystem.cacheDirectory) {
-    options.push(`${FileSystem.cacheDirectory}gracefy_downloads/`);
+    options.push(`${FileSystem.cacheDirectory}gracefy_songs/`);
   }
   
   return options;
@@ -31,68 +26,81 @@ const WORKING_DIR_KEY = 'working_downloads_dir';
 // Get the working downloads directory (cached once found)
 let workingDir = null;
 
-// Request Android storage permissions if needed
+// Check and request storage permissions - now handles all Android versions better
 const requestStoragePermission = async () => {
-  if (Platform.OS !== 'android') return true;
+  if (Platform.OS !== 'android') return { granted: true, message: 'iOS - no permission needed' };
   
   try {
-    // For Android 13+ (API 33+), we use app-specific directories which don't need permissions
-    if (Platform.Version >= 33) {
+    const androidVersion = Platform.Version;
+    console.log('Android version:', androidVersion);
+    
+    // Android 13+ (API 33+): No permission needed for app-specific directories
+    if (androidVersion >= 33) {
       console.log('Android 13+: Using app-specific storage (no permission needed)');
-      return true;
+      return { granted: true, message: 'Using app-specific storage' };
     }
     
-    // For Android 10-12, try to request WRITE_EXTERNAL_STORAGE
-    if (Platform.Version >= 29) {
-      // Check if already granted
+    // Android 11-12 (API 30-32): Scoped storage, app directories don't need permission
+    if (androidVersion >= 30) {
+      console.log('Android 11-12: Using scoped storage (no permission needed for app directories)');
+      return { granted: true, message: 'Using scoped storage' };
+    }
+    
+    // Android 10 (API 29): Check and request if needed
+    if (androidVersion >= 29) {
       const hasPermission = await PermissionsAndroid.check(
         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
       );
       if (hasPermission) {
-        console.log('Storage permission already granted');
-        return true;
+        return { granted: true, message: 'Permission already granted' };
       }
       
-      // Request permission
+      // Request permission but we'll still use app-specific storage
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
         {
-          title: 'Storage Permission Required',
-          message: 'Gracefy needs storage access to download songs for offline listening.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'Allow',
+          title: 'Ruhusa ya Kuhifadhi',
+          message: 'Gracefy inahitaji ruhusa ya kuhifadhi nyimbo ili uweze kusikiliza bila mtandao.',
+          buttonNeutral: 'Baadaye',
+          buttonNegative: 'Hapana',
+          buttonPositive: 'Sawa',
         },
       );
       
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('Storage permission granted');
-        return true;
-      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-        console.log('Storage permission permanently denied - using app storage');
-        // Fall back to app-specific storage
-        return true;
-      } else {
-        console.log('Storage permission denied - using app storage');
-        return true; // Continue with app-specific storage
-      }
+      // We'll use app-specific storage regardless of the result
+      return { granted: true, message: 'Using app-specific storage (permission optional)' };
     }
     
-    // For Android 9 and below
+    // Android 9 and below: Need explicit permission
+    const hasPermission = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+    );
+    
+    if (hasPermission) {
+      return { granted: true, message: 'Permission granted' };
+    }
+    
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
       {
-        title: 'Storage Permission',
-        message: 'Gracefy needs storage access to download songs for offline listening.',
-        buttonNeutral: 'Ask Me Later',
-        buttonNegative: 'Cancel',
-        buttonPositive: 'OK',
+        title: 'Ruhusa ya Kuhifadhi',
+        message: 'Gracefy inahitaji ruhusa ya kuhifadhi nyimbo ili uweze kusikiliza bila mtandao.',
+        buttonNeutral: 'Baadaye',
+        buttonNegative: 'Hapana',
+        buttonPositive: 'Sawa',
       },
     );
-    return granted === PermissionsAndroid.RESULTS.GRANTED;
+    
+    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+      return { granted: true, message: 'Permission granted' };
+    } else {
+      // Still try app-specific storage
+      return { granted: true, message: 'Using app-specific storage as fallback' };
+    }
   } catch (err) {
     console.log('Permission request error:', err);
-    return true; // Continue anyway with app-specific storage
+    // Still return true - we'll try app-specific storage
+    return { granted: true, message: 'Error checking permission, using app-specific storage' };
   }
 };
 
