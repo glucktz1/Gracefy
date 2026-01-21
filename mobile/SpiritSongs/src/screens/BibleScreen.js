@@ -660,16 +660,20 @@ const BibleScreen = ({ navigation }) => {
               {filteredBooks.map(book => (
                 <TouchableOpacity
                   key={book.book_id}
-                  style={styles.bookCard}
+                  style={[styles.bookCard, book.testament === 'old' && styles.bookCardOld]}
                   onPress={() => setSelectedBook(book)}
                 >
-                  <Text style={styles.bookName}>{book.name}</Text>
+                  <Text style={styles.bookName}>
+                    {language === 'sw' && book.name_localized ? book.name_localized : book.name}
+                  </Text>
                   <Text style={styles.bookTestament}>
-                    {book.testament === 'old' ? 'Agano la Kale' : 'Agano Jipya'}
+                    {book.testament === 'old' 
+                      ? (language === 'sw' ? 'Agano la Kale' : 'Old Testament')
+                      : (language === 'sw' ? 'Agano Jipya' : 'New Testament')}
                   </Text>
                 </TouchableOpacity>
               ))}
-              {filteredBooks.length === 0 && bookSearchQuery.length > 0 && (
+              {filteredBooks.length === 0 && (
                 <View style={styles.noResults}>
                   <Ionicons name="search-outline" size={32} color={COLORS.textSecondary} />
                   <Text style={styles.noResultsText}>
