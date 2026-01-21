@@ -1,221 +1,268 @@
 <analysis>**original_problem_statement:**
 The user wants to build a comprehensive Christian music streaming app, Gracefy.
 
-The user's requests in this session were:
-1.  Enhance the Layout Manager to allow section deletion and add new content types: biblia na vitabu, religious leaders, choirs, and special mixes.
-2.  Implement a file encoding service for audio uploads to create multiple quality variants (e.g., 128kbps, 256kbps).
-3.  Implement a CDN (Bunny CDN) for storing and serving all media files.
-4.  Fix critical mobile app bugs: continuous playback stopping after one song and file download/storage permission errors.
-5.  Add a search capability to the Bible book selection screen in the mobile app.
-6.  Make the mobile app's home screen layout fully dynamic and controllable from the admin Layout Manager, with specific sections like Lent songs, Nyimbo za krismasi, etc., being horizontally scrollable.
-7.  Add a UI in the admin dashboard to show CDN stats and a script to migrate existing files to the CDN.
-8.  Update both the web and mobile apps to work seamlessly with CDN URLs.
-9.  Remove the now-redundant Supabase integration to simplify the architecture.
+The most recent user requests are:
+1.  **Song Categories & Special Mixes**: Add a category field when creating a song (e.g., Christmas, Easter). Allow admin to filter songs by category when creating a special mix, upload a custom thumbnail for the mix, and set a monetization type. The mix should be limited to 14 songs.
+2.  **Mobile App Bug Fixes**:
+    *   Fix continuous playback so songs play sequentially even when the app is in the background.
+    *   Fix song download permission issues.
+    *   Ensure user profile functions (liked songs, playlists, listening history) work correctly.
+    *   Fix the Bible search screen so the keyboard doesn't cover the typing area.
+3.  **Billing & Subscription Control**:
+    *   When billing is turned off in the admin panel, completely disable subscription plans in the mobile app.
+    *   Create a checkout page for users to subscribe, with options for multiple payment gateways (Mobile Money: M-Pesa, Tigo Pesa, etc.; and Card/Bank: Stripe, PayPal).
+4.  **Admin Features**:
+    *   Create a transactions page in the admin panel to show all transactions (including failed/pending), with filtering and reporting capabilities.
+    *   Create a user navigation analytics page to track page views and user journeys across the web and mobile apps.
+5.  **Layout Manager Sync**: Ensure that all changes made in the Layout Manager (section content, positioning, burners) are correctly reflected on both the web PWA and the mobile app.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application (FastAPI, React PWA, React Native mobile app). In this session, the agent has made significant infrastructure and feature updates. A background audio encoding service using FFmpeg was created to transcode uploaded audio into multiple quality bitrates. Bunny CDN was integrated as the primary storage for all new media uploads, and the PWA and mobile apps were updated to handle CDN URLs. The admin panel now features a CDN management page with stats and a migration tool.
+A full-stack application with a FastAPI backend, React PWA, and a React Native mobile app.
 
-On the mobile app, several user requests were implemented in the code: the home screen is now fully dynamic and configurable from the backend Layout Manager, and a search feature was added to the Bible screen. Code-level fixes were applied for the persistent continuous playback and download permission bugs. The Supabase integration was identified as redundant and its removal is currently underway.
+In this session, the agent implemented a major new feature for **Song Categories and enhanced Special Mix creation**, including backend models, APIs, and frontend UI in the admin panel.
+
+For the mobile app, code-level fixes were implemented for **continuous playback, downloads, and profile functions**. A  flag from the backend now controls the visibility of subscription plans. The agent also attempted a fix for a keyboard layout issue on the Bible screen.
+
+Crucially, after hitting the free tier limit on the old Expo account, the agent successfully authenticated with the user's new credentials and **initiated a new  build** which includes all recent mobile app changes.
+
+The backend infrastructure for a **payment and transaction system** and a **user navigation analytics** feature has been created, including new database models and API endpoints. The corresponding frontend pages (, , ) have been created as placeholders.
+
+Finally, to address layout sync issues, the agent implemented **cache-clearing logic** on the backend to ensure layout changes are reflected more quickly.
 
 **Last working item**:
-    - Last item agent was working: The agent was in the process of removing the redundant Supabase integration from the entire application to simplify the architecture. This involved removing code from the backend (, ), and frontend ().
+    - Last item agent was working: The agent was creating the **User Navigation Analytics** feature. It has already created the backend models (), API endpoints for tracking and retrieving navigation data, and the placeholder frontend page (). The next step is to build the UI for this page.
     - Status: IN PROGRESS
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  Issue 1:  (P0) Mobile App Continuous Playback is Still Failing
-  Issue 2:  (P0) Mobile App Storage Permission/Download is Still Failing
-  Issue 3:  (P1) Mobile App Build Instability
-  Issue 4:  (P2) Monolithic Files Require Refactoring
+  Issue 1:  (P0) Layout Manager Changes Not Syncing Reliably
+  Issue 2:  (P0) Mobile App Continuous Playback is Still Failing
+  Issue 3:  (P0) Mobile App Storage Permission/Download is Still Failing
+  Issue 4:  (P1) Bible Search Keyboard Bug
+  Issue 5:  (P2) Monolithic Files Require Refactoring
   
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent refactored  to more robustly handle the  callback and the  function. The code changes are complete, but they have not been tested on a device.
+     - Attempted fixes: The agent implemented logic to invalidate the home screen cache on the backend whenever a section or burner is created, updated, or reordered. This is intended to force the web and mobile apps to fetch the latest layout.
      - Next debug checklist: 
-        1.  Build a new  file incorporating the latest changes.
-        2.  Provide the  to the user for testing on a physical device to confirm if the continuous playback issue is resolved.
-        3.  If the issue persists, add remote logging to capture the player state and playback events in a real-world scenario.
-     - Why fix this issue and what will be achieved with the fix? This is a critical bug breaking the core user experience of continuous music listening. Fixing it is essential for app usability.
-     - Status:  IN PROGRESS
+        1. Ask the user to test reordering a section in the Layout Manager again.
+        2. If it fails, verify the cache is indeed being cleared by checking logs.
+        3. Investigate the frontend caching strategy in  to see if it's stale-while-revalidate or another mechanism is preventing fresh data from being rendered.
+     - Why fix this issue and what will be achieved with the fix? The core value of the Layout Manager is to give the admin dynamic control over the app's appearance. If changes don't apply, this feature is broken.
+     - Status:  USER VERIFICATION PENDING
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? frontend
+     - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
   - Issue 2: 
-     - Attempted fixes: The agent improved the  by adding more robust permission checks and clearer error handling within the  and  functions. The code is ready but not yet tested in a build.
-     - Next debug checklist: 
-        1.  Build a new  file.
-        2.  Have the user test the download functionality to see if the permission errors are gone.
-        3.  Ensure the  is correctly requesting all necessary storage permissions on modern Android versions.
-     - Why fix this issue and what will be achieved with the fix? Offline playback is a key feature. This bug prevents users from downloading any content.
-     - Status:  IN PROGRESS
+     - Attempted fixes: The  was refactored. These changes are included in the new  build that is in progress.
+     - Next debug checklist: The user needs to download and test the latest  from the build link provided.
+     - Why fix this issue and what will be achieved with the fix? This is a critical bug breaking the core user experience. Fixing it is essential for app usability.
+     - Status:  USER VERIFICATION PENDING
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
   - Issue 3: 
-     - Attempted fixes: None in this session, but the agent has previously fixed syntax errors that caused build failures.
-     - Next debug checklist: Maintain a strict linting process. After completing the current set of tasks, run a full lint check on the  directory before initiating a build.
-     - Why fix this issue and what will be achieved with the fix? A stable build process is required to deliver any mobile app changes to the user.
-     - Status:  NOT STARTED
+     - Attempted fixes: The  was improved with better permission handling. This is also included in the new  build.
+     - Next debug checklist: The user needs to test the download functionality on the new  build.
+     - Why fix this issue and what will be achieved with the fix? Offline playback is a key feature. This bug prevents users from downloading any content.
+     - Status:  USER VERIFICATION PENDING
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
   - Issue 4: 
-     - Attempted fixes: The removal of Supabase code is a step towards reducing the size of , but the file remains very large.
-     - Next debug checklist: Propose a dedicated refactoring task to the user to break down  into FastAPI routers (e.g., , , ) and  into smaller components.
+     - Attempted fixes: Wrapped the main view in  with  to prevent the keyboard from obscuring the search input. This fix is included in the new  build.
+     - Next debug checklist: User needs to test the Bible search on the new  build.
+     - Why fix this issue and what will be achieved with the fix? Improves usability of the Bible search feature.
+     - Status:  USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
+  - Issue 5: 
+     - Attempted fixes: None in this session. The problem has worsened as more endpoints were added to .
+     - Next debug checklist: Propose a dedicated refactoring task to break down  into FastAPI routers and  into smaller components.
      - Why fix this issue and what will be achieved with the fix? Reduces complexity, improves maintainability, and lowers the risk of introducing new bugs.
-     - Status:  IN PROGRESS
+     - Status:  NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1:  (P0) Complete Supabase Integration Removal
+  - Task 1:  (P0) Complete Checkout and Transaction System
      - Where to resume: 
-        1.  Finish removing all Supabase-related code from . The agent has performed several  operations but must ensure no orphaned functions or variables remain.
-        2.  Delete the file .
-        3.  Delete the file .
-        4.  Remove any Supabase-related environment variables from .
-        5.  Restart and thoroughly test the application, especially file uploads, to ensure no functionality was broken.
-     - What will be achieved with this? The application architecture will be simplified, removing a redundant service and reducing potential points of failure and confusion.
+        1.  Implement the UI for . It should fetch payment gateways from the API, display them, and allow the user to select one.
+        2.  Implement the UI for . It should fetch transactions from the API and display them in a table with filtering options (by date, status, gateway).
+        3.  Implement the actual payment processing logic in the  endpoint. This will likely require integrating with a 3rd party payment SDK (e.g., Stripe, or another provider for mobile money).
+     - What will be achieved with this? This will enable the app's monetization feature, allowing users to subscribe and pay.
      - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
-     - Blocked on something: None
-  - Task 2:  (P1) Build and Deliver Mobile App Updates
-     - Where to resume: All code changes for the mobile app are complete. The next step is to initiate a new build for the Android app ().
-     - What will be achieved with this? This will deliver the fixes for continuous playback and downloads, the new Bible search feature, and the dynamic home screen layout to the user for verification.
-     - Status:  BLOCKED
+     - Blocked on something: Needs user decision on which payment gateway provider/SDK to use for actual processing.
+  - Task 2:  (P1) Complete User Navigation Analytics Page
+     - Where to resume: Implement the frontend UI for . This involves calling the new analytics endpoints (, ) and visualizing the data with charts and tables.
+     - What will be achieved with this? Provides the admin with valuable insights into how users are interacting with the application.
+     - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? frontend
-     - Blocked on something: Task 1: Complete Supabase Integration Removal (to ensure a clean state before building).
+     - Blocked on something: None
+  - Task 3:  (P1) Build and Deliver Mobile App Updates
+     - Where to resume: A build was successfully started and is in progress. The agent needs to monitor the build status and provide the final downloadable  link to the user once it's complete. The user then needs to test it.
+     - What will be achieved with this? Delivers numerous critical bug fixes and new features to the user for verification.
+     - Status:  IN PROGRESS
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on something: Waiting for EAS build to complete.
+  - Task 4:  (P2) Complete Supabase Integration Removal
+     - Where to resume: This task was paused to prioritize the user's new feature requests. The next step would be to continue searching for and removing all Supabase-related code from the backend and frontend.
+     - What will be achieved with this? Simplifies the application architecture and removes a redundant service.
+     - Status:  IN PROGRESS
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: Deprioritized by user's new requests.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Run CDN Migration Script: The user will need to navigate to the new CDN Management page and trigger the migration to move all existing locally stored files to Bunny CDN.
-    - (P1) PWA Play All Button: Add a Play All button to library sections in .
-    - (P1) PWA Repeat Logic Review: Review the repeat logic in the PWA's .
+    - (P1) Implement actual payment processing logic (Stripe, PayPal, Mobile Money).
+    - (P2) PWA Play All Button: Add a Play All button to library sections in .
+    - (P2) Run CDN Migration Script: User needs to trigger the migration from the admin panel.
 
     Future Tasks:
-    - Implement Mobile Lock Screen Controls.
-    - Complete the Church feature on the mobile app (e.g., a dedicated church detail page).
+    - PWA Repeat Logic Review.
+    - Mobile Lock Screen Controls.
+    - Complete the Church feature on the mobile app.
     - Implement a notification system.
-    - Admin: Enforce free user daily song limits and device limits (separate from Bible limits).
+    - Admin: Enforce free user daily song limits and device limits.
 
 **Completed work in this session**
-- **Bunny CDN Integration:** Implemented full integration with Bunny CDN for media storage. All new uploads go directly to the CDN, and a service class () was created to manage this.
-- **Asynchronous Audio Encoding:** Created a background encoding service () using FFmpeg and FastAPI's  to transcode uploaded audio into multiple quality variants (MP3/M4A at 128/256/320kbps).
-- **Dynamic Mobile Home Screen:** Refactored the mobile  to dynamically render its entire layout based on an API response from the Layout Manager, including support for horizontally scrolling sections. Default sections were created in the backend.
-- **Layout Manager Enhancements:** Added new section types (bible_content, religious_leaders) and a layout_style selector to the admin panel. Added a Sync Defaults button to auto-populate sections.
-- **CDN Admin Dashboard:** Created a new admin page () with backend endpoints to display CDN stats and manage a migration script for moving old files to the CDN.
-- **Mobile Bible Search:** Implemented a search bar in the  to allow users to filter the list of books by typing.
-- **Mobile App Fixes (Code Implemented):** Applied fixes in  for continuous playback and in  for storage permissions.
-- **App-wide CDN Compatibility:** Updated the PWA () and mobile app () to correctly resolve and play audio/image URLs from both the local server and the new CDN.
+- **Song Categories & Special Mix Feature**: Fully implemented backend and frontend for managing song categories and enhancing special mix creation with category filtering, thumbnail uploads, and song limits.
+- **Mobile App Fixes & Features (Code Implemented)**:
+    - Added a  flag to control subscription UI visibility.
+    - Implemented code to fix profile functions (history, stats).
+    - Attempted a fix for the Bible search keyboard issue using .
+- **Mobile App Build Authentication**: Successfully logged out of the old Expo account, logged in with the user's new credentials (via access token), re-configured the project (), and started a new  build.
+- **Layout Manager Sync Fixes**: Implemented comprehensive cache-clearing on the backend for all layout and burner-related updates to ensure changes propagate faster.
+- **Payment & Transaction System (Backend)**: Created backend models, CRUD APIs for , and initial endpoints for  management.
+- **User Navigation Analytics (Backend)**: Created backend models and API endpoints to track and report on user navigation events.
+- **Admin UI Placeholders**: Created empty pages for  and  and added them to the admin navigation.
+- **Mobile Checkout Navigation**: Created the  and wired it into the app's navigation stack, triggered from the .
 
 **Earlier issues found/mentioned but not fixed**
    - **PWA Play All Button:** The request to add a Play All button to library sections in the PWA () was not addressed.
    - **PWA Repeat Logic Review:** The request to review the repeat logic in the PWA's  was not addressed.
 
 **Known issue recurrence from previous fork**
-  - **Mobile App Build Instability:** Remains a risk; any syntax error can break the remote build.
-  - **Mobile App Continuous Playback:** User reported this issue again. A new fix has been implemented but awaits testing.
-  - **Mobile App Storage Permission/Download:** User reported this issue again. A new fix has been implemented but awaits testing.
+  - **Mobile App Continuous Playback/Download Issues:** User reported these again. New fixes are in the current build, pending verification.
+  - **Layout Manager Sync:** User reported that section reordering is still not working on the PWA. A new cache-clearing fix has been implemented, pending verification.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Asynchronous Task Processing (BackgroundTasks):** The backend now uses FastAPI's  to run FFmpeg encoding jobs without blocking the upload request, immediately returning a job ID to the client.
-- **CDN Integration:** The architecture now uses Bunny CDN for media storage. The backend handles uploading files to the CDN's storage zone, and the frontend applications consume the public CDN URL for streaming.
-- **Dynamic UI Rendering from API:** The mobile app's home screen was refactored from a static layout to one that is dynamically generated based on a JSON response from , allowing for full admin control without app updates.
-- **Lazy Loading of Dependencies:** The Bunny CDN service was refactored to initialize its client and read environment variables within a function call rather than at module import time, preventing startup errors before  is loaded.
-- **Audio Transcoding with FFmpeg:** Using the  library to programmatically convert an uploaded audio file into multiple formats (MP3, M4A) and bitrates (128, 256, 320 kbps).
+- **Dynamic Feature Toggling**: Using a  flag from a backend API to conditionally render UI components (subscription plans) in the React Native app.
+- **Keyboard-Aware UI**: Using React Native's  to prevent the on-screen keyboard from obscuring input fields.
+- **API-Driven Admin Configuration**: Extending the Layout Manager to allow fine-grained control over UI components like the Quick Access grid, including names, icons, colors, and navigation targets.
+- **Backend Cache Invalidation**: Programmatically clearing a Redis cache key () after database mutations (create, update, delete) to ensure frontend clients receive fresh data.
+- **Expo Project Re-configuration**: Managing EAS project settings via , including switching the  and  to migrate a project between accounts.
 
 **key DB schema**
   - : (New) 
-  - : (Updated) Now includes . The  field is now a full CDN URL for new uploads.
+  - : (New) 
+  - : (New) 
+  - : (New) 
+  - : (Updated) Now has a  field.
+  - : (Updated) Now supports a  array for the  section type.
 
 **changes in tech stack**
-  - **Added:**  (Python lib for Bunny CDN),  (for audio encoding).
-  - **Being Removed:**  (Python lib),  (JS lib).
+  - None. No new packages were installed.
 
 **All files of reference**
 - **Created:**
-  - : Implements asynchronous audio encoding using FFmpeg.
-  - : Handles all interactions with the Bunny CDN storage API.
-  - : A new admin page for CDN statistics and triggering the migration script.
+  - 
+  - 
+  - 
+  - 
 - **Updated:**
-  - : Major changes to integrate encoding and CDN services, add migration endpoints, update layout defaults, and remove Supabase code.
-  - : Completely refactored to render a dynamic layout based on API data.
-  - : Added state and UI for a book search input.
-  - : Reworked logic to fix the continuous playback bug.
-  - : Added helper functions to ensure audio and image URLs work correctly with CDN links.
-  - : Added UI for selecting  and syncing default sections.
-  - : Added the route and sidebar navigation link for the new CDN management page.
-- **To Be Deleted:**
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
   - 
   - 
 
 **Areas that need refactoring**:
-- **:** Still over 8,000 lines even after removing some code. It urgently needs to be broken down into smaller, domain-specific FastAPI routers.
-- **:** This PWA main file is still a monolith and should be broken into smaller, reusable components.
+- **:** This file has become critically oversized and complex. It urgently needs to be broken down into smaller, domain-specific FastAPI routers (e.g., , , ).
+- **:** Remains a large monolithic component.
 
 **key api endpoints**
-- **New (Encoding & CDN):**
-  - : Overhauled to upload files to Bunny CDN and trigger a background encoding job.
-  - : Check the status of an encoding job.
-  - : Get statistics about files on CDN vs. local.
-  - : Start/stop/get status of the script to migrate local files to CDN.
-- **New (Layout):**
-  - : Populates the layout with a predefined set of sections.
-- **Removed (Supabase):**
-  - All endpoints prefixed with  are being removed.
+- **New (Song Categories):**
+  - 
+  - 
+  - 
+- **New (Payments & Transactions):**
+  - 
+  - 
+  - 
+  - 
+  - 
+- **New (Navigation Analytics):**
+  - 
+  - 
+  - 
+- **New (User-Facing):**
+  -  (includes  flag)
+- **Updated:**
+  - All layout and burner endpoints () now clear the home screen cache upon mutation.
 
 **Critical Info for New Agent**
-- Your first task is to **complete the removal of the Supabase integration**. This is a significant architectural change and must be done cleanly. Ensure you remove all related files and code snippets from .
-- Once Supabase is removed, the highest priority is to **build a new mobile **. The user is blocked waiting for this. This build will contain the fixes for the critical playback/download bugs, the new Bible search, and the dynamic home screen. Be prepared to debug the build process.
-- Do not start new features until the Supabase removal is complete and the mobile app fixes have been delivered to the user for testing.
+- **The user is waiting for a new mobile app build.** A build was started and is in progress: [https://expo.dev/accounts/gracefy1/projects/SpiritSongs/builds/69cecf9e-2df3-4b49-a0c8-1015872714b2](https://expo.dev/accounts/gracefy1/projects/SpiritSongs/builds/69cecf9e-2df3-4b49-a0c8-1015872714b2). Your first action should be to check this build's status and provide the final APK link to the user. This build contains many critical fixes.
+- **The next set of tasks are significant features.** You need to complete the Checkout/Transaction system and the Navigation Analytics page. This involves building out the placeholder UI files that have already been created.
+- **For the checkout system, you will need to guide the user on choosing and integrating a real payment provider.** The current backend is just a scaffold. Use the  tool for this.
+- **Verify the Layout Manager sync issue.** The cache-clearing fix has been implemented but not confirmed by the user. This is a high-priority recurring issue.
 
 **documents and test reports created in this job**
-  -  (Updated several times)
+  -  (Updated with new features)
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - 10. (User) Asks to implement CDN and provides instructions. (Done)
- - 9. (User) Provides Bunny CDN credentials. (Done)
- - 8. (User) Asks to add CDN stats to admin dashboard and create a migration script. (Done)
- - 7. (User) Asks to update the app and web PWA to work with the CDN. (Done)
- - 6. (User) Asks how Supabase and Bunny CDN will work together. (Answered)
- - 5. (User) Concludes that Supabase is redundant and asks for it to be removed. (In Progress)
- - 4. (Agent) Starts removing Supabase.
- - 3. (Agent) Continues removing Supabase.
- - 2. (Agent) Continues removing Supabase.
- - 1. (Agent) Continues removing Supabase.
+ - 10. (User) Provides Expo credentials () to try building the app.
+ - 9. (User) Provides an Expo Access Token after direct login fails. (Implemented)
+ - 8. (User) Asks to manage the Quick Access section via the Layout Manager. (Implemented)
+ - 7. (User) Reports that reordering Endelea kusikiliza in the Layout Manager is not reflected on the web PWA. Also mentions burners and content position issues. (Fix Attempted)
+ - 6. (User) Asks for the status of the app development (build). (Answered)
+ - 5. (User) Provides a new list of features: fix Bible search keyboard, confirm layout sync, create a checkout page with multiple payment gateways, and create an admin transactions page. (In Progress)
+ - 4. (User) Asks to create a user navigation analytics page. (In Progress)
+ - 3. (User) Asks to check the build status. (Answered)
+ - 2. (Agent) Informs the user the build is complete and provides the download link.
+ - 1. (User) Provides a new list of features: fix Bible search keyboard, confirm layout sync, create a checkout page with multiple payment gateways, and create an admin transactions page. (In Progress)
 
 **Project Health Check:**
 - **Broken:**
-  - **Mobile App Continuous Playback:** The core feature of playing songs sequentially is not working. A fix has been implemented in the code but not yet deployed/tested in a build.
-  - **Mobile App Downloads:** Users cannot download songs due to a persistent permission issue. A fix has been implemented but not yet tested.
+  - **Mobile App Playback/Downloads**: Code fixes are implemented, but they are unverified by the user pending the new APK build.
+  - **Layout Manager Sync**: A fix has been implemented (cache clearing), but it is unverified by the user.
 - **Mocked:**
-  - **Redis Caching:** The backend still uses an in-memory fallback for caching instead of a persistent Redis instance.
+  - **Redis Caching**: Still uses an in-memory fallback.
+  - **Payment Gateway Integration**: Backend models and endpoints exist, but no actual payment processing logic is connected to a third-party service like Stripe or PayPal.
 
 **3rd Party Integrations**
-- **Bunny CDN (NEW):** Integrated for all media file storage and delivery. Uses  Python library.
-- **FFmpeg (NEW):** Used via  for server-side audio transcoding.
-- **Google Cloud TTS:** Active for Bible audio generation.
-- **Expo Application Services (EAS):** Used for mobile cloud builds.
-- **Emergent-managed Google Auth:** Used for PWA login.
-- **Supabase (REMOVING):** All related libraries and code are currently being deleted.
+- **Bunny CDN**: For media storage.
+- **FFmpeg**: For audio transcoding.
+- **Google Cloud TTS**: For Bible audio generation.
+- **Expo Application Services (EAS)**: For mobile cloud builds. The project is now configured to use the  account.
+- **Planned**: Stripe, PayPal, and various African Mobile Money providers.
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: No
-  - Known regressions: Continuous playback and download permissions on the mobile app are recurring issues that have proven resistant to past fixes. New fixes have been coded but are unverified.
+  - Known regressions: Continuous playback, download permissions, and layout manager sync are all recurring issues that have required multiple fix attempts.
 
 **Credentials to test flow:**
-- Bunny CDN credentials are in .
-- Google Cloud TTS credentials are in .
+- An Expo Access Token was provided by the user and is active in the environment, authenticating as user .
 
 **What agent forgot to execute**
-- The agent did not address the pre-existing requests to add a Play All button to the PWA and to review the PWA's player repeat logic. These tasks from the previous session's backlog have been carried over again.</analysis>
+- **Supabase Removal**: This task was completely deprioritized and no progress was made on it during this session.
+- **PWA Play All Button / Repeat Logic**: These PWA-specific tasks from the backlog were not addressed.</analysis>
