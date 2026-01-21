@@ -98,7 +98,7 @@ class BibleService:
             url = SWAHILI_BIBLE_URL if language == "sw" else ENGLISH_BIBLE_URL
             
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=120), allow_redirects=True) as response:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=180), allow_redirects=True) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to fetch Bible data: HTTP {response.status}")
                     
@@ -117,8 +117,69 @@ class BibleService:
             verses_stored = 0
             books_processed = set()
             
+            # NEW FORMAT: GitHub Swahili Bible format {"BIBLEBOOK": [...]}
+            if isinstance(bible_data, dict) and "BIBLEBOOK" in bible_data:
+                books_list = bible_data.get("BIBLEBOOK", [])
+                logger.info(f"Processing GitHub format with {len(books_list)} books")
+                
+                for book_data in books_list:
+                    book_number = int(book_data.get("book_number", 0))
+                    book_name = book_data.get("book_name", "Unknown")
+                    chapters = book_data.get("CHAPTER", [])
+                    
+                    # Determine testament based on book number (1-39 OT, 40-66 NT)
+                    testament = "old" if book_number <= 39 else "new"
+                    
+                    book_doc = {
+                        "book_id": f"book_{language}_{book_name.lower().replace(' ', '_')}",
+                        "name": book_name,
+                        "name_localized": book_name,  # Already in Swahili
+                        "language": language,
+                        "testament": testament,
+                        "order": book_number,
+                        "chapter_count": len(chapters),
+                        "updated_at": datetime.now(timezone.utc)
+                    }
+                    
+                    await self.db.bible_books.update_one(
+                        {"book_id": book_doc["book_id"]},
+                        {"$set": book_doc},
+                        upsert=True
+                    )
+                    books_stored += 1
+                    
+                    # Process chapters
+                    for chapter_data in chapters:
+                        chapter_num = int(chapter_data.get("chapter_number", 1))
+                        verses = chapter_data.get("VERSES", [])
+                        
+                        for verse_data in verses:
+                            verse_num = int(verse_data.get("verse_number", 1))
+                            text = verse_data.get("verse_text", "").strip()
+                            
+                            verse_doc = {
+                                "verse_id": f"verse_{language}_{book_name.lower().replace(' ', '_')}_{chapter_num}_{verse_num}",
+                                "book_name": book_name,
+                                "book_name_localized": book_name,
+                                "chapter": chapter_num,
+                                "verse": verse_num,
+                                "text": text,
+                                "language": language,
+                                "reference": f"{book_name} {chapter_num}:{verse_num}",
+                                "reference_localized": f"{book_name} {chapter_num}:{verse_num}"
+                            }
+                            
+                            await self.db.bible_verses.update_one(
+                                {"verse_id": verse_doc["verse_id"]},
+                                {"$set": verse_doc},
+                                upsert=True
+                            )
+                            verses_stored += 1
+                
+                logger.info(f"Stored {books_stored} books and {verses_stored} verses from GitHub format")
+            
             # SourceForge format: {"metadata": {...}, "verses": [{book_name, book, chapter, verse, text}, ...]}
-            if isinstance(bible_data, dict) and "verses" in bible_data:
+            elif isinstance(bible_data, dict) and "verses" in bible_data:
                 verses_list = bible_data.get("verses", [])
                 
                 for verse_data in verses_list:
@@ -131,7 +192,7 @@ class BibleService:
                     # Store book if not already done
                     if book_name not in books_processed:
                         # Determine testament based on book number (1-39 OT, 40-66 NT)
-                        testament = "old" if book_number < 40 else "new"
+                        testament = "old" if book_number <= 39 else "new"
                         
                         book_doc = {
                             "book_id": f"book_{language}_{book_name.lower().replace(' ', '_')}",
