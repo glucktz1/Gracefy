@@ -10,8 +10,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Bible data sources - Using SourceForge public domain Bible
-SWAHILI_BIBLE_URL = "https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/SW-Swahili/swahili.json/download"
+# Bible data sources - Using GitHub repo with FULL Swahili Bible (OT + NT)
+SWAHILI_BIBLE_URL = "https://raw.githubusercontent.com/shemmjunior/swahili-bible-edition/main/json/full_version/swahili-bible-edition.json"
+# Fallback to SourceForge for English
 ENGLISH_BIBLE_URL = "https://sourceforge.net/projects/biblesuper/files/All%20Bibles%20-%20JSON/EN-English/english_kjv.json/download"
 
 # Book name mappings (English to Swahili)
