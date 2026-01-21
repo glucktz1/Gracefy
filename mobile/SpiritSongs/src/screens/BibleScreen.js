@@ -380,6 +380,9 @@ const BibleScreen = ({ navigation }) => {
     const canListen = await checkListeningLimit();
     if (!canListen) return;
 
+    // Pause music player if playing
+    await pauseMusicIfPlaying();
+
     try {
       setRangeLoading(true);
       
