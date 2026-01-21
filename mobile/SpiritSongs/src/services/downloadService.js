@@ -259,10 +259,8 @@ export const downloadSong = async (song, album, onProgress) => {
     // Ensure directory is available
     const dirResult = await ensureDownloadsDir();
     if (!dirResult.success) {
-      console.error('Directory creation failed');
-      throw new Error(
-        'Unable to access storage. Please try again or check that the app has storage permission.'
-      );
+      console.error('Directory creation failed:', dirResult.error);
+      throw new Error(dirResult.error || 'Imeshindwa kupata nafasi ya kuhifadhi.');
     }
     
     const downloadDir = dirResult.dir;
@@ -270,7 +268,7 @@ export const downloadSong = async (song, album, onProgress) => {
     const audioUrl = getAudioUrl(song.audio_url);
     if (!audioUrl) {
       console.error('No audio URL for song:', song.song_id);
-      throw new Error('No audio URL available for this song');
+      throw new Error('Hakuna link ya wimbo huu');
     }
     
     console.log('Starting download from:', audioUrl);
@@ -341,7 +339,7 @@ export const downloadSong = async (song, album, onProgress) => {
       // Verify file
       const fileInfo = await FileSystem.getInfoAsync(result.uri);
       if (!fileInfo.exists || fileInfo.size === 0) {
-        throw new Error('Downloaded file is empty or missing');
+        throw new Error('Faili iliyopakuliwa ni tupu');
       }
       
       console.log('File size:', fileInfo.size, 'bytes');
@@ -368,18 +366,23 @@ export const downloadSong = async (song, album, onProgress) => {
       return { success: true, path: result.uri };
     }
     
-    throw new Error('Download failed - no result returned');
+    throw new Error('Upakulizi umeshindwa - jaribu tena');
   } catch (error) {
     console.error('Error downloading song:', error);
     
     // Try to refresh directory cache and give a helpful error
     workingDir = null;
     
-    if (error.message.includes('permission') || error.message.includes('access')) {
-      throw new Error('Storage permission denied. Please allow storage access in app settings.');
+    // Return a user-friendly error message
+    if (error.message.includes('permission') || error.message.includes('access') || error.message.includes('denied')) {
+      throw new Error('Tafadhali funga na ufungue app tena, kisha jaribu kupakua.');
     }
     
-    throw error;
+    if (error.message.includes('network') || error.message.includes('Network')) {
+      throw new Error('Hakuna mtandao. Tafadhali angalia muunganisho wako.');
+    }
+    
+    throw new Error(error.message || 'Imeshindwa kupakua wimbo');
   }
 };
 
