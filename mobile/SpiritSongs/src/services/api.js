@@ -92,7 +92,15 @@ export const libraryAPI = {
   getPlaylists: () => api.get('/library/playlists'),
   createPlaylist: (data) => api.post('/library/playlists', data),
   addToPlaylist: (playlistId, songId) => api.post(`/library/playlists/${playlistId}/songs/${songId}`),
+  removeFromPlaylist: (playlistId, songId) => api.delete(`/library/playlists/${playlistId}/songs/${songId}`),
   getHistory: () => api.get('/library/history'),
+};
+
+// ============ CHURCH API ============
+export const churchAPI = {
+  getChurches: () => api.get('/churches'),
+  getChurch: (id) => api.get(`/churches/${id}`),
+  getNearbyChurches: (lat, lng) => api.get(`/churches/nearby?lat=${lat}&lng=${lng}`),
 };
 
 // ============ PLAYER API ============
