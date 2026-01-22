@@ -1,18 +1,18 @@
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
-import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
+import { Platform } from 'react-native';
 import { getAudioUrl } from './api';
 
-// Use app-specific directories that don't require permissions on modern Android
+// Use app-specific directories that don't require permissions
 const getDownloadsDirOptions = () => {
   const options = [];
   
-  // Primary: document directory (persistent, app-specific, NO PERMISSIONS NEEDED)
+  // Primary: document directory (persistent, app-specific)
   if (FileSystem.documentDirectory) {
     options.push(`${FileSystem.documentDirectory}songs/`);
   }
   
-  // Secondary: cache directory (also no permissions needed)
+  // Secondary: cache directory
   if (FileSystem.cacheDirectory) {
     options.push(`${FileSystem.cacheDirectory}gracefy_songs/`);
   }
@@ -26,82 +26,10 @@ const WORKING_DIR_KEY = 'working_downloads_dir';
 // Get the working downloads directory (cached once found)
 let workingDir = null;
 
-// Check and request storage permissions - now handles all Android versions better
+// No permission request needed for app-specific directories
 const requestStoragePermission = async () => {
-  if (Platform.OS !== 'android') return { granted: true, message: 'iOS - no permission needed' };
-  
-  try {
-    const androidVersion = Platform.Version;
-    console.log('Android version:', androidVersion);
-    
-    // Android 13+ (API 33+): No permission needed for app-specific directories
-    if (androidVersion >= 33) {
-      console.log('Android 13+: Using app-specific storage (no permission needed)');
-      return { granted: true, message: 'Using app-specific storage' };
-    }
-    
-    // Android 11-12 (API 30-32): Scoped storage, app directories don't need permission
-    if (androidVersion >= 30) {
-      console.log('Android 11-12: Using scoped storage (no permission needed for app directories)');
-      return { granted: true, message: 'Using scoped storage' };
-    }
-    
-    // Android 10 (API 29): Check and request if needed
-    if (androidVersion >= 29) {
-      const hasPermission = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-      );
-      if (hasPermission) {
-        return { granted: true, message: 'Permission already granted' };
-      }
-      
-      // Request permission but we'll still use app-specific storage
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-        {
-          title: 'Ruhusa ya Kuhifadhi',
-          message: 'Gracefy inahitaji ruhusa ya kuhifadhi nyimbo ili uweze kusikiliza bila mtandao.',
-          buttonNeutral: 'Baadaye',
-          buttonNegative: 'Hapana',
-          buttonPositive: 'Sawa',
-        },
-      );
-      
-      // We'll use app-specific storage regardless of the result
-      return { granted: true, message: 'Using app-specific storage (permission optional)' };
-    }
-    
-    // Android 9 and below: Need explicit permission
-    const hasPermission = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-    );
-    
-    if (hasPermission) {
-      return { granted: true, message: 'Permission granted' };
-    }
-    
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      {
-        title: 'Ruhusa ya Kuhifadhi',
-        message: 'Gracefy inahitaji ruhusa ya kuhifadhi nyimbo ili uweze kusikiliza bila mtandao.',
-        buttonNeutral: 'Baadaye',
-        buttonNegative: 'Hapana',
-        buttonPositive: 'Sawa',
-      },
-    );
-    
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      return { granted: true, message: 'Permission granted' };
-    } else {
-      // Still try app-specific storage
-      return { granted: true, message: 'Using app-specific storage as fallback' };
-    }
-  } catch (err) {
-    console.log('Permission request error:', err);
-    // Still return true - we'll try app-specific storage
-    return { granted: true, message: 'Error checking permission, using app-specific storage' };
-  }
+  // App-specific directories don't need permissions on modern Android
+  return { granted: true, message: 'Using app-specific storage' };
 };
 
 // Ensure downloads directory exists with multiple fallbacks
