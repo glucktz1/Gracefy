@@ -118,16 +118,6 @@ export default function SubscriptionScreen({ navigation, route }) {
       }
     });
   };
-      Alert.alert(
-        'Payment Required',
-        `To subscribe to ${plan.display_name}, please make a payment of TZS ${plan.price.toLocaleString()}.\n\nPayment integration coming soon!`,
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setProcessing(false);
-      setSelectedPlan(null);
-    }
-  };
 
   return (
     <View style={styles.container}>
