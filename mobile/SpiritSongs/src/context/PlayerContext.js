@@ -444,32 +444,19 @@ export const PlayerProvider = ({ children }) => {
       
       console.log('Playing from:', audioUrl.substring(0, 60) + '...');
       
-      // Track if we've already handled song end for this track
-      let hasHandledEnd = false;
-      
       // Create the status update handler inline to ensure fresh closure
       const statusUpdateHandler = (status) => {
         if (status.isLoaded) {
-          const currentPosition = status.positionMillis / 1000;
-          const totalDuration = status.durationMillis / 1000 || 0;
-          
-          setPosition(currentPosition);
-          setDuration(totalDuration);
+          setPosition(status.positionMillis / 1000);
+          setDuration(status.durationMillis / 1000 || 0);
           setIsPlaying(status.isPlaying);
           setIsLoading(status.isBuffering);
           setError(null);
           
-          // Multiple ways to detect song end for reliability
-          const isAtEnd = totalDuration > 0 && currentPosition >= totalDuration - 0.5;
-          const songFinished = status.didJustFinish && !status.isLooping;
-          const stoppedAtEnd = !status.isPlaying && isAtEnd && !status.isBuffering;
-          
-          if ((songFinished || stoppedAtEnd) && !hasHandledEnd) {
-            hasHandledEnd = true;
+          // Check for song end
+          if (status.didJustFinish && !status.isLooping) {
             console.log('*** Song finished! Queue:', queueRef.current.length, 'Index:', queueIndexRef.current, 'Repeat:', repeatRef.current);
-            console.log('Detection method:', songFinished ? 'didJustFinish' : 'position-based');
-            // Use setImmediate to ensure the callback runs even in background
-            setImmediate(() => handleSongEnd());
+            handleSongEnd();
           }
         } else if (status.error) {
           console.error('Playback error:', status.error);
@@ -484,7 +471,7 @@ export const PlayerProvider = ({ children }) => {
         { uri: audioUrl },
         { 
           shouldPlay: true,
-          progressUpdateIntervalMillis: 250, // More frequent updates for better end detection
+          progressUpdateIntervalMillis: 500,
           isLooping: false, // We handle looping manually
           positionMillis: startPosition * 1000,
         },
@@ -493,9 +480,6 @@ export const PlayerProvider = ({ children }) => {
       
       soundRef.current = sound;
       globalSoundRef = sound;
-      
-      // Store the playNext callback for background usage
-      playNextCallback = () => handleSongEnd();
       
       // Update state
       setCurrentSong(song);
