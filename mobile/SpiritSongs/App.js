@@ -182,56 +182,7 @@ function MainApp() {
 }
 
 export default function App() {
-  const [permissionsReady, setPermissionsReady] = useState(false);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-
-  useEffect(() => {
-    checkPermissionsSetup();
-  }, []);
-
-  const checkPermissionsSetup = async () => {
-    try {
-      const setupComplete = await SecureStore.getItemAsync('permissions_setup_complete');
-      if (setupComplete === 'true') {
-        setPermissionsReady(true);
-      }
-    } catch (e) {
-      console.log('Error checking permissions setup:', e);
-    } finally {
-      setIsCheckingPermissions(false);
-    }
-  };
-
-  const handlePermissionsComplete = () => {
-    setPermissionsReady(true);
-  };
-
-  // Show loading while checking
-  if (isCheckingPermissions) {
-    return (
-      <GestureHandlerRootView style={styles.container}>
-        <SafeAreaProvider>
-          <View style={styles.loadingContainer}>
-            <StatusBar style="light" />
-          </View>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    );
-  }
-
-  // Show permissions screen if not yet granted
-  if (!permissionsReady) {
-    return (
-      <GestureHandlerRootView style={styles.container}>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <PermissionsScreen onComplete={handlePermissionsComplete} />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    );
-  }
-
-  // Main app
+  // Main app - no permission screen needed
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
