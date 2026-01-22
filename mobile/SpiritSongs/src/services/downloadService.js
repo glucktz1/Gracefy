@@ -63,11 +63,7 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
     }
   }
   
-  // Request/check permissions first on Android (for logging purposes)
-  const permResult = await requestStoragePermission();
-  console.log('Storage permission result:', permResult.message);
-  
-  // Try each directory option - prioritize documentDirectory as it's persistent
+  // Try each directory option
   const dirOptions = getDownloadsDirOptions();
   console.log('Trying', dirOptions.length, 'directory options...');
   
@@ -91,16 +87,7 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
           console.log('Created directory:', dir);
         } catch (mkdirError) {
           console.log('Failed to create directory:', dir, mkdirError.message);
-          // Check if it was created despite the error
-          try {
-            const recheckInfo = await FileSystem.getInfoAsync(dir);
-            if (!recheckInfo.exists) {
-              console.log('Directory still does not exist after creation attempt');
-              continue;
-            }
-          } catch (e) {
-            continue;
-          }
+          continue;
         }
       }
       
@@ -108,7 +95,6 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
       const testFile = `${dir}test_${Date.now()}.tmp`;
       try {
         await FileSystem.writeAsStringAsync(testFile, 'test', { encoding: FileSystem.EncodingType.UTF8 });
-        // Try to delete test file
         try {
           await FileSystem.deleteAsync(testFile, { idempotent: true });
         } catch (deleteError) {
@@ -121,7 +107,7 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
         try {
           await SecureStore.setItemAsync(WORKING_DIR_KEY, dir);
         } catch (saveError) {
-          console.log('Could not save working dir to SecureStore:', saveError.message);
+          console.log('Could not save working dir:', saveError.message);
         }
         
         return { success: true, dir: dir };
@@ -136,11 +122,7 @@ const ensureDownloadsDir = async (forceRefresh = false) => {
   }
   
   console.error('All directory options failed');
-  return { 
-    success: false, 
-    dir: null, 
-    error: 'Imeshindwa kupata nafasi ya kuhifadhi. Tafadhali jaribu tena.' 
-  };
+  return { success: false, dir: null, error: 'Could not find storage directory' };
 };
 
 // Get list of downloaded songs
