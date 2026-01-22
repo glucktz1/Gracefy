@@ -11,7 +11,6 @@ const SAMPLE_AUDIO = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.
 const PLAYBACK_STATE_KEY = 'playback_state';
 
 let globalSoundRef = null;
-let playNextCallback = null;
 
 export const PlayerProvider = ({ children }) => {
   const [currentSong, setCurrentSong] = useState(null);
