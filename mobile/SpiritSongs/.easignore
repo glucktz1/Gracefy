@@ -2,6 +2,7 @@
 *@@*
 *.tmp
 dist/
+*�*
 
 # Standard ignores
 node_modules/
