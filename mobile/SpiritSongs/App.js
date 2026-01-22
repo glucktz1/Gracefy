@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, StatusBar } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationState } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,6 +17,8 @@ import SearchScreen from './src/screens/SearchScreen';
 import LibraryScreen from './src/screens/LibraryScreen';
 import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import AlbumScreen from './src/screens/AlbumScreen';
+import BibleScreen from './src/screens/BibleScreen';
+import ChurchesScreen from './src/screens/ChurchesScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
@@ -29,109 +31,90 @@ const Stack = createNativeStackNavigator();
 
 // Tab Navigator
 const TabNavigator = () => {
-  const { currentTrack } = usePlayer();
-
   return (
-    <View style={styles.container}>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Search') {
-              iconName = focused ? 'search' : 'search-outline';
-            } else if (route.name === 'Library') {
-              iconName = focused ? 'library' : 'library-outline';
-            }
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: COLORS.text,
-          tabBarInactiveTintColor: COLORS.textMuted,
-          tabBarStyle: {
-            backgroundColor: COLORS.surface,
-            borderTopColor: COLORS.border,
-            borderTopWidth: 0,
-            paddingTop: 8,
-            paddingBottom: 8,
-            height: 65,
-          },
-          tabBarLabelStyle: {
-            fontSize: 10,
-            fontWeight: '600',
-            marginTop: 4,
-          },
-          headerShown: false,
-        })}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Search" component={SearchScreen} />
-        <Tab.Screen name="Library" component={LibraryScreen} />
-      </Tab.Navigator>
-
-      {/* Mini Player - shown when track is playing */}
-      {currentTrack && (
-        <MiniPlayer onPress={() => {}} />
-      )}
-    </View>
-  );
-};
-
-// Main Stack Navigator
-const MainNavigator = () => {
-  return (
-    <Stack.Navigator
-      screenOptions={{
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Search') {
+            iconName = focused ? 'search' : 'search-outline';
+          } else if (route.name === 'Library') {
+            iconName = focused ? 'library' : 'library-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: COLORS.text,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 0,
+          paddingTop: 8,
+          paddingBottom: 8,
+          height: 65,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: 4,
+        },
         headerShown: false,
-        contentStyle: { backgroundColor: COLORS.background },
-        animation: 'slide_from_bottom',
-      }}
+      })}
     >
-      <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen 
-        name="NowPlaying" 
-        component={NowPlayingScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen name="Album" component={AlbumScreen} />
-    </Stack.Navigator>
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Library" component={LibraryScreen} />
+    </Tab.Navigator>
   );
 };
 
-// App with Navigation Context
-const AppWithNavigation = () => {
+// App Content with Navigation and Mini Player
+const AppContent = () => {
   const { currentTrack } = usePlayer();
   const navigationRef = React.useRef();
+  const [currentRoute, setCurrentRoute] = useState('');
+
+  // Hide mini player on NowPlaying screen
+  const showMiniPlayer = currentTrack && currentRoute !== 'NowPlaying';
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: COLORS.background },
-        }}
-      >
-        <Stack.Screen name="MainTabs" component={TabNavigator} />
-        <Stack.Screen 
-          name="NowPlaying" 
-          component={NowPlayingScreen}
-          options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
+    <NavigationContainer 
+      ref={navigationRef}
+      onStateChange={() => {
+        const route = navigationRef.current?.getCurrentRoute();
+        setCurrentRoute(route?.name || '');
+      }}
+    >
+      <View style={styles.container}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: COLORS.background },
           }}
-        />
-        <Stack.Screen name="Album" component={AlbumScreen} />
-      </Stack.Navigator>
+        >
+          <Stack.Screen name="MainTabs" component={TabNavigator} />
+          <Stack.Screen 
+            name="NowPlaying" 
+            component={NowPlayingScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen name="Album" component={AlbumScreen} />
+          <Stack.Screen name="Bible" component={BibleScreen} />
+          <Stack.Screen name="Churches" component={ChurchesScreen} />
+        </Stack.Navigator>
 
-      {/* Global Mini Player */}
-      {currentTrack && (
-        <MiniPlayer 
-          onPress={() => navigationRef.current?.navigate('NowPlaying')} 
-        />
-      )}
+        {/* Mini Player - Hidden on NowPlaying screen */}
+        {showMiniPlayer && (
+          <MiniPlayer 
+            onPress={() => navigationRef.current?.navigate('NowPlaying')} 
+          />
+        )}
+      </View>
     </NavigationContainer>
   );
 };
@@ -144,7 +127,7 @@ export default function App() {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <AuthProvider>
           <PlayerProvider>
-            <AppWithNavigation />
+            <AppContent />
           </PlayerProvider>
         </AuthProvider>
       </SafeAreaProvider>
