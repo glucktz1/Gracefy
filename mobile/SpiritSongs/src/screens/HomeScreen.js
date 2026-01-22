@@ -10,36 +10,39 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Image,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { homeAPI, contentAPI, getImageUrl } from '../services/api';
+import { homeAPI, contentAPI, libraryAPI, bibleAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
-import { LargeCard, MediumCard, SmallCard, WideCard, CategoryChip, SongListItem } from '../components/Cards';
+import { useAuth } from '../context/AuthContext';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - SPACING.md * 3) / 2;
 
 const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [layoutSections, setLayoutSections] = useState([]);
-  const [quickAccess, setQuickAccess] = useState([]);
   const [featuredMixes, setFeaturedMixes] = useState([]);
   const [recentAlbums, setRecentAlbums] = useState([]);
   const [allSongs, setAllSongs] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [burners, setBurners] = useState([]);
+  const [userPlaylists, setUserPlaylists] = useState([]);
+  const [likedSongsCount, setLikedSongsCount] = useState(0);
+  const [bibleSnippets, setBibleSnippets] = useState([]);
+  const [heroContent, setHeroContent] = useState(null);
   
   // Add to playlist modal
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
 
   const { playTrack, currentTrack } = usePlayer();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     updateGreeting();
@@ -57,36 +60,38 @@ const HomeScreen = ({ navigation }) => {
     try {
       setLoading(true);
       
-      // Fetch all data in parallel
-      const [appHomeRes, sectionsRes, burnersRes, mixesRes, albumsRes, songsRes, categoriesRes] = await Promise.all([
-        homeAPI.getAppHome().catch(() => ({ data: {} })),
+      const [
+        sectionsRes, 
+        mixesRes, 
+        albumsRes, 
+        songsRes, 
+        playlistsRes, 
+        likesRes,
+        snippetsRes,
+        heroRes
+      ] = await Promise.all([
         homeAPI.getSections().catch(() => ({ data: [] })),
-        homeAPI.getBurners().catch(() => ({ data: [] })),
         homeAPI.getSpecialMixes().catch(() => ({ data: [] })),
         contentAPI.getAlbums().catch(() => ({ data: [] })),
         contentAPI.getAllSongs().catch(() => ({ data: { songs: [] } })),
-        contentAPI.getCategories().catch(() => ({ data: [] })),
+        libraryAPI.getPlaylists().catch(() => ({ data: [] })),
+        libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
+        bibleAPI.getFeaturedSnippets().catch(() => ({ data: [] })),
+        homeAPI.getHeroContent().catch(() => ({ data: null })),
       ]);
 
-      // Layout sections from Layout Manager
+      // Layout sections
       const sections = sectionsRes.data?.sections || sectionsRes.data || [];
       setLayoutSections(sections.filter(s => s.is_active));
-
-      // Burners (quick links)
-      setBurners(burnersRes.data?.burners || burnersRes.data || []);
 
       // Featured mixes
       setFeaturedMixes(mixesRes.data?.mixes || mixesRes.data || []);
 
-      // Recent albums
+      // Albums
       const albums = albumsRes.data?.albums || albumsRes.data || [];
-      setRecentAlbums(albums.slice(0, 10));
+      setRecentAlbums(albums);
 
-      // Quick access - combine mixes and albums
-      const quick = [...(mixesRes.data?.mixes || mixesRes.data || []).slice(0, 3), ...albums.slice(0, 3)];
-      setQuickAccess(quick);
-
-      // All songs - add album thumbnail to each song
+      // Songs with album thumbnails
       const songs = songsRes.data?.songs || [];
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
@@ -99,11 +104,18 @@ const HomeScreen = ({ navigation }) => {
       });
       setAllSongs(songsWithThumbnails);
 
-      // Categories from Layout Manager sections
-      const layoutCategories = sections
-        .filter(s => s.is_active && s.section_type !== 'quick_access')
-        .map(s => ({ category_id: s.section_id, name: s.title || s.name }));
-      setCategories([...layoutCategories, ...(categoriesRes.data || [])]);
+      // User playlists
+      setUserPlaylists(playlistsRes.data || []);
+
+      // Liked songs count
+      const likes = likesRes.data?.songs || likesRes.data || [];
+      setLikedSongsCount(likes.length);
+
+      // Bible snippets
+      setBibleSnippets(snippetsRes.data?.snippets || snippetsRes.data || []);
+
+      // Hero content
+      setHeroContent(heroRes.data);
 
     } catch (error) {
       console.error('Error loading home data:', error);
@@ -136,19 +148,6 @@ const HomeScreen = ({ navigation }) => {
     setShowPlaylistModal(true);
   };
 
-  const handleQuickAccessPress = (item) => {
-    // Check item type and navigate accordingly
-    if (item.type === 'bible' || item.name?.toLowerCase().includes('bible') || item.name?.toLowerCase().includes('biblia')) {
-      navigation.navigate('Bible');
-    } else if (item.type === 'church' || item.name?.toLowerCase().includes('church') || item.name?.toLowerCase().includes('kanisa')) {
-      navigation.navigate('Churches');
-    } else if (item.mix_id) {
-      handleMixPress(item);
-    } else if (item.album_id) {
-      handleAlbumPress(item);
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -157,23 +156,13 @@ const HomeScreen = ({ navigation }) => {
     );
   }
 
-  // Filter songs by category
-  const filteredSongs = selectedCategory === 'all' 
-    ? allSongs 
-    : allSongs.filter(s => s.category_ids?.includes(selectedCategory));
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
       >
         {/* Header */}
@@ -183,123 +172,180 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.headerIcon}>
               <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon}>
-              <Ionicons name="time-outline" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.headerIcon}
-              onPress={() => navigation.navigate('Profile')}
-            >
-              <Ionicons name="person-circle-outline" size={24} color={COLORS.text} />
+            <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Profile')}>
+              <Ionicons name="person-circle-outline" size={28} color={COLORS.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Section Filters - From Layout Manager */}
-        {layoutSections.length > 0 && (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.filtersContainer}
-            contentContainerStyle={styles.filtersContent}
+        {/* Hero Section */}
+        {(heroContent || featuredMixes.length > 0) && (
+          <TouchableOpacity 
+            style={styles.heroContainer}
+            onPress={() => featuredMixes[0] && handleMixPress(featuredMixes[0])}
+            activeOpacity={0.9}
           >
-            <CategoryChip
-              label="All"
-              isActive={selectedCategory === 'all'}
-              onPress={() => setSelectedCategory('all')}
-            />
-            {layoutSections.slice(0, 5).map((section) => (
-              <CategoryChip
-                key={section.section_id}
-                label={section.title || section.name}
-                isActive={selectedCategory === section.section_id}
-                onPress={() => setSelectedCategory(section.section_id)}
+            <ImageBackground
+              source={{ uri: getImageUrl(heroContent?.thumbnail || featuredMixes[0]?.thumbnail) || 'https://via.placeholder.com/400' }}
+              style={styles.heroImage}
+              imageStyle={styles.heroImageStyle}
+            >
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)', COLORS.background]}
+                style={styles.heroGradient}
+              >
+                <Text style={styles.heroLabel}>FEATURED</Text>
+                <Text style={styles.heroTitle}>
+                  {heroContent?.title || featuredMixes[0]?.title || 'Featured Mix'}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  {heroContent?.description || featuredMixes[0]?.description || 'Curated just for you'}
+                </Text>
+                <View style={styles.heroButtons}>
+                  <TouchableOpacity style={styles.heroPlayButton}>
+                    <Ionicons name="play" size={20} color={COLORS.background} />
+                    <Text style={styles.heroPlayText}>Play</Text>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
+          </TouchableOpacity>
+        )}
+
+        {/* Quick Access Grid - Spotify Style */}
+        <View style={styles.quickAccessContainer}>
+          {/* Liked Songs */}
+          <TouchableOpacity 
+            style={styles.quickAccessItem}
+            onPress={() => navigation.navigate('Library')}
+          >
+            <LinearGradient colors={['#5D3FD3', '#7B68EE']} style={styles.quickAccessIcon}>
+              <Ionicons name="heart" size={20} color={COLORS.text} />
+            </LinearGradient>
+            <Text style={styles.quickAccessText} numberOfLines={2}>Liked Songs</Text>
+          </TouchableOpacity>
+
+          {/* User Playlists (first 3) */}
+          {userPlaylists.slice(0, 3).map((playlist) => (
+            <TouchableOpacity 
+              key={playlist.playlist_id}
+              style={styles.quickAccessItem}
+              onPress={() => navigation.navigate('Playlist', { playlist })}
+            >
+              <Image
+                source={{ uri: getImageUrl(playlist.thumbnail) || 'https://via.placeholder.com/56' }}
+                style={styles.quickAccessImage}
               />
+              <Text style={styles.quickAccessText} numberOfLines={2}>{playlist.name}</Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Fill remaining spots with albums */}
+          {recentAlbums.slice(0, Math.max(0, 4 - userPlaylists.length - 1)).map((album) => (
+            <TouchableOpacity 
+              key={album.album_id}
+              style={styles.quickAccessItem}
+              onPress={() => handleAlbumPress(album)}
+            >
+              <Image
+                source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/56' }}
+                style={styles.quickAccessImage}
+              />
+              <Text style={styles.quickAccessText} numberOfLines={2}>{album.title}</Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Bible Quick Access */}
+          <TouchableOpacity 
+            style={styles.quickAccessItem}
+            onPress={() => navigation.navigate('Bible')}
+          >
+            <LinearGradient colors={['#1DB954', '#169c46']} style={styles.quickAccessIcon}>
+              <Ionicons name="book" size={20} color={COLORS.text} />
+            </LinearGradient>
+            <Text style={styles.quickAccessText} numberOfLines={2}>Biblia</Text>
+          </TouchableOpacity>
+
+          {/* Churches Quick Access */}
+          <TouchableOpacity 
+            style={styles.quickAccessItem}
+            onPress={() => navigation.navigate('Churches')}
+          >
+            <LinearGradient colors={['#E91429', '#ff4757']} style={styles.quickAccessIcon}>
+              <Ionicons name="business" size={20} color={COLORS.text} />
+            </LinearGradient>
+            <Text style={styles.quickAccessText} numberOfLines={2}>Makanisa</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bible & Books Section - Horizontal Scroll */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Bible & Books</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Bible')}>
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bibleRow}>
+            {/* Bible Main Card */}
+            <TouchableOpacity 
+              style={styles.bibleMainCard}
+              onPress={() => navigation.navigate('Bible')}
+            >
+              <LinearGradient colors={['#1a472a', '#2d5a3d']} style={styles.bibleMainGradient}>
+                <Ionicons name="book-outline" size={40} color={COLORS.primary} />
+                <Text style={styles.bibleMainTitle}>Holy Bible</Text>
+                <Text style={styles.bibleMainSubtitle}>Biblia Takatifu</Text>
+                <View style={styles.bibleMainMeta}>
+                  <Text style={styles.bibleMainMetaText}>66 Books</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Bible Snippets */}
+            {bibleSnippets.slice(0, 5).map((snippet, index) => (
+              <TouchableOpacity key={snippet.snippet_id || index} style={styles.snippetCard}>
+                <LinearGradient colors={['#2a2a3a', '#1a1a2a']} style={styles.snippetGradient}>
+                  <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
+                  <Text style={styles.snippetTitle} numberOfLines={2}>{snippet.title || snippet.reference}</Text>
+                  <Text style={styles.snippetVerse} numberOfLines={2}>{snippet.text?.substring(0, 50)}...</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             ))}
           </ScrollView>
-        )}
-
-        {/* Quick Access Grid - Spotify style */}
-        <View style={styles.quickAccessContainer}>
-          <View style={styles.quickAccessGrid}>
-            {/* Static quick access items */}
-            <WideCard
-              item={{ title: 'Liked Songs', thumbnail: null, icon: 'heart' }}
-              onPress={() => navigation.navigate('Library')}
-              style={styles.likedSongsCard}
-            />
-            <WideCard
-              item={{ title: 'Biblia', thumbnail: null, icon: 'book' }}
-              onPress={() => navigation.navigate('Bible')}
-            />
-            <WideCard
-              item={{ title: 'Makanisa', thumbnail: null, icon: 'business' }}
-              onPress={() => navigation.navigate('Churches')}
-            />
-            {/* Dynamic quick access from Layout Manager burners */}
-            {burners.slice(0, 3).map((burner, index) => (
-              <WideCard
-                key={burner.burner_id || index}
-                item={burner}
-                onPress={() => handleQuickAccessPress(burner)}
-              />
-            ))}
-          </View>
         </View>
 
-        {/* Featured Mixes - Large Cards */}
+        {/* Featured Mixes - Large Horizontal Rectangles */}
         {featuredMixes.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Featured Mixes</Text>
-            <FlatList
-              horizontal
-              data={featuredMixes}
-              keyExtractor={(item) => item.mix_id}
-              renderItem={({ item }) => (
-                <LargeCard
-                  item={item}
-                  onPress={() => handleMixPress(item)}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            />
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured Mixes</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {featuredMixes.map((mix) => (
+                <TouchableOpacity 
+                  key={mix.mix_id} 
+                  style={styles.largeMixCard}
+                  onPress={() => handleMixPress(mix)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(mix.thumbnail) || 'https://via.placeholder.com/280x150' }}
+                    style={styles.largeMixImage}
+                  />
+                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
+                    <Text style={styles.largeMixTitle} numberOfLines={1}>{mix.title}</Text>
+                    <Text style={styles.largeMixSubtitle} numberOfLines={1}>{mix.song_count || 0} songs</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
 
-        {/* Layout Manager Sections */}
-        {layoutSections.map((section) => {
-          if (section.section_type === 'quick_access') return null;
-          
-          const sectionContent = section.content || [];
-          if (sectionContent.length === 0 && recentAlbums.length === 0) return null;
-
-          return (
-            <View key={section.section_id} style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title || section.name}</Text>
-                <TouchableOpacity>
-                  <Text style={styles.seeAll}>See all</Text>
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                horizontal
-                data={sectionContent.length > 0 ? sectionContent : recentAlbums.slice(0, 5)}
-                keyExtractor={(item, index) => item.album_id || item.mix_id || `${section.section_id}-${index}`}
-                renderItem={({ item }) => (
-                  <MediumCard
-                    item={item}
-                    onPress={() => item.mix_id ? handleMixPress(item) : handleAlbumPress(item)}
-                  />
-                )}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
-              />
-            </View>
-          );
-        })}
-
-        {/* Recently Added Albums - Medium Cards */}
+        {/* Recently Added - Small Square Cards */}
         {recentAlbums.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -308,45 +354,92 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.seeAll}>See all</Text>
               </TouchableOpacity>
             </View>
-            <FlatList
-              horizontal
-              data={recentAlbums}
-              keyExtractor={(item) => item.album_id}
-              renderItem={({ item }) => (
-                <MediumCard
-                  item={item}
-                  onPress={() => handleAlbumPress(item)}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {recentAlbums.slice(0, 8).map((album) => (
+                <TouchableOpacity 
+                  key={album.album_id} 
+                  style={styles.smallSquareCard}
+                  onPress={() => handleAlbumPress(album)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                    style={styles.smallSquareImage}
+                  />
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
+                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
 
-        {/* Popular Songs - List with Add to Playlist */}
+        {/* Popular Songs - List View */}
         {allSongs.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Popular Songs</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('AllSongs', { songs: allSongs })}>
+              <TouchableOpacity>
                 <Text style={styles.seeAll}>See all</Text>
               </TouchableOpacity>
             </View>
-            {(selectedCategory === 'all' ? allSongs : filteredSongs).slice(0, 5).map((song, index) => (
-              <SongListItem
-                key={song.song_id}
-                item={song}
-                index={index}
-                isPlaying={currentTrack?.song_id === song.song_id}
+            {allSongs.slice(0, 5).map((song, index) => (
+              <TouchableOpacity 
+                key={song.song_id} 
+                style={styles.songListItem}
                 onPress={() => handlePlaySong(song, allSongs)}
-                onAddPress={handleAddToPlaylist}
-              />
+              >
+                <Text style={[styles.songIndex, currentTrack?.song_id === song.song_id && styles.songIndexActive]}>
+                  {currentTrack?.song_id === song.song_id ? (
+                    <Ionicons name="musical-note" size={14} color={COLORS.primary} />
+                  ) : index + 1}
+                </Text>
+                <Image
+                  source={{ uri: getImageUrl(song.thumbnail || song.thumbnail_url) || 'https://via.placeholder.com/48' }}
+                  style={styles.songImage}
+                />
+                <View style={styles.songInfo}>
+                  <Text style={[styles.songTitle, currentTrack?.song_id === song.song_id && styles.songTitleActive]} numberOfLines={1}>
+                    {song.title}
+                  </Text>
+                  <Text style={styles.songArtist} numberOfLines={1}>{song.artist_name}</Text>
+                </View>
+                <TouchableOpacity style={styles.songAddButton} onPress={() => handleAddToPlaylist(song)}>
+                  <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* Bottom spacing for mini player */}
+        {/* More Albums - Medium Cards */}
+        {recentAlbums.length > 8 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>More to Explore</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {recentAlbums.slice(8, 16).map((album) => (
+                <TouchableOpacity 
+                  key={`more-${album.album_id}`} 
+                  style={styles.mediumCard}
+                  onPress={() => handleAlbumPress(album)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/150' }}
+                    style={styles.mediumCardImage}
+                  />
+                  <Text style={styles.mediumCardTitle} numberOfLines={2}>{album.title}</Text>
+                  <Text style={styles.mediumCardSubtitle} numberOfLines={1}>{album.artist_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Bottom spacing */}
         <View style={{ height: 150 }} />
       </ScrollView>
 
@@ -379,7 +472,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   greeting: {
     fontSize: FONT_SIZES.xxl,
@@ -388,31 +481,169 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   headerIcon: {
     marginLeft: SPACING.md,
     padding: SPACING.xs,
   },
-  filtersContainer: {
-    marginBottom: SPACING.md,
+
+  // Hero Section
+  heroContainer: {
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
   },
-  filtersContent: {
-    paddingHorizontal: SPACING.md,
+  heroImage: {
+    width: '100%',
+    height: 220,
   },
+  heroImageStyle: {
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  heroGradient: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: SPACING.lg,
+  },
+  heroLabel: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    letterSpacing: 2,
+    marginBottom: SPACING.xs,
+  },
+  heroTitle: {
+    fontSize: FONT_SIZES.xxxl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  heroSubtitle: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  heroButtons: {
+    flexDirection: 'row',
+    marginTop: SPACING.md,
+  },
+  heroPlayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  heroPlayText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.background,
+    marginLeft: SPACING.xs,
+  },
+
+  // Quick Access Grid
   quickAccessContainer: {
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  quickAccessGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  likedSongsCard: {
-    backgroundColor: COLORS.primary + '40',
+  quickAccessItem: {
+    width: CARD_WIDTH,
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.sm,
+    margin: SPACING.xs,
+    overflow: 'hidden',
   },
+  quickAccessIcon: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickAccessImage: {
+    width: 56,
+    height: 56,
+  },
+  quickAccessText: {
+    flex: 1,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    paddingHorizontal: SPACING.sm,
+  },
+
+  // Bible Section
+  bibleRow: {
+    paddingHorizontal: SPACING.md,
+  },
+  bibleMainCard: {
+    width: 160,
+    height: 180,
+    marginRight: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  bibleMainGradient: {
+    flex: 1,
+    padding: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bibleMainTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: SPACING.sm,
+  },
+  bibleMainSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  bibleMainMeta: {
+    marginTop: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  bibleMainMetaText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.text,
+  },
+  snippetCard: {
+    width: 140,
+    height: 180,
+    marginRight: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  snippetGradient: {
+    flex: 1,
+    padding: SPACING.md,
+  },
+  snippetTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: SPACING.sm,
+  },
+  snippetVerse: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+    fontStyle: 'italic',
+  },
+
+  // Section Styles
   section: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -425,8 +656,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
     color: COLORS.text,
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
   },
   seeAll: {
     fontSize: FONT_SIZES.sm,
@@ -435,6 +664,126 @@ const styles = StyleSheet.create({
   },
   horizontalList: {
     paddingHorizontal: SPACING.md,
+  },
+
+  // Large Mix Cards (Horizontal Rectangles)
+  largeMixCard: {
+    width: 280,
+    height: 150,
+    marginRight: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
+  },
+  largeMixImage: {
+    width: '100%',
+    height: '100%',
+  },
+  largeMixGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: SPACING.md,
+  },
+  largeMixTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  largeMixSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  // Small Square Cards
+  smallSquareCard: {
+    width: 120,
+    marginRight: SPACING.md,
+  },
+  smallSquareImage: {
+    width: 120,
+    height: 120,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.card,
+  },
+  smallSquareTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: SPACING.sm,
+  },
+  smallSquareArtist: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  // Medium Cards
+  mediumCard: {
+    width: 150,
+    marginRight: SPACING.md,
+  },
+  mediumCardImage: {
+    width: 150,
+    height: 150,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.card,
+  },
+  mediumCardTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: SPACING.sm,
+  },
+  mediumCardSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  // Song List
+  songListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  songIndex: {
+    width: 24,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  songIndexActive: {
+    color: COLORS.primary,
+  },
+  songImage: {
+    width: 48,
+    height: 48,
+    borderRadius: BORDER_RADIUS.sm,
+    marginLeft: SPACING.sm,
+    backgroundColor: COLORS.card,
+  },
+  songInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  songTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  songTitleActive: {
+    color: COLORS.primary,
+  },
+  songArtist: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  songAddButton: {
+    padding: SPACING.sm,
   },
 });
 
