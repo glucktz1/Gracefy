@@ -86,11 +86,6 @@ export const PlayerProvider = ({ children }) => {
       subscription?.remove();
     };
   }, []);
-      stopAndUnloadSound();
-      subscription?.remove();
-      clearInterval(playbackCheckInterval);
-    };
-  }, []);
 
   useEffect(() => {
     lastPositionRef.current = position;
