@@ -37,7 +37,6 @@ const COLORS = {
 
 const BibleScreen = ({ navigation }) => {
   const { t, language } = useLanguage();
-  const { isPlaying: musicIsPlaying, togglePlay: toggleMusicPlay, currentSong } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [books, setBooks] = useState([]);
   const [snippets, setSnippets] = useState([]);
@@ -48,9 +47,6 @@ const BibleScreen = ({ navigation }) => {
   const [playingId, setPlayingId] = useState(null);
   const [sound, setSound] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
-  
-  // Track if we paused music to play Bible audio
-  const pausedMusicForBible = useRef(false);
   
   // Book search
   const [bookSearchQuery, setBookSearchQuery] = useState('');
@@ -81,15 +77,6 @@ const BibleScreen = ({ navigation }) => {
     book.name.toLowerCase().includes(rangeBookSearch.toLowerCase()) ||
     (book.name_localized && book.name_localized.toLowerCase().includes(rangeBookSearch.toLowerCase()))
   );
-  
-  // Helper to pause music player before playing Bible audio
-  const pauseMusicIfPlaying = useCallback(async () => {
-    if (musicIsPlaying && currentSong) {
-      console.log('Pausing music player for Bible audio');
-      await toggleMusicPlay();
-      pausedMusicForBible.current = true;
-    }
-  }, [musicIsPlaying, currentSong, toggleMusicPlay]);
 
   // Listening limit state
   const [listeningStatus, setListeningStatus] = useState(null);
