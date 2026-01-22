@@ -70,6 +70,7 @@ export const homeAPI = {
   getSections: () => api.get('/layout/sections'),
   getBurners: () => api.get('/layout/burners'),
   getSpecialMixes: () => api.get('/special-mixes'),
+  getAppHome: () => api.get('/home/app'),
 };
 
 // ============ CONTENT API ============
