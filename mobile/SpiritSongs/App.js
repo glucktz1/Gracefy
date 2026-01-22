@@ -30,7 +30,6 @@ import ChoirRegistrationScreen from './src/screens/ChoirRegistrationScreen';
 import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
 import ChurchDetailScreen from './src/screens/ChurchDetailScreen';
 import BibleScreen from './src/screens/BibleScreen';
-import PermissionsScreen from './src/screens/PermissionsScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
