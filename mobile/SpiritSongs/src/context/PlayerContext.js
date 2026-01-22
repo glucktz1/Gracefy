@@ -81,23 +81,12 @@ export const PlayerProvider = ({ children }) => {
     
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
-    // Set up a periodic check for playback status when app is in background
-    const playbackCheckInterval = setInterval(async () => {
-      if (globalSoundRef && appStateRef.current !== 'active') {
-        try {
-          const status = await globalSoundRef.getStatusAsync();
-          if (status.isLoaded && status.didJustFinish && !status.isPlaying) {
-            console.log('Background check: Song finished, playing next...');
-            handleSongEnd();
-          }
-        } catch (e) {
-          // Sound might be unloaded
-        }
-      }
-    }, 2000);
-    
     return () => {
       savePlaybackState();
+      stopAndUnloadSound();
+      subscription?.remove();
+    };
+  }, []);
       stopAndUnloadSound();
       subscription?.remove();
       clearInterval(playbackCheckInterval);
