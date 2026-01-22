@@ -262,6 +262,9 @@ const styles = StyleSheet.create({
   songListMore: {
     padding: SPACING.sm,
   },
+  songListAdd: {
+    padding: SPACING.sm,
+  },
 
   // Quick Access Item
   quickAccessItem: {
