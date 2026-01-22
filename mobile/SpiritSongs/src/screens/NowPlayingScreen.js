@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Share,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,8 +16,9 @@ import Slider from '@react-native-community/slider';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { usePlayer } from '../context/PlayerContext';
 import { getImageUrl } from '../services/api';
+import AddToPlaylistModal from '../components/AddToPlaylistModal';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const NowPlayingScreen = ({ navigation }) => {
   const {
@@ -25,15 +28,16 @@ const NowPlayingScreen = ({ navigation }) => {
     duration,
     shuffle,
     repeat,
-    isLiked,
     togglePlay,
     seekTo,
     skipNext,
     skipPrevious,
     toggleShuffle,
     cycleRepeat,
-    toggleLike,
   } = usePlayer();
+
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   if (!currentTrack) {
     return (
@@ -58,6 +62,31 @@ const NowPlayingScreen = ({ navigation }) => {
       case 'all': return 'repeat';
       default: return 'repeat';
     }
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `🎵 Listen to "${currentTrack.title}" by ${currentTrack.artist_name} on Gracefy!`,
+        title: currentTrack.title,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const handleDownload = () => {
+    setIsDownloading(true);
+    // Simulate download
+    Alert.alert(
+      'Download',
+      `Downloading "${currentTrack.title}"...`,
+      [{ text: 'OK', onPress: () => setIsDownloading(false) }]
+    );
+  };
+
+  const handleAddToPlaylist = () => {
+    setShowPlaylistModal(true);
   };
 
   return (
@@ -93,7 +122,7 @@ const NowPlayingScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* Track Info */}
+        {/* Track Info with + Button */}
         <View style={styles.trackInfo}>
           <View style={styles.trackTitleRow}>
             <View style={styles.trackTitleContainer}>
@@ -104,15 +133,12 @@ const NowPlayingScreen = ({ navigation }) => {
                 {currentTrack.artist_name}
               </Text>
             </View>
+            {/* Add to Playlist Button (replaced like button) */}
             <TouchableOpacity 
-              style={styles.likeButton}
-              onPress={toggleLike}
+              style={styles.addButton}
+              onPress={handleAddToPlaylist}
             >
-              <Ionicons
-                name={isLiked ? 'heart' : 'heart-outline'}
-                size={24}
-                color={isLiked ? COLORS.primary : COLORS.text}
-              />
+              <Ionicons name="add-circle-outline" size={28} color={COLORS.text} />
             </TouchableOpacity>
           </View>
         </View>
@@ -135,7 +161,7 @@ const NowPlayingScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Controls */}
+        {/* Main Controls */}
         <View style={styles.controls}>
           <TouchableOpacity 
             style={styles.secondaryControl}
@@ -190,19 +216,37 @@ const NowPlayingScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Bottom Actions */}
+        {/* Bottom Actions - Share & Download */}
         <View style={styles.bottomActions}>
-          <TouchableOpacity style={styles.bottomButton}>
-            <Ionicons name="phone-portrait-outline" size={20} color={COLORS.textSecondary} />
+          <TouchableOpacity style={styles.bottomButton} onPress={handleShare}>
+            <Ionicons name="share-outline" size={22} color={COLORS.textSecondary} />
+            <Text style={styles.bottomButtonText}>Share</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.bottomButton}>
-            <Ionicons name="share-outline" size={20} color={COLORS.textSecondary} />
+
+          <TouchableOpacity style={styles.bottomButton} onPress={handleDownload}>
+            <Ionicons 
+              name={isDownloading ? "cloud-download" : "download-outline"} 
+              size={22} 
+              color={isDownloading ? COLORS.primary : COLORS.textSecondary} 
+            />
+            <Text style={[styles.bottomButtonText, isDownloading && styles.bottomButtonTextActive]}>
+              Download
+            </Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.bottomButton}>
-            <Ionicons name="list" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="list" size={22} color={COLORS.textSecondary} />
+            <Text style={styles.bottomButtonText}>Queue</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      {/* Add to Playlist Modal */}
+      <AddToPlaylistModal
+        visible={showPlaylistModal}
+        onClose={() => setShowPlaylistModal(false)}
+        song={currentTrack}
+      />
     </LinearGradient>
   );
 };
@@ -281,7 +325,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
-  likeButton: {
+  addButton: {
     padding: SPACING.sm,
   },
   progressContainer: {
@@ -330,11 +374,22 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xl,
+    justifyContent: 'space-around',
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
   bottomButton: {
-    padding: SPACING.md,
+    alignItems: 'center',
+    padding: SPACING.sm,
+  },
+  bottomButtonText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  bottomButtonTextActive: {
+    color: COLORS.primary,
   },
 });
 
