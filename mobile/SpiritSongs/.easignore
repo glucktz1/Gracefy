@@ -1,0 +1,9 @@
+# Ignore corrupted files
+*@@*
+*.tmp
+dist/
+
+# Standard ignores
+node_modules/
+.expo/
+.git/
