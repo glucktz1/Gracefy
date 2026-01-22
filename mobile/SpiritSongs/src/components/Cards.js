@@ -66,7 +66,7 @@ export const SmallCard = ({ item, onPress, style }) => (
 );
 
 // Song List Item - Horizontal list style
-export const SongListItem = ({ item, index, onPress, isPlaying, style }) => (
+export const SongListItem = ({ item, index, onPress, isPlaying, onAddPress, albumThumbnail, style }) => (
   <TouchableOpacity 
     style={[styles.songListItem, style]} 
     onPress={onPress}
@@ -76,7 +76,7 @@ export const SongListItem = ({ item, index, onPress, isPlaying, style }) => (
       {isPlaying ? <Ionicons name="musical-note" size={14} color={COLORS.primary} /> : index + 1}
     </Text>
     <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/50' }}
+      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail) || 'https://via.placeholder.com/50' }}
       style={styles.songListImage}
     />
     <View style={styles.songListInfo}>
@@ -85,6 +85,11 @@ export const SongListItem = ({ item, index, onPress, isPlaying, style }) => (
       </Text>
       <Text style={styles.songListArtist} numberOfLines={1}>{item.artist_name}</Text>
     </View>
+    {onAddPress && (
+      <TouchableOpacity style={styles.songListAdd} onPress={() => onAddPress(item)}>
+        <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
+      </TouchableOpacity>
+    )}
     <TouchableOpacity style={styles.songListMore}>
       <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.textSecondary} />
     </TouchableOpacity>
