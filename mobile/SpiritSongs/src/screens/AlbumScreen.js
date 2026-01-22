@@ -16,6 +16,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { contentAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { SongListItem } from '../components/Cards';
+import AddToPlaylistModal from '../components/AddToPlaylistModal';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +24,8 @@ const AlbumScreen = ({ route, navigation }) => {
   const { album } = route.params;
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [selectedSong, setSelectedSong] = useState(null);
 
   const { playTrack, currentTrack } = usePlayer();
 
@@ -33,7 +36,13 @@ const AlbumScreen = ({ route, navigation }) => {
   const loadAlbumSongs = async () => {
     try {
       const response = await contentAPI.getAlbum(album.album_id);
-      setSongs(response.data?.songs || []);
+      // Add album thumbnail to each song
+      const songsWithThumbnail = (response.data?.songs || []).map(song => ({
+        ...song,
+        thumbnail: song.thumbnail || song.thumbnail_url || album.thumbnail || album.thumbnail_url,
+        artist_name: song.artist_name || album.artist_name,
+      }));
+      setSongs(songsWithThumbnail);
     } catch (error) {
       console.error('Error loading album:', error);
     } finally {
@@ -59,6 +68,11 @@ const AlbumScreen = ({ route, navigation }) => {
     }
   };
 
+  const handleAddToPlaylist = (song) => {
+    setSelectedSong(song);
+    setShowPlaylistModal(true);
+  };
+
   const totalDuration = songs.reduce((acc, song) => acc + (song.duration || 0), 0);
   const formatTotalDuration = () => {
     const hours = Math.floor(totalDuration / 3600);
@@ -68,6 +82,8 @@ const AlbumScreen = ({ route, navigation }) => {
     }
     return `${mins} min`;
   };
+
+  const albumThumbnail = getImageUrl(album.thumbnail || album.thumbnail_url);
 
   return (
     <View style={styles.container}>
@@ -91,7 +107,7 @@ const AlbumScreen = ({ route, navigation }) => {
             {/* Album Art */}
             <View style={styles.artworkContainer}>
               <Image
-                source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/200' }}
+                source={{ uri: albumThumbnail || 'https://via.placeholder.com/200' }}
                 style={styles.artwork}
               />
             </View>
@@ -156,6 +172,8 @@ const AlbumScreen = ({ route, navigation }) => {
                 index={index}
                 isPlaying={currentTrack?.song_id === song.song_id}
                 onPress={() => handlePlaySong(song)}
+                onAddPress={handleAddToPlaylist}
+                albumThumbnail={albumThumbnail}
               />
             ))}
           </View>
@@ -164,6 +182,13 @@ const AlbumScreen = ({ route, navigation }) => {
         {/* Bottom spacing */}
         <View style={{ height: 150 }} />
       </ScrollView>
+
+      {/* Add to Playlist Modal */}
+      <AddToPlaylistModal
+        visible={showPlaylistModal}
+        onClose={() => setShowPlaylistModal(false)}
+        song={selectedSong}
+      />
     </View>
   );
 };
