@@ -48,19 +48,24 @@ export default function EnhancedAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [realtime, setRealtime] = useState(null);
   const [bibleAnalytics, setBibleAnalytics] = useState(null);
+  const [navigationAnalytics, setNavigationAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30d");
+  const [activeSection, setActiveSection] = useState("overview"); // overview or navigation
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const [analyticsRes, realtimeRes, bibleRes] = await Promise.all([
+      const periodDays = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+      const [analyticsRes, realtimeRes, bibleRes, navRes] = await Promise.all([
         axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }),
         axios.get(`${API}/analytics/realtime`, { withCredentials: true }),
-        axios.get(`${API}/admin/bible/analytics?days=30`, { withCredentials: true }).catch(() => ({ data: null }))
+        axios.get(`${API}/admin/bible/analytics?days=30`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API}/admin/analytics/navigation?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null }))
       ]);
       setAnalytics(analyticsRes.data);
       setRealtime(realtimeRes.data);
       setBibleAnalytics(bibleRes.data);
+      setNavigationAnalytics(navRes.data);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast.error("Failed to load analytics");
