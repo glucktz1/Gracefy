@@ -187,6 +187,11 @@ export default function EnhancedAnalyticsPage() {
         </div>
       )}
 
+      {/* User Navigation Section */}
+      {activeSection === "navigation" ? (
+        <UserNavigationSection data={navigationAnalytics} period={period} />
+      ) : (
+        <>
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
         <StatCard 
