@@ -5,13 +5,11 @@ import {
   ScrollView,
   StyleSheet,
   RefreshControl,
-  FlatList,
   Dimensions,
   ActivityIndicator,
   TouchableOpacity,
   Image,
   ImageBackground,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,7 +32,7 @@ const HomeScreen = ({ navigation }) => {
   // Layout Manager Data
   const [layoutSections, setLayoutSections] = useState([]);
   const [heroContent, setHeroContent] = useState({ items: [] });
-  const [quickAccessItems, setQuickAccessItems] = useState([]);
+  const [quickAccessConfig, setQuickAccessConfig] = useState([]);
   
   // Content Data
   const [specialMixes, setSpecialMixes] = useState([]);
@@ -45,6 +43,12 @@ const HomeScreen = ({ navigation }) => {
   const [bibleSnippets, setBibleSnippets] = useState([]);
   const [churches, setChurches] = useState([]);
   const [leaderContent, setLeaderContent] = useState([]);
+  
+  // Additional sections from Layout Manager
+  const [lentSongs, setLentSongs] = useState([]);
+  const [christmasSongs, setChristmasSongs] = useState([]);
+  const [mostListenedAlbums, setMostListenedAlbums] = useState([]);
+  const [hotNewReleases, setHotNewReleases] = useState([]);
   
   // Hero Carousel State
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
@@ -161,16 +165,68 @@ const HomeScreen = ({ navigation }) => {
       // Leader content (Mafundisho na Katekesi)
       setLeaderContent(leadersRes.data?.leaders || leadersRes.data || []);
 
-      // Build quick access from layout sections
-      const quickAccessSection = sections.find(s => s.section_type === 'quick_access');
+      // Extract Quick Access config from layout sections
+      const quickAccessSection = sections.find(s => 
+        s.section_type === 'quick_access' || s.name === 'quick_access'
+      );
       if (quickAccessSection?.content_items) {
-        setQuickAccessItems(quickAccessSection.content_items);
+        setQuickAccessConfig(quickAccessSection.content_items);
       }
+
+      // Load additional sections from layout manager
+      loadLayoutSections(sections, albums, mixes);
 
     } catch (error) {
       console.error('Error loading home data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLayoutSections = (sections, albums, mixes) => {
+    // Find Lent songs section
+    const lentSection = sections.find(s => 
+      s.name?.toLowerCase().includes('lent') || 
+      s.name?.toLowerCase().includes('kwaresima') ||
+      s.section_type === 'nyimbo_za_kwaresima'
+    );
+    if (lentSection?.content_items) {
+      setLentSongs(lentSection.content_items);
+    }
+
+    // Find Christmas songs section
+    const christmasSection = sections.find(s => 
+      s.name?.toLowerCase().includes('christmas') || 
+      s.name?.toLowerCase().includes('krismasi') ||
+      s.section_type === 'nyimbo_za_krismasi'
+    );
+    if (christmasSection?.content_items) {
+      setChristmasSongs(christmasSection.content_items);
+    }
+
+    // Most listened albums
+    const mostListenedSection = sections.find(s => 
+      s.name?.toLowerCase().includes('zinazosikilizwa') ||
+      s.section_type === 'zinazosikilizwa_zaidi'
+    );
+    if (mostListenedSection?.content_items) {
+      setMostListenedAlbums(mostListenedSection.content_items);
+    } else {
+      // Fallback to regular albums sorted by plays
+      setMostListenedAlbums(albums.slice(0, 6));
+    }
+
+    // Hot new releases
+    const hotSection = sections.find(s => 
+      s.name?.toLowerCase().includes('moto') ||
+      s.name?.toLowerCase().includes('mpya') ||
+      s.section_type === 'mpya'
+    );
+    if (hotSection?.content_items) {
+      setHotNewReleases(hotSection.content_items);
+    } else {
+      // Fallback to recent albums
+      setHotNewReleases(albums.slice(0, 6));
     }
   };
 
@@ -210,6 +266,30 @@ const HomeScreen = ({ navigation }) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / HERO_WIDTH);
     setCurrentHeroIndex(index);
+  };
+
+  // Handle Mafundisho card play button
+  const handleMafundishoPlay = (leader) => {
+    // Navigate to leader's content/playlist
+    navigation.navigate('Playlist', { 
+      mix: { 
+        mix_id: leader.leader_id, 
+        title: leader.name,
+        thumbnail: leader.photo 
+      } 
+    });
+  };
+
+  // Handle Mafundisho add button
+  const handleMafundishoAdd = (leader) => {
+    // Show add options for leader content
+    setSelectedSong({
+      song_id: leader.leader_id,
+      title: leader.name,
+      thumbnail: leader.photo,
+      artist_name: leader.title || 'Mafundisho'
+    });
+    setShowPlaylistModal(true);
   };
 
   if (loading) {
@@ -277,7 +357,7 @@ const HomeScreen = ({ navigation }) => {
                       <View style={styles.heroButtons}>
                         <TouchableOpacity style={styles.heroPlayButton}>
                           <Ionicons name="play" size={20} color={COLORS.background} />
-                          <Text style={styles.heroPlayText}>Play</Text>
+                          <Text style={styles.heroPlayText}>Cheza</Text>
                         </TouchableOpacity>
                       </View>
                     </LinearGradient>
@@ -299,9 +379,9 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Quick Access Grid - Spotify Style (Layout Manager Controlled) */}
+        {/* Quick Access Grid - 8 items (4 on each row) - Layout Manager Controlled */}
         <View style={styles.quickAccessContainer}>
-          {/* Liked Songs */}
+          {/* Row 1: Liked Songs, User Playlist 1, Downloads, User Playlist 2 */}
           <TouchableOpacity 
             style={styles.quickAccessItem}
             onPress={() => navigation.navigate('Library')}
@@ -312,57 +392,115 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.quickAccessText} numberOfLines={2}>Nyimbo Pendwa</Text>
           </TouchableOpacity>
 
-          {/* User Playlists */}
-          {userPlaylists.slice(0, 2).map((playlist) => (
+          {userPlaylists[0] ? (
             <TouchableOpacity 
-              key={playlist.playlist_id}
               style={styles.quickAccessItem}
-              onPress={() => navigation.navigate('Playlist', { playlist })}
+              onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[0] })}
             >
               <Image
-                source={{ uri: getImageUrl(playlist.thumbnail) || 'https://via.placeholder.com/56' }}
+                source={{ uri: getImageUrl(userPlaylists[0].thumbnail) || 'https://via.placeholder.com/56' }}
                 style={styles.quickAccessImage}
               />
-              <Text style={styles.quickAccessText} numberOfLines={2}>{playlist.name}</Text>
+              <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[0].name}</Text>
             </TouchableOpacity>
-          ))}
+          ) : (
+            <TouchableOpacity 
+              style={styles.quickAccessItem}
+              onPress={() => navigation.navigate('Library')}
+            >
+              <LinearGradient colors={['#1DB954', '#169c46']} style={styles.quickAccessIcon}>
+                <Ionicons name="add" size={20} color={COLORS.text} />
+              </LinearGradient>
+              <Text style={styles.quickAccessText} numberOfLines={2}>Playlist Mpya</Text>
+            </TouchableOpacity>
+          )}
 
-          {/* Bible Quick Access */}
+          <TouchableOpacity 
+            style={styles.quickAccessItem}
+            onPress={() => navigation.navigate('Library')}
+          >
+            <LinearGradient colors={['#E91429', '#ff4757']} style={styles.quickAccessIcon}>
+              <Ionicons name="download" size={20} color={COLORS.text} />
+            </LinearGradient>
+            <Text style={styles.quickAccessText} numberOfLines={2}>Zilizopakuwa</Text>
+          </TouchableOpacity>
+
+          {userPlaylists[1] ? (
+            <TouchableOpacity 
+              style={styles.quickAccessItem}
+              onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[1] })}
+            >
+              <Image
+                source={{ uri: getImageUrl(userPlaylists[1].thumbnail) || 'https://via.placeholder.com/56' }}
+                style={styles.quickAccessImage}
+              />
+              <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[1].name}</Text>
+            </TouchableOpacity>
+          ) : recentAlbums[0] ? (
+            <TouchableOpacity 
+              style={styles.quickAccessItem}
+              onPress={() => handleAlbumPress(recentAlbums[0])}
+            >
+              <Image
+                source={{ uri: getImageUrl(recentAlbums[0].thumbnail || recentAlbums[0].thumbnail_url) || 'https://via.placeholder.com/56' }}
+                style={styles.quickAccessImage}
+              />
+              <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[0].title}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.quickAccessItem} />
+          )}
+
+          {/* Row 2: Bible, Churches, Album 1, Album 2 */}
           <TouchableOpacity 
             style={styles.quickAccessItem}
             onPress={() => navigation.navigate('Bible')}
           >
-            <LinearGradient colors={['#1DB954', '#169c46']} style={styles.quickAccessIcon}>
+            <LinearGradient colors={['#1a472a', '#2d5a3d']} style={styles.quickAccessIcon}>
               <Ionicons name="book" size={20} color={COLORS.text} />
             </LinearGradient>
             <Text style={styles.quickAccessText} numberOfLines={2}>Biblia</Text>
           </TouchableOpacity>
 
-          {/* Churches Quick Access */}
           <TouchableOpacity 
             style={styles.quickAccessItem}
             onPress={() => navigation.navigate('Churches')}
           >
-            <LinearGradient colors={['#E91429', '#ff4757']} style={styles.quickAccessIcon}>
+            <LinearGradient colors={['#FF6B35', '#f5a623']} style={styles.quickAccessIcon}>
               <Ionicons name="business" size={20} color={COLORS.text} />
             </LinearGradient>
             <Text style={styles.quickAccessText} numberOfLines={2}>Makanisa</Text>
           </TouchableOpacity>
 
-          {/* Albums from Quick Access */}
-          {recentAlbums.slice(0, 2).map((album) => (
+          {recentAlbums[1] ? (
             <TouchableOpacity 
-              key={album.album_id}
               style={styles.quickAccessItem}
-              onPress={() => handleAlbumPress(album)}
+              onPress={() => handleAlbumPress(recentAlbums[1])}
             >
               <Image
-                source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/56' }}
+                source={{ uri: getImageUrl(recentAlbums[1].thumbnail || recentAlbums[1].thumbnail_url) || 'https://via.placeholder.com/56' }}
                 style={styles.quickAccessImage}
               />
-              <Text style={styles.quickAccessText} numberOfLines={2}>{album.title}</Text>
+              <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[1].title}</Text>
             </TouchableOpacity>
-          ))}
+          ) : (
+            <View style={styles.quickAccessItem} />
+          )}
+
+          {recentAlbums[2] ? (
+            <TouchableOpacity 
+              style={styles.quickAccessItem}
+              onPress={() => handleAlbumPress(recentAlbums[2])}
+            >
+              <Image
+                source={{ uri: getImageUrl(recentAlbums[2].thumbnail || recentAlbums[2].thumbnail_url) || 'https://via.placeholder.com/56' }}
+                style={styles.quickAccessImage}
+              />
+              <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[2].title}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.quickAccessItem} />
+          )}
         </View>
 
         {/* Mafundisho na Katekesi - Spotify "Picked for you" Style */}
@@ -380,6 +518,7 @@ const HomeScreen = ({ navigation }) => {
                   key={leader.leader_id} 
                   style={styles.mafundishoCard}
                   activeOpacity={0.9}
+                  onPress={() => handleMafundishoPlay(leader)}
                 >
                   {/* Purple Accent Band */}
                   <View style={styles.mafundishoBand}>
@@ -402,10 +541,16 @@ const HomeScreen = ({ navigation }) => {
                     
                     {/* Action Icons */}
                     <View style={styles.mafundishoActions}>
-                      <TouchableOpacity style={styles.mafundishoAddBtn}>
+                      <TouchableOpacity 
+                        style={styles.mafundishoAddBtn}
+                        onPress={() => handleMafundishoAdd(leader)}
+                      >
                         <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.mafundishoPlayBtn}>
+                      <TouchableOpacity 
+                        style={styles.mafundishoPlayBtn}
+                        onPress={() => handleMafundishoPlay(leader)}
+                      >
                         <Ionicons name="play" size={24} color={COLORS.background} />
                       </TouchableOpacity>
                     </View>
@@ -415,6 +560,62 @@ const HomeScreen = ({ navigation }) => {
                       <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
                     </TouchableOpacity>
                   </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Nyimbo za Kwaresma (Lent Songs) */}
+        {lentSongs.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Nyimbo za Kwaresma</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {lentSongs.map((item, index) => (
+                <TouchableOpacity 
+                  key={item.album_id || item.song_id || index} 
+                  style={styles.smallSquareCard}
+                  onPress={() => item.album_id ? handleAlbumPress(item) : handlePlaySong(item, lentSongs)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                    style={styles.smallSquareImage}
+                  />
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Nyimbo za Krismasi (Christmas Songs) */}
+        {christmasSongs.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Nyimbo za Krismasi</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {christmasSongs.map((item, index) => (
+                <TouchableOpacity 
+                  key={item.album_id || item.song_id || index} 
+                  style={styles.smallSquareCard}
+                  onPress={() => item.album_id ? handleAlbumPress(item) : handlePlaySong(item, christmasSongs)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                    style={styles.smallSquareImage}
+                  />
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -450,6 +651,62 @@ const HomeScreen = ({ navigation }) => {
                   <TouchableOpacity style={styles.mixPlayButton}>
                     <Ionicons name="play" size={24} color={COLORS.background} />
                   </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Album Zinazosikilizwa Zaidi (Most Listened Albums) */}
+        {mostListenedAlbums.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Album Zinazosikilizwa Zaidi</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {mostListenedAlbums.map((album, index) => (
+                <TouchableOpacity 
+                  key={album.album_id || index} 
+                  style={styles.smallSquareCard}
+                  onPress={() => handleAlbumPress(album)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                    style={styles.smallSquareImage}
+                  />
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
+                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Mpya za Moto (Hot New Releases) */}
+        {hotNewReleases.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mpya za Moto 🔥</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {hotNewReleases.map((album, index) => (
+                <TouchableOpacity 
+                  key={album.album_id || index} 
+                  style={styles.smallSquareCard}
+                  onPress={() => handleAlbumPress(album)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                    style={styles.smallSquareImage}
+                  />
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
+                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -511,7 +768,7 @@ const HomeScreen = ({ navigation }) => {
                   onPress={() => navigation.navigate('Churches', { selectedChurch: church })}
                 >
                   <Image
-                    source={{ uri: getImageUrl(church.thumbnail) || 'https://via.placeholder.com/140' }}
+                    source={{ uri: getImageUrl(church.thumbnail) || 'https://via.placeholder.com/140?text=Kanisa' }}
                     style={styles.churchImage}
                   />
                   <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.churchGradient}>
@@ -521,34 +778,6 @@ const HomeScreen = ({ navigation }) => {
                       {church.location || church.city}
                     </Text>
                   </LinearGradient>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Recently Added Albums */}
-        {recentAlbums.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Mpya Zilizoongezwa</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>Ona yote</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {recentAlbums.slice(0, 8).map((album) => (
-                <TouchableOpacity 
-                  key={album.album_id} 
-                  style={styles.smallSquareCard}
-                  onPress={() => handleAlbumPress(album)}
-                >
-                  <Image
-                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
-                    style={styles.smallSquareImage}
-                  />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
-                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -586,7 +815,7 @@ const HomeScreen = ({ navigation }) => {
                   <Text style={styles.songArtist} numberOfLines={1}>{song.artist_name}</Text>
                 </View>
                 <TouchableOpacity style={styles.songAddButton} onPress={() => handleAddToPlaylist(song)}>
-                  <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
+                  <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
@@ -602,6 +831,7 @@ const HomeScreen = ({ navigation }) => {
         visible={showPlaylistModal}
         onClose={() => setShowPlaylistModal(false)}
         song={selectedSong}
+        isAuthenticated={isAuthenticated}
       />
     </SafeAreaView>
   );
@@ -720,7 +950,7 @@ const styles = StyleSheet.create({
     width: 24,
   },
 
-  // Quick Access Grid
+  // Quick Access Grid - 8 items (4 per row)
   quickAccessContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
