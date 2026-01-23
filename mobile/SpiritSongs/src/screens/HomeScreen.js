@@ -1556,6 +1556,41 @@ const styles = StyleSheet.create({
   songAddButton: {
     padding: SPACING.sm,
   },
+  
+  // No Content Fallback
+  noContentContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xxl * 2,
+    paddingHorizontal: SPACING.lg,
+  },
+  noContentTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: SPACING.lg,
+  },
+  noContentText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 22,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 25,
+    marginTop: SPACING.lg,
+  },
+  retryButtonText: {
+    color: COLORS.text,
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
 });
 
 export default HomeScreen;
