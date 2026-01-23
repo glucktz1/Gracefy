@@ -34,6 +34,10 @@ const HomeScreen = ({ navigation }) => {
   const [heroContent, setHeroContent] = useState({ items: [] });
   const [quickAccessConfig, setQuickAccessConfig] = useState([]);
   
+  // Category Filters
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('all');
+  
   // Content Data
   const [specialMixes, setSpecialMixes] = useState([]);
   const [recentAlbums, setRecentAlbums] = useState([]);
@@ -60,7 +64,7 @@ const HomeScreen = ({ navigation }) => {
   const [selectedSong, setSelectedSong] = useState(null);
 
   const { playTrack, currentTrack } = usePlayer();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     updateGreeting();
