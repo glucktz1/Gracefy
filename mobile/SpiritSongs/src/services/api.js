@@ -71,6 +71,8 @@ export const homeAPI = {
   getBurners: () => api.get('/layout/burners'),
   getSpecialMixes: () => api.get('/special-mixes'),
   getAppHome: () => api.get('/home/app'),
+  getLeaderContent: () => api.get('/layout/religious-leaders'),
+  getQuickAccess: () => api.get('/layout/sections?type=quick_access'),
 };
 
 // ============ CONTENT API ============
@@ -118,6 +120,9 @@ export const bibleAPI = {
   getSnippets: () => api.get('/bible/snippets'),
   getFeaturedSnippets: () => api.get('/bible/featured-snippets'),
   generateTTS: (data) => api.post('/bible/tts/verse', data),
+  generatePassageTTS: (data) => api.post('/bible/tts/passage', data),
+  getListeningStatus: () => api.get('/bible/listening-status'),
+  trackListening: (data) => api.post('/bible/listening-track', data),
 };
 
 // ============ USER API ============
