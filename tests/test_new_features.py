@@ -11,7 +11,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://spiritsongs-3.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://worship-app-14.preview.emergentagent.com')
 
 class TestPhoneOTPLogin:
     """Test Phone OTP login flow (MOCKED)"""
