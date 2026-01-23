@@ -344,10 +344,16 @@ const HomeScreen = ({ navigation }) => {
     setShowPlaylistModal(true);
   };
 
+  // Toggle debug info display
+  const toggleDebug = () => {
+    setDebugInfo(prev => ({ ...prev, show: !prev.show }));
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>Loading content...</Text>
       </View>
     );
   }
@@ -361,7 +367,30 @@ const HomeScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
       >
+        {/* Debug Banner - Tap header 5 times to toggle */}
+        {debugInfo.show && (
+          <View style={styles.debugBanner}>
+            <Text style={styles.debugTitle}>🔧 Debug Info</Text>
+            <Text style={styles.debugText}>
+              Sections: {debugInfo.stats.sections || 0} | Active: {debugInfo.stats.activeSections || 0}
+            </Text>
+            <Text style={styles.debugText}>
+              Hero: {debugInfo.stats.hero || 0} | Albums: {debugInfo.stats.albums || 0} | Mixes: {debugInfo.stats.mixes || 0}
+            </Text>
+            <Text style={styles.debugText}>
+              Churches: {debugInfo.stats.churches || 0} | Leaders: {debugInfo.stats.leaders || 0}
+            </Text>
+            {debugInfo.errors.length > 0 && (
+              <Text style={styles.debugError}>Errors: {debugInfo.errors.join(', ')}</Text>
+            )}
+            <TouchableOpacity onPress={toggleDebug} style={styles.debugClose}>
+              <Text style={{ color: '#fff' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Header */}
+        <TouchableOpacity onPress={toggleDebug} activeOpacity={1}>
         <View style={styles.header}>
           <Text style={styles.greeting}>{greeting}</Text>
           <View style={styles.headerIcons}>
