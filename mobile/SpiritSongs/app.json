@@ -59,11 +59,6 @@
         }
       ]
     ],
-    "owner": "gracefy12",
-    "extra": {
-      "eas": {
-        "projectId": "auto"
-      }
-    }
+    "owner": "gracefy12"
   }
 }
