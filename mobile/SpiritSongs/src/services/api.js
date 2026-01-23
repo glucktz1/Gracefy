@@ -119,8 +119,22 @@ export const bibleAPI = {
   getVerses: (bookName, chapter) => api.get(`/bible/books/${encodeURIComponent(bookName)}/chapters/${chapter}`),
   getSnippets: () => api.get('/bible/snippets'),
   getFeaturedSnippets: () => api.get('/bible/featured-snippets'),
-  generateTTS: (data) => api.post('/bible/tts/verse', data),
-  generatePassageTTS: (data) => api.post('/bible/tts/passage', data),
+  // TTS APIs - use book_name parameter for backend compatibility
+  generateTTS: (data) => api.post('/bible/tts/verse', {
+    book_name: data.book,
+    chapter: data.chapter,
+    verse: data.verse,
+    voice: data.voice,
+    language: data.language || 'sw'
+  }),
+  generatePassageTTS: (data) => api.post('/bible/tts/passage', {
+    book_name: data.book,
+    chapter: data.chapter,
+    start_verse: data.start_verse,
+    end_verse: data.end_verse,
+    voice: data.voice,
+    language: data.language || 'sw'
+  }),
   getListeningStatus: () => api.get('/bible/listening-status'),
   trackListening: (data) => api.post('/bible/listening-track', data),
 };
