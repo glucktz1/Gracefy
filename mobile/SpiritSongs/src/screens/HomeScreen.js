@@ -236,48 +236,62 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const loadLayoutSections = (sections, albums, mixes) => {
+    console.log('[loadLayoutSections] Processing sections, albums:', albums.length, 'mixes:', mixes.length);
+    
     // Find Lent songs section
     const lentSection = sections.find(s => 
       s.name?.toLowerCase().includes('lent') || 
       s.name?.toLowerCase().includes('kwaresima') ||
-      s.section_type === 'nyimbo_za_kwaresima'
+      s.section_type === 'seasonal' && s.filter_category === 'lent'
     );
-    if (lentSection?.content_items) {
+    if (lentSection?.content_items?.length > 0) {
+      console.log('[loadLayoutSections] Found lent section with', lentSection.content_items.length, 'items');
       setLentSongs(lentSection.content_items);
+    } else if (albums.length > 0) {
+      // Fallback: use first 4 albums as lent songs placeholder
+      console.log('[loadLayoutSections] Using album fallback for lent');
+      setLentSongs(albums.slice(0, 4));
     }
 
     // Find Christmas songs section
     const christmasSection = sections.find(s => 
       s.name?.toLowerCase().includes('christmas') || 
       s.name?.toLowerCase().includes('krismasi') ||
-      s.section_type === 'nyimbo_za_krismasi'
+      s.section_type === 'seasonal' && s.filter_category === 'christmas'
     );
-    if (christmasSection?.content_items) {
+    if (christmasSection?.content_items?.length > 0) {
+      console.log('[loadLayoutSections] Found christmas section with', christmasSection.content_items.length, 'items');
       setChristmasSongs(christmasSection.content_items);
+    } else if (albums.length > 2) {
+      // Fallback: use different albums
+      console.log('[loadLayoutSections] Using album fallback for christmas');
+      setChristmasSongs(albums.slice(2, 6));
     }
 
-    // Most listened albums
+    // Most listened albums - always use albums as fallback
     const mostListenedSection = sections.find(s => 
       s.name?.toLowerCase().includes('zinazosikilizwa') ||
-      s.section_type === 'zinazosikilizwa_zaidi'
+      s.section_type === 'trending'
     );
-    if (mostListenedSection?.content_items) {
+    if (mostListenedSection?.content_items?.length > 0) {
       setMostListenedAlbums(mostListenedSection.content_items);
     } else {
-      // Fallback to regular albums sorted by plays
+      // Fallback to regular albums
+      console.log('[loadLayoutSections] Using album fallback for most listened');
       setMostListenedAlbums(albums.slice(0, 6));
     }
 
-    // Hot new releases
+    // Hot new releases - always use albums as fallback
     const hotSection = sections.find(s => 
       s.name?.toLowerCase().includes('moto') ||
       s.name?.toLowerCase().includes('mpya') ||
-      s.section_type === 'mpya'
+      s.section_type === 'cta'
     );
-    if (hotSection?.content_items) {
+    if (hotSection?.content_items?.length > 0) {
       setHotNewReleases(hotSection.content_items);
     } else {
       // Fallback to recent albums
+      console.log('[loadLayoutSections] Using album fallback for hot releases');
       setHotNewReleases(albums.slice(0, 6));
     }
   };
