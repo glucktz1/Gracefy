@@ -124,6 +124,25 @@ export default function EnhancedAnalyticsPage() {
           <p className="page-subtitle">Comprehensive platform performance metrics</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Section Toggle - Overview vs User Navigation */}
+          <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+            <button
+              onClick={() => setActiveSection("overview")}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                activeSection === "overview" ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <BarChart3 size={14} /> Overview
+            </button>
+            <button
+              onClick={() => setActiveSection("navigation")}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                activeSection === "navigation" ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <MousePointerClick size={14} /> User Navigation
+            </button>
+          </div>
           {/* Period Selector */}
           <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
             {['7d', '30d', '90d', '1y'].map(p => (
