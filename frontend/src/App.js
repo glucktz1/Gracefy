@@ -74,7 +74,7 @@ export const AuthContext = ({ children }) => {
 
 // Sidebar component with permission-based rendering
 const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) => {
-  const [expandedGroups, setExpandedGroups] = useState(['choir-singers']); // Default expanded
+  const [expandedGroups, setExpandedGroups] = useState(['reports-analytics']); // Default expanded
   
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => 
