@@ -1056,6 +1056,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
   },
 
+  // Category Filters - Spotify style
+  categoryFiltersContainer: {
+    marginBottom: SPACING.md,
+  },
+  categoryFiltersContent: {
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+  },
+  userFilterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+  },
+  userFilterText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+    color: COLORS.background,
+  },
+  categoryFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    marginRight: SPACING.sm,
+  },
+  categoryFilterChipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  categoryFilterIcon: {
+    marginRight: SPACING.xs,
+  },
+  categoryFilterText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  categoryFilterTextActive: {
+    color: COLORS.background,
+  },
+
   // Mafundisho na Katekesi - Spotify "Picked for you" Style
   mafundishoCard: {
     width: 320,
