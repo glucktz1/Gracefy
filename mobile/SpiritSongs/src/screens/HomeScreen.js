@@ -526,6 +526,54 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
 
+        {/* Category Filters - Below Quick Access */}
+        {categories.length > 0 && (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.categoryFiltersContainer}
+            contentContainerStyle={styles.categoryFiltersContent}
+          >
+            {/* User initial filter button */}
+            {user?.name && (
+              <TouchableOpacity 
+                style={styles.userFilterButton}
+                onPress={() => setActiveCategory('all')}
+              >
+                <Text style={styles.userFilterText}>
+                  {user.name.charAt(0).toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryFilterChip,
+                  activeCategory === category.id && styles.categoryFilterChipActive
+                ]}
+                onPress={() => setActiveCategory(category.id)}
+              >
+                {category.icon && (
+                  <Ionicons 
+                    name={category.icon} 
+                    size={14} 
+                    color={activeCategory === category.id ? COLORS.background : COLORS.text}
+                    style={styles.categoryFilterIcon}
+                  />
+                )}
+                <Text style={[
+                  styles.categoryFilterText,
+                  activeCategory === category.id && styles.categoryFilterTextActive
+                ]}>
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
         {/* Mafundisho na Katekesi - Spotify "Picked for you" Style */}
         {leaderContent.length > 0 && (
           <View style={styles.section}>
