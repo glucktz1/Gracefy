@@ -65,8 +65,17 @@ export const SmallCard = ({ item, onPress, style }) => (
   </TouchableOpacity>
 );
 
-// Song List Item - Horizontal list style
-export const SongListItem = ({ item, index, onPress, isPlaying, onAddPress, albumThumbnail, style }) => (
+// Song List Item - With three dots menu
+export const SongListItem = ({ 
+  item, 
+  index, 
+  onPress, 
+  isPlaying, 
+  onAddPress, 
+  onMorePress,
+  albumThumbnail, 
+  style 
+}) => (
   <TouchableOpacity 
     style={[styles.songListItem, style]} 
     onPress={onPress}
@@ -85,13 +94,13 @@ export const SongListItem = ({ item, index, onPress, isPlaying, onAddPress, albu
       </Text>
       <Text style={styles.songListArtist} numberOfLines={1}>{item.artist_name}</Text>
     </View>
-    {onAddPress && (
-      <TouchableOpacity style={styles.songListAdd} onPress={() => onAddPress(item)}>
-        <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
-      </TouchableOpacity>
-    )}
-    <TouchableOpacity style={styles.songListMore}>
-      <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.textSecondary} />
+    {/* Three dots menu button */}
+    <TouchableOpacity 
+      style={styles.songListMore} 
+      onPress={() => onMorePress ? onMorePress(item) : (onAddPress && onAddPress(item))}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
     </TouchableOpacity>
   </TouchableOpacity>
 );
@@ -137,6 +146,34 @@ export const CategoryChip = ({ label, isActive, onPress }) => (
       {label}
     </Text>
   </TouchableOpacity>
+);
+
+// Play All Header Component
+export const PlayAllHeader = ({ 
+  title, 
+  subtitle, 
+  songCount, 
+  onPlayAll, 
+  onShuffle, 
+  showPlayAll = true 
+}) => (
+  <View style={styles.playAllHeader}>
+    <View style={styles.playAllInfo}>
+      <Text style={styles.playAllTitle}>{title}</Text>
+      {subtitle && <Text style={styles.playAllSubtitle}>{subtitle}</Text>}
+      {songCount > 0 && <Text style={styles.playAllCount}>{songCount} nyimbo</Text>}
+    </View>
+    {showPlayAll && songCount > 0 && (
+      <View style={styles.playAllActions}>
+        <TouchableOpacity style={styles.shuffleBtn} onPress={onShuffle}>
+          <Ionicons name="shuffle" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.playAllBtn} onPress={onPlayAll}>
+          <Ionicons name="play" size={28} color={COLORS.background} />
+        </TouchableOpacity>
+      </View>
+    )}
+  </View>
 );
 
 const styles = StyleSheet.create({
@@ -326,5 +363,48 @@ const styles = StyleSheet.create({
   },
   categoryChipTextActive: {
     color: '#000',
+  },
+
+  // Play All Header
+  playAllHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+  },
+  playAllInfo: {
+    flex: 1,
+  },
+  playAllTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  playAllSubtitle: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  playAllCount: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginTop: 4,
+  },
+  playAllActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shuffleBtn: {
+    padding: SPACING.sm,
+    marginRight: SPACING.sm,
+  },
+  playAllBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
