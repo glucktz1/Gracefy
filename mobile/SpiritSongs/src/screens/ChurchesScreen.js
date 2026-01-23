@@ -10,22 +10,31 @@ import {
   ActivityIndicator,
   TextInput,
   Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { churchAPI, getImageUrl } from '../services/api';
+import { churchAPI, libraryAPI, getImageUrl } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const ChurchesScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [churches, setChurches] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChurch, setSelectedChurch] = useState(route.params?.selectedChurch || null);
+  const [followedChurches, setFollowedChurches] = useState(new Set());
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     loadChurches();
-  }, []);
+    if (isAuthenticated) {
+      loadFollowedChurches();
+    }
+  }, [isAuthenticated]);
 
   const loadChurches = async () => {
     try {
@@ -35,6 +44,49 @@ const ChurchesScreen = ({ navigation, route }) => {
       console.error('Error loading churches:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFollowedChurches = async () => {
+    try {
+      const response = await libraryAPI.getFollowedChurches?.() || { data: [] };
+      const followed = new Set((response.data || []).map(c => c.church_id));
+      setFollowedChurches(followed);
+    } catch (error) {
+      console.error('Error loading followed churches:', error);
+    }
+  };
+
+  const handleFollow = async (church) => {
+    if (!isAuthenticated) {
+      Alert.alert('Ingia kwanza', 'Unahitaji kuingia ili kufuatilia kanisa');
+      return;
+    }
+
+    try {
+      setFollowLoading(true);
+      const isFollowing = followedChurches.has(church.church_id);
+      
+      if (isFollowing) {
+        await churchAPI.unfollowChurch?.(church.church_id) || 
+          libraryAPI.unfollowChurch?.(church.church_id);
+        setFollowedChurches(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(church.church_id);
+          return newSet;
+        });
+        Alert.alert('Umefanikiwa', `Umeacha kufuatilia ${church.name}`);
+      } else {
+        await churchAPI.followChurch?.(church.church_id) || 
+          libraryAPI.followChurch?.(church.church_id);
+        setFollowedChurches(prev => new Set(prev).add(church.church_id));
+        Alert.alert('Umefanikiwa', `Unafuatilia ${church.name}`);
+      }
+    } catch (error) {
+      console.error('Error following church:', error);
+      Alert.alert('Kosa', 'Imeshindikana kubadilisha hali ya kufuatilia');
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -69,6 +121,13 @@ const ChurchesScreen = ({ navigation, route }) => {
     }
   };
 
+  // Get church thumbnail or placeholder
+  const getChurchImage = (church) => {
+    if (church.thumbnail) return getImageUrl(church.thumbnail);
+    if (church.cover_image) return getImageUrl(church.cover_image);
+    return 'https://via.placeholder.com/400x200?text=Kanisa';
+  };
+
   const renderChurchCard = ({ item }) => (
     <TouchableOpacity 
       style={styles.churchCard}
@@ -76,7 +135,7 @@ const ChurchesScreen = ({ navigation, route }) => {
       activeOpacity={0.9}
     >
       <Image
-        source={{ uri: getImageUrl(item.thumbnail || item.cover_image) || 'https://via.placeholder.com/400x200' }}
+        source={{ uri: getChurchImage(item) }}
         style={styles.churchCardImage}
       />
       <LinearGradient 
@@ -98,146 +157,203 @@ const ChurchesScreen = ({ navigation, route }) => {
             <Ionicons name="people-outline" size={12} color={COLORS.textSecondary} />
             <Text style={styles.churchCardFollowersText}>{item.followers_count || 0}</Text>
           </View>
+          {followedChurches.has(item.church_id) && (
+            <View style={styles.followingBadge}>
+              <Ionicons name="checkmark" size={10} color={COLORS.primary} />
+              <Text style={styles.followingBadgeText}>Unafuatilia</Text>
+            </View>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>
   );
 
-  const renderChurchDetail = () => (
-    <ScrollView style={styles.detailContainer} showsVerticalScrollIndicator={false}>
-      {/* Church Header Image */}
-      <View style={styles.detailHeader}>
-        <Image
-          source={{ uri: getImageUrl(selectedChurch.thumbnail || selectedChurch.cover_image) || 'https://via.placeholder.com/400x250' }}
-          style={styles.detailImage}
-        />
-        <LinearGradient 
-          colors={['transparent', COLORS.background]} 
-          style={styles.detailGradient}
-        >
-          <Text style={styles.detailName}>{selectedChurch.name}</Text>
-          {selectedChurch.denomination && (
-            <Text style={styles.detailDenomination}>{selectedChurch.denomination}</Text>
-          )}
-        </LinearGradient>
-      </View>
-
-      {/* Church Info */}
-      <View style={styles.detailContent}>
-        {/* Location */}
-        {selectedChurch.location && (
-          <TouchableOpacity style={styles.detailRow} onPress={() => openMap(selectedChurch)}>
-            <View style={styles.detailIconContainer}>
-              <Ionicons name="location" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.detailRowContent}>
-              <Text style={styles.detailLabel}>Mahali</Text>
-              <Text style={styles.detailValue}>{selectedChurch.location}</Text>
-              {selectedChurch.address && (
-                <Text style={styles.detailSubValue}>{selectedChurch.address}</Text>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        )}
-
-        {/* Priest/Leader Info */}
-        {(selectedChurch.priest_name || selectedChurch.leader_name) && (
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconContainer}>
-              <Ionicons name="person" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.detailRowContent}>
-              <Text style={styles.detailLabel}>
-                {selectedChurch.leader_title || 'Kasisi'}
-              </Text>
-              <Text style={styles.detailValue}>
-                {selectedChurch.priest_name || selectedChurch.leader_name}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Phone */}
-        {(selectedChurch.phone || selectedChurch.leader_phone) && (
-          <TouchableOpacity 
-            style={styles.detailRow} 
-            onPress={() => openPhone(selectedChurch.phone || selectedChurch.leader_phone)}
+  const renderChurchDetail = () => {
+    const isFollowing = followedChurches.has(selectedChurch.church_id);
+    
+    return (
+      <ScrollView style={styles.detailContainer} showsVerticalScrollIndicator={false}>
+        {/* Church Header Image */}
+        <View style={styles.detailHeader}>
+          <Image
+            source={{ uri: getChurchImage(selectedChurch) }}
+            style={styles.detailImage}
+          />
+          <LinearGradient 
+            colors={['transparent', COLORS.background]} 
+            style={styles.detailGradient}
           >
-            <View style={styles.detailIconContainer}>
-              <Ionicons name="call" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.detailRowContent}>
-              <Text style={styles.detailLabel}>Simu</Text>
-              <Text style={styles.detailValue}>
-                {selectedChurch.phone || selectedChurch.leader_phone}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        )}
+            <Text style={styles.detailName}>{selectedChurch.name}</Text>
+            {selectedChurch.denomination && (
+              <Text style={styles.detailDenomination}>{selectedChurch.denomination}</Text>
+            )}
+          </LinearGradient>
+        </View>
 
-        {/* Bio */}
-        {selectedChurch.bio && (
-          <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>Kuhusu</Text>
-            <Text style={styles.detailBio}>{selectedChurch.bio}</Text>
-          </View>
-        )}
-
-        {/* Prayer Schedule */}
-        {selectedChurch.prayer_schedule && selectedChurch.prayer_schedule.length > 0 && (
-          <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>Ratiba ya Ibada</Text>
-            {selectedChurch.prayer_schedule.map((schedule, index) => (
-              <View key={index} style={styles.scheduleItem}>
-                <View style={styles.scheduleDay}>
-                  <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
-                  <Text style={styles.scheduleDayText}>{schedule.day}</Text>
-                </View>
-                <View style={styles.scheduleDetails}>
-                  <Text style={styles.scheduleTime}>{schedule.time}</Text>
-                  {(schedule.service || schedule.service_type || schedule.description) && (
-                    <Text style={styles.scheduleService}>
-                      {schedule.service || schedule.service_type || schedule.description}
-                    </Text>
-                  )}
-                </View>
+        {/* Church Info */}
+        <View style={styles.detailContent}>
+          {/* Location */}
+          {selectedChurch.location && (
+            <TouchableOpacity style={styles.detailRow} onPress={() => openMap(selectedChurch)}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="location" size={20} color={COLORS.primary} />
               </View>
-            ))}
-          </View>
-        )}
-
-        {/* Action Buttons */}
-        <View style={styles.detailActions}>
-          {(selectedChurch.direction || selectedChurch.latitude || selectedChurch.google_maps_url) && (
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => openMap(selectedChurch)}
-            >
-              <Ionicons name="navigate" size={20} color={COLORS.text} />
-              <Text style={styles.actionButtonText}>Elekeo</Text>
+              <View style={styles.detailRowContent}>
+                <Text style={styles.detailLabel}>Mahali</Text>
+                <Text style={styles.detailValue}>{selectedChurch.location}</Text>
+                {selectedChurch.address && (
+                  <Text style={styles.detailSubValue}>{selectedChurch.address}</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
           )}
+
+          {/* Priest/Leader Info */}
+          {(selectedChurch.priest_name || selectedChurch.leader_name) && (
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="person" size={20} color={COLORS.primary} />
+              </View>
+              <View style={styles.detailRowContent}>
+                <Text style={styles.detailLabel}>
+                  {selectedChurch.leader_title || 'Kasisi'}
+                </Text>
+                <Text style={styles.detailValue}>
+                  {selectedChurch.priest_name || selectedChurch.leader_name}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Phone */}
           {(selectedChurch.phone || selectedChurch.leader_phone) && (
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={styles.detailRow} 
               onPress={() => openPhone(selectedChurch.phone || selectedChurch.leader_phone)}
             >
-              <Ionicons name="call" size={20} color={COLORS.text} />
-              <Text style={styles.actionButtonText}>Piga Simu</Text>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="call" size={20} color={COLORS.primary} />
+              </View>
+              <View style={styles.detailRowContent}>
+                <Text style={styles.detailLabel}>Simu</Text>
+                <Text style={styles.detailValue}>
+                  {selectedChurch.phone || selectedChurch.leader_phone}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={[styles.actionButton, styles.actionButtonPrimary]}>
-            <Ionicons name="heart-outline" size={20} color={COLORS.background} />
-            <Text style={[styles.actionButtonText, styles.actionButtonTextPrimary]}>Fuatilia</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      <View style={{ height: 100 }} />
-    </ScrollView>
-  );
+          {/* Bio */}
+          {selectedChurch.bio && (
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Kuhusu</Text>
+              <Text style={styles.detailBio}>{selectedChurch.bio}</Text>
+            </View>
+          )}
+
+          {/* Announcements (Matangazo) */}
+          {selectedChurch.announcements && selectedChurch.announcements.length > 0 && (
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Matangazo</Text>
+              {selectedChurch.announcements.map((announcement, index) => (
+                <View key={index} style={styles.announcementItem}>
+                  <View style={styles.announcementIcon}>
+                    <Ionicons name="megaphone" size={16} color={COLORS.warning} />
+                  </View>
+                  <View style={styles.announcementContent}>
+                    {announcement.title && (
+                      <Text style={styles.announcementTitle}>{announcement.title}</Text>
+                    )}
+                    <Text style={styles.announcementText}>
+                      {announcement.message || announcement.content || announcement}
+                    </Text>
+                    {announcement.date && (
+                      <Text style={styles.announcementDate}>{announcement.date}</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Prayer Schedule */}
+          {selectedChurch.prayer_schedule && selectedChurch.prayer_schedule.length > 0 && (
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Ratiba ya Ibada</Text>
+              {selectedChurch.prayer_schedule.map((schedule, index) => (
+                <View key={index} style={styles.scheduleItem}>
+                  <View style={styles.scheduleDay}>
+                    <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+                    <Text style={styles.scheduleDayText}>{schedule.day}</Text>
+                  </View>
+                  <View style={styles.scheduleDetails}>
+                    <Text style={styles.scheduleTime}>{schedule.time}</Text>
+                    {(schedule.service || schedule.service_type || schedule.description) && (
+                      <Text style={styles.scheduleService}>
+                        {schedule.service || schedule.service_type || schedule.description}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.detailActions}>
+            {(selectedChurch.direction || selectedChurch.latitude || selectedChurch.google_maps_url) && (
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => openMap(selectedChurch)}
+              >
+                <Ionicons name="navigate" size={20} color={COLORS.text} />
+                <Text style={styles.actionButtonText}>Uelekeo</Text>
+              </TouchableOpacity>
+            )}
+            {(selectedChurch.phone || selectedChurch.leader_phone) && (
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => openPhone(selectedChurch.phone || selectedChurch.leader_phone)}
+              >
+                <Ionicons name="call" size={20} color={COLORS.text} />
+                <Text style={styles.actionButtonText}>Piga Simu</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[
+                styles.actionButton, 
+                isFollowing ? styles.actionButtonFollowing : styles.actionButtonPrimary
+              ]}
+              onPress={() => handleFollow(selectedChurch)}
+              disabled={followLoading}
+            >
+              {followLoading ? (
+                <ActivityIndicator size="small" color={isFollowing ? COLORS.text : COLORS.background} />
+              ) : (
+                <>
+                  <Ionicons 
+                    name={isFollowing ? "checkmark-circle" : "heart-outline"} 
+                    size={20} 
+                    color={isFollowing ? COLORS.primary : COLORS.background} 
+                  />
+                  <Text style={[
+                    styles.actionButtonText, 
+                    !isFollowing && styles.actionButtonTextPrimary
+                  ]}>
+                    {isFollowing ? 'Unafuatilia' : 'Fuatilia'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    );
+  };
 
   if (loading) {
     return (
@@ -395,6 +511,7 @@ const styles = StyleSheet.create({
   churchCardMeta: {
     flexDirection: 'row',
     marginTop: SPACING.sm,
+    alignItems: 'center',
   },
   churchCardFollowers: {
     flexDirection: 'row',
@@ -408,6 +525,20 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xs,
     color: COLORS.textSecondary,
     marginLeft: 4,
+  },
+  followingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(29, 185, 84, 0.2)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    marginLeft: SPACING.sm,
+  },
+  followingBadgeText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
+    marginLeft: 2,
   },
   
   // Detail View
@@ -497,6 +628,45 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
   },
+  // Announcements
+  announcementItem: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.card,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.warning,
+  },
+  announcementIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 193, 7, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  announcementContent: {
+    flex: 1,
+  },
+  announcementTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  announcementText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  announcementDate: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginTop: SPACING.sm,
+  },
+  // Schedule
   scheduleItem: {
     flexDirection: 'row',
     backgroundColor: COLORS.card,
@@ -544,6 +714,12 @@ const styles = StyleSheet.create({
   },
   actionButtonPrimary: {
     backgroundColor: COLORS.primary,
+    marginRight: 0,
+  },
+  actionButtonFollowing: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
     marginRight: 0,
   },
   actionButtonText: {
