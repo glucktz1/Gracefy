@@ -59,6 +59,11 @@
         }
       ]
     ],
-    "owner": "gracefy12"
+    "owner": "gracefy12",
+    "extra": {
+      "eas": {
+        "projectId": "3deff4ee-9fde-4b3f-a2c7-e11b3753cdbc"
+      }
+    }
   }
 }
