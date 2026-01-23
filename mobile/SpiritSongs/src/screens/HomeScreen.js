@@ -100,6 +100,7 @@ const HomeScreen = ({ navigation }) => {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('[HomeScreen] Starting data load...');
       
       const [
         sectionsRes, 
@@ -113,21 +114,31 @@ const HomeScreen = ({ navigation }) => {
         churchesRes,
         leadersRes,
       ] = await Promise.all([
-        homeAPI.getSections().catch(() => ({ data: [] })),
-        homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
-        homeAPI.getSpecialMixes().catch(() => ({ data: { mixes: [] } })),
-        contentAPI.getAlbums().catch(() => ({ data: { albums: [] } })),
-        contentAPI.getAllSongs().catch(() => ({ data: { songs: [] } })),
-        libraryAPI.getPlaylists().catch(() => ({ data: [] })),
-        libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
-        bibleAPI.getFeaturedSnippets().catch(() => ({ data: [] })),
-        churchAPI.getChurches().catch(() => ({ data: { churches: [] } })),
-        homeAPI.getLeaderContent().catch(() => ({ data: { leaders: [] } })),
+        homeAPI.getSections().catch((e) => { console.log('[HomeScreen] getSections error:', e.message); return { data: [] }; }),
+        homeAPI.getHeroContent().catch((e) => { console.log('[HomeScreen] getHeroContent error:', e.message); return { data: { items: [] } }; }),
+        homeAPI.getSpecialMixes().catch((e) => { console.log('[HomeScreen] getSpecialMixes error:', e.message); return { data: { mixes: [] } }; }),
+        contentAPI.getAlbums().catch((e) => { console.log('[HomeScreen] getAlbums error:', e.message); return { data: { albums: [] } }; }),
+        contentAPI.getAllSongs().catch((e) => { console.log('[HomeScreen] getAllSongs error:', e.message); return { data: { songs: [] } }; }),
+        libraryAPI.getPlaylists().catch((e) => { console.log('[HomeScreen] getPlaylists error:', e.message); return { data: [] }; }),
+        libraryAPI.getLikedSongs().catch((e) => { console.log('[HomeScreen] getLikedSongs error:', e.message); return { data: [] }; }),
+        bibleAPI.getFeaturedSnippets().catch((e) => { console.log('[HomeScreen] getFeaturedSnippets error:', e.message); return { data: [] }; }),
+        churchAPI.getChurches().catch((e) => { console.log('[HomeScreen] getChurches error:', e.message); return { data: { churches: [] } }; }),
+        homeAPI.getLeaderContent().catch((e) => { console.log('[HomeScreen] getLeaderContent error:', e.message); return { data: { leaders: [] } }; }),
       ]);
 
-      // Layout sections
-      const sections = sectionsRes.data?.sections || sectionsRes.data || [];
-      setLayoutSections(sections.filter(s => s.is_active));
+      console.log('[HomeScreen] Raw API Responses:');
+      console.log('[HomeScreen] sections:', JSON.stringify(sectionsRes.data).substring(0, 200));
+      console.log('[HomeScreen] hero:', JSON.stringify(heroRes.data).substring(0, 200));
+      console.log('[HomeScreen] albums:', albumsRes.data?.albums?.length || 'no albums array');
+
+      // Layout sections - handle both nested and direct response
+      const rawSections = sectionsRes.data?.sections || sectionsRes.data || [];
+      console.log('[HomeScreen] Raw sections count:', rawSections.length);
+      
+      // Filter active sections
+      const activeSections = rawSections.filter(s => s.is_active !== false);
+      console.log('[HomeScreen] Active sections count:', activeSections.length);
+      setLayoutSections(activeSections);
 
       // Build category filters from inactive sections in Layout Manager
       const categoryFilters = [
@@ -137,8 +148,8 @@ const HomeScreen = ({ navigation }) => {
       ];
       
       // Add categories from layout manager that are NOT active (can be filtered)
-      sections.forEach(section => {
-        if (!section.is_active && section.name) {
+      rawSections.forEach(section => {
+        if (section.is_active === false && section.name) {
           categoryFilters.push({
             id: section.section_id || section.section_type,
             name: section.display_name || section.name,
@@ -149,18 +160,23 @@ const HomeScreen = ({ navigation }) => {
       setCategories(categoryFilters);
 
       // Hero content from Layout Manager
-      setHeroContent(heroRes.data || { items: [] });
+      const heroData = heroRes.data || { items: [] };
+      console.log('[HomeScreen] Hero items count:', heroData.items?.length || 0);
+      setHeroContent(heroData);
 
       // Special mixes
       const mixes = mixesRes.data?.mixes || mixesRes.data || [];
+      console.log('[HomeScreen] Mixes count:', mixes.length);
       setSpecialMixes(mixes);
 
       // Albums
       const albums = albumsRes.data?.albums || albumsRes.data || [];
+      console.log('[HomeScreen] Albums count:', albums.length);
       setRecentAlbums(albums);
 
       // Songs with album thumbnails fallback
       const songs = songsRes.data?.songs || [];
+      console.log('[HomeScreen] Songs count:', songs.length);
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
           const album = albums.find(a => a.album_id === song.album_id);
@@ -183,13 +199,17 @@ const HomeScreen = ({ navigation }) => {
       setBibleSnippets(snippetsRes.data?.snippets || snippetsRes.data || []);
 
       // Churches
-      setChurches(churchesRes.data?.churches || churchesRes.data || []);
+      const churchesData = churchesRes.data?.churches || churchesRes.data || [];
+      console.log('[HomeScreen] Churches count:', churchesData.length);
+      setChurches(churchesData);
 
       // Leader content (Mafundisho na Katekesi)
-      setLeaderContent(leadersRes.data?.leaders || leadersRes.data || []);
+      const leaders = leadersRes.data?.leaders || leadersRes.data || [];
+      console.log('[HomeScreen] Leaders count:', leaders.length);
+      setLeaderContent(leaders);
 
       // Extract Quick Access config from layout sections
-      const quickAccessSection = sections.find(s => 
+      const quickAccessSection = activeSections.find(s => 
         s.section_type === 'quick_access' || s.name === 'quick_access'
       );
       if (quickAccessSection?.content_items) {
@@ -197,12 +217,13 @@ const HomeScreen = ({ navigation }) => {
       }
 
       // Load additional sections from layout manager
-      loadLayoutSections(sections, albums, mixes);
+      loadLayoutSections(activeSections, albums, mixes);
 
     } catch (error) {
-      console.error('Error loading home data:', error);
+      console.error('[HomeScreen] Error loading home data:', error);
     } finally {
       setLoading(false);
+      console.log('[HomeScreen] Data load complete');
     }
   };
 
