@@ -3,7 +3,8 @@ import axios from "axios";
 import { 
   TrendingUp, DollarSign, Clock, Users, Music2, Play, Download,
   BarChart3, PieChart, Activity, Headphones, Disc, Mic2, RefreshCw,
-  ArrowUp, ArrowDown, Minus, BookOpen
+  ArrowUp, ArrowDown, Minus, BookOpen, MousePointerClick, Globe, 
+  Smartphone, Monitor, ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
