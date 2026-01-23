@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gracefy",
     "slug": "SpiritSongs",
-    "version": "1.0.30",
+    "version": "1.0.31",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -31,7 +31,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.spiritsongs.app",
-      "versionCode": 30,
+      "versionCode": 31,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
