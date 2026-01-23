@@ -26,21 +26,30 @@ const BibleScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [testamentFilter, setTestamentFilter] = useState('all');
   
-  // TTS State
-  const [playingVerse, setPlayingVerse] = useState(null);
-  const [loadingTTS, setLoadingTTS] = useState(null);
-  const [sound, setSound] = useState(null);
+  // TTS State - matching web implementation
+  const [playingAudio, setPlayingAudio] = useState(null); // Can be verse number or 'chapter'
+  const [generatingAudio, setGeneratingAudio] = useState(null); // Which verse is generating
   const soundRef = useRef(null);
 
   useEffect(() => {
     loadBooks();
     return () => {
       // Cleanup audio on unmount
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      cleanupAudio();
     };
   }, []);
+
+  const cleanupAudio = async () => {
+    if (soundRef.current) {
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      } catch (e) {
+        console.log('Error cleaning up audio:', e);
+      }
+      soundRef.current = null;
+    }
+  };
 
   const loadBooks = async () => {
     try {
@@ -55,6 +64,10 @@ const BibleScreen = ({ navigation }) => {
 
   const loadChapters = async (book) => {
     try {
+      // Stop any playing audio when navigating
+      await cleanupAudio();
+      setPlayingAudio(null);
+      
       setSelectedBook(book);
       setSelectedChapter(null);
       setVerses([]);
@@ -67,6 +80,10 @@ const BibleScreen = ({ navigation }) => {
 
   const loadVerses = async (chapter) => {
     try {
+      // Stop any playing audio when changing chapter
+      await cleanupAudio();
+      setPlayingAudio(null);
+      
       setSelectedChapter(chapter);
       const response = await bibleAPI.getVerses(selectedBook.name, chapter);
       setVerses(response.data?.verses || []);
@@ -76,8 +93,9 @@ const BibleScreen = ({ navigation }) => {
   };
 
   const goBack = () => {
-    // Stop any playing audio
-    stopAudio();
+    // Stop any playing audio when navigating back
+    cleanupAudio();
+    setPlayingAudio(null);
     
     if (selectedChapter) {
       setSelectedChapter(null);
@@ -90,31 +108,21 @@ const BibleScreen = ({ navigation }) => {
     }
   };
 
-  const stopAudio = async () => {
-    if (soundRef.current) {
-      try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-      } catch (e) {
-        console.log('Error stopping audio:', e);
-      }
-      soundRef.current = null;
+  // Generate and play audio for a single verse - matching web logic
+  const handleReadVerse = async (verse) => {
+    // If clicking the same verse that's playing, stop it
+    if (playingAudio === verse.verse) {
+      await cleanupAudio();
+      setPlayingAudio(null);
+      return;
     }
-    setPlayingVerse(null);
-  };
 
-  const playVerseTTS = async (verse) => {
     try {
       // Stop any currently playing audio
-      await stopAudio();
-
-      // If clicking the same verse that was playing, just stop
-      if (playingVerse === verse.verse) {
-        return;
-      }
-
-      setLoadingTTS(verse.verse);
-      setPlayingVerse(null);
+      await cleanupAudio();
+      
+      setGeneratingAudio(verse.verse);
+      setPlayingAudio(null);
 
       // Configure audio mode
       await Audio.setAudioModeAsync({
@@ -124,27 +132,32 @@ const BibleScreen = ({ navigation }) => {
         shouldDuckAndroid: true,
       });
 
-      // Request TTS audio from backend
+      // Request TTS audio from backend - matching web API call
       const response = await bibleAPI.generateTTS({
         book: selectedBook.name,
         chapter: selectedChapter,
         verse: verse.verse,
-        voice: 'sw-TZ-female', // Swahili female voice
+        language: 'sw',
+        voice: 'nova' // Same as web
       });
 
       if (response.data?.audio_base64) {
-        // Create audio from base64
+        // Create audio from base64 - same as web
         const audioUri = `data:audio/mp3;base64,${response.data.audio_base64}`;
         
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { shouldPlay: true },
-          onPlaybackStatusUpdate
+          (status) => {
+            // When audio finishes playing
+            if (status.didJustFinish) {
+              setPlayingAudio(null);
+            }
+          }
         );
         
         soundRef.current = newSound;
-        setSound(newSound);
-        setPlayingVerse(verse.verse);
+        setPlayingAudio(verse.verse);
       } else {
         Alert.alert('Kosa', 'Imeshindikana kupata sauti. Tafadhali jaribu tena.');
       }
@@ -152,16 +165,25 @@ const BibleScreen = ({ navigation }) => {
       console.error('TTS Error:', error);
       Alert.alert('Kosa', 'Imeshindikana kusoma aya. Tafadhali jaribu tena.');
     } finally {
-      setLoadingTTS(null);
+      setGeneratingAudio(null);
     }
   };
 
-  const playChapterTTS = async () => {
+  // Play entire chapter - similar to web range reader
+  const handlePlayChapter = async () => {
     if (verses.length === 0) return;
     
+    // If chapter is already playing, stop it
+    if (playingAudio === 'chapter') {
+      await cleanupAudio();
+      setPlayingAudio(null);
+      return;
+    }
+    
     try {
-      await stopAudio();
-      setLoadingTTS('chapter');
+      await cleanupAudio();
+      setGeneratingAudio('chapter');
+      setPlayingAudio(null);
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -176,7 +198,8 @@ const BibleScreen = ({ navigation }) => {
         chapter: selectedChapter,
         start_verse: 1,
         end_verse: verses.length,
-        voice: 'sw-TZ-female',
+        language: 'sw',
+        voice: 'nova'
       });
 
       if (response.data?.audio_base64) {
@@ -185,12 +208,15 @@ const BibleScreen = ({ navigation }) => {
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { shouldPlay: true },
-          onPlaybackStatusUpdate
+          (status) => {
+            if (status.didJustFinish) {
+              setPlayingAudio(null);
+            }
+          }
         );
         
         soundRef.current = newSound;
-        setSound(newSound);
-        setPlayingVerse('chapter');
+        setPlayingAudio('chapter');
       } else {
         Alert.alert('Kosa', 'Imeshindikana kupata sauti. Tafadhali jaribu tena.');
       }
@@ -198,13 +224,7 @@ const BibleScreen = ({ navigation }) => {
       console.error('TTS Error:', error);
       Alert.alert('Kosa', 'Imeshindikana kusoma sura. Tafadhali jaribu tena.');
     } finally {
-      setLoadingTTS(null);
-    }
-  };
-
-  const onPlaybackStatusUpdate = (status) => {
-    if (status.didJustFinish) {
-      setPlayingVerse(null);
+      setGeneratingAudio(null);
     }
   };
 
@@ -218,7 +238,7 @@ const BibleScreen = ({ navigation }) => {
   const getTitle = () => {
     if (selectedChapter) return `${selectedBook.name_localized || selectedBook.name} ${selectedChapter}`;
     if (selectedBook) return selectedBook.name_localized || selectedBook.name;
-    return 'Biblia';
+    return 'Biblia Takatifu';
   };
 
   if (loading) {
@@ -239,13 +259,13 @@ const BibleScreen = ({ navigation }) => {
         <Text style={styles.title} numberOfLines={1}>{getTitle()}</Text>
         {selectedChapter && (
           <TouchableOpacity 
-            style={styles.playAllButton} 
-            onPress={playChapterTTS}
-            disabled={loadingTTS === 'chapter'}
+            style={[styles.playAllButton, playingAudio === 'chapter' && styles.playAllButtonActive]} 
+            onPress={handlePlayChapter}
+            disabled={generatingAudio === 'chapter'}
           >
-            {loadingTTS === 'chapter' ? (
+            {generatingAudio === 'chapter' ? (
               <ActivityIndicator size="small" color={COLORS.primary} />
-            ) : playingVerse === 'chapter' ? (
+            ) : playingAudio === 'chapter' ? (
               <Ionicons name="stop" size={24} color={COLORS.primary} />
             ) : (
               <Ionicons name="headset" size={24} color={COLORS.primary} />
@@ -313,8 +333,8 @@ const BibleScreen = ({ navigation }) => {
                   {item.testament === 'old' ? 'Agano la Kale' : 'Agano Jipya'}
                 </Text>
                 <View style={styles.bookMeta}>
-                  <Ionicons name="headset-outline" size={12} color={COLORS.textSecondary} />
-                  <Text style={styles.bookMetaText}> TTS</Text>
+                  <Ionicons name="headset-outline" size={12} color={COLORS.primary} />
+                  <Text style={styles.bookMetaText}> Sauti</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -359,27 +379,38 @@ const BibleScreen = ({ navigation }) => {
           <View style={styles.ttsInstructions}>
             <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
             <Text style={styles.ttsInstructionsText}>
-              Bofya kitufe cha sauti kusikia aya kwa Kiswahili
+              Bofya kitufe cha sauti kusikia aya kwa Kiswahili. Bofya ikoni ya headset hapo juu kusikia sura nzima.
             </Text>
           </View>
 
           {verses.map((verse) => (
-            <View key={verse.verse} style={styles.verseItem}>
+            <View 
+              key={verse.verse} 
+              style={[
+                styles.verseItem,
+                playingAudio === verse.verse && styles.verseItemPlaying
+              ]}
+            >
               <View style={styles.verseContent}>
-                <Text style={styles.verseNumber}>{verse.verse}</Text>
+                <Text style={[
+                  styles.verseNumber,
+                  playingAudio === verse.verse && styles.verseNumberPlaying
+                ]}>
+                  {verse.verse}
+                </Text>
                 <Text style={styles.verseText}>{verse.text}</Text>
               </View>
               <TouchableOpacity 
                 style={[
                   styles.verseTTSButton,
-                  playingVerse === verse.verse && styles.verseTTSButtonActive
+                  playingAudio === verse.verse && styles.verseTTSButtonActive
                 ]}
-                onPress={() => playVerseTTS(verse)}
-                disabled={loadingTTS === verse.verse}
+                onPress={() => handleReadVerse(verse)}
+                disabled={generatingAudio === verse.verse}
               >
-                {loadingTTS === verse.verse ? (
+                {generatingAudio === verse.verse ? (
                   <ActivityIndicator size="small" color={COLORS.primary} />
-                ) : playingVerse === verse.verse ? (
+                ) : playingAudio === verse.verse ? (
                   <Ionicons name="stop" size={20} color={COLORS.primary} />
                 ) : (
                   <Ionicons name="volume-high" size={20} color={COLORS.textSecondary} />
@@ -424,12 +455,15 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.sm,
   },
   playAllButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.full,
+  },
+  playAllButtonActive: {
+    backgroundColor: 'rgba(29, 185, 84, 0.2)',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -542,7 +576,7 @@ const styles = StyleSheet.create({
   },
   ttsInstructions: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: 'rgba(29, 185, 84, 0.1)',
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
@@ -553,6 +587,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginLeft: SPACING.sm,
+    lineHeight: 20,
   },
   verseItem: {
     flexDirection: 'row',
@@ -561,6 +596,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
+  },
+  verseItemPlaying: {
+    backgroundColor: 'rgba(29, 185, 84, 0.15)',
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
   },
   verseContent: {
     flex: 1,
@@ -572,6 +612,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginRight: SPACING.sm,
     minWidth: 24,
+  },
+  verseNumberPlaying: {
+    color: COLORS.primary,
   },
   verseText: {
     flex: 1,
@@ -589,7 +632,7 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   verseTTSButtonActive: {
-    backgroundColor: 'rgba(29, 185, 84, 0.2)',
+    backgroundColor: 'rgba(29, 185, 84, 0.3)',
   },
   emptyState: {
     flex: 1,
