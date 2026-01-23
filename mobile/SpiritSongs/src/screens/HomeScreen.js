@@ -129,6 +129,25 @@ const HomeScreen = ({ navigation }) => {
       const sections = sectionsRes.data?.sections || sectionsRes.data || [];
       setLayoutSections(sections.filter(s => s.is_active));
 
+      // Build category filters from inactive sections in Layout Manager
+      const categoryFilters = [
+        { id: 'all', name: 'Yote', icon: null },
+        { id: 'music', name: 'Muziki', icon: 'musical-notes' },
+        { id: 'podcasts', name: 'Podcasts', icon: 'mic' },
+      ];
+      
+      // Add categories from layout manager that are NOT active (can be filtered)
+      sections.forEach(section => {
+        if (!section.is_active && section.name) {
+          categoryFilters.push({
+            id: section.section_id || section.section_type,
+            name: section.display_name || section.name,
+            icon: section.icon || null,
+          });
+        }
+      });
+      setCategories(categoryFilters);
+
       // Hero content from Layout Manager
       setHeroContent(heroRes.data || { items: [] });
 
