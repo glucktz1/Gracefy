@@ -99,6 +99,9 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const loadData = async () => {
+    const errors = [];
+    const stats = {};
+    
     try {
       setLoading(true);
       console.log('[HomeScreen] Starting data load...');
@@ -115,40 +118,33 @@ const HomeScreen = ({ navigation }) => {
         churchesRes,
         leadersRes,
       ] = await Promise.all([
-        homeAPI.getSections().catch((e) => { console.log('[HomeScreen] getSections error:', e.message); return { data: [] }; }),
-        homeAPI.getHeroContent().catch((e) => { console.log('[HomeScreen] getHeroContent error:', e.message); return { data: { items: [] } }; }),
-        homeAPI.getSpecialMixes().catch((e) => { console.log('[HomeScreen] getSpecialMixes error:', e.message); return { data: { mixes: [] } }; }),
-        contentAPI.getAlbums().catch((e) => { console.log('[HomeScreen] getAlbums error:', e.message); return { data: { albums: [] } }; }),
-        contentAPI.getAllSongs().catch((e) => { console.log('[HomeScreen] getAllSongs error:', e.message); return { data: { songs: [] } }; }),
-        libraryAPI.getPlaylists().catch((e) => { console.log('[HomeScreen] getPlaylists error:', e.message); return { data: [] }; }),
-        libraryAPI.getLikedSongs().catch((e) => { console.log('[HomeScreen] getLikedSongs error:', e.message); return { data: [] }; }),
-        bibleAPI.getFeaturedSnippets().catch((e) => { console.log('[HomeScreen] getFeaturedSnippets error:', e.message); return { data: [] }; }),
-        churchAPI.getChurches().catch((e) => { console.log('[HomeScreen] getChurches error:', e.message); return { data: { churches: [] } }; }),
-        homeAPI.getLeaderContent().catch((e) => { console.log('[HomeScreen] getLeaderContent error:', e.message); return { data: { leaders: [] } }; }),
+        homeAPI.getSections().catch((e) => { errors.push(`Sections: ${e.message}`); return { data: { sections: [] } }; }),
+        homeAPI.getHeroContent().catch((e) => { errors.push(`Hero: ${e.message}`); return { data: { items: [] } }; }),
+        homeAPI.getSpecialMixes().catch((e) => { errors.push(`Mixes: ${e.message}`); return { data: { mixes: [] } }; }),
+        contentAPI.getAlbums().catch((e) => { errors.push(`Albums: ${e.message}`); return { data: { albums: [] } }; }),
+        contentAPI.getAllSongs().catch((e) => { errors.push(`Songs: ${e.message}`); return { data: { songs: [] } }; }),
+        libraryAPI.getPlaylists().catch((e) => { errors.push(`Playlists: ${e.message}`); return { data: [] }; }),
+        libraryAPI.getLikedSongs().catch((e) => { errors.push(`Likes: ${e.message}`); return { data: [] }; }),
+        bibleAPI.getFeaturedSnippets().catch((e) => { errors.push(`Bible: ${e.message}`); return { data: [] }; }),
+        churchAPI.getChurches().catch((e) => { errors.push(`Churches: ${e.message}`); return { data: { churches: [] } }; }),
+        homeAPI.getLeaderContent().catch((e) => { errors.push(`Leaders: ${e.message}`); return { data: { leaders: [] } }; }),
       ]);
-
-      console.log('[HomeScreen] Raw API Responses:');
-      console.log('[HomeScreen] sections:', JSON.stringify(sectionsRes.data).substring(0, 200));
-      console.log('[HomeScreen] hero:', JSON.stringify(heroRes.data).substring(0, 200));
-      console.log('[HomeScreen] albums:', albumsRes.data?.albums?.length || 'no albums array');
 
       // Layout sections - handle both nested and direct response
       const rawSections = sectionsRes.data?.sections || sectionsRes.data || [];
-      console.log('[HomeScreen] Raw sections count:', rawSections.length);
+      stats.sections = rawSections.length;
       
-      // Filter active sections
-      const activeSections = rawSections.filter(s => s.is_active !== false);
-      console.log('[HomeScreen] Active sections count:', activeSections.length);
+      // Filter active sections - check for is_active being true or not explicitly false
+      const activeSections = rawSections.filter(s => s.is_active === true || s.is_active === undefined);
+      stats.activeSections = activeSections.length;
       setLayoutSections(activeSections);
 
-      // Build category filters from inactive sections in Layout Manager
+      // Build category filters
       const categoryFilters = [
         { id: 'all', name: 'Yote', icon: null },
         { id: 'music', name: 'Muziki', icon: 'musical-notes' },
         { id: 'podcasts', name: 'Podcasts', icon: 'mic' },
       ];
-      
-      // Add categories from layout manager that are NOT active (can be filtered)
       rawSections.forEach(section => {
         if (section.is_active === false && section.name) {
           categoryFilters.push({
@@ -160,24 +156,24 @@ const HomeScreen = ({ navigation }) => {
       });
       setCategories(categoryFilters);
 
-      // Hero content from Layout Manager
+      // Hero content
       const heroData = heroRes.data || { items: [] };
-      console.log('[HomeScreen] Hero items count:', heroData.items?.length || 0);
+      stats.hero = heroData.items?.length || 0;
       setHeroContent(heroData);
 
       // Special mixes
       const mixes = mixesRes.data?.mixes || mixesRes.data || [];
-      console.log('[HomeScreen] Mixes count:', mixes.length);
+      stats.mixes = mixes.length;
       setSpecialMixes(mixes);
 
       // Albums
       const albums = albumsRes.data?.albums || albumsRes.data || [];
-      console.log('[HomeScreen] Albums count:', albums.length);
+      stats.albums = albums.length;
       setRecentAlbums(albums);
 
-      // Songs with album thumbnails fallback
+      // Songs
       const songs = songsRes.data?.songs || [];
-      console.log('[HomeScreen] Songs count:', songs.length);
+      stats.songs = songs.length;
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
           const album = albums.find(a => a.album_id === song.album_id);
@@ -190,41 +186,52 @@ const HomeScreen = ({ navigation }) => {
       setAllSongs(songsWithThumbnails);
 
       // User playlists
-      setUserPlaylists(playlistsRes.data || []);
+      const playlists = playlistsRes.data || [];
+      stats.playlists = Array.isArray(playlists) ? playlists.length : 0;
+      setUserPlaylists(Array.isArray(playlists) ? playlists : []);
 
-      // Liked songs count
+      // Liked songs
       const likes = likesRes.data?.songs || likesRes.data || [];
-      setLikedSongsCount(likes.length);
+      stats.likes = Array.isArray(likes) ? likes.length : 0;
+      setLikedSongsCount(Array.isArray(likes) ? likes.length : 0);
 
       // Bible snippets
-      setBibleSnippets(snippetsRes.data?.snippets || snippetsRes.data || []);
+      const snippets = snippetsRes.data?.snippets || snippetsRes.data || [];
+      stats.bible = Array.isArray(snippets) ? snippets.length : 0;
+      setBibleSnippets(Array.isArray(snippets) ? snippets : []);
 
       // Churches
       const churchesData = churchesRes.data?.churches || churchesRes.data || [];
-      console.log('[HomeScreen] Churches count:', churchesData.length);
-      setChurches(churchesData);
+      stats.churches = Array.isArray(churchesData) ? churchesData.length : 0;
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
 
-      // Leader content (Mafundisho na Katekesi)
+      // Leader content
       const leaders = leadersRes.data?.leaders || leadersRes.data || [];
-      console.log('[HomeScreen] Leaders count:', leaders.length);
-      setLeaderContent(leaders);
+      stats.leaders = Array.isArray(leaders) ? leaders.length : 0;
+      setLeaderContent(Array.isArray(leaders) ? leaders : []);
 
-      // Extract Quick Access config from layout sections
+      // Quick Access config
       const quickAccessSection = activeSections.find(s => 
         s.section_type === 'quick_access' || s.name === 'quick_access'
       );
-      if (quickAccessSection?.content_items) {
+      if (quickAccessSection?.quick_access_items) {
+        setQuickAccessConfig(quickAccessSection.quick_access_items);
+      } else if (quickAccessSection?.content_items) {
         setQuickAccessConfig(quickAccessSection.content_items);
       }
 
-      // Load additional sections from layout manager
+      // Load additional sections from layout manager with content_items
       loadLayoutSections(activeSections, albums, mixes);
 
+      console.log('[HomeScreen] Data stats:', stats);
+      console.log('[HomeScreen] Errors:', errors);
+
     } catch (error) {
-      console.error('[HomeScreen] Error loading home data:', error);
+      console.error('[HomeScreen] Critical error:', error);
+      errors.push(`Critical: ${error.message}`);
     } finally {
       setLoading(false);
-      console.log('[HomeScreen] Data load complete');
+      setDebugInfo({ show: errors.length > 0, errors, stats });
     }
   };
 
