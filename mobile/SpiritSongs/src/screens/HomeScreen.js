@@ -28,6 +28,7 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
+  const [debugInfo, setDebugInfo] = useState({ show: false, errors: [], stats: {} });
   
   // Layout Manager Data
   const [layoutSections, setLayoutSections] = useState([]);
