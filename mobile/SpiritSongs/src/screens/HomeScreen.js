@@ -966,6 +966,49 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
+        {/* All Albums Section - Always shows if we have albums */}
+        {recentAlbums.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Albums Zote</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {recentAlbums.map((album, index) => (
+                <TouchableOpacity 
+                  key={album.album_id || index} 
+                  style={styles.smallSquareCard}
+                  onPress={() => handleAlbumPress(album)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                    style={styles.smallSquareImage}
+                  />
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
+                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name || 'Unknown Artist'}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* No Content Fallback */}
+        {recentAlbums.length === 0 && specialMixes.length === 0 && churches.length === 0 && (
+          <View style={styles.noContentContainer}>
+            <Ionicons name="cloud-offline-outline" size={64} color={COLORS.textSecondary} />
+            <Text style={styles.noContentTitle}>Hakuna Maudhui</Text>
+            <Text style={styles.noContentText}>
+              Hatuwezi kupakia maudhui. Tafadhali angalia muunganisho wako wa mtandao na ujaribu tena.
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <Ionicons name="refresh" size={20} color={COLORS.text} />
+              <Text style={styles.retryButtonText}>Jaribu Tena</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Bottom spacing for mini player */}
         <View style={{ height: 150 }} />
       </ScrollView>
