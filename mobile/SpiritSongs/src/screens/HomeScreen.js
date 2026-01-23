@@ -402,6 +402,7 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+        </TouchableOpacity>
 
         {/* Hero Carousel - Layout Manager Controlled */}
         {heroContent?.items?.length > 0 && (
