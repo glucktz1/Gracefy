@@ -749,6 +749,287 @@ export default function EnhancedAnalyticsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   );
 }
+
+// User Navigation Analytics Section Component
+const UserNavigationSection = ({ data, period }) => {
+  const navData = data || {};
+  const topPages = navData.top_pages || [];
+  const entryPages = navData.entry_pages || [];
+  const platforms = navData.platforms || [];
+  const dailyTrend = navData.daily_trend || [];
+  const flows = navData.flows || [];
+  const summary = navData.summary || {};
+
+  // Page name formatting helper
+  const formatPageName = (path) => {
+    if (!path) return 'Unknown';
+    const pageNames = {
+      '/': 'Landing Page',
+      '/app': 'Web App Home',
+      '/login': 'Login Page',
+      '/checkout': 'Payment/Checkout',
+      '/payment': 'Payment Page',
+      '/subscription': 'Subscription Page',
+      '/library': 'Library',
+      '/search': 'Search',
+      '/album': 'Album View',
+      '/playlist': 'Playlist View',
+      '/artist': 'Artist Page',
+      '/choir': 'Choir Page',
+      '/bible': 'Bible Section',
+      '/settings': 'Settings',
+      '/profile': 'User Profile',
+      '/downloads': 'Downloads',
+      '/favorites': 'Favorites/Liked',
+      '/church': 'Church Page',
+      '/seminars': 'Seminars',
+      '/donations': 'Donations',
+    };
+    // Check exact match first
+    if (pageNames[path]) return pageNames[path];
+    // Check partial matches
+    for (const [key, name] of Object.entries(pageNames)) {
+      if (path.includes(key) && key !== '/') return name;
+    }
+    // Fallback: format the path
+    return path.replace(/^\//, '').replace(/-/g, ' ').replace(/\//g, ' > ') || 'Home';
+  };
+
+  const getPlatformIcon = (platform) => {
+    if (!platform) return <Globe size={16} />;
+    const p = platform.toLowerCase();
+    if (p.includes('android') || p.includes('mobile') || p.includes('ios')) return <Smartphone size={16} />;
+    return <Monitor size={16} />;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Navigation Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={MousePointerClick}
+          iconColor="emerald"
+          label="Total Page Views"
+          value={summary.total_page_views?.toLocaleString() || 0}
+          subValue={`Last ${period === '7d' ? '7 days' : period === '30d' ? '30 days' : period === '90d' ? '90 days' : 'year'}`}
+        />
+        <StatCard
+          icon={Users}
+          iconColor="blue"
+          label="Unique Visitors"
+          value={summary.unique_visitors?.toLocaleString() || 0}
+        />
+        <StatCard
+          icon={Clock}
+          iconColor="violet"
+          label="Avg. Time on Page"
+          value={`${Math.round(summary.avg_time_on_page || 0)}s`}
+          subValue="Average per page view"
+        />
+        <StatCard
+          icon={ArrowRight}
+          iconColor="pink"
+          label="User Sessions"
+          value={summary.total_sessions?.toLocaleString() || topPages.reduce((sum, p) => sum + (p.views || 0), 0).toLocaleString()}
+        />
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Pages */}
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <MousePointerClick size={18} className="text-emerald-400" />
+              Most Visited Pages
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topPages.length > 0 ? (
+              <div className="space-y-3">
+                {topPages.slice(0, 10).map((page, index) => (
+                  <div key={page.page || index} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg hover:bg-zinc-800 transition-colors">
+                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      index === 0 ? 'bg-emerald-500 text-black' :
+                      index === 1 ? 'bg-emerald-400 text-black' :
+                      index === 2 ? 'bg-emerald-600 text-white' :
+                      'bg-zinc-700 text-white'
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-white truncate">{formatPageName(page.page)}</p>
+                      <p className="text-xs text-zinc-500 truncate">{page.page}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-emerald-400">{page.views?.toLocaleString()}</p>
+                      <p className="text-xs text-zinc-500">views</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-[300px] flex flex-col items-center justify-center text-zinc-500">
+                <MousePointerClick size={48} className="mb-4 opacity-30" />
+                <p>No page view data available</p>
+                <p className="text-xs mt-1">Data will appear as users navigate the app</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Entry Points */}
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <ArrowRight size={18} className="text-violet-400" />
+              Entry Points (First Page Visited)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {entryPages.length > 0 ? (
+              <div className="space-y-3">
+                {entryPages.slice(0, 8).map((page, index) => (
+                  <div key={page.page || index} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <span className="text-white">{formatPageName(page.page)}</span>
+                    </div>
+                    <Badge className="bg-violet-500/20 text-violet-400">{page.count?.toLocaleString()} sessions</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-[280px] flex items-center justify-center text-zinc-500">
+                No entry point data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Platform Distribution & Daily Trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Platform Distribution */}
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <Globe size={18} className="text-blue-400" />
+              Platform Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {platforms.length > 0 ? (
+              <div className="space-y-4">
+                {platforms.map((platform, index) => {
+                  const total = platforms.reduce((sum, p) => sum + (p.count || 0), 0);
+                  const percentage = total > 0 ? ((platform.count / total) * 100).toFixed(1) : 0;
+                  return (
+                    <div key={platform.platform || index} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {getPlatformIcon(platform.platform)}
+                          <span className="text-white text-sm">{platform.platform || 'Unknown'}</span>
+                        </div>
+                        <span className="text-zinc-400 text-sm">{percentage}%</span>
+                      </div>
+                      <div className="w-full bg-zinc-800 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-500">{platform.count?.toLocaleString()} views</p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-zinc-500">
+                No platform data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Daily Views Trend */}
+        <Card className="bg-zinc-900/50 border-zinc-800 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <BarChart3 size={18} className="text-amber-400" />
+              Daily Page Views Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dailyTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={dailyTrend}>
+                  <defs>
+                    <linearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis dataKey="date" stroke="#71717a" fontSize={10} tickFormatter={(v) => v?.slice(5) || ''} />
+                  <YAxis stroke="#71717a" fontSize={10} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px', color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="views" name="Page Views" stroke="#10b981" strokeWidth={2} fill="url(#viewsGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-zinc-500">
+                No daily trend data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Navigation Flows */}
+      {flows.length > 0 && (
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <ArrowRight size={18} className="text-pink-400" />
+              Common User Journeys
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {flows.slice(0, 5).map((flow, index) => (
+                <div key={index} className="flex items-center gap-2 p-3 bg-zinc-800/50 rounded-lg overflow-x-auto">
+                  <span className="w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex-shrink-0 flex items-center justify-center text-xs font-bold">
+                    {index + 1}
+                  </span>
+                  <div className="flex items-center gap-2 flex-1">
+                    {flow.pages?.map((page, pageIndex) => (
+                      <div key={pageIndex} className="flex items-center gap-2">
+                        <span className="px-2 py-1 bg-zinc-700 rounded text-xs text-white whitespace-nowrap">
+                          {formatPageName(page)}
+                        </span>
+                        {pageIndex < flow.pages.length - 1 && (
+                          <ArrowRight size={14} className="text-zinc-500 flex-shrink-0" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <Badge className="bg-zinc-700 text-zinc-300 flex-shrink-0">{flow.count} users</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
