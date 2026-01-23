@@ -41,6 +41,13 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
   - Control & Management (Role Management, Approvals, Layout Management, CDN Management)
   - Settings (System Settings, App Settings, Monetization)
   - Choir & Singers (Singers & Choirs, Choir Management, Choir Accounts)
+- [x] **User Navigation Analytics (Jan 2026):**
+  - Toggle between Overview and User Navigation sections
+  - Most visited pages with view counts
+  - Entry points (first page visited)
+  - Platform distribution (mobile/web)
+  - Daily page views trend chart
+  - Common user journeys/flows
 
 ### Mobile App (React Native/Expo)
 - [x] Spotify-like dark theme UI
