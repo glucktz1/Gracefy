@@ -85,32 +85,62 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
   };
   
   // Map each nav item to required permissions
-  // Grouped items for Choir and Singers
+  // Organized into logical groups
   const navItems = [
-    { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] }, // Always visible
-    { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
-    { path: "/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
-    { path: "/monetization", icon: Settings, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
-    { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
-    { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
-    { path: "/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
-    { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
-    { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
-    { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
-    { path: "/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
-    // Grouped: Contents (Albums, Songs, Leader Content, Bible)
+    // Reports & Analytics Group
+    { 
+      groupId: "reports-analytics",
+      icon: TrendingUp, 
+      label: "Reports & Analytics", 
+      permissions: ["view_platform_analytics", "view_all_revenue_reports", "approve_payouts"],
+      children: [
+        { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] },
+        { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
+        { path: "/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
+        { path: "/transactions", icon: Activity, label: "Transactions", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+        { path: "/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
+      ]
+    },
+    // Contents Group (Albums, Songs, Leader Content, Bible, Special Mixes)
     { 
       groupId: "contents",
       icon: FolderTree, 
       label: "Contents", 
-      permissions: ["content_moderation", "content_approval", "create_albums", "platform_settings"],
+      permissions: ["content_moderation", "content_approval", "create_albums", "platform_settings", "layout_promotion_control"],
       children: [
         { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
         { path: "/leader-content", icon: BookOpen, label: "Leader Content", permissions: ["content_moderation", "content_approval"] },
         { path: "/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
+        { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
+        { path: "/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
       ]
     },
-    // Grouped: Choir and Singers
+    // Control and Management Group
+    { 
+      groupId: "control-management",
+      icon: Shield, 
+      label: "Control & Management", 
+      permissions: ["role_assignment", "user_management", "content_approval", "choir_onboarding_approval", "layout_promotion_control", "platform_settings"],
+      children: [
+        { path: "/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
+        { path: "/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
+        { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
+        { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
+      ]
+    },
+    // Settings Group
+    { 
+      groupId: "settings",
+      icon: Settings, 
+      label: "Settings", 
+      permissions: ["platform_settings", "revenue_configuration"],
+      children: [
+        { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
+        { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
+        { path: "/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
+      ]
+    },
+    // Choir and Singers Group
     { 
       groupId: "choir-singers",
       icon: UsersRound, 
@@ -122,8 +152,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
       ]
     },
-    { path: "/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
-    { path: "/transactions", icon: Activity, label: "Transactions", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+    // Standalone items
     { path: "/users", icon: Users, label: "Users", permissions: ["user_management"] },
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
@@ -133,7 +162,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
     { path: "/community", icon: MessageSquare, label: "Community", permissions: ["content_moderation"] },
     { path: "/bookings", icon: CalendarCheck, label: "Bookings", permissions: ["platform_settings"] },
-    { path: "/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
   ];
 
   // Filter nav items based on user permissions
