@@ -6,15 +6,20 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { libraryAPI } from '../services/api';
+import { libraryAPI, getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { MediumCard, SongListItem } from '../components/Cards';
+import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { usePlayer } from '../context/PlayerContext';
+import AddToPlaylistModal, { 
+  SongActionsModal, 
+  LoginRequiredModal, 
+  SubscriptionRequiredModal 
+} from '../components/AddToPlaylistModal';
 
 const LibraryScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('playlists');
@@ -22,9 +27,20 @@ const LibraryScreen = ({ navigation }) => {
   const [likedSongs, setLikedSongs] = useState([]);
   const [downloads, setDownloads] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modals
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [selectedSong, setSelectedSong] = useState(null);
 
   const { isAuthenticated, user } = useAuth();
   const { playTrack, currentTrack } = usePlayer();
+  
+  // Billing settings
+  const billingEnabled = false;
+  const isPremium = user?.subscription_status === 'active';
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -55,24 +71,83 @@ const LibraryScreen = ({ navigation }) => {
     playTrack(song, songList, index >= 0 ? index : 0);
   };
 
+  const handlePlayAll = (songList) => {
+    if (songList.length > 0) {
+      playTrack(songList[0], songList, 0);
+    }
+  };
+
+  const handleShuffle = (songList) => {
+    if (songList.length > 0) {
+      const shuffled = [...songList].sort(() => Math.random() - 0.5);
+      playTrack(shuffled[0], shuffled, 0);
+    }
+  };
+
+  const handleSongMore = (song) => {
+    setSelectedSong(song);
+    setShowActionsModal(true);
+  };
+
+  const handleLikeSong = async (song) => {
+    try {
+      await libraryAPI.unlikeSong(song.song_id);
+      setLikedSongs(prev => prev.filter(s => s.song_id !== song.song_id));
+      Alert.alert('Imeondolewa', `"${song.title}" imeondolewa kwenye nyimbo pendwa`);
+    } catch (error) {
+      console.error('Error unliking song:', error);
+    }
+  };
+
+  const handleAddToPlaylist = (song) => {
+    if (billingEnabled && !isPremium) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+    setSelectedSong(song);
+    setShowPlaylistModal(true);
+  };
+
+  const handleDownload = (song) => {
+    if (billingEnabled && !isPremium) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+    Alert.alert('Kupakua', `Kupakua "${song.title}"... (Kipengele hiki kinakuja hivi karibuni)`);
+  };
+
+  const handleCreatePlaylist = () => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (billingEnabled && !isPremium) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+    // Open create playlist modal
+    setSelectedSong(null);
+    setShowPlaylistModal(true);
+  };
+
   // Not logged in view
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Your Library</Text>
+          <Text style={styles.title}>Maktaba Yako</Text>
         </View>
         <View style={styles.notLoggedIn}>
           <Ionicons name="library-outline" size={64} color={COLORS.textMuted} />
-          <Text style={styles.notLoggedInTitle}>Your Library is Empty</Text>
+          <Text style={styles.notLoggedInTitle}>Maktaba Yako ni Tupu</Text>
           <Text style={styles.notLoggedInText}>
-            Log in to save songs, create playlists, and access your library
+            Ingia ili kuhifadhi nyimbo, kutengeneza playlist, na kupata maktaba yako
           </Text>
           <TouchableOpacity 
             style={styles.loginButton}
             onPress={() => navigation.navigate('Login')}
           >
-            <Text style={styles.loginButtonText}>Log In</Text>
+            <Text style={styles.loginButtonText}>Ingia</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -80,10 +155,12 @@ const LibraryScreen = ({ navigation }) => {
   }
 
   const tabs = [
-    { id: 'playlists', label: 'Playlists' },
-    { id: 'liked', label: 'Liked Songs' },
-    { id: 'downloads', label: 'Downloads' },
+    { id: 'playlists', label: 'Playlist' },
+    { id: 'liked', label: 'Zilizopendwa' },
+    { id: 'downloads', label: 'Zilizopakuwa' },
   ];
+
+  const likedSongsSet = new Set(likedSongs.map(s => s.song_id));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -94,13 +171,13 @@ const LibraryScreen = ({ navigation }) => {
             source={{ uri: user?.avatar || 'https://via.placeholder.com/32' }}
             style={styles.avatar}
           />
-          <Text style={styles.title}>Your Library</Text>
+          <Text style={styles.title}>Maktaba Yako</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIcon}>
             <Ionicons name="search" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity style={styles.headerIcon} onPress={handleCreatePlaylist}>
             <Ionicons name="add" size={28} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -140,9 +217,17 @@ const LibraryScreen = ({ navigation }) => {
                 <Ionicons name="heart" size={24} color={COLORS.text} />
               </View>
               <View style={styles.likedSongsInfo}>
-                <Text style={styles.likedSongsTitle}>Liked Songs</Text>
-                <Text style={styles.likedSongsCount}>{likedSongs.length} songs</Text>
+                <Text style={styles.likedSongsTitle}>Nyimbo Pendwa</Text>
+                <Text style={styles.likedSongsCount}>{likedSongs.length} nyimbo</Text>
               </View>
+              {likedSongs.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.playIconButton}
+                  onPress={() => handlePlayAll(likedSongs)}
+                >
+                  <Ionicons name="play" size={20} color={COLORS.background} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
 
             {/* User Playlists */}
@@ -153,13 +238,13 @@ const LibraryScreen = ({ navigation }) => {
                 onPress={() => navigation.navigate('Playlist', { playlist })}
               >
                 <Image
-                  source={{ uri: playlist.thumbnail || 'https://via.placeholder.com/56' }}
+                  source={{ uri: getImageUrl(playlist.thumbnail) || 'https://via.placeholder.com/56' }}
                   style={styles.playlistImage}
                 />
                 <View style={styles.playlistInfo}>
                   <Text style={styles.playlistTitle}>{playlist.name}</Text>
                   <Text style={styles.playlistMeta}>
-                    Playlist • {playlist.song_count || 0} songs
+                    Playlist • {playlist.song_count || 0} nyimbo
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -167,9 +252,9 @@ const LibraryScreen = ({ navigation }) => {
 
             {playlists.length === 0 && (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No playlists yet</Text>
-                <TouchableOpacity style={styles.createPlaylistButton}>
-                  <Text style={styles.createPlaylistText}>Create Playlist</Text>
+                <Text style={styles.emptyStateText}>Hakuna playlist bado</Text>
+                <TouchableOpacity style={styles.createPlaylistButton} onPress={handleCreatePlaylist}>
+                  <Text style={styles.createPlaylistText}>Tengeneza Playlist</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -181,10 +266,14 @@ const LibraryScreen = ({ navigation }) => {
           <>
             {likedSongs.length > 0 ? (
               <>
-                <TouchableOpacity style={styles.shuffleButton}>
-                  <Ionicons name="shuffle" size={20} color={COLORS.background} />
-                  <Text style={styles.shuffleText}>Shuffle Play</Text>
-                </TouchableOpacity>
+                {/* Play All Header */}
+                <PlayAllHeader
+                  title="Nyimbo Pendwa"
+                  songCount={likedSongs.length}
+                  onPlayAll={() => handlePlayAll(likedSongs)}
+                  onShuffle={() => handleShuffle(likedSongs)}
+                />
+                
                 {likedSongs.map((song, index) => (
                   <SongListItem
                     key={song.song_id}
@@ -192,14 +281,15 @@ const LibraryScreen = ({ navigation }) => {
                     index={index}
                     isPlaying={currentTrack?.song_id === song.song_id}
                     onPress={() => handlePlaySong(song, likedSongs)}
+                    onMorePress={handleSongMore}
                   />
                 ))}
               </>
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="heart-outline" size={64} color={COLORS.textMuted} />
-                <Text style={styles.emptyStateTitle}>Songs you like will appear here</Text>
-                <Text style={styles.emptyStateText}>Save songs by tapping the heart icon</Text>
+                <Text style={styles.emptyStateTitle}>Nyimbo unazopenda zitaonekana hapa</Text>
+                <Text style={styles.emptyStateText}>Hifadhi nyimbo kwa kubofya ikoni ya moyo</Text>
               </View>
             )}
           </>
@@ -207,18 +297,106 @@ const LibraryScreen = ({ navigation }) => {
 
         {/* Downloads Tab */}
         {activeTab === 'downloads' && (
-          <View style={styles.emptyState}>
-            <Ionicons name="download-outline" size={64} color={COLORS.textMuted} />
-            <Text style={styles.emptyStateTitle}>No downloads yet</Text>
-            <Text style={styles.emptyStateText}>
-              Download songs to listen offline
-            </Text>
-          </View>
+          <>
+            {downloads.length > 0 ? (
+              <>
+                {/* Play All Header */}
+                <PlayAllHeader
+                  title="Zilizopakuwa"
+                  songCount={downloads.length}
+                  onPlayAll={() => handlePlayAll(downloads)}
+                  onShuffle={() => handleShuffle(downloads)}
+                />
+                
+                {downloads.map((song, index) => (
+                  <SongListItem
+                    key={song.song_id}
+                    item={song}
+                    index={index}
+                    isPlaying={currentTrack?.song_id === song.song_id}
+                    onPress={() => handlePlaySong(song, downloads)}
+                    onMorePress={handleSongMore}
+                  />
+                ))}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="download-outline" size={64} color={COLORS.textMuted} />
+                <Text style={styles.emptyStateTitle}>Hakuna zilizopakuwa bado</Text>
+                <Text style={styles.emptyStateText}>
+                  Pakua nyimbo ili kusikiliza bila mtandao
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
         {/* Bottom spacing */}
         <View style={{ height: 150 }} />
       </ScrollView>
+
+      {/* Song Actions Modal */}
+      <SongActionsModal
+        visible={showActionsModal}
+        onClose={() => setShowActionsModal(false)}
+        song={selectedSong}
+        isLiked={selectedSong ? likedSongsSet.has(selectedSong.song_id) : false}
+        isAuthenticated={isAuthenticated}
+        billingEnabled={billingEnabled}
+        isPremium={isPremium}
+        onLike={handleLikeSong}
+        onAddToPlaylist={(song) => {
+          setShowActionsModal(false);
+          handleAddToPlaylist(song);
+        }}
+        onDownload={handleDownload}
+        onLoginRequired={() => {
+          setShowActionsModal(false);
+          setShowLoginModal(true);
+        }}
+        onSubscriptionRequired={() => {
+          setShowActionsModal(false);
+          setShowSubscriptionModal(true);
+        }}
+      />
+
+      {/* Add to Playlist Modal */}
+      <AddToPlaylistModal
+        visible={showPlaylistModal}
+        onClose={() => setShowPlaylistModal(false)}
+        song={selectedSong}
+        isAuthenticated={isAuthenticated}
+        billingEnabled={billingEnabled}
+        isPremium={isPremium}
+        onLoginRequired={() => {
+          setShowPlaylistModal(false);
+          setShowLoginModal(true);
+        }}
+        onSubscriptionRequired={() => {
+          setShowPlaylistModal(false);
+          setShowSubscriptionModal(true);
+        }}
+      />
+
+      {/* Login Required Modal */}
+      <LoginRequiredModal
+        visible={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => {
+          setShowLoginModal(false);
+          navigation.navigate('Login');
+        }}
+      />
+
+      {/* Subscription Required Modal */}
+      <SubscriptionRequiredModal
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscribe={() => {
+          setShowSubscriptionModal(false);
+          navigation.navigate('Checkout');
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -304,6 +482,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   likedSongsInfo: {
+    flex: 1,
     marginLeft: SPACING.md,
   },
   likedSongsTitle: {
@@ -315,6 +494,15 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  playIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
   },
   playlistItem: {
     flexDirection: 'row',
@@ -341,22 +529,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: 2,
-  },
-  shuffleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    marginHorizontal: SPACING.md,
-    marginVertical: SPACING.md,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  shuffleText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.background,
-    marginLeft: SPACING.sm,
   },
   emptyState: {
     alignItems: 'center',
