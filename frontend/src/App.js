@@ -98,6 +98,18 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
     { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
     { path: "/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
+    // Grouped: Contents (Albums, Songs, Leader Content, Bible)
+    { 
+      groupId: "contents",
+      icon: FolderTree, 
+      label: "Contents", 
+      permissions: ["content_moderation", "content_approval", "create_albums", "platform_settings"],
+      children: [
+        { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
+        { path: "/leader-content", icon: BookOpen, label: "Leader Content", permissions: ["content_moderation", "content_approval"] },
+        { path: "/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
+      ]
+    },
     // Grouped: Choir and Singers
     { 
       groupId: "choir-singers",
@@ -114,9 +126,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/transactions", icon: Activity, label: "Transactions", permissions: ["view_all_revenue_reports", "approve_payouts"] },
     { path: "/users", icon: Users, label: "Users", permissions: ["user_management"] },
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
-    { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
-    { path: "/leader-content", icon: BookOpen, label: "Leader Content", permissions: ["content_moderation", "content_approval"] },
-    { path: "/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
     { path: "/leaders", icon: UserCheck, label: "Religious Leaders", permissions: ["user_management"] },
     { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
