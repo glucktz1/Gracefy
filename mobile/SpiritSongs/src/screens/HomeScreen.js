@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,31 +11,45 @@ import {
   TouchableOpacity,
   Image,
   ImageBackground,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { homeAPI, contentAPI, libraryAPI, bibleAPI, getImageUrl } from '../services/api';
+import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - SPACING.md * 3) / 2;
+const HERO_WIDTH = width - SPACING.md * 2;
 
 const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
+  
+  // Layout Manager Data
   const [layoutSections, setLayoutSections] = useState([]);
-  const [featuredMixes, setFeaturedMixes] = useState([]);
+  const [heroContent, setHeroContent] = useState({ items: [] });
+  const [quickAccessItems, setQuickAccessItems] = useState([]);
+  
+  // Content Data
+  const [specialMixes, setSpecialMixes] = useState([]);
   const [recentAlbums, setRecentAlbums] = useState([]);
   const [allSongs, setAllSongs] = useState([]);
   const [userPlaylists, setUserPlaylists] = useState([]);
   const [likedSongsCount, setLikedSongsCount] = useState(0);
   const [bibleSnippets, setBibleSnippets] = useState([]);
-  const [heroContent, setHeroContent] = useState(null);
+  const [churches, setChurches] = useState([]);
+  const [leaderContent, setLeaderContent] = useState([]);
+  
+  // Hero Carousel State
+  const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
+  const heroScrollRef = useRef(null);
+  const heroIntervalRef = useRef(null);
   
   // Add to playlist modal
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -47,13 +61,32 @@ const HomeScreen = ({ navigation }) => {
   useEffect(() => {
     updateGreeting();
     loadData();
+    return () => {
+      if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
+    };
   }, []);
+
+  // Auto-rotate hero carousel
+  useEffect(() => {
+    if (heroContent?.items?.length > 1) {
+      heroIntervalRef.current = setInterval(() => {
+        setCurrentHeroIndex(prev => {
+          const nextIndex = (prev + 1) % heroContent.items.length;
+          heroScrollRef.current?.scrollTo({ x: nextIndex * HERO_WIDTH, animated: true });
+          return nextIndex;
+        });
+      }, heroContent.rotation_interval || 5000);
+    }
+    return () => {
+      if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
+    };
+  }, [heroContent]);
 
   const updateGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 18) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
+    if (hour < 12) setGreeting('Habari ya asubuhi');
+    else if (hour < 18) setGreeting('Habari ya mchana');
+    else setGreeting('Habari ya jioni');
   };
 
   const loadData = async () => {
@@ -62,36 +95,44 @@ const HomeScreen = ({ navigation }) => {
       
       const [
         sectionsRes, 
+        heroRes,
         mixesRes, 
         albumsRes, 
         songsRes, 
         playlistsRes, 
         likesRes,
         snippetsRes,
-        heroRes
+        churchesRes,
+        leadersRes,
       ] = await Promise.all([
         homeAPI.getSections().catch(() => ({ data: [] })),
-        homeAPI.getSpecialMixes().catch(() => ({ data: [] })),
-        contentAPI.getAlbums().catch(() => ({ data: [] })),
+        homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
+        homeAPI.getSpecialMixes().catch(() => ({ data: { mixes: [] } })),
+        contentAPI.getAlbums().catch(() => ({ data: { albums: [] } })),
         contentAPI.getAllSongs().catch(() => ({ data: { songs: [] } })),
         libraryAPI.getPlaylists().catch(() => ({ data: [] })),
         libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
         bibleAPI.getFeaturedSnippets().catch(() => ({ data: [] })),
-        homeAPI.getHeroContent().catch(() => ({ data: null })),
+        churchAPI.getChurches().catch(() => ({ data: { churches: [] } })),
+        homeAPI.getLeaderContent().catch(() => ({ data: { leaders: [] } })),
       ]);
 
       // Layout sections
       const sections = sectionsRes.data?.sections || sectionsRes.data || [];
       setLayoutSections(sections.filter(s => s.is_active));
 
-      // Featured mixes
-      setFeaturedMixes(mixesRes.data?.mixes || mixesRes.data || []);
+      // Hero content from Layout Manager
+      setHeroContent(heroRes.data || { items: [] });
+
+      // Special mixes
+      const mixes = mixesRes.data?.mixes || mixesRes.data || [];
+      setSpecialMixes(mixes);
 
       // Albums
       const albums = albumsRes.data?.albums || albumsRes.data || [];
       setRecentAlbums(albums);
 
-      // Songs with album thumbnails
+      // Songs with album thumbnails fallback
       const songs = songsRes.data?.songs || [];
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
@@ -114,8 +155,17 @@ const HomeScreen = ({ navigation }) => {
       // Bible snippets
       setBibleSnippets(snippetsRes.data?.snippets || snippetsRes.data || []);
 
-      // Hero content
-      setHeroContent(heroRes.data);
+      // Churches
+      setChurches(churchesRes.data?.churches || churchesRes.data || []);
+
+      // Leader content (Mafundisho na Katekesi)
+      setLeaderContent(leadersRes.data?.leaders || leadersRes.data || []);
+
+      // Build quick access from layout sections
+      const quickAccessSection = sections.find(s => s.section_type === 'quick_access');
+      if (quickAccessSection?.content_items) {
+        setQuickAccessItems(quickAccessSection.content_items);
+      }
 
     } catch (error) {
       console.error('Error loading home data:', error);
@@ -148,6 +198,20 @@ const HomeScreen = ({ navigation }) => {
     setShowPlaylistModal(true);
   };
 
+  const handleHeroPress = (item) => {
+    if (item.album_id) {
+      navigation.navigate('Album', { album: item });
+    } else if (item.mix_id) {
+      navigation.navigate('Playlist', { mix: item });
+    }
+  };
+
+  const handleHeroScroll = (event) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / HERO_WIDTH);
+    setCurrentHeroIndex(index);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -178,41 +242,64 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Hero Section */}
-        {(heroContent || featuredMixes.length > 0) && (
-          <TouchableOpacity 
-            style={styles.heroContainer}
-            onPress={() => featuredMixes[0] && handleMixPress(featuredMixes[0])}
-            activeOpacity={0.9}
-          >
-            <ImageBackground
-              source={{ uri: getImageUrl(heroContent?.thumbnail || featuredMixes[0]?.thumbnail) || 'https://via.placeholder.com/400' }}
-              style={styles.heroImage}
-              imageStyle={styles.heroImageStyle}
+        {/* Hero Carousel - Layout Manager Controlled */}
+        {heroContent?.items?.length > 0 && (
+          <View style={styles.heroSection}>
+            <ScrollView
+              ref={heroScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleHeroScroll}
+              contentContainerStyle={styles.heroScrollContent}
             >
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)', COLORS.background]}
-                style={styles.heroGradient}
-              >
-                <Text style={styles.heroLabel}>FEATURED</Text>
-                <Text style={styles.heroTitle}>
-                  {heroContent?.title || featuredMixes[0]?.title || 'Featured Mix'}
-                </Text>
-                <Text style={styles.heroSubtitle}>
-                  {heroContent?.description || featuredMixes[0]?.description || 'Curated just for you'}
-                </Text>
-                <View style={styles.heroButtons}>
-                  <TouchableOpacity style={styles.heroPlayButton}>
-                    <Ionicons name="play" size={20} color={COLORS.background} />
-                    <Text style={styles.heroPlayText}>Play</Text>
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
-            </ImageBackground>
-          </TouchableOpacity>
+              {heroContent.items.map((item, index) => (
+                <TouchableOpacity 
+                  key={item.album_id || item.mix_id || index}
+                  style={styles.heroContainer}
+                  onPress={() => handleHeroPress(item)}
+                  activeOpacity={0.9}
+                >
+                  <ImageBackground
+                    source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/400' }}
+                    style={styles.heroImage}
+                    imageStyle={styles.heroImageStyle}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.7)', COLORS.background]}
+                      style={styles.heroGradient}
+                    >
+                      <Text style={styles.heroLabel}>FEATURED</Text>
+                      <Text style={styles.heroTitle} numberOfLines={2}>{item.title}</Text>
+                      <Text style={styles.heroSubtitle} numberOfLines={1}>
+                        {item.artist_name || item.description || 'Curated for you'}
+                      </Text>
+                      <View style={styles.heroButtons}>
+                        <TouchableOpacity style={styles.heroPlayButton}>
+                          <Ionicons name="play" size={20} color={COLORS.background} />
+                          <Text style={styles.heroPlayText}>Play</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {/* Pagination Dots */}
+            {heroContent.items.length > 1 && (
+              <View style={styles.heroPagination}>
+                {heroContent.items.map((_, index) => (
+                  <View 
+                    key={index} 
+                    style={[styles.heroDot, currentHeroIndex === index && styles.heroDotActive]} 
+                  />
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
-        {/* Quick Access Grid - Spotify Style */}
+        {/* Quick Access Grid - Spotify Style (Layout Manager Controlled) */}
         <View style={styles.quickAccessContainer}>
           {/* Liked Songs */}
           <TouchableOpacity 
@@ -222,11 +309,11 @@ const HomeScreen = ({ navigation }) => {
             <LinearGradient colors={['#5D3FD3', '#7B68EE']} style={styles.quickAccessIcon}>
               <Ionicons name="heart" size={20} color={COLORS.text} />
             </LinearGradient>
-            <Text style={styles.quickAccessText} numberOfLines={2}>Liked Songs</Text>
+            <Text style={styles.quickAccessText} numberOfLines={2}>Nyimbo Pendwa</Text>
           </TouchableOpacity>
 
-          {/* User Playlists (first 3) */}
-          {userPlaylists.slice(0, 3).map((playlist) => (
+          {/* User Playlists */}
+          {userPlaylists.slice(0, 2).map((playlist) => (
             <TouchableOpacity 
               key={playlist.playlist_id}
               style={styles.quickAccessItem}
@@ -237,21 +324,6 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.quickAccessImage}
               />
               <Text style={styles.quickAccessText} numberOfLines={2}>{playlist.name}</Text>
-            </TouchableOpacity>
-          ))}
-
-          {/* Fill remaining spots with albums */}
-          {recentAlbums.slice(0, Math.max(0, 4 - userPlaylists.length - 1)).map((album) => (
-            <TouchableOpacity 
-              key={album.album_id}
-              style={styles.quickAccessItem}
-              onPress={() => handleAlbumPress(album)}
-            >
-              <Image
-                source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/56' }}
-                style={styles.quickAccessImage}
-              />
-              <Text style={styles.quickAccessText} numberOfLines={2}>{album.title}</Text>
             </TouchableOpacity>
           ))}
 
@@ -276,14 +348,120 @@ const HomeScreen = ({ navigation }) => {
             </LinearGradient>
             <Text style={styles.quickAccessText} numberOfLines={2}>Makanisa</Text>
           </TouchableOpacity>
+
+          {/* Albums from Quick Access */}
+          {recentAlbums.slice(0, 2).map((album) => (
+            <TouchableOpacity 
+              key={album.album_id}
+              style={styles.quickAccessItem}
+              onPress={() => handleAlbumPress(album)}
+            >
+              <Image
+                source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/56' }}
+                style={styles.quickAccessImage}
+              />
+              <Text style={styles.quickAccessText} numberOfLines={2}>{album.title}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Bible & Books Section - Horizontal Scroll */}
+        {/* Mafundisho na Katekesi - Spotify "Picked for you" Style */}
+        {leaderContent.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mafundisho na Katekesi</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {leaderContent.map((leader) => (
+                <TouchableOpacity 
+                  key={leader.leader_id} 
+                  style={styles.mafundishoCard}
+                  activeOpacity={0.9}
+                >
+                  {/* Purple Accent Band */}
+                  <View style={styles.mafundishoBand}>
+                    <Text style={styles.mafundishoBandText}>MAFUNDISHO</Text>
+                  </View>
+                  
+                  {/* Leader Photo */}
+                  <Image
+                    source={{ uri: getImageUrl(leader.photo) || 'https://via.placeholder.com/200' }}
+                    style={styles.mafundishoImage}
+                  />
+                  
+                  {/* Content Info */}
+                  <View style={styles.mafundishoInfo}>
+                    <Text style={styles.mafundishoType}>Teachings</Text>
+                    <Text style={styles.mafundishoTitle} numberOfLines={2}>{leader.name}</Text>
+                    <Text style={styles.mafundishoDesc} numberOfLines={2}>
+                      {leader.title || leader.church_name || 'Mafundisho ya Imani'}
+                    </Text>
+                    
+                    {/* Action Icons */}
+                    <View style={styles.mafundishoActions}>
+                      <TouchableOpacity style={styles.mafundishoAddBtn}>
+                        <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.mafundishoPlayBtn}>
+                        <Ionicons name="play" size={24} color={COLORS.background} />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    {/* Three dots menu */}
+                    <TouchableOpacity style={styles.mafundishoMenu}>
+                      <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Mchanganyiko Maalumu (Special Mixes) */}
+        {specialMixes.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mchanganyiko Maalumu</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>Ona yote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {specialMixes.map((mix) => (
+                <TouchableOpacity 
+                  key={mix.mix_id} 
+                  style={styles.largeMixCard}
+                  onPress={() => handleMixPress(mix)}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(mix.thumbnail) || 'https://via.placeholder.com/280x150' }}
+                    style={styles.largeMixImage}
+                  />
+                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
+                    <Text style={styles.largeMixTitle} numberOfLines={1}>{mix.title}</Text>
+                    <Text style={styles.largeMixSubtitle} numberOfLines={1}>
+                      {mix.songs_count || mix.songs?.length || 0} nyimbo
+                    </Text>
+                  </LinearGradient>
+                  <TouchableOpacity style={styles.mixPlayButton}>
+                    <Ionicons name="play" size={24} color={COLORS.background} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Bible & Books Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Bible & Books</Text>
+            <Text style={styles.sectionTitle}>Biblia na Vitabu</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Bible')}>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>Ona yote</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bibleRow}>
@@ -294,10 +472,11 @@ const HomeScreen = ({ navigation }) => {
             >
               <LinearGradient colors={['#1a472a', '#2d5a3d']} style={styles.bibleMainGradient}>
                 <Ionicons name="book-outline" size={40} color={COLORS.primary} />
-                <Text style={styles.bibleMainTitle}>Holy Bible</Text>
-                <Text style={styles.bibleMainSubtitle}>Biblia Takatifu</Text>
+                <Text style={styles.bibleMainTitle}>Biblia Takatifu</Text>
+                <Text style={styles.bibleMainSubtitle}>Swahili TTS</Text>
                 <View style={styles.bibleMainMeta}>
-                  <Text style={styles.bibleMainMetaText}>66 Books</Text>
+                  <Ionicons name="headset-outline" size={12} color={COLORS.text} />
+                  <Text style={styles.bibleMainMetaText}> Sikiliza</Text>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -315,29 +494,32 @@ const HomeScreen = ({ navigation }) => {
           </ScrollView>
         </View>
 
-        {/* Featured Mixes - Large Horizontal Rectangles */}
-        {featuredMixes.length > 0 && (
+        {/* Churches (Makanisa) Section */}
+        {churches.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured Mixes</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.sectionTitle}>Makanisa</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Churches')}>
+                <Text style={styles.seeAll}>Ona yote</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {featuredMixes.map((mix) => (
+              {churches.slice(0, 6).map((church) => (
                 <TouchableOpacity 
-                  key={mix.mix_id} 
-                  style={styles.largeMixCard}
-                  onPress={() => handleMixPress(mix)}
+                  key={church.church_id} 
+                  style={styles.churchCard}
+                  onPress={() => navigation.navigate('Churches', { selectedChurch: church })}
                 >
                   <Image
-                    source={{ uri: getImageUrl(mix.thumbnail) || 'https://via.placeholder.com/280x150' }}
-                    style={styles.largeMixImage}
+                    source={{ uri: getImageUrl(church.thumbnail) || 'https://via.placeholder.com/140' }}
+                    style={styles.churchImage}
                   />
-                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
-                    <Text style={styles.largeMixTitle} numberOfLines={1}>{mix.title}</Text>
-                    <Text style={styles.largeMixSubtitle} numberOfLines={1}>{mix.song_count || 0} songs</Text>
+                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.churchGradient}>
+                    <Ionicons name="business" size={16} color={COLORS.primary} style={styles.churchIcon} />
+                    <Text style={styles.churchName} numberOfLines={2}>{church.name}</Text>
+                    <Text style={styles.churchLocation} numberOfLines={1}>
+                      {church.location || church.city}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
               ))}
@@ -345,13 +527,13 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Recently Added - Small Square Cards */}
+        {/* Recently Added Albums */}
         {recentAlbums.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recently Added</Text>
+              <Text style={styles.sectionTitle}>Mpya Zilizoongezwa</Text>
               <TouchableOpacity>
-                <Text style={styles.seeAll}>See all</Text>
+                <Text style={styles.seeAll}>Ona yote</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
@@ -373,13 +555,13 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Popular Songs - List View */}
+        {/* Popular Songs */}
         {allSongs.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Popular Songs</Text>
+              <Text style={styles.sectionTitle}>Nyimbo Maarufu</Text>
               <TouchableOpacity>
-                <Text style={styles.seeAll}>See all</Text>
+                <Text style={styles.seeAll}>Ona yote</Text>
               </TouchableOpacity>
             </View>
             {allSongs.slice(0, 5).map((song, index) => (
@@ -411,35 +593,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* More Albums - Medium Cards */}
-        {recentAlbums.length > 8 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>More to Explore</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>See all</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {recentAlbums.slice(8, 16).map((album) => (
-                <TouchableOpacity 
-                  key={`more-${album.album_id}`} 
-                  style={styles.mediumCard}
-                  onPress={() => handleAlbumPress(album)}
-                >
-                  <Image
-                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/150' }}
-                    style={styles.mediumCardImage}
-                  />
-                  <Text style={styles.mediumCardTitle} numberOfLines={2}>{album.title}</Text>
-                  <Text style={styles.mediumCardSubtitle} numberOfLines={1}>{album.artist_name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Bottom spacing */}
+        {/* Bottom spacing for mini player */}
         <View style={{ height: 150 }} />
       </ScrollView>
 
@@ -488,10 +642,16 @@ const styles = StyleSheet.create({
     padding: SPACING.xs,
   },
 
-  // Hero Section
-  heroContainer: {
-    marginHorizontal: SPACING.md,
+  // Hero Carousel Section
+  heroSection: {
     marginBottom: SPACING.lg,
+  },
+  heroScrollContent: {
+    paddingHorizontal: SPACING.md,
+  },
+  heroContainer: {
+    width: HERO_WIDTH,
+    marginRight: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
   },
@@ -542,6 +702,23 @@ const styles = StyleSheet.create({
     color: COLORS.background,
     marginLeft: SPACING.xs,
   },
+  heroPagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  heroDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.textMuted,
+    marginHorizontal: 4,
+  },
+  heroDotActive: {
+    backgroundColor: COLORS.primary,
+    width: 24,
+  },
 
   // Quick Access Grid
   quickAccessContainer: {
@@ -578,6 +755,143 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
   },
 
+  // Mafundisho na Katekesi - Spotify "Picked for you" Style
+  mafundishoCard: {
+    width: 320,
+    height: 180,
+    marginRight: SPACING.md,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  mafundishoBand: {
+    width: 32,
+    backgroundColor: '#7B2CBF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mafundishoBandText: {
+    color: COLORS.text,
+    fontSize: 10,
+    fontWeight: 'bold',
+    transform: [{ rotate: '-90deg' }],
+    width: 100,
+    textAlign: 'center',
+    letterSpacing: 2,
+  },
+  mafundishoImage: {
+    width: 130,
+    height: '100%',
+  },
+  mafundishoInfo: {
+    flex: 1,
+    padding: SPACING.md,
+    justifyContent: 'center',
+  },
+  mafundishoType: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  mafundishoTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  mafundishoDesc: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  mafundishoActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  mafundishoAddBtn: {
+    marginRight: SPACING.md,
+  },
+  mafundishoPlayBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.text,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mafundishoMenu: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+  },
+
+  // Section Styles
+  section: {
+    marginBottom: SPACING.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  sectionTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  seeAll: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  horizontalList: {
+    paddingHorizontal: SPACING.md,
+  },
+
+  // Large Mix Cards with Play Button
+  largeMixCard: {
+    width: 280,
+    height: 150,
+    marginRight: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
+  },
+  largeMixImage: {
+    width: '100%',
+    height: '100%',
+  },
+  largeMixGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: SPACING.md,
+  },
+  largeMixTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  largeMixSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  mixPlayButton: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    right: SPACING.md,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   // Bible Section
   bibleRow: {
     paddingHorizontal: SPACING.md,
@@ -607,6 +921,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bibleMainMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: SPACING.sm,
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: SPACING.sm,
@@ -641,62 +957,43 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Section Styles
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  seeAll: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  horizontalList: {
-    paddingHorizontal: SPACING.md,
-  },
-
-  // Large Mix Cards (Horizontal Rectangles)
-  largeMixCard: {
-    width: 280,
-    height: 150,
+  // Churches Section
+  churchCard: {
+    width: 140,
+    height: 180,
     marginRight: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
+    backgroundColor: COLORS.card,
   },
-  largeMixImage: {
+  churchImage: {
     width: '100%',
     height: '100%',
   },
-  largeMixGradient: {
+  churchGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: SPACING.md,
+    height: '70%',
+    padding: SPACING.sm,
+    justifyContent: 'flex-end',
   },
-  largeMixTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
+  churchIcon: {
+    marginBottom: 4,
+  },
+  churchName: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
     color: COLORS.text,
   },
-  largeMixSubtitle: {
-    fontSize: FONT_SIZES.sm,
+  churchLocation: {
+    fontSize: FONT_SIZES.xs,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
 
-  // Small Square Cards
+  // Small Square Cards (Albums)
   smallSquareCard: {
     width: 120,
     marginRight: SPACING.md,
@@ -715,29 +1012,6 @@ const styles = StyleSheet.create({
   },
   smallSquareArtist: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-
-  // Medium Cards
-  mediumCard: {
-    width: 150,
-    marginRight: SPACING.md,
-  },
-  mediumCardImage: {
-    width: 150,
-    height: 150,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.card,
-  },
-  mediumCardTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.sm,
-  },
-  mediumCardSubtitle: {
-    fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
