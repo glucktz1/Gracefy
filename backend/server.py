@@ -5503,7 +5503,7 @@ async def get_user_home():
             # For hero, also fetch albums if content_ids exist
             if section.get("content_ids"):
                 items = await db.albums.find(
-                    {"album_id": {"$in": section["content_ids"]}},
+                    {"album_id": {"$in": section["content_ids"]}, "status": "active"},
                     ALBUM_LIST_PROJECTION
                 ).to_list(10)
                 items = optimize_thumbnails(items)
