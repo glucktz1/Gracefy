@@ -6032,9 +6032,13 @@ async def choir_login(data: dict, response: Response):
     session_token = f"choir_{uuid.uuid4().hex}"
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
     
+    # Get account_id and choir_name with fallbacks for self-registered accounts
+    account_id = account.get("account_id") or account.get("choir_id")
+    choir_name = account.get("choir_name") or account.get("name")
+    
     session_doc = {
         "session_id": f"sess_{uuid.uuid4().hex}",
-        "account_id": account["account_id"],
+        "account_id": account_id,
         "choir_id": account["choir_id"],
         "session_token": session_token,
         "expires_at": expires_at.isoformat(),
@@ -6054,7 +6058,7 @@ async def choir_login(data: dict, response: Response):
     
     return {
         "choir_id": account["choir_id"],
-        "choir_name": account["choir_name"],
+        "choir_name": choir_name,
         "email": account["email"],
         "session_token": session_token
     }
