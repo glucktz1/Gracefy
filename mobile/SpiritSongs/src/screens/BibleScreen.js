@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { bibleAPI } from '../services/api';
+import { usePlayer } from '../context/PlayerContext';
 
 const BibleScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -26,10 +27,18 @@ const BibleScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [testamentFilter, setTestamentFilter] = useState('all');
   
+  // Verse range selection for TTS
+  const [startVerse, setStartVerse] = useState('');
+  const [endVerse, setEndVerse] = useState('');
+  
   // TTS State - matching web implementation
-  const [playingAudio, setPlayingAudio] = useState(null); // Can be verse number or 'chapter'
+  const [playingAudio, setPlayingAudio] = useState(null); // Can be verse number or 'chapter' or 'range'
   const [generatingAudio, setGeneratingAudio] = useState(null); // Which verse is generating
   const soundRef = useRef(null);
+  const wasMusicPlayingRef = useRef(false);
+
+  // Get player context to pause music during TTS
+  const { isPlaying: isMusicPlaying, pausePlayback, resumePlayback } = usePlayer();
 
   useEffect(() => {
     loadBooks();
