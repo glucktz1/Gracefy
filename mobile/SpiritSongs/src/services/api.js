@@ -73,8 +73,8 @@ export const authAPI = {
   forgotPasswordVerify: (email, otp) => api.post('/auth/forgot-password/verify', { email, otp }),
   forgotPasswordReset: (email, otp, newPassword) => api.post('/auth/forgot-password/reset', { email, otp, new_password: newPassword }),
   
-  // Google OAuth
-  googleCallback: (credential) => api.post('/user/auth/google-callback', { credential }),
+  // Google OAuth - uses session_id from Emergent OAuth
+  googleCallback: (sessionId) => api.post('/user/auth/google-callback', { session_id: sessionId }),
   
   // Session
   getMe: () => api.get('/user/auth/me'),
