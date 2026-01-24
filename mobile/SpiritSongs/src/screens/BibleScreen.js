@@ -58,6 +58,11 @@ const BibleScreen = ({ navigation }) => {
       }
       soundRef.current = null;
     }
+    // Resume music if it was playing before
+    if (wasMusicPlayingRef.current) {
+      wasMusicPlayingRef.current = false;
+      await resumePlayback?.();
+    }
   };
 
   const loadBooks = async () => {
