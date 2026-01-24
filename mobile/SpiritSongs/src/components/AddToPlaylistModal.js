@@ -142,13 +142,17 @@ export const SongActionsModal = ({
 
     try {
       setDownloading(true);
-      const fileUrl = song?.audio_url || song?.file_url;
+      let fileUrl = song?.audio_url || song?.file_url;
       
       if (!fileUrl) {
         Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
         setDownloading(false);
         return;
       }
+
+      // Convert to full URL if needed
+      fileUrl = getAudioUrl(fileUrl);
+      console.log('Downloading from:', fileUrl);
 
       const fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
       const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
@@ -158,11 +162,16 @@ export const SongActionsModal = ({
       const result = await FileSystem.downloadAsync(fileUrl, downloadPath);
       
       if (result?.uri) {
-        Alert.alert('Imefanikiwa', `"${song.title}" imehifadhiwa`);
+        const fileInfo = await FileSystem.getInfoAsync(result.uri);
+        if (fileInfo.exists && fileInfo.size > 0) {
+          Alert.alert('Imefanikiwa! ✓', `"${song.title}" imehifadhiwa`);
+        } else {
+          throw new Error('Downloaded file is empty');
+        }
       }
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kupakua wimbo');
+      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena'}`);
     } finally {
       setDownloading(false);
       onClose();
