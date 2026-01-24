@@ -8970,6 +8970,26 @@ async def get_file_info(file_id: str):
         raise HTTPException(status_code=404, detail="File not found")
     return file_doc
 
+@api_router.get("/files/{file_id}/download")
+async def download_file(file_id: str):
+    """Download a file with proper headers for saving"""
+    file_doc = await db.files.find_one({"file_id": file_id})
+    if not file_doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Decode base64 content
+    content = base64.b64decode(file_doc["data"])
+    content_type = file_doc.get("content_type", "application/octet-stream")
+    filename = file_doc.get("original_filename", f"{file_id}.mp3")
+    
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Length": str(len(content)),
+        "Content-Type": content_type
+    }
+    
+    return Response(content=content, headers=headers, media_type=content_type)
+
 # ============== BUNNY CDN MANAGEMENT ==============
 
 @api_router.get("/admin/cdn/status")
