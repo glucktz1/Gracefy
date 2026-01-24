@@ -2759,7 +2759,7 @@ export default function UserStreamingApp() {
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
-                                    <Music className="w-12 h-12 text-white/60" />
+                                    <Music2 className="w-12 h-12 text-white/60" />
                                   </div>
                                 )}
                                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
