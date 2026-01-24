@@ -2019,9 +2019,12 @@ async def sync_default_song_categories():
 # ============== ALBUMS MANAGEMENT ==============
 
 @api_router.get("/albums")
-async def get_albums(category_id: Optional[str] = None, artist_id: Optional[str] = None, skip: int = 0, limit: int = 20):
+async def get_albums(category_id: Optional[str] = None, artist_id: Optional[str] = None, skip: int = 0, limit: int = 20, include_inactive: bool = False):
     """Get all albums - optimized with pagination"""
     query = {}
+    # Filter by active status by default (for user-facing APIs)
+    if not include_inactive:
+        query["status"] = "active"
     if category_id:
         query["category_id"] = category_id
     if artist_id:
