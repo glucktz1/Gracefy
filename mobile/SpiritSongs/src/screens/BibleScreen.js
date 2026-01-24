@@ -132,7 +132,13 @@ const BibleScreen = ({ navigation }) => {
     }
 
     try {
-      // Stop any currently playing audio
+      // Pause any music that's playing
+      if (isMusicPlaying) {
+        wasMusicPlayingRef.current = true;
+        await pausePlayback?.();
+      }
+
+      // Stop any currently playing TTS audio
       await cleanupAudio();
       
       setGeneratingAudio(verse.verse);
@@ -166,6 +172,11 @@ const BibleScreen = ({ navigation }) => {
             // When audio finishes playing
             if (status.didJustFinish) {
               setPlayingAudio(null);
+              // Resume music if it was playing
+              if (wasMusicPlayingRef.current) {
+                wasMusicPlayingRef.current = false;
+                resumePlayback?.();
+              }
             }
           }
         );
@@ -174,10 +185,18 @@ const BibleScreen = ({ navigation }) => {
         setPlayingAudio(verse.verse);
       } else {
         Alert.alert('Kosa', 'Imeshindikana kupata sauti. Tafadhali jaribu tena.');
+        if (wasMusicPlayingRef.current) {
+          wasMusicPlayingRef.current = false;
+          resumePlayback?.();
+        }
       }
     } catch (error) {
       console.error('TTS Error:', error);
       Alert.alert('Kosa', 'Imeshindikana kusoma aya. Tafadhali jaribu tena.');
+      if (wasMusicPlayingRef.current) {
+        wasMusicPlayingRef.current = false;
+        resumePlayback?.();
+      }
     } finally {
       setGeneratingAudio(null);
     }
