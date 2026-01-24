@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { libraryAPI, getImageUrl, getAudioUrl } from '../services/api';
+import { libraryAPI, contentAPI, getImageUrl, getAudioUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // Login Required Modal Component
