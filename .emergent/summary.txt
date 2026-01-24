@@ -1,0 +1,186 @@
+<analysis>**original_problem_statement:**
+The user's initial request was to rebuild a Christian music mobile app, Gracefy, with a Spotify-like look and feel. The project has since evolved into a rapid, iterative cycle of feature development and bug fixing based on user feedback for a React Native mobile app and a React admin panel.
+
+The most recent user requests included:
+*   Fixing a major bug where the mobile app's home screen was not loading any content from the backend.
+*   Implementing a comprehensive set of UI/UX improvements for the mobile app, including mini-player positioning, continuous background playback, new Login/Profile screens, and Bible/Churches screen enhancements.
+*   Fixing a non-functional signup/login process on the mobile app, including adding Google Social Login.
+*   Investigating and providing access to a web-based login portal for choirs/partners.
+
+**User's preferred language**: English (with Swahili terms for UI elements)
+
+**what currently exists?**
+The project is a full-stack application with a monolithic FastAPI backend, a React admin panel, and a React Native (Expo) mobile app. The agent has established a continuous integration pipeline, frequently submitting new mobile app builds () via Expo Application Services (EAS) for user testing. Numerous features have been implemented, including a dynamic home screen, Bible Text-to-Speech, and a redesigned audio player. The agent recently fixed major data loading and authentication issues on the mobile app and was in the process of debugging the choir login portal on the web admin panel.
+
+**Last working item**:
+-   **Last item agent was working**: Investigating a bug where the choir login page () fails to redirect to the dashboard after a successful login.
+    -   **Agent's Findings**: The backend API () works correctly, and the frontend even displays a Welcome success message. However, the subsequent navigation to the dashboard fails because API calls to fetch user data () return a  error.
+    -   **Hypothesis**: This is likely a cross-domain authentication issue where the session cookie set by the backend is not being sent on subsequent requests from the frontend.
+-   **Status**: IN PROGRESS
+-   **Agent Testing Done**: N (Fix not yet implemented)
+-   **Which testing method agent to use?**: manual testing by curl
+-   **User Testing Done**: N
+
+**All Pending/In progress Issue list**:
+-   **Issue 1**: (P0) Choir Login Redirect Failure
+-   **Issue 2**: (P1) Mobile App Continuous Playback May Be Incomplete
+-   **Issue 3**: (P2) Recurring Mobile App Build Environment Instability
+
+**Issues Detail:**
+-   **Issue 1: Choir Login Redirect Failure**
+    -   **Attempted fixes**: The agent confirmed the backend login endpoint works via  and observed the frontend shows a success toast via screenshot. The problem is in the post-login page load.
+    -   **Next debug checklist**:
+        1.  Inspect  to verify how the auth token/cookie is stored and how the redirect is triggered.
+        2.  Examine  to see how it checks for authentication.
+        3.  Check the global API request configuration (e.g., in an Axios instance) to ensure  is set, which is necessary for sending cookies across domains.
+        4.  Fix the logic to ensure the page redirects only after the authentication state is successfully stored and available for subsequent requests.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: frontend
+    -   **Blocked on other issue**: None
+
+-   **Issue 2: Mobile App Continuous Playback May Be Incomplete**
+    -   **Attempted fixes**: Agent implemented logic for continuous playback and background audio in build v1.0.37. However, the user's subsequent feedback implied it was not fully resolved. The agent noted further investigation needed.
+    -   **Next debug checklist**:
+        1.  Review the  and  handling logic.
+        2.  Test edge cases: end of a playlist, screen lock during playback, app backgrounded.
+        3.  Consider using a more robust background audio library if  limitations are the issue.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?**: Y
+    -   **Should Test frontend/backend/both after fix?**: frontend
+    -   **Blocked on other issue**: None
+
+-   **Issue 3: Recurring Mobile App Build Environment Instability**
+    -   **Attempted fixes**: A previous agent added problematic file patterns to . The root cause was never found.
+    -   **Next debug checklist**: This is a low-priority background issue. If a build fails with  or , the first step is to  any unusual binary files in the project directory before retrying.
+    -   **Why fix this issue and what will be achieved with the fix?**: A permanent fix would make the build process more reliable and faster.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: Y
+    -   **Should Test frontend/backend/both after fix?**: frontend
+    -   **Blocked on other issue**: None
+
+**In progress Task List**:
+(None - all current work is classified under the issues above.)
+
+**Upcoming and Future Tasks**
+**Upcoming Tasks:**
+*   **(P1) Bible Screen Enhancements:** Implement Testament → Book → Verse range selection and search functionality.
+*   **(P1) Churches Screen Overhaul:** Display choirs associated with each church, their songs, and church announcements (Matangazo).
+*   **(P1) Album/Song Actions:** Add functionality to download or add a whole album/playlist to a user's library.
+*   **(P1) Home Screen Filters:** Implement functional category filters on the mobile home screen.
+*   **(P2) Animated Splash Screen:** Design and implement an animated splash screen for the mobile app using user-provided assets.
+
+**Future Tasks:**
+*   Backend Refactoring: Break down the monolithic  into smaller, manageable FastAPI routers.
+*   PWA Feature Parity: Add Play All button and review repeat logic.
+*   Admin Controls: Enforce daily song limits and device limits for free users.
+*   Remove unused Supabase integration.
+
+**Completed work in this session**
+*   **Mobile App Data Loading Fix (v1.0.36):** Fixed a critical bug where the home screen was empty by implementing data fallbacks and adding a persistent All Albums section. Also added a debug overlay.
+*   **Mobile App Login/Signup Overhaul (v1.0.39):**
+    *   Fixed incorrect API endpoints ( -> ).
+    *   Implemented a full-featured  with email/password, phone + OTP, forgot password, and Google Social Login (via Emergent-managed OAuth).
+*   **Mobile App Player & UI Enhancements (v1.0.37, v1.0.38):**
+    *   Repositioned the mini-player correctly above the tab bar.
+    *   Implemented continuous and background playback logic.
+    *   Added a Queue modal to the Now Playing screen.
+    *   Removed non-functional filters from the home screen.
+*   **Backend Choir Login Fix:** Debugged and patched a  in the  endpoint and created a test choir account for debugging.
+*   **Admin Panel UI Improvements:** Reorganized the sidebar navigation and added a User Navigation analytics tab.
+
+**Earlier issues found/mentioned but not fixed**
+*   PWA Play All Button
+*   PWA Repeat Logic Review
+*   Supabase Removal
+
+**Known issue recurrence from previous fork**
+*   The handoff summary mentioned a corrupted file issue that could break mobile builds. While not encountered in this session, the underlying cause remains unknown, posing a risk to future builds.
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+*   **Iterative Development & UAT:** A tight feedback loop of building features, deploying  files via EAS, and incorporating user bug reports.
+*   **Full-Stack Debugging:** Tracing issues from the mobile app, through the FastAPI backend, to the MongoDB database, using , supervisor logs, and code inspection.
+*   **Expo Application Services (EAS):** The primary mechanism for building and distributing the mobile app for testing.
+*   **Social Authentication:** Implemented Google OAuth on React Native using  and a custom backend callback endpoint.
+
+**key DB schema**
+*   **choir_accounts**: The agent discovered that the schema for self-registered choirs differed from admin-created ones. The  endpoint was patched to handle these differences by using  with fallbacks instead of direct key access.
+
+**changes in tech stack**
+*   **Added:**  package to the mobile app to handle the web-based Google OAuth flow.
+
+**All files of reference**
+*   **Backend:** 
+*   **Admin Frontend:** , , 
+*   **Mobile App:** , , , , 
+
+**Areas that need refactoring**:
+*   **:** This monolithic file is becoming increasingly difficult to maintain. It is a high-priority candidate for being broken into separate FastAPI routers (e.g., , ).
+*   **Frontend Auth State Management:** The choir login bug highlights a need for a more robust and consistent way of handling authentication state (tokens/cookies) and redirects across the admin panel.
+
+**key api endpoints**
+*    (POST)
+*    (POST)
+*    (GET)
+*    (GET)
+*    (POST) - **Fixed by the agent.**
+*    (GET) - **Failing post-login due to auth issue.**
+
+**Critical Info for New Agent**
+*   **Your immediate task is to fix the choir login redirect.** The login is successful, but the app loses the authenticated session on the next page load. Investigate cookie/auth state handling in  and .
+*   The user is actively testing mobile builds and provides large batches of feedback. Be prepared to pivot to new bug reports or feature requests after delivering an APK.
+*   The user has been given detailed instructions for building the mobile app locally. Be prepared for follow-up questions.
+*   The mobile app build  was submitted with major login fixes but has not been confirmed as working by the user. Its status is **USER VERIFICATION PENDING**.
+
+**documents and test reports created in this job**
+*    was consistently updated to track progress and backlog.
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **** - User reports the choir login is not working. (IN PROGRESS)
+2.  **** - User asks for the URL to the choir portal. (RESOLVED)
+3.  **** - User asks for choir login details. (RESOLVED)
+4.  **** - User reports that the login fixes in v1.0.38 did not work, prompting the major rewrite in v1.0.39. (IN PROGRESS - v1.0.39 is pending user verification)
+5.  **** - User provides a large list of feature requests and bug fixes for the mobile app. (PARTIALLY COMPLETE)
+6.  **** - User asks for clarification on setting up their local build environment. (RESOLVED)
+7.  **** - User requests instructions for local Android builds. (RESOLVED)
+8.  **** - User repeatedly asks for the status of ongoing EAS builds.
+9.  **** - User reports the critical empty home screen bug. (RESOLVED in v1.0.36)
+10. **** - User asks for the status of the latest build (v1.0.39).
+
+**Project Health Check:**
+*   **Broken:** The choir web login flow is non-functional after the initial authentication step.
+*   **Mocked:** Payment gateway integration has not been started.
+*   **At Risk:**
+    *   The monolithic backend () increases the risk of regression bugs.
+    *   The continuous playback feature on mobile may not be fully reliable and requires more testing.
+
+**3rd Party Integrations**
+*   **Bunny CDN**: Media storage.
+*   **FFmpeg**: Audio processing.
+*   **Google Cloud TTS**: Bible audio generation.
+*   **Expo Application Services (EAS)**: Mobile app cloud builds.
+*   **Emergent-managed Google Auth**: Used for Google login on the mobile app.
+*   **Planned**: Stripe, PayPal.
+
+**Testing status**
+*   Testing agent used after significant changes: NO
+*   Troubleshoot agent used after agent stuck in loop: NO
+*   Test files created: No
+*   Known regressions: None identified, but the choir login bug might be a regression.
+
+**Credentials to test flow:**
+*   **Choir Portal:**
+    *   **URL**: Use the  route on the preview URL.
+    *   **Email**: 
+    *   **Password**: 
+
+**What agent forgot to execute**
+The agent has been focused on the user's highest-priority requests. The following items from a recent large user request have not yet been implemented:
+*   **Bible Screen:** Testament → Book → Verse selection/search.
+*   **Churches Screen:** Displaying choirs and announcements.
+*   **Album Screen:** Download/Add All functionality.
+*   **Home Screen:** Implementing functional category filters.
+*   **Splash Screen:** Creating an animated splash screen.</analysis>
