@@ -5935,6 +5935,237 @@ async def get_user_library(request: Request):
         "downloads": user.get("downloads", [])
     }
 
+# ============== LIBRARY API ENDPOINTS (for Mobile App) ==============
+
+@api_router.get("/library/likes")
+async def get_liked_songs(request: Request):
+    """Get user's liked songs"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = await db.app_users.find_one({"user_id": token_doc["user_id"]})
+    if not user:
+        return {"songs": []}
+    
+    liked_song_ids = user.get("liked_songs", [])
+    if not liked_song_ids:
+        return {"songs": []}
+    
+    songs = await db.songs.find({"song_id": {"$in": liked_song_ids}}, {"_id": 0}).to_list(100)
+    return {"songs": songs}
+
+@api_router.post("/library/like/{song_id}")
+async def like_song(request: Request, song_id: str):
+    """Like a song"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    await db.app_users.update_one(
+        {"user_id": token_doc["user_id"]},
+        {"$addToSet": {"liked_songs": song_id}}
+    )
+    
+    # Update song like count
+    await db.songs.update_one(
+        {"song_id": song_id},
+        {"$inc": {"like_count": 1}}
+    )
+    
+    return {"message": "Song liked", "liked": True}
+
+@api_router.delete("/library/like/{song_id}")
+async def unlike_song(request: Request, song_id: str):
+    """Unlike a song"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    await db.app_users.update_one(
+        {"user_id": token_doc["user_id"]},
+        {"$pull": {"liked_songs": song_id}}
+    )
+    
+    # Update song like count
+    await db.songs.update_one(
+        {"song_id": song_id},
+        {"$inc": {"like_count": -1}}
+    )
+    
+    return {"message": "Song unliked", "liked": False}
+
+@api_router.get("/library/playlists")
+async def get_user_playlists(request: Request):
+    """Get user's playlists"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    playlists = await db.playlists.find(
+        {"user_id": token_doc["user_id"]},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Add song count to each playlist
+    for playlist in playlists:
+        playlist["song_count"] = len(playlist.get("songs", []))
+    
+    return {"playlists": playlists}
+
+@api_router.post("/library/playlists")
+async def create_library_playlist(request: Request, data: dict):
+    """Create a new playlist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    playlist = {
+        "playlist_id": f"pl_{uuid.uuid4().hex[:12]}",
+        "user_id": token_doc["user_id"],
+        "name": data.get("name", "My Playlist"),
+        "description": data.get("description", ""),
+        "thumbnail": data.get("thumbnail", ""),
+        "songs": [],
+        "song_count": 0,
+        "is_public": data.get("is_public", False),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.playlists.insert_one(playlist)
+    playlist.pop("_id", None)
+    
+    return {"playlist_id": playlist["playlist_id"], "playlist": playlist}
+
+@api_router.post("/library/playlists/{playlist_id}/songs/{song_id}")
+async def add_song_to_playlist(request: Request, playlist_id: str, song_id: str):
+    """Add a song to a playlist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Verify playlist belongs to user
+    playlist = await db.playlists.find_one({
+        "playlist_id": playlist_id,
+        "user_id": token_doc["user_id"]
+    })
+    
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    # Add song to playlist
+    result = await db.playlists.update_one(
+        {"playlist_id": playlist_id},
+        {
+            "$addToSet": {"songs": song_id},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    # Update song count
+    updated_playlist = await db.playlists.find_one({"playlist_id": playlist_id})
+    await db.playlists.update_one(
+        {"playlist_id": playlist_id},
+        {"$set": {"song_count": len(updated_playlist.get("songs", []))}}
+    )
+    
+    return {"message": "Song added to playlist"}
+
+@api_router.delete("/library/playlists/{playlist_id}/songs/{song_id}")
+async def remove_song_from_playlist(request: Request, playlist_id: str, song_id: str):
+    """Remove a song from a playlist"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Verify playlist belongs to user
+    playlist = await db.playlists.find_one({
+        "playlist_id": playlist_id,
+        "user_id": token_doc["user_id"]
+    })
+    
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    # Remove song from playlist
+    await db.playlists.update_one(
+        {"playlist_id": playlist_id},
+        {
+            "$pull": {"songs": song_id},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    # Update song count
+    updated_playlist = await db.playlists.find_one({"playlist_id": playlist_id})
+    await db.playlists.update_one(
+        {"playlist_id": playlist_id},
+        {"$set": {"song_count": len(updated_playlist.get("songs", []))}}
+    )
+    
+    return {"message": "Song removed from playlist"}
+
+@api_router.get("/library/history")
+async def get_listening_history(request: Request):
+    """Get user's listening history"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Get recent listening sessions
+    sessions = await db.listening_sessions.find(
+        {"user_id": token_doc["user_id"]},
+        {"_id": 0}
+    ).sort("started_at", -1).limit(50).to_list(50)
+    
+    # Get unique song IDs
+    song_ids = list(set(s.get("song_id") for s in sessions if s.get("song_id")))
+    
+    # Fetch songs
+    songs = await db.songs.find({"song_id": {"$in": song_ids}}, {"_id": 0}).to_list(100)
+    
+    return {"history": sessions, "songs": songs}
+
 @api_router.post("/user/playlist/create")
 async def create_playlist(request: Request, data: dict):
     """Create a new playlist"""
