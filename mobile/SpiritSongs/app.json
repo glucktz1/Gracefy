@@ -78,7 +78,9 @@
     ],
     "owner": "gracefy2",
     "extra": {
-      
+      "eas": {
+        "projectId": "2d80965b-83ee-46be-9e9d-7c0e5ed0ead0"
+      }
     }
   }
 }
