@@ -336,16 +336,16 @@ const NowPlayingScreen = ({ navigation }) => {
               <Ionicons name="share-social-outline" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.bottomIconBtn}>
+            <TouchableOpacity style={styles.bottomIconBtn} onPress={() => setShowQueueModal(true)}>
               <Ionicons name="list" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Explore Artist Section */}
+          {/* More Like This Section */}
           {currentTrack.artist_name && (
             <View style={styles.exploreSection}>
               <Text style={styles.exploreSectionTitle}>
-                Chunguza {currentTrack.artist_name}
+                Nyingine kama hii
               </Text>
               <ScrollView 
                 horizontal 
