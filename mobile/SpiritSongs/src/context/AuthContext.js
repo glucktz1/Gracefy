@@ -61,6 +61,10 @@ export const AuthProvider = ({ children }) => {
     if (userData?.user_id) {
       await SecureStore.setItemAsync('user_id', userData.user_id);
     }
+    // Store user data for offline access
+    if (userData) {
+      await SecureStore.setItemAsync('user_data', JSON.stringify(userData));
+    }
     setUser(userData);
     setIsAuthenticated(true);
   };
