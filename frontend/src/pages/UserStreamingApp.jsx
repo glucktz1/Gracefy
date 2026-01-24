@@ -2281,6 +2281,28 @@ export default function UserStreamingApp() {
     }
   };
 
+  const openSpecialMix = async (mix) => {
+    try {
+      // Fetch the special mix songs from the API
+      const res = await axios.get(`${API}/special-mixes/${mix.mix_id}/songs`);
+      const mixSongs = res.data.songs || [];
+      
+      // Create a virtual album from the mix
+      setSelectedAlbum({
+        album_id: mix.mix_id,
+        title: mix.title,
+        thumbnail: mix.thumbnail,
+        description: mix.description,
+        is_special_mix: true
+      });
+      setSelectedAlbumSongs(mixSongs);
+      setView('album');
+    } catch (e) {
+      console.error('Failed to load special mix:', e);
+      toast.error("Imeshindikana kupakia mix");
+    }
+  };
+
   const fetchLibrary = async () => {
     if (!token) {
       setShowAuth(true);
