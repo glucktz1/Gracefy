@@ -53,12 +53,18 @@ const LibraryScreen = ({ navigation }) => {
   const loadLibraryData = async () => {
     try {
       const [playlistsRes, likesRes] = await Promise.all([
-        libraryAPI.getPlaylists().catch(() => ({ data: [] })),
-        libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
+        libraryAPI.getPlaylists().catch(() => ({ data: { playlists: [] } })),
+        libraryAPI.getLikedSongs().catch(() => ({ data: { songs: [] } })),
       ]);
       
-      setPlaylists(playlistsRes.data || []);
-      setLikedSongs(likesRes.data?.songs || likesRes.data || []);
+      // Handle both response formats
+      const playlistsData = playlistsRes.data?.playlists || playlistsRes.data || [];
+      const likesData = likesRes.data?.songs || likesRes.data || [];
+      
+      console.log('Library data loaded:', { playlists: playlistsData.length, likes: likesData.length });
+      
+      setPlaylists(playlistsData);
+      setLikedSongs(likesData);
     } catch (error) {
       console.error('Error loading library:', error);
     } finally {
