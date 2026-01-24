@@ -29,6 +29,8 @@ export const AuthProvider = ({ children }) => {
           const response = await authAPI.getMe();
           setUser(response.data);
           setIsAuthenticated(true);
+          // Update cached user data
+          await SecureStore.setItemAsync('user_data', JSON.stringify(response.data));
         } catch (apiError) {
           console.log('Auth API check failed:', apiError?.response?.status);
           // Only clear token on explicit authentication errors (401)
@@ -36,14 +38,21 @@ export const AuthProvider = ({ children }) => {
           if (apiError?.response?.status === 401) {
             await SecureStore.deleteItemAsync('auth_token');
             await SecureStore.deleteItemAsync('user_id');
+            await SecureStore.deleteItemAsync('user_data');
             setUser(null);
             setIsAuthenticated(false);
           } else {
-            // Network error or server error - keep user logged in with stored data
-            const storedUserId = await SecureStore.getItemAsync('user_id');
-            if (storedUserId) {
-              setUser({ user_id: storedUserId });
+            // Network error or server error - use cached user data
+            const cachedUserData = await SecureStore.getItemAsync('user_data');
+            if (cachedUserData) {
+              setUser(JSON.parse(cachedUserData));
               setIsAuthenticated(true);
+            } else {
+              const storedUserId = await SecureStore.getItemAsync('user_id');
+              if (storedUserId) {
+                setUser({ user_id: storedUserId });
+                setIsAuthenticated(true);
+              }
             }
           }
         }
