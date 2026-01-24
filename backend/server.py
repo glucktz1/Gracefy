@@ -5406,7 +5406,7 @@ async def get_user_home():
             
             if content_type == "albums":
                 items = await db.albums.find(
-                    {"album_id": {"$in": section["content_ids"]}, "status": {"$ne": "deleted"}},
+                    {"album_id": {"$in": section["content_ids"]}, "status": "active"},
                     ALBUM_LIST_PROJECTION
                 ).to_list(50)
             elif content_type == "categories":
