@@ -10,11 +10,20 @@ import { getImageUrl } from '../services/api';
 const { width } = Dimensions.get('window');
 
 const MiniPlayer = ({ onPress }) => {
-  const { currentTrack, isPlaying, togglePlay, skipNext, position, duration } = usePlayer();
+  const { currentTrack, isPlaying, togglePlay, skipNext, position, duration, queue, queueIndex } = usePlayer();
 
   if (!currentTrack) return null;
 
   const progress = duration > 0 ? (position / duration) * 100 : 0;
+  
+  // Show "More like this" or queue info
+  const getSubtitle = () => {
+    if (queue.length > 1) {
+      const remaining = queue.length - queueIndex - 1;
+      return remaining > 0 ? `Zingine kama hizi • ${remaining} zaidi` : 'Zingine kama hizi';
+    }
+    return currentTrack.artist_name || 'Zingine kama hizi';
+  };
 
   return (
     <TouchableOpacity 
@@ -44,7 +53,7 @@ const MiniPlayer = ({ onPress }) => {
               {currentTrack.title}
             </Text>
             <Text style={styles.trackArtist} numberOfLines={1}>
-              {currentTrack.artist_name}
+              {getSubtitle()}
             </Text>
           </View>
 
@@ -82,10 +91,7 @@ const MiniPlayer = ({ onPress }) => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 80, // Above tab bar
-    left: SPACING.sm,
-    right: SPACING.sm,
+    marginHorizontal: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     elevation: 10,
