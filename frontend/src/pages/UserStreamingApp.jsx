@@ -2790,7 +2790,7 @@ export default function UserStreamingApp() {
                                 </div>
                               </div>
                               <h3 className="font-medium text-sm truncate">{mix.title}</h3>
-                              <p className="text-xs text-zinc-400">{mix.songs?.length || 0} nyimbo</p>
+                              <p className="text-xs text-zinc-400">{mix.song_count || mix.songs?.length || 0} nyimbo</p>
                             </div>
                           ))}
                         </div>
