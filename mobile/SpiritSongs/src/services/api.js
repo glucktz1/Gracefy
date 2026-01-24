@@ -83,7 +83,7 @@ export const authAPI = {
   googleCallback: (sessionId) => api.post('/user/auth/google-callback', { session_id: sessionId }),
   
   // Session
-  getMe: () => api.get('/user/auth/me'),
+  getMe: () => api.get('/user/me'),
   logout: () => api.post('/auth/logout'),
 };
 
