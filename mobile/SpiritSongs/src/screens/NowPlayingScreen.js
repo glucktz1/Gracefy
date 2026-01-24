@@ -22,7 +22,7 @@ import * as FileSystem from 'expo-file-system';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
-import { getImageUrl, contentAPI } from '../services/api';
+import { getImageUrl, getAudioUrl, contentAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
 
 const { width, height } = Dimensions.get('window');
