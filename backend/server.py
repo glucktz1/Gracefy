@@ -7215,7 +7215,10 @@ async def create_withdrawal_request(data: dict, request: Request):
     if not session:
         raise HTTPException(status_code=401, detail="Invalid session")
     
+    # Try to find account by account_id first, then by choir_id
     account = await db.choir_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0})
+    if not account:
+        account = await db.choir_accounts.find_one({"choir_id": session["account_id"]}, {"_id": 0})
     if not account:
         raise HTTPException(status_code=401, detail="Account not found")
     
