@@ -108,6 +108,7 @@ export const contentAPI = {
   getSpecialMix: (id) => api.get(`/special-mixes/${id}`),
   getSpecialMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
   search: (query) => api.get(`/search?q=${encodeURIComponent(query)}`),
+  getSongDownloadUrl: (songId) => api.get(`/songs/${songId}/download`),
 };
 
 // ============ LIBRARY API ============
