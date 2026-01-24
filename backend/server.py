@@ -6079,18 +6079,21 @@ async def get_choir_profile(request: Request):
     if not session:
         raise HTTPException(status_code=401, detail="Invalid session")
     
+    # Try to find account by account_id first, then by choir_id (for self-registered accounts)
     account = await db.choir_accounts.find_one({"account_id": session["account_id"]}, {"_id": 0})
+    if not account:
+        account = await db.choir_accounts.find_one({"choir_id": session["account_id"]}, {"_id": 0})
     if not account:
         raise HTTPException(status_code=401, detail="Account not found")
     
     return {
-        "choir_id": account["choir_id"],
-        "choir_name": account["choir_name"],
-        "email": account["email"],
-        "current_balance": account["current_balance"],
-        "total_earned": account["total_earned"],
-        "total_withdrawn": account["total_withdrawn"],
-        "status": account["status"]
+        "choir_id": account.get("choir_id"),
+        "choir_name": account.get("choir_name") or account.get("name"),
+        "email": account.get("email"),
+        "current_balance": account.get("current_balance", 0),
+        "total_earned": account.get("total_earned", 0),
+        "total_withdrawn": account.get("total_withdrawn", 0),
+        "status": account.get("status")
     }
 
 @api_router.post("/choir/logout")
