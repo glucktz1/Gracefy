@@ -140,20 +140,38 @@ const NowPlayingScreen = ({ navigation }) => {
       setIsDownloading(true);
       setDownloadProgress(0);
 
-      // Get the audio URL - make sure it's a full URL
-      let fileUrl = currentTrack.audio_url || currentTrack.file_url;
-      if (!fileUrl) {
-        Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
-        setIsDownloading(false);
-        return;
+      let fileUrl = null;
+      let fileName = `${currentTrack.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
+
+      // Try to get download URL from API first
+      if (currentTrack.song_id) {
+        try {
+          const response = await contentAPI.getSongDownloadUrl(currentTrack.song_id);
+          if (response.data?.download_url) {
+            fileUrl = getAudioUrl(response.data.download_url);
+            if (response.data.filename) {
+              fileName = response.data.filename;
+            }
+            console.log('Got download URL from API:', fileUrl);
+          }
+        } catch (e) {
+          console.log('Could not get download URL from API, using track URL');
+        }
       }
 
-      // Convert to full URL if it's a relative path
-      fileUrl = getAudioUrl(fileUrl);
-      
+      // Fallback to track's audio_url
+      if (!fileUrl) {
+        fileUrl = currentTrack.audio_url || currentTrack.file_url;
+        if (!fileUrl) {
+          Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa - hakuna faili');
+          setIsDownloading(false);
+          return;
+        }
+        fileUrl = getAudioUrl(fileUrl);
+      }
+
       console.log('Downloading from:', fileUrl);
 
-      const fileName = `${currentTrack.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
       const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
 
       // Create downloads directory
@@ -163,7 +181,11 @@ const NowPlayingScreen = ({ navigation }) => {
       const downloadResumable = FileSystem.createDownloadResumable(
         fileUrl,
         downloadPath,
-        {},
+        {
+          headers: {
+            'Accept': 'audio/mpeg, audio/*, */*',
+          }
+        },
         (downloadProgress) => {
           if (downloadProgress.totalBytesExpectedToWrite > 0) {
             const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
@@ -177,10 +199,15 @@ const NowPlayingScreen = ({ navigation }) => {
       if (result?.uri) {
         // Verify file was downloaded
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        if (fileInfo.exists && fileInfo.size > 0) {
+        console.log('Download result:', { uri: result.uri, size: fileInfo.size, exists: fileInfo.exists });
+        
+        if (fileInfo.exists && fileInfo.size > 1000) {  // At least 1KB
           Alert.alert('Imefanikiwa! ✓', `"${currentTrack.title}" imehifadhiwa kwenye simu yako`);
+        } else if (fileInfo.exists && fileInfo.size > 0) {
+          // File exists but might be small - could be an error response
+          Alert.alert('Onyo', 'Faili imehifadhiwa lakini inaweza kuwa na tatizo. Jaribu tena.');
         } else {
-          throw new Error('Downloaded file is empty');
+          throw new Error('Downloaded file is empty or too small');
         }
       } else {
         throw new Error('Download failed - no URI returned');
