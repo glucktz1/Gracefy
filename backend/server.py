@@ -6736,8 +6736,8 @@ async def get_choir_revenue(choir_id: str):
             "gross_revenue": round(gross, 2),
             "platform_share": round(platform_share, 2),
             "net_revenue": round(net, 2),
-            "current_balance": account["current_balance"] if account else 0,
-            "total_withdrawn": account["total_withdrawn"] if account else 0
+            "current_balance": account.get("current_balance", 0) if account else 0,
+            "total_withdrawn": account.get("total_withdrawn", 0) if account else 0
         },
         "rates": {
             "premium_rate": settings["premium_rate_per_hour"],
