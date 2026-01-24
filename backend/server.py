@@ -2063,7 +2063,8 @@ async def get_album(album_id: str):
     album = await db.albums.find_one({"album_id": album_id}, {"_id": 0})
     if not album:
         raise HTTPException(status_code=404, detail="Album not found")
-    songs = await db.songs.find({"album_id": album_id}, {"_id": 0}).to_list(100)
+    # Only return active songs for user-facing API
+    songs = await db.songs.find({"album_id": album_id, "status": "active"}, {"_id": 0}).to_list(100)
     return {"album": album, "songs": songs}
 
 @api_router.post("/albums")
