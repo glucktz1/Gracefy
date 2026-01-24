@@ -642,6 +642,86 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: COLORS.card,
   },
+  // Queue Modal Styles
+  queueModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  queueModalContent: {
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 40,
+  },
+  queueModalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.textMuted,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: SPACING.md,
+  },
+  queueModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  queueModalTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  queueList: {
+    padding: SPACING.sm,
+  },
+  queueItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.xs,
+  },
+  queueItemActive: {
+    backgroundColor: 'rgba(29, 185, 84, 0.15)',
+  },
+  queueItemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.card,
+  },
+  queueItemInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  queueItemTitle: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  queueItemTitleActive: {
+    color: COLORS.primary,
+  },
+  queueItemArtist: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  queueEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xxl,
+  },
+  queueEmptyText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+  },
 });
 
 export default NowPlayingScreen;
