@@ -25,13 +25,32 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = await SecureStore.getItemAsync('auth_token');
       if (token) {
-        const response = await authAPI.getMe();
-        setUser(response.data);
-        setIsAuthenticated(true);
+        try {
+          const response = await authAPI.getMe();
+          setUser(response.data);
+          setIsAuthenticated(true);
+        } catch (apiError) {
+          console.log('Auth API check failed:', apiError?.response?.status);
+          // Only clear token on explicit authentication errors (401)
+          // Keep token on network errors so user stays logged in offline
+          if (apiError?.response?.status === 401) {
+            await SecureStore.deleteItemAsync('auth_token');
+            await SecureStore.deleteItemAsync('user_id');
+            setUser(null);
+            setIsAuthenticated(false);
+          } else {
+            // Network error or server error - keep user logged in with stored data
+            const storedUserId = await SecureStore.getItemAsync('user_id');
+            if (storedUserId) {
+              setUser({ user_id: storedUserId });
+              setIsAuthenticated(true);
+            }
+          }
+        }
       }
     } catch (e) {
-      console.log('Auth check failed:', e);
-      await SecureStore.deleteItemAsync('auth_token');
+      console.log('Auth check error:', e);
+      // Error reading from SecureStore - don't modify auth state
     } finally {
       setIsLoading(false);
     }
