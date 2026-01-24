@@ -2724,8 +2724,11 @@ export default function UserStreamingApp() {
                   const isChoirSection = section.content_type === 'choirs' || 
                     section.section_type === 'choirs' ||
                     (items[0] && items[0].choir_id);
+                  const isSpecialMixSection = section.content_type === 'special_mixes' || 
+                    section.section_type === 'special_mixes' ||
+                    (items[0] && items[0].mix_id);
                   const isAlbumSection = section.content_type === 'albums' || 
-                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection);
+                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection && !isSpecialMixSection);
 
                   // Alternate layouts for variety
                   const layoutType = idx % 4;
@@ -2737,6 +2740,39 @@ export default function UserStreamingApp() {
                         subtitle={section.description}
                         onSeeMore={items.length > 5 ? () => {} : null}
                       />
+
+                      {/* Special Mixes Section */}
+                      {isSpecialMixSection && (
+                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                          {items.slice(0, 10).map(mix => (
+                            <div
+                              key={mix.mix_id}
+                              className="flex-shrink-0 w-40 cursor-pointer group"
+                              onClick={() => openSpecialMix && openSpecialMix(mix)}
+                            >
+                              <div className="relative aspect-square rounded-xl overflow-hidden mb-2 bg-gradient-to-br from-purple-600 to-pink-500">
+                                {mix.thumbnail ? (
+                                  <img 
+                                    src={mix.thumbnail} 
+                                    alt={mix.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Music className="w-12 h-12 text-white/60" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
+                                <div className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                  <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                </div>
+                              </div>
+                              <h3 className="font-medium text-sm truncate">{mix.title}</h3>
+                              <p className="text-xs text-zinc-400">{mix.songs?.length || 0} nyimbo</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Churches Section */}
                       {isChurchSection && (
