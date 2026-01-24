@@ -386,7 +386,8 @@ const AddToPlaylistModal = ({
   };
 
   const requestStoragePermission = async () => {
-    if (Platform.OS === 'android') {
+    // For Android 10+ (API 29+), we don't need WRITE_EXTERNAL_STORAGE
+    if (Platform.OS === 'android' && Platform.Version < 29) {
       try {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
@@ -418,7 +419,7 @@ const AddToPlaylistModal = ({
 
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako.');
+      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako katika Settings.');
       return;
     }
 
