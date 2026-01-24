@@ -87,7 +87,7 @@ export default function AlbumsPage() {
   const fetchAlbums = useCallback(async () => {
     try {
       const [albumsRes, categoriesRes, singersRes, songCategoriesRes] = await Promise.all([
-        axios.get(`${API}/albums`, { withCredentials: true }),
+        axios.get(`${API}/albums?include_inactive=true&limit=500`, { withCredentials: true }),
         axios.get(`${API}/categories`, { withCredentials: true }),
         axios.get(`${API}/singers`, { withCredentials: true }),
         axios.get(`${API}/song-categories`, { withCredentials: true })
