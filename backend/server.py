@@ -10843,6 +10843,91 @@ async def reject_song_submission(submission_id: str, data: dict):
 
 # ============== USER GOOGLE AUTH ==============
 
+@api_router.get("/user/auth/google-callback")
+async def user_google_callback_get(request: Request, session_id: str = None):
+    """Handle Google OAuth GET callback redirect - returns HTML that triggers deep link"""
+    from fastapi.responses import HTMLResponse
+    
+    if not session_id:
+        return HTMLResponse(content="""
+        <html><body style="background:#1a1a2e;color:white;font-family:sans-serif;text-align:center;padding:50px;">
+        <h2>❌ Error</h2><p>Session ID missing. Please try again.</p>
+        </body></html>
+        """, status_code=400)
+    
+    # Return HTML page that opens the mobile app via deep link
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Gracefy - Redirecting...</title>
+        <style>
+            body {{
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                color: white;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+                box-sizing: border-box;
+            }}
+            .container {{
+                text-align: center;
+                max-width: 400px;
+            }}
+            h1 {{ color: #4ade80; margin-bottom: 10px; }}
+            p {{ color: #94a3b8; margin: 10px 0; }}
+            .spinner {{
+                width: 50px;
+                height: 50px;
+                border: 4px solid rgba(255,255,255,0.1);
+                border-top: 4px solid #4ade80;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 20px auto;
+            }}
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+            .btn {{
+                background: #4ade80;
+                color: #1a1a2e;
+                padding: 15px 30px;
+                border-radius: 25px;
+                text-decoration: none;
+                font-weight: bold;
+                display: inline-block;
+                margin-top: 20px;
+            }}
+            .manual {{ font-size: 12px; margin-top: 30px; color: #64748b; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>✅ Umefanikiwa!</h1>
+            <p>Unarudi kwenye Gracefy app...</p>
+            <div class="spinner"></div>
+            <a href="gracefy://auth?session_id={session_id}" class="btn">Fungua App</a>
+            <p class="manual">Kama app haifunguki moja kwa moja, bonyeza kitufe hapo juu.</p>
+        </div>
+        <script>
+            // Auto-redirect to app after short delay
+            setTimeout(function() {{
+                window.location.href = "gracefy://auth?session_id={session_id}";
+            }}, 1000);
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
 @api_router.post("/user/auth/google-callback")
 async def user_google_callback(request: Request, response: Response):
     """Handle Google OAuth callback for user app (PWA/Mobile)"""
