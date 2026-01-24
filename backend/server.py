@@ -5496,11 +5496,14 @@ async def get_user_home():
         elif section["section_type"] == "special_mixes":
             mixes = await db.special_mixes.find(
                 {"status": "active"},
-                {"_id": 0, "songs": 0}  # Exclude large songs array
+                {"_id": 0}
             ).sort("created_at", -1).limit(section.get("content_count", 10)).to_list(10)
             for mix in mixes:
                 mix["album_id"] = mix["mix_id"]
                 mix["is_special_mix"] = True
+                # Add song count and keep songs array for display
+                songs_list = mix.get("songs", [])
+                mix["song_count"] = len(songs_list)
             mixes = optimize_thumbnails(mixes)
             section_data["items"] = mixes
             section_data["content_type"] = "special_mixes"
