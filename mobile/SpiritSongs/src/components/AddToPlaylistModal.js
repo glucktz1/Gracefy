@@ -309,9 +309,13 @@ const AddToPlaylistModal = ({
     try {
       setLoading(true);
       const response = await libraryAPI.getPlaylists();
-      setPlaylists(response.data || []);
+      // Handle both response formats
+      const playlistsData = response.data?.playlists || response.data || [];
+      console.log('Loaded playlists:', playlistsData.length);
+      setPlaylists(playlistsData);
     } catch (error) {
       console.error('Error loading playlists:', error);
+      setPlaylists([]);
     } finally {
       setLoading(false);
     }
