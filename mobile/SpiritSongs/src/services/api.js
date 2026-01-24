@@ -33,15 +33,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Only clear auth on 401 for authenticated endpoints (user-specific)
-    // Don't clear on public endpoint 401s which might just mean stale token
-    const isAuthEndpoint = error.config?.url?.includes('/user/auth/') || 
-                           error.config?.url?.includes('/library/');
-    if (error.response?.status === 401 && isAuthEndpoint) {
-      console.log('Auth token expired, clearing...');
-      await SecureStore.deleteItemAsync('auth_token');
-      await SecureStore.deleteItemAsync('user_id');
-    }
+    // Don't clear auth in interceptor - let AuthContext handle it
+    // This prevents race conditions and ensures proper state management
+    console.log('API Error:', error.config?.url, error.response?.status);
     return Promise.reject(error);
   }
 );
