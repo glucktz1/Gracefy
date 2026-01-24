@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,62 +21,440 @@ import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 
 const LoginScreen = ({ navigation }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'phone', 'forgot', 'otp'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
   const { login } = useAuth();
 
-  const handleSubmit = async () => {
+  const handleEmailLogin = async () => {
     if (!email || !password) {
       Alert.alert('Kosa', 'Tafadhali jaza email na password');
       return;
     }
 
-    if (!isLogin && !name) {
-      Alert.alert('Kosa', 'Tafadhali jaza jina lako');
-      return;
-    }
-
     try {
       setLoading(true);
-
-      if (isLogin) {
-        // Login
-        const response = await authAPI.login(email, password);
-        if (response.data?.token) {
-          await login(response.data.token, response.data.user);
-          Alert.alert('Karibu!', 'Umefanikiwa kuingia', [
-            { text: 'Sawa', onPress: () => navigation.goBack() }
-          ]);
-        }
-      } else {
-        // Register
-        const response = await authAPI.register({
-          email,
-          password,
-          name,
-          phone,
-        });
-        if (response.data?.token) {
-          await login(response.data.token, response.data.user);
-          Alert.alert('Karibu!', 'Akaunti yako imeundwa', [
-            { text: 'Sawa', onPress: () => navigation.goBack() }
-          ]);
-        }
+      const response = await authAPI.login(email, password);
+      if (response.data?.token) {
+        await login(response.data.token, response.data.user);
+        Alert.alert('Karibu!', 'Umefanikiwa kuingia', [
+          { text: 'Sawa', onPress: () => navigation.goBack() }
+        ]);
       }
     } catch (error) {
-      console.error('Auth error:', error);
-      const message = error.response?.data?.detail || 'Imeshindikana. Tafadhali jaribu tena.';
+      console.error('Login error:', error);
+      const message = error.response?.data?.detail || 'Email au password si sahihi';
       Alert.alert('Kosa', message);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleRegister = async () => {
+    if (!email || !password || !name) {
+      Alert.alert('Kosa', 'Tafadhali jaza taarifa zote zinazohitajika');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Kosa', 'Password hazifanani');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Kosa', 'Password iwe na herufi 6 au zaidi');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await authAPI.register({
+        email,
+        password,
+        name,
+        phone,
+      });
+      if (response.data?.token) {
+        await login(response.data.token, response.data.user);
+        Alert.alert('Karibu!', 'Akaunti yako imeundwa', [
+          { text: 'Sawa', onPress: () => navigation.goBack() }
+        ]);
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      const message = error.response?.data?.detail || 'Imeshindikana kuunda akaunti';
+      Alert.alert('Kosa', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOTP = async () => {
+    if (!phone || phone.length < 10) {
+      Alert.alert('Kosa', 'Tafadhali weka nambari ya simu sahihi');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await authAPI.sendOTP(phone);
+      setOtpSent(true);
+      setAuthMode('otp');
+      Alert.alert('Imefanikiwa', 'Nambari ya OTP imetumwa kwenye simu yako');
+    } catch (error) {
+      console.error('OTP error:', error);
+      Alert.alert('Kosa', 'Imeshindikana kutuma OTP. Jaribu tena.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length < 4) {
+      Alert.alert('Kosa', 'Tafadhali weka nambari ya OTP');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await authAPI.verifyOTP(phone, otp);
+      if (response.data?.token) {
+        await login(response.data.token, response.data.user);
+        Alert.alert('Karibu!', 'Umefanikiwa kuingia', [
+          { text: 'Sawa', onPress: () => navigation.goBack() }
+        ]);
+      }
+    } catch (error) {
+      console.error('OTP verify error:', error);
+      Alert.alert('Kosa', 'OTP si sahihi. Jaribu tena.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Kosa', 'Tafadhali weka email yako');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await authAPI.forgotPassword?.(email) || Alert.alert('Kosa', 'Huduma haijapatikana');
+      Alert.alert('Imefanikiwa', 'Maelekezo ya kubadilisha password yametumwa kwenye email yako');
+      setAuthMode('login');
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      Alert.alert('Kosa', 'Imeshindikana. Hakikisha email ni sahihi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePartnerWithUs = () => {
+    // Open partner registration page or email
+    Linking.openURL('mailto:partners@gracefy.com?subject=Partnership%20Inquiry');
+  };
+
+  const renderLoginForm = () => (
+    <>
+      <View style={styles.inputContainer}>
+        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={COLORS.textMuted}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor={COLORS.textMuted}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <Ionicons 
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+            size={20} 
+            color={COLORS.textSecondary} 
+          />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.forgotPassword}
+        onPress={() => setAuthMode('forgot')}
+      >
+        <Text style={styles.forgotPasswordText}>Umesahau password?</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+        onPress={handleEmailLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.background} />
+        ) : (
+          <Text style={styles.submitButtonText}>Ingia</Text>
+        )}
+      </TouchableOpacity>
+
+      {/* Phone Login Option */}
+      <TouchableOpacity
+        style={styles.phoneLoginButton}
+        onPress={() => setAuthMode('phone')}
+      >
+        <Ionicons name="phone-portrait-outline" size={20} color={COLORS.primary} />
+        <Text style={styles.phoneLoginText}>Ingia kwa nambari ya simu</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderRegisterForm = () => (
+    <>
+      <View style={styles.inputContainer}>
+        <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Jina lako kamili"
+          placeholderTextColor={COLORS.textMuted}
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={COLORS.textMuted}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Nambari ya simu (si lazima)"
+          placeholderTextColor={COLORS.textMuted}
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor={COLORS.textMuted}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Rudia Password"
+          placeholderTextColor={COLORS.textMuted}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <Ionicons 
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+            size={20} 
+            color={COLORS.textSecondary} 
+          />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+        onPress={handleRegister}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.background} />
+        ) : (
+          <Text style={styles.submitButtonText}>Jisajili</Text>
+        )}
+      </TouchableOpacity>
+
+      {/* Phone Registration Option */}
+      <TouchableOpacity
+        style={styles.phoneLoginButton}
+        onPress={() => setAuthMode('phone')}
+      >
+        <Ionicons name="phone-portrait-outline" size={20} color={COLORS.primary} />
+        <Text style={styles.phoneLoginText}>Jisajili kwa nambari ya simu</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderPhoneForm = () => (
+    <>
+      <Text style={styles.phoneTitle}>Ingia kwa Nambari ya Simu</Text>
+      <Text style={styles.phoneSubtitle}>
+        Tutakutumia nambari ya OTP kwenye simu yako
+      </Text>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <Text style={styles.phonePrefix}>+255</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="712 345 678"
+          placeholderTextColor={COLORS.textMuted}
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          maxLength={10}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+        onPress={handleSendOTP}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.background} />
+        ) : (
+          <Text style={styles.submitButtonText}>Tuma OTP</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.backToEmailButton}
+        onPress={() => setAuthMode('login')}
+      >
+        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+        <Text style={styles.backToEmailText}>Rudi kwa email</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderOTPForm = () => (
+    <>
+      <Text style={styles.phoneTitle}>Weka OTP</Text>
+      <Text style={styles.phoneSubtitle}>
+        Weka nambari iliyotumwa kwenye {phone}
+      </Text>
+
+      <View style={styles.otpContainer}>
+        <TextInput
+          style={styles.otpInput}
+          placeholder="• • • • • •"
+          placeholderTextColor={COLORS.textMuted}
+          value={otp}
+          onChangeText={setOtp}
+          keyboardType="number-pad"
+          maxLength={6}
+          textAlign="center"
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+        onPress={handleVerifyOTP}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.background} />
+        ) : (
+          <Text style={styles.submitButtonText}>Thibitisha</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.resendButton}
+        onPress={handleSendOTP}
+        disabled={loading}
+      >
+        <Text style={styles.resendText}>Haukupata? Tuma tena</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.backToEmailButton}
+        onPress={() => { setAuthMode('phone'); setOtpSent(false); }}
+      >
+        <Ionicons name="arrow-back" size={20} color={COLORS.textSecondary} />
+        <Text style={styles.backToEmailText}>Badilisha nambari</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderForgotPasswordForm = () => (
+    <>
+      <Text style={styles.phoneTitle}>Umesahau Password?</Text>
+      <Text style={styles.phoneSubtitle}>
+        Weka email yako na tutakutumia maelekezo ya kubadilisha password
+      </Text>
+
+      <View style={styles.inputContainer}>
+        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={COLORS.textMuted}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+        onPress={handleForgotPassword}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={COLORS.background} />
+        ) : (
+          <Text style={styles.submitButtonText}>Tuma Maelekezo</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.backToEmailButton}
+        onPress={() => setAuthMode('login')}
+      >
+        <Ionicons name="arrow-back" size={20} color={COLORS.textSecondary} />
+        <Text style={styles.backToEmailText}>Rudi kuingia</Text>
+      </TouchableOpacity>
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -106,121 +485,62 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.logoSubtext}>Muziki wa Kikristo</Text>
           </View>
 
-          {/* Tab Switcher */}
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[styles.tab, isLogin && styles.tabActive]}
-              onPress={() => setIsLogin(true)}
-            >
-              <Text style={[styles.tabText, isLogin && styles.tabTextActive]}>Ingia</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, !isLogin && styles.tabActive]}
-              onPress={() => setIsLogin(false)}
-            >
-              <Text style={[styles.tabText, !isLogin && styles.tabTextActive]}>Jisajili</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Tab Switcher - Only show for login/register */}
+          {(authMode === 'login' || authMode === 'register') && (
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tab, authMode === 'login' && styles.tabActive]}
+                onPress={() => setAuthMode('login')}
+              >
+                <Text style={[styles.tabText, authMode === 'login' && styles.tabTextActive]}>Ingia</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, authMode === 'register' && styles.tabActive]}
+                onPress={() => setAuthMode('register')}
+              >
+                <Text style={[styles.tabText, authMode === 'register' && styles.tabTextActive]}>Jisajili</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Form */}
           <View style={styles.form}>
-            {!isLogin && (
-              <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Jina lako"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={COLORS.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            {!isLogin && (
-              <View style={styles.inputContainer}>
-                <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nambari ya simu (si lazima)"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons 
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-                  size={20} 
-                  color={COLORS.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
-
-            {isLogin && (
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Umesahau password?</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.background} />
-              ) : (
-                <Text style={styles.submitButtonText}>
-                  {isLogin ? 'Ingia' : 'Jisajili'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Social Login */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>au</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity style={styles.socialButton}>
-              <Ionicons name="logo-google" size={24} color={COLORS.text} />
-              <Text style={styles.socialButtonText}>Endelea na Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.socialButton}>
-              <Ionicons name="logo-apple" size={24} color={COLORS.text} />
-              <Text style={styles.socialButtonText}>Endelea na Apple</Text>
-            </TouchableOpacity>
+            {authMode === 'login' && renderLoginForm()}
+            {authMode === 'register' && renderRegisterForm()}
+            {authMode === 'phone' && renderPhoneForm()}
+            {authMode === 'otp' && renderOTPForm()}
+            {authMode === 'forgot' && renderForgotPasswordForm()}
           </View>
+
+          {/* Social Login - Only show for login/register */}
+          {(authMode === 'login' || authMode === 'register') && (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>au</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <TouchableOpacity style={styles.socialButton}>
+                <Ionicons name="logo-google" size={24} color={COLORS.text} />
+                <Text style={styles.socialButtonText}>Endelea na Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.socialButton}>
+                <Ionicons name="logo-apple" size={24} color={COLORS.text} />
+                <Text style={styles.socialButtonText}>Endelea na Apple</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Partner With Us */}
+          <TouchableOpacity 
+            style={styles.partnerButton}
+            onPress={handlePartnerWithUs}
+          >
+            <Ionicons name="people-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.partnerText}>Shiriki nasi kama msanii au kanisa</Text>
+          </TouchableOpacity>
 
           {/* Terms */}
           <Text style={styles.terms}>
@@ -303,7 +623,21 @@ const styles = StyleSheet.create({
     color: COLORS.background,
   },
   form: {
+    marginBottom: SPACING.lg,
+  },
+  phoneTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  phoneSubtitle: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
     marginBottom: SPACING.xl,
+    lineHeight: 22,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -318,11 +652,30 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginRight: SPACING.sm,
   },
+  phonePrefix: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    marginRight: SPACING.xs,
+  },
   input: {
     flex: 1,
     height: 52,
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
+  },
+  otpContainer: {
+    marginBottom: SPACING.lg,
+  },
+  otpInput: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    height: 60,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    letterSpacing: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -347,10 +700,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.background,
   },
+  phoneLoginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  phoneLoginText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.primary,
+    marginLeft: SPACING.sm,
+  },
+  backToEmailButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  backToEmailText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.sm,
+  },
+  resendButton: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  resendText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.primary,
+  },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: SPACING.xl,
+    marginVertical: SPACING.lg,
   },
   dividerLine: {
     flex: 1,
@@ -379,11 +764,26 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginLeft: SPACING.sm,
   },
+  partnerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.lg,
+    marginTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  partnerText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.primary,
+    marginLeft: SPACING.sm,
+  },
   terms: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
+    marginTop: SPACING.lg,
   },
   termsLink: {
     color: COLORS.primary,
