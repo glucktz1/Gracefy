@@ -103,7 +103,8 @@ export const SongActionsModal = ({
   };
 
   const requestStoragePermission = async () => {
-    if (Platform.OS === 'android') {
+    // For Android 10+ (API 29+), we don't need WRITE_EXTERNAL_STORAGE
+    if (Platform.OS === 'android' && Platform.Version < 29) {
       try {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
@@ -136,7 +137,7 @@ export const SongActionsModal = ({
 
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako.');
+      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako katika Settings.');
       return;
     }
 
@@ -153,7 +154,7 @@ export const SongActionsModal = ({
           if (response.data?.download_url) {
             fileUrl = getAudioUrl(response.data.download_url);
             if (response.data.filename) {
-              fileName = response.data.filename;
+              fileName = response.data.filename.replace(/[^a-zA-Z0-9.]/g, '_');
             }
           }
         } catch (e) {
@@ -174,8 +175,14 @@ export const SongActionsModal = ({
 
       console.log('Downloading from:', fileUrl);
 
-      const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}downloads/`, { intermediates: true });
+      // Use app's document directory
+      const downloadDir = `${FileSystem.documentDirectory}downloads/`;
+      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+      }
+
+      const downloadPath = `${downloadDir}${fileName}`;
 
       const result = await FileSystem.downloadAsync(fileUrl, downloadPath, {
         headers: { 'Accept': 'audio/mpeg, audio/*, */*' }
