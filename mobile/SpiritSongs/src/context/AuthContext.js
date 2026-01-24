@@ -77,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     }
     await SecureStore.deleteItemAsync('auth_token');
     await SecureStore.deleteItemAsync('user_id');
+    await SecureStore.deleteItemAsync('user_data');
     setUser(null);
     setIsAuthenticated(false);
   };
