@@ -423,31 +423,61 @@ const AddToPlaylistModal = ({
 
     try {
       setDownloading(true);
-      let fileUrl = song?.audio_url || song?.file_url;
       
-      if (!fileUrl) {
-        Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
-        setDownloading(false);
-        return;
+      let fileUrl = null;
+      let fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
+
+      // Try to get download URL from API first
+      if (song?.song_id) {
+        try {
+          const response = await contentAPI.getSongDownloadUrl(song.song_id);
+          if (response.data?.download_url) {
+            fileUrl = getAudioUrl(response.data.download_url);
+            if (response.data.filename) {
+              fileName = response.data.filename;
+            }
+          }
+        } catch (e) {
+          console.log('Could not get download URL from API');
+        }
       }
 
-      // Convert to full URL if needed
-      fileUrl = getAudioUrl(fileUrl);
+      // Fallback to song's audio_url
+      if (!fileUrl) {
+        fileUrl = song?.audio_url || song?.file_url;
+        if (!fileUrl) {
+          Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
+          setDownloading(false);
+          return;
+        }
+        fileUrl = getAudioUrl(fileUrl);
+      }
+
       console.log('Downloading from:', fileUrl);
 
-      const fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
       const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
-
       await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}downloads/`, { intermediates: true });
 
-      const result = await FileSystem.downloadAsync(fileUrl, downloadPath);
+      const result = await FileSystem.downloadAsync(fileUrl, downloadPath, {
+        headers: { 'Accept': 'audio/mpeg, audio/*, */*' }
+      });
       
       if (result?.uri) {
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        if (fileInfo.exists && fileInfo.size > 0) {
+        if (fileInfo.exists && fileInfo.size > 1000) {
           Alert.alert('Imefanikiwa! ✓', `"${song.title}" imehifadhiwa`);
         } else {
-          throw new Error('Downloaded file is empty');
+          throw new Error('Downloaded file is empty or too small');
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena'}`);
+    } finally {
+      setDownloading(false);
+      onClose();
+    }
+  };
         }
       }
     } catch (error) {
