@@ -478,16 +478,6 @@ const AddToPlaylistModal = ({
       onClose();
     }
   };
-        }
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena'}`);
-    } finally {
-      setDownloading(false);
-      onClose();
-    }
-  };
 
   // Not logged in view
   if (!isAuthenticated) {
