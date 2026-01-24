@@ -43,8 +43,15 @@ api.interceptors.response.use(
 // Helper to get full audio URL
 export const getAudioUrl = (path) => {
   if (!path) return null;
+  // Already a full URL (CDN or external)
   if (path.startsWith('http')) return path;
-  return `${API_BASE_URL.replace('/api', '')}${path}`;
+  // Internal file URL - needs full backend URL
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  // If path starts with /api, use it directly, otherwise add /api prefix
+  if (path.startsWith('/api/')) {
+    return `${baseUrl}${path}`;
+  }
+  return `${baseUrl}/api${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 // Helper to get full image URL
