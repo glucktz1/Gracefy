@@ -19,6 +19,8 @@ import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import AlbumScreen from './src/screens/AlbumScreen';
 import BibleScreen from './src/screens/BibleScreen';
 import ChurchesScreen from './src/screens/ChurchesScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
