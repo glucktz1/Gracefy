@@ -57,8 +57,12 @@ export const getImageUrl = (path) => {
 
 // ============ AUTH API ============
 export const authAPI = {
+  login: (email, password) => api.post('/auth/login', { email, password }),
+  register: (data) => api.post('/auth/register', data),
   sendOTP: (phone) => api.post('/auth/send-otp', { phone }),
   verifyOTP: (phone, otp) => api.post('/auth/verify-otp', { phone, otp }),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
   getMe: () => api.get('/user/auth/me'),
   logout: () => api.post('/auth/logout'),
 };
