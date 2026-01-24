@@ -57,12 +57,26 @@ export const getImageUrl = (path) => {
 
 // ============ AUTH API ============
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (data) => api.post('/auth/register', data),
+  // User login with email/phone and password
+  login: (email, password) => api.post('/user/login', { email, password }),
+  loginWithPhone: (phone, password) => api.post('/user/login', { phone, password }),
+  
+  // User registration
+  register: (data) => api.post('/user/register', data),
+  
+  // Phone OTP authentication
   sendOTP: (phone) => api.post('/auth/send-otp', { phone }),
   verifyOTP: (phone, otp) => api.post('/auth/verify-otp', { phone, otp }),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
+  
+  // Forgot password flow
+  forgotPasswordSend: (email) => api.post('/auth/forgot-password/send', { email }),
+  forgotPasswordVerify: (email, otp) => api.post('/auth/forgot-password/verify', { email, otp }),
+  forgotPasswordReset: (email, otp, newPassword) => api.post('/auth/forgot-password/reset', { email, otp, new_password: newPassword }),
+  
+  // Google OAuth
+  googleCallback: (credential) => api.post('/user/auth/google-callback', { credential }),
+  
+  // Session
   getMe: () => api.get('/user/auth/me'),
   logout: () => api.post('/auth/logout'),
 };
