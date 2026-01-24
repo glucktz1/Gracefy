@@ -97,7 +97,9 @@ const NowPlayingScreen = ({ navigation }) => {
   };
 
   const requestStoragePermission = async () => {
-    if (Platform.OS === 'android') {
+    // For Android 10+ (API 29+), we don't need WRITE_EXTERNAL_STORAGE
+    // expo-file-system handles this internally for app-specific directories
+    if (Platform.OS === 'android' && Platform.Version < 29) {
       try {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
@@ -111,10 +113,11 @@ const NowPlayingScreen = ({ navigation }) => {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn(err);
+        console.warn('Permission error:', err);
         return false;
       }
     }
+    // For Android 10+ and iOS, no permission needed for app documents
     return true;
   };
 
@@ -129,10 +132,10 @@ const NowPlayingScreen = ({ navigation }) => {
       return;
     }
 
-    // Request permission
+    // Check permission for older Android
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako.');
+      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako katika Settings.');
       return;
     }
 
@@ -150,7 +153,7 @@ const NowPlayingScreen = ({ navigation }) => {
           if (response.data?.download_url) {
             fileUrl = getAudioUrl(response.data.download_url);
             if (response.data.filename) {
-              fileName = response.data.filename;
+              fileName = response.data.filename.replace(/[^a-zA-Z0-9.]/g, '_');
             }
             console.log('Got download URL from API:', fileUrl);
           }
@@ -172,10 +175,16 @@ const NowPlayingScreen = ({ navigation }) => {
 
       console.log('Downloading from:', fileUrl);
 
-      const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
+      // Use app's document directory (no special permissions needed)
+      const downloadDir = `${FileSystem.documentDirectory}downloads/`;
+      
+      // Ensure directory exists
+      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+      }
 
-      // Create downloads directory
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}downloads/`, { intermediates: true });
+      const downloadPath = `${downloadDir}${fileName}`;
 
       // Download file with progress callback
       const downloadResumable = FileSystem.createDownloadResumable(
@@ -202,10 +211,10 @@ const NowPlayingScreen = ({ navigation }) => {
         console.log('Download result:', { uri: result.uri, size: fileInfo.size, exists: fileInfo.exists });
         
         if (fileInfo.exists && fileInfo.size > 1000) {  // At least 1KB
-          Alert.alert('Imefanikiwa! ✓', `"${currentTrack.title}" imehifadhiwa kwenye simu yako`);
+          Alert.alert('Imefanikiwa! ✓', `"${currentTrack.title}" imehifadhiwa kwenye simu yako.\n\nFaili: ${fileName}`);
         } else if (fileInfo.exists && fileInfo.size > 0) {
           // File exists but might be small - could be an error response
-          Alert.alert('Onyo', 'Faili imehifadhiwa lakini inaweza kuwa na tatizo. Jaribu tena.');
+          Alert.alert('Onyo', 'Faili imehifadhiwa lakini inaweza kuwa na tatizo. Ukubwa mdogo sana.');
         } else {
           throw new Error('Downloaded file is empty or too small');
         }
@@ -214,7 +223,7 @@ const NowPlayingScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena.'}`);
+      Alert.alert('Kosa la Kupakua', `Imeshindikana kupakua wimbo.\n\nSababu: ${error.message || 'Tatizo la mtandao'}\n\nJaribu tena baadaye.`);
     } finally {
       setIsDownloading(false);
       setDownloadProgress(0);
