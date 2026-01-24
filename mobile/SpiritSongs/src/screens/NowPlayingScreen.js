@@ -405,6 +405,73 @@ const NowPlayingScreen = ({ navigation }) => {
           navigation.navigate('Checkout');
         }}
       />
+
+      {/* Queue Modal */}
+      <Modal
+        visible={showQueueModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowQueueModal(false)}
+      >
+        <View style={styles.queueModalOverlay}>
+          <View style={styles.queueModalContent}>
+            <View style={styles.queueModalHandle} />
+            <View style={styles.queueModalHeader}>
+              <Text style={styles.queueModalTitle}>Orodha ya Nyimbo</Text>
+              <TouchableOpacity onPress={() => setShowQueueModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {queue.length > 0 ? (
+              <FlatList
+                data={queue}
+                keyExtractor={(item, index) => item.song_id || index.toString()}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.queueItem,
+                      index === queueIndex && styles.queueItemActive
+                    ]}
+                    onPress={() => {
+                      playTrack(item, queue, index);
+                      setShowQueueModal(false);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/50' }}
+                      style={styles.queueItemImage}
+                    />
+                    <View style={styles.queueItemInfo}>
+                      <Text 
+                        style={[
+                          styles.queueItemTitle,
+                          index === queueIndex && styles.queueItemTitleActive
+                        ]} 
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text style={styles.queueItemArtist} numberOfLines={1}>
+                        {item.artist_name}
+                      </Text>
+                    </View>
+                    {index === queueIndex && (
+                      <Ionicons name="musical-notes" size={20} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={styles.queueList}
+              />
+            ) : (
+              <View style={styles.queueEmpty}>
+                <Ionicons name="list-outline" size={48} color={COLORS.textMuted} />
+                <Text style={styles.queueEmptyText}>Hakuna nyimbo kwenye orodha</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
