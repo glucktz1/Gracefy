@@ -11,6 +11,8 @@ import {
   ScrollView,
   PermissionsAndroid,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,12 +36,14 @@ const NowPlayingScreen = ({ navigation }) => {
     shuffle,
     repeat,
     queue,
+    queueIndex,
     togglePlay,
     seekTo,
     skipNext,
     skipPrevious,
     toggleShuffle,
     cycleRepeat,
+    playTrack,
   } = usePlayer();
 
   const { isAuthenticated, user } = useAuth();
@@ -48,6 +52,7 @@ const NowPlayingScreen = ({ navigation }) => {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
