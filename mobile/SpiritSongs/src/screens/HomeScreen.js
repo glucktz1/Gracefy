@@ -139,14 +139,20 @@ const HomeScreen = ({ navigation }) => {
       stats.activeSections = activeSections.length;
       setLayoutSections(activeSections);
 
-      // Build category filters
+      // Build category filters from inactive sections (remove Muziki, Podcasts, Quick Access)
       const categoryFilters = [
         { id: 'all', name: 'Yote', icon: null },
-        { id: 'music', name: 'Muziki', icon: 'musical-notes' },
-        { id: 'podcasts', name: 'Podcasts', icon: 'mic' },
       ];
       rawSections.forEach(section => {
         if (section.is_active === false && section.name) {
+          // Skip muziki, podcasts, and quick_access filters
+          const sectionName = (section.name || '').toLowerCase();
+          if (sectionName.includes('muziki') || 
+              sectionName.includes('podcast') || 
+              sectionName.includes('quick') ||
+              section.section_type === 'quick_access') {
+            return;
+          }
           categoryFilters.push({
             id: section.section_id || section.section_type,
             name: section.display_name || section.name,
