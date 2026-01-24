@@ -106,10 +106,18 @@ export default function AlbumsPage() {
 
   const fetchAlbumSongs = useCallback(async (albumId) => {
     try {
-      const response = await axios.get(`${API}/albums/${albumId}`, { withCredentials: true });
+      // Use admin endpoint to get all songs including inactive
+      const response = await axios.get(`${API}/admin/albums/${albumId}`, { withCredentials: true });
       setAlbumSongs(response.data.songs || []);
     } catch (error) {
       console.error("Error fetching songs:", error);
+      // Fallback to regular endpoint
+      try {
+        const response = await axios.get(`${API}/albums/${albumId}`, { withCredentials: true });
+        setAlbumSongs(response.data.songs || []);
+      } catch (err) {
+        console.error("Fallback also failed:", err);
+      }
     }
   }, []);
 
