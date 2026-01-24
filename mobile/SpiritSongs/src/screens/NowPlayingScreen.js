@@ -140,12 +140,18 @@ const NowPlayingScreen = ({ navigation }) => {
       setIsDownloading(true);
       setDownloadProgress(0);
 
-      const fileUrl = currentTrack.audio_url || currentTrack.file_url;
+      // Get the audio URL - make sure it's a full URL
+      let fileUrl = currentTrack.audio_url || currentTrack.file_url;
       if (!fileUrl) {
         Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
         setIsDownloading(false);
         return;
       }
+
+      // Convert to full URL if it's a relative path
+      fileUrl = getAudioUrl(fileUrl);
+      
+      console.log('Downloading from:', fileUrl);
 
       const fileName = `${currentTrack.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
       const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
@@ -153,25 +159,35 @@ const NowPlayingScreen = ({ navigation }) => {
       // Create downloads directory
       await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}downloads/`, { intermediates: true });
 
-      // Download file
+      // Download file with progress callback
       const downloadResumable = FileSystem.createDownloadResumable(
         fileUrl,
         downloadPath,
         {},
         (downloadProgress) => {
-          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          setDownloadProgress(Math.round(progress * 100));
+          if (downloadProgress.totalBytesExpectedToWrite > 0) {
+            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+            setDownloadProgress(Math.round(progress * 100));
+          }
         }
       );
 
       const result = await downloadResumable.downloadAsync();
       
       if (result?.uri) {
-        Alert.alert('Imefanikiwa', `"${currentTrack.title}" imehifadhiwa`);
+        // Verify file was downloaded
+        const fileInfo = await FileSystem.getInfoAsync(result.uri);
+        if (fileInfo.exists && fileInfo.size > 0) {
+          Alert.alert('Imefanikiwa! ✓', `"${currentTrack.title}" imehifadhiwa kwenye simu yako`);
+        } else {
+          throw new Error('Downloaded file is empty');
+        }
+      } else {
+        throw new Error('Download failed - no URI returned');
       }
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kupakua wimbo. Jaribu tena.');
+      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena.'}`);
     } finally {
       setIsDownloading(false);
       setDownloadProgress(0);
