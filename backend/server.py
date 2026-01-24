@@ -2519,6 +2519,35 @@ async def delete_song(song_id: str):
         raise HTTPException(status_code=404, detail="Song not found")
     return {"message": "Song deleted successfully"}
 
+@api_router.get("/songs/{song_id}/download")
+async def get_song_download_url(song_id: str):
+    """Get direct download URL for a song"""
+    song = await db.songs.find_one({"song_id": song_id}, {"_id": 0})
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    audio_url = song.get("audio_url")
+    if not audio_url:
+        raise HTTPException(status_code=404, detail="Song has no audio file")
+    
+    # If it's already a full URL (CDN), return it
+    if audio_url.startswith("http"):
+        return {"download_url": audio_url, "filename": f"{song.get('title', 'song')}.mp3"}
+    
+    # If it's an internal file reference, get the file and create download URL
+    if "/files/" in audio_url:
+        file_id = audio_url.split("/files/")[1].split("/")[0]
+        file_doc = await db.files.find_one({"file_id": file_id})
+        if file_doc:
+            # Return the streaming URL as download URL
+            return {
+                "download_url": f"/api/files/{file_id}/stream",
+                "filename": f"{song.get('title', 'song')}.mp3",
+                "content_type": file_doc.get("content_type", "audio/mpeg")
+            }
+    
+    raise HTTPException(status_code=404, detail="Audio file not found")
+
 @api_router.post("/songs/bulk-status")
 async def bulk_update_song_status(data: dict):
     """Bulk update song status (activate/deactivate)"""
