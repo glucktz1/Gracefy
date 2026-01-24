@@ -362,10 +362,13 @@ const AddToPlaylistModal = ({
       if (response.data?.playlist_id && song) {
         await libraryAPI.addToPlaylist(response.data.playlist_id, song.song_id);
         Alert.alert('Imefanikiwa', `Playlist "${newPlaylistName}" imetengenezwa na wimbo umeongezwa`);
+      } else {
+        Alert.alert('Imefanikiwa', `Playlist "${newPlaylistName}" imetengenezwa`);
       }
       setNewPlaylistName('');
       setShowCreateNew(false);
-      onClose();
+      // Reload playlists to show the new one
+      await loadPlaylists();
     } catch (error) {
       console.error('Error creating playlist:', error);
       Alert.alert('Kosa', 'Imeshindikana kutengeneza playlist');
