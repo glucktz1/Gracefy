@@ -85,8 +85,9 @@ const AppContent = () => {
   // Hide mini player on NowPlaying screen
   const showMiniPlayer = currentTrack && currentRoute !== 'NowPlaying';
   
-  // Calculate bottom offset for mini player (above tab bar)
+  // Calculate bottom offset for mini player (directly above tab bar, minimal gap)
   const tabBarHeight = 60 + Math.max(insets.bottom, 8);
+  const miniPlayerBottom = tabBarHeight + 4; // 4px gap above tab bar
 
   return (
     <NavigationContainer 
@@ -116,11 +117,13 @@ const AppContent = () => {
           <Stack.Screen name="Bible" component={BibleScreen} />
           <Stack.Screen name="Churches" component={ChurchesScreen} />
           <Stack.Screen name="Playlist" component={AlbumScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
 
-        {/* Mini Player - Positioned above tab bar with safe area consideration */}
+        {/* Mini Player - Positioned directly above tab bar */}
         {showMiniPlayer && (
-          <View style={[styles.miniPlayerContainer, { bottom: tabBarHeight }]}>
+          <View style={[styles.miniPlayerContainer, { bottom: miniPlayerBottom }]}>
             <MiniPlayer 
               onPress={() => navigationRef.current?.navigate('NowPlaying')} 
             />
