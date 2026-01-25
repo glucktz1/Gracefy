@@ -357,31 +357,40 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Skip to next
+  // Skip to next - uses refs for background safety
   const skipNext = async () => {
-    const nextIndex = queueIndex + 1;
-    if (nextIndex < queue.length) {
+    const currentQueue = queueRef.current;
+    const currentIndex = queueIndexRef.current;
+    const nextIndex = currentIndex + 1;
+    
+    console.log('[PlayerContext] skipNext - current:', currentIndex, 'next:', nextIndex, 'queue:', currentQueue.length);
+    
+    if (nextIndex < currentQueue.length) {
       await playTrackAtIndex(nextIndex);
-    } else if (repeat === 'all' && queue.length > 0) {
+    } else if (repeatRef.current === 'all' && currentQueue.length > 0) {
       await playTrackAtIndex(0);
-    } else if (autoPlayEnabled) {
+    } else if (autoPlayRef.current) {
       // Fetch more songs
       const moreSongs = await fetchMoreSongs();
       if (moreSongs.length > 0) {
+        queueRef.current = moreSongs;
+        queueIndexRef.current = 0;
         setQueue(moreSongs);
         setQueueIndex(0);
-        await playTrack(moreSongs[0]);
+        await playTrackInternal(moreSongs[0]);
       }
     }
   };
 
-  // Skip to previous
+  // Skip to previous - uses refs for background safety
   const skipPrevious = async () => {
+    const currentIndex = queueIndexRef.current;
+    
     if (position > 3) {
       // If more than 3 seconds in, restart track
       await seekTo(0);
-    } else if (queueIndex > 0) {
-      await playTrackAtIndex(queueIndex - 1);
+    } else if (currentIndex > 0) {
+      await playTrackAtIndex(currentIndex - 1);
     }
   };
 
