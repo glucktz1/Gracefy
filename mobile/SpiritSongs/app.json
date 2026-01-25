@@ -32,7 +32,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.spiritsongs.app",
-      "versionCode": 52,
+      "versionCode": 53,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
@@ -40,6 +40,14 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
+      "foregroundService": {
+        "name": "Gracefy Music Player",
+        "icon": "./assets/icon.png",
+        "notificationTitle": "Gracefy",
+        "notificationBody": "Inacheza muziki...",
+        "notificationColor": "#1db954",
+        "killServiceOnAppRemove": false
+      },
       "intentFilters": [
         {
           "action": "VIEW",
