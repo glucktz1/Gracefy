@@ -127,7 +127,7 @@ const HomeScreen = ({ navigation }) => {
         libraryAPI.getLikedSongs().catch((e) => { errors.push(`Likes: ${e.message}`); return { data: [] }; }),
         bibleAPI.getFeaturedSnippets().catch((e) => { errors.push(`Bible: ${e.message}`); return { data: [] }; }),
         churchAPI.getChurches().catch((e) => { errors.push(`Churches: ${e.message}`); return { data: { churches: [] } }; }),
-        homeAPI.getLeaderContent().catch((e) => { errors.push(`Leaders: ${e.message}`); return { data: { leaders: [] } }; }),
+        leaderContentAPI.getMafundisho().catch((e) => { errors.push(`Mafundisho: ${e.message}`); return { data: { mafundisho: [] } }; }),
       ]);
 
       // Layout sections - handle both nested and direct response
