@@ -127,15 +127,15 @@ const AlbumScreen = ({ route, navigation }) => {
           newSet.delete(song.song_id);
           return newSet;
         });
-        Alert.alert('Imeondolewa', `"${song.title}" imeondolewa kwenye nyimbo pendwa`);
+        showToast(`"${song.title}" imeondolewa ❌`, 'info');
       } else {
         await libraryAPI.likeSong(song.song_id);
         setLikedSongs(prev => new Set(prev).add(song.song_id));
-        Alert.alert('Imependwa', `"${song.title}" imeongezwa kwenye nyimbo pendwa`);
+        showToast(`"${song.title}" imependwa ❤️`, 'success');
       }
     } catch (error) {
       console.error('Error toggling like:', error);
-      Alert.alert('Kosa', 'Imeshindikana kubadilisha hali ya kupenda');
+      showToast('Imeshindikana kubadilisha hali ya kupenda', 'error');
     }
   };
 
@@ -161,7 +161,9 @@ const AlbumScreen = ({ route, navigation }) => {
       setShowSubscriptionModal(true);
       return;
     }
-    Alert.alert('Kupakua', `Kupakua "${song.title}"... (Kipengele hiki kinakuja hivi karibuni)`);
+    // Download is handled via the modal
+    setSelectedSong(song);
+    setShowPlaylistModal(true);
   };
 
   const handleShare = async () => {
@@ -269,7 +271,7 @@ const AlbumScreen = ({ route, navigation }) => {
                 if (songs.length > 0) {
                   handleAddToPlaylist(songs[0]);
                 } else {
-                  Alert.alert('Hakuna nyimbo', 'Album hii haina nyimbo za kuongeza');
+                  showToast('Album hii haina nyimbo za kuongeza', 'warning');
                 }
               }}
             >
