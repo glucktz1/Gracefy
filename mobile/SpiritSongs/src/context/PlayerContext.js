@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import { AppState, Platform } from 'react-native';
+import TrackPlayer, {
+  Capability,
+  Event,
+  RepeatMode,
+  State,
+  usePlaybackState,
+  useProgress,
+  useTrackPlayerEvents,
+} from 'react-native-track-player';
+import { AppState } from 'react-native';
 import { getAudioUrl, playerAPI, contentAPI } from '../services/api';
 
 const PlayerContext = createContext(null);
@@ -24,211 +32,145 @@ export const usePlayer = () => {
   return context;
 };
 
+// Setup TrackPlayer service
+const setupPlayer = async () => {
+  try {
+    await TrackPlayer.setupPlayer({
+      // Android specific options
+      minBuffer: 15,
+      maxBuffer: 50,
+      playBuffer: 2,
+      backBuffer: 10,
+    });
+    
+    await TrackPlayer.updateOptions({
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.Stop,
+        Capability.SeekTo,
+      ],
+      compactCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+      ],
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+      ],
+      // Android specific
+      android: {
+        appKilledPlaybackBehavior: 'ContinuePlayback',
+      },
+    });
+    
+    console.log('[TrackPlayer] Setup complete');
+    return true;
+  } catch (error) {
+    console.error('[TrackPlayer] Setup error:', error);
+    return false;
+  }
+};
+
 export const PlayerProvider = ({ children }) => {
-  // Player state
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('all');
   const [isLiked, setIsLiked] = useState(false);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
 
-  // Refs for background-safe access
-  const soundRef = useRef(null);
+  // Use TrackPlayer hooks
+  const playbackState = usePlaybackState();
+  const progress = useProgress();
+  
+  // Refs
   const queueRef = useRef([]);
-  const queueIndexRef = useRef(0);
-  const repeatRef = useRef('all');
   const autoPlayRef = useRef(true);
-  
-  // Lock and tracking refs
   const playLockRef = useRef(false);
-  const currentTrackIdRef = useRef(null);
-  const isHandlingTrackEndRef = useRef(false);
-  
-  // CRITICAL: Track end detection for background - using polling as backup
-  const positionRef = useRef(0);
-  const durationRef = useRef(0);
-  const lastPositionCheckRef = useRef(0);
-  const trackEndCheckIntervalRef = useRef(null);
+
+  // Derived state
+  const isPlaying = playbackState.state === State.Playing;
+  const position = progress.position || 0;
+  const duration = progress.duration || 0;
 
   // Keep refs in sync
   useEffect(() => { queueRef.current = queue; }, [queue]);
-  useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
-  useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { autoPlayRef.current = autoPlayEnabled; }, [autoPlayEnabled]);
 
-  // Configure audio mode for background playback
-  const configureAudioMode = async () => {
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-      });
-      console.log('[PlayerContext] Audio mode configured for background');
-    } catch (e) {
-      console.error('[PlayerContext] Error setting audio mode:', e);
-    }
-  };
-
-  // Initialize
+  // Initialize TrackPlayer
   useEffect(() => {
-    configureAudioMode();
+    let mounted = true;
 
-    const subscription = AppState.addEventListener('change', async (state) => {
-      console.log('[PlayerContext] App state:', state);
-      if (state === 'active') {
-        await configureAudioMode();
+    const initPlayer = async () => {
+      const isSetup = await setupPlayer();
+      if (mounted && isSetup) {
+        setIsPlayerReady(true);
+        
+        // Set default repeat mode
+        await TrackPlayer.setRepeatMode(RepeatMode.Queue);
       }
-    });
+    };
+
+    initPlayer();
 
     return () => {
-      subscription?.remove();
-      stopTrackEndChecker();
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
-      }
+      mounted = false;
     };
   }, []);
 
-  // BACKGROUND TRACK END DETECTION
-  // Since didJustFinish doesn't fire reliably in background on Android,
-  // we use a polling mechanism to check if track has ended
-  const startTrackEndChecker = () => {
-    stopTrackEndChecker();
+  // Listen for track change events (THIS IS THE KEY FOR BACKGROUND!)
+  useTrackPlayerEvents([Event.PlaybackActiveTrackChanged, Event.PlaybackQueueEnded], async (event) => {
+    console.log('[TrackPlayer] Event:', event.type);
     
-    trackEndCheckIntervalRef.current = setInterval(async () => {
-      if (!soundRef.current) return;
-      
-      try {
-        const status = await soundRef.current.getStatusAsync();
-        if (!status.isLoaded) return;
+    if (event.type === Event.PlaybackActiveTrackChanged) {
+      if (event.track) {
+        console.log('[TrackPlayer] Track changed to:', event.track.title);
+        setCurrentTrack({
+          song_id: event.track.id,
+          title: event.track.title,
+          artist_name: event.track.artist,
+          thumbnail: event.track.artwork,
+          audio_url: event.track.url,
+        });
         
-        positionRef.current = status.positionMillis / 1000;
-        durationRef.current = status.durationMillis / 1000;
-        
-        // Check if track has essentially ended (within 0.5 seconds of end)
-        const isNearEnd = durationRef.current > 0 && 
-                          positionRef.current >= durationRef.current - 0.5;
-        
-        // Also check if playback stopped naturally (not paused by user)
-        const hasFinished = status.didJustFinish || 
-                           (isNearEnd && !status.isPlaying && !status.isBuffering);
-        
-        if (hasFinished && !isHandlingTrackEndRef.current) {
-          console.log('[PlayerContext] Track end detected via polling');
-          handleTrackEnd();
+        // Update queue index
+        const idx = await TrackPlayer.getActiveTrackIndex();
+        if (idx !== null) {
+          setQueueIndex(idx);
         }
-      } catch (e) {
-        // Ignore errors during status check
+        
+        // Track play in backend
+        if (event.track.id) {
+          playerAPI.trackPlay(event.track.id).catch(() => {});
+        }
       }
-    }, 1000); // Check every second
-  };
-
-  const stopTrackEndChecker = () => {
-    if (trackEndCheckIntervalRef.current) {
-      clearInterval(trackEndCheckIntervalRef.current);
-      trackEndCheckIntervalRef.current = null;
-    }
-  };
-
-  // Handle track end - plays next song
-  const handleTrackEnd = async () => {
-    if (isHandlingTrackEndRef.current) {
-      console.log('[PlayerContext] Already handling track end');
-      return;
     }
     
-    isHandlingTrackEndRef.current = true;
-    console.log('[PlayerContext] handleTrackEnd started');
-
-    try {
-      const currentRepeat = repeatRef.current;
-      const currentQueue = queueRef.current;
-      const currentIndex = queueIndexRef.current;
-
-      console.log('[PlayerContext] Track end - repeat:', currentRepeat, 'index:', currentIndex, '/', currentQueue.length);
-
-      if (currentRepeat === 'one') {
-        // Repeat current track
-        if (soundRef.current) {
-          await soundRef.current.setPositionAsync(0);
-          await soundRef.current.playAsync();
-        }
-      } else if (currentIndex < currentQueue.length - 1) {
-        // Play next track in queue
-        const nextIndex = currentIndex + 1;
-        const nextTrack = currentQueue[nextIndex];
-        console.log('[PlayerContext] Playing next track:', nextTrack?.title);
-        queueIndexRef.current = nextIndex;
-        setQueueIndex(nextIndex);
-        await loadAndPlayTrack(nextTrack);
-      } else if (currentRepeat === 'all' && currentQueue.length > 0) {
-        // Loop back to start
-        console.log('[PlayerContext] Looping to start of queue');
-        queueIndexRef.current = 0;
-        setQueueIndex(0);
-        await loadAndPlayTrack(currentQueue[0]);
-      } else if (autoPlayRef.current) {
-        // Fetch more songs for continuous play
-        console.log('[PlayerContext] Fetching more songs...');
-        const moreSongs = await fetchMoreSongs();
-        if (moreSongs.length > 0) {
-          queueRef.current = moreSongs;
-          queueIndexRef.current = 0;
-          setQueue(moreSongs);
-          setQueueIndex(0);
-          await loadAndPlayTrack(moreSongs[0]);
-        } else {
-          setIsPlaying(false);
-          stopTrackEndChecker();
-        }
-      } else {
-        setIsPlaying(false);
-        stopTrackEndChecker();
+    if (event.type === Event.PlaybackQueueEnded && autoPlayRef.current) {
+      console.log('[TrackPlayer] Queue ended, fetching more songs...');
+      const moreSongs = await fetchMoreSongs();
+      if (moreSongs.length > 0) {
+        await addTracksToQueue(moreSongs, true);
+        await TrackPlayer.play();
       }
-    } catch (error) {
-      console.error('[PlayerContext] Error in handleTrackEnd:', error);
-    } finally {
-      // Reset the flag after a short delay
-      setTimeout(() => {
-        isHandlingTrackEndRef.current = false;
-      }, 500);
     }
-  };
+  });
 
   // Fetch more songs for continuous play
   const fetchMoreSongs = async () => {
     try {
-      // Try to get songs from the same category as current track
-      const currentCategory = currentTrack?.category || currentTrack?.genre;
-      let songs = [];
-      
-      if (currentCategory) {
-        try {
-          const response = await contentAPI.getSongsByCategory(currentCategory);
-          songs = response.data?.songs || [];
-        } catch (e) {
-          // Fallback to all songs
-        }
-      }
-      
-      if (songs.length === 0) {
-        const response = await contentAPI.getAllSongs();
-        songs = response.data?.songs || [];
-      }
-      
+      const response = await contentAPI.getAllSongs();
+      const songs = response.data?.songs || [];
       if (songs.length > 0) {
-        // Filter out recently played and shuffle
         const recentIds = queueRef.current.slice(-10).map(s => s.song_id);
         const filtered = songs.filter(s => !recentIds.includes(s.song_id));
         return (filtered.length > 0 ? filtered : songs)
@@ -242,106 +184,42 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Playback status update callback
-  const onPlaybackStatusUpdate = (status) => {
-    if (!status.isLoaded) {
-      if (status.error) {
-        console.error('[PlayerContext] Playback error:', status.error);
-      }
-      return;
-    }
+  // Convert our track format to TrackPlayer format
+  const convertToTrackPlayerFormat = (track) => ({
+    id: track.song_id,
+    url: getAudioUrl(track.audio_url),
+    title: track.title,
+    artist: track.artist_name || 'Unknown',
+    artwork: track.thumbnail ? getAudioUrl(track.thumbnail) : undefined,
+  });
 
-    // Update state
-    setPosition(status.positionMillis / 1000);
-    setDuration(status.durationMillis / 1000 || 0);
-    setIsPlaying(status.isPlaying);
-    setIsLoading(status.isBuffering);
-    
-    // Update refs for polling checker
-    positionRef.current = status.positionMillis / 1000;
-    durationRef.current = status.durationMillis / 1000 || 0;
-
-    // Handle track end via callback (may not fire in background)
-    if (status.didJustFinish && !status.isLooping) {
-      console.log('[PlayerContext] didJustFinish callback fired');
-      handleTrackEnd();
-    }
-  };
-
-  // Load and play a track
-  const loadAndPlayTrack = async (track) => {
-    if (!track) {
-      console.error('[PlayerContext] No track provided');
-      return false;
+  // Add tracks to queue
+  const addTracksToQueue = async (tracks, clearFirst = false) => {
+    if (clearFirst) {
+      await TrackPlayer.reset();
     }
     
-    try {
-      console.log('[PlayerContext] loadAndPlayTrack:', track.title);
-
-      // Stop external audio
-      if (stopExternalAudioCallback) {
-        try {
-          await stopExternalAudioCallback();
-        } catch (e) {}
-      }
-
-      // Unload previous sound
-      if (soundRef.current) {
-        stopTrackEndChecker();
-        try {
-          await soundRef.current.stopAsync();
-          await soundRef.current.unloadAsync();
-        } catch (e) {}
-        soundRef.current = null;
-      }
-
-      const audioUrl = getAudioUrl(track.audio_url);
-      if (!audioUrl) {
-        console.error('[PlayerContext] No audio URL');
-        return false;
-      }
-
-      console.log('[PlayerContext] Loading:', audioUrl);
-
-      // Create and play sound
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        { 
-          shouldPlay: true,
-          progressUpdateIntervalMillis: 500,
-          positionMillis: 0,
-        },
-        onPlaybackStatusUpdate
-      );
-
-      soundRef.current = sound;
-      currentTrackIdRef.current = track.song_id;
-      setCurrentTrack(track);
-      setIsLoading(false);
-      setIsPlaying(true);
-
-      // Start background track end checker
-      startTrackEndChecker();
-
-      // Track play
-      playerAPI.trackPlay(track.song_id).catch(() => {});
-
-      return true;
-    } catch (error) {
-      console.error('[PlayerContext] Error loading track:', error);
-      return false;
-    }
+    const formattedTracks = tracks.map(convertToTrackPlayerFormat);
+    await TrackPlayer.add(formattedTracks);
+    
+    queueRef.current = tracks;
+    setQueue(tracks);
   };
 
   // Main play function
   const playTrack = async (track, trackList = null, startIndex = 0) => {
+    if (!isPlayerReady) {
+      console.log('[PlayerContext] Player not ready');
+      return;
+    }
+
     if (playLockRef.current) {
       console.log('[PlayerContext] Play locked');
       return;
     }
 
     // Same track - toggle
-    if (currentTrackIdRef.current === track.song_id && soundRef.current) {
+    if (currentTrack?.song_id === track.song_id) {
       await togglePlay();
       return;
     }
@@ -350,14 +228,28 @@ export const PlayerProvider = ({ children }) => {
     setIsLoading(true);
 
     try {
-      if (trackList) {
-        queueRef.current = trackList;
-        queueIndexRef.current = startIndex;
-        setQueue(trackList);
-        setQueueIndex(startIndex);
+      // Stop external audio
+      if (stopExternalAudioCallback) {
+        try {
+          await stopExternalAudioCallback();
+        } catch (e) {}
       }
 
-      await loadAndPlayTrack(track);
+      // Reset and add tracks
+      await TrackPlayer.reset();
+      
+      if (trackList && trackList.length > 0) {
+        await addTracksToQueue(trackList);
+        await TrackPlayer.skip(startIndex);
+      } else {
+        await addTracksToQueue([track]);
+      }
+      
+      await TrackPlayer.play();
+      
+      console.log('[PlayerContext] Playing:', track.title);
+    } catch (error) {
+      console.error('[PlayerContext] Play error:', error);
     } finally {
       setIsLoading(false);
       setTimeout(() => { playLockRef.current = false; }, 300);
@@ -366,125 +258,77 @@ export const PlayerProvider = ({ children }) => {
 
   // Toggle play/pause
   const togglePlay = async () => {
-    if (!soundRef.current) return;
-
-    try {
-      const status = await soundRef.current.getStatusAsync();
-      if (status.isLoaded) {
-        if (status.isPlaying) {
-          await soundRef.current.pauseAsync();
-          stopTrackEndChecker();
-        } else {
-          await soundRef.current.playAsync();
-          startTrackEndChecker();
-        }
-      }
-    } catch (e) {
-      console.error('[PlayerContext] Toggle error:', e);
+    if (isPlaying) {
+      await TrackPlayer.pause();
+    } else {
+      await TrackPlayer.play();
     }
   };
 
   // Seek
   const seekTo = async (seconds) => {
-    if (soundRef.current) {
-      try {
-        await soundRef.current.setPositionAsync(seconds * 1000);
-      } catch (e) {}
-    }
+    await TrackPlayer.seekTo(seconds);
   };
 
   // Skip next
   const skipNext = async () => {
-    if (playLockRef.current) return;
-    playLockRef.current = true;
-
     try {
-      const currentQueue = queueRef.current;
-      const currentIndex = queueIndexRef.current;
-
-      if (currentIndex < currentQueue.length - 1) {
-        const nextIndex = currentIndex + 1;
-        queueIndexRef.current = nextIndex;
-        setQueueIndex(nextIndex);
-        await loadAndPlayTrack(currentQueue[nextIndex]);
-      } else if (repeatRef.current === 'all' && currentQueue.length > 0) {
-        queueIndexRef.current = 0;
-        setQueueIndex(0);
-        await loadAndPlayTrack(currentQueue[0]);
-      } else if (autoPlayRef.current) {
-        const moreSongs = await fetchMoreSongs();
-        if (moreSongs.length > 0) {
-          queueRef.current = moreSongs;
-          queueIndexRef.current = 0;
-          setQueue(moreSongs);
-          setQueueIndex(0);
-          await loadAndPlayTrack(moreSongs[0]);
-        }
-      }
-    } finally {
-      setTimeout(() => { playLockRef.current = false; }, 300);
+      await TrackPlayer.skipToNext();
+    } catch (e) {
+      // End of queue - handled by PlaybackQueueEnded event
+      console.log('[PlayerContext] No next track');
     }
   };
 
   // Skip previous
   const skipPrevious = async () => {
-    if (playLockRef.current) return;
-    playLockRef.current = true;
-
-    try {
-      if (position > 3) {
-        await seekTo(0);
-      } else if (queueIndexRef.current > 0) {
-        const prevIndex = queueIndexRef.current - 1;
-        queueIndexRef.current = prevIndex;
-        setQueueIndex(prevIndex);
-        await loadAndPlayTrack(queueRef.current[prevIndex]);
+    if (position > 3) {
+      await TrackPlayer.seekTo(0);
+    } else {
+      try {
+        await TrackPlayer.skipToPrevious();
+      } catch (e) {
+        await TrackPlayer.seekTo(0);
       }
-    } finally {
-      setTimeout(() => { playLockRef.current = false; }, 300);
     }
   };
 
   // Pause (external)
   const pausePlayback = async () => {
-    if (soundRef.current) {
-      await soundRef.current.pauseAsync();
-      stopTrackEndChecker();
-      return true;
-    }
-    return false;
+    await TrackPlayer.pause();
+    return true;
   };
 
   // Resume
   const resumePlayback = async () => {
-    if (soundRef.current) {
-      await soundRef.current.playAsync();
-      startTrackEndChecker();
-    }
+    await TrackPlayer.play();
   };
 
   // Shuffle
-  const toggleShuffle = () => {
+  const toggleShuffle = async () => {
     setShuffle(!shuffle);
-    if (!shuffle && queue.length > 1) {
-      const current = queue[queueIndex];
-      const rest = queue.filter((_, i) => i !== queueIndex);
-      const shuffled = rest.sort(() => Math.random() - 0.5);
-      const newQueue = [current, ...shuffled];
-      queueRef.current = newQueue;
-      setQueue(newQueue);
-      queueIndexRef.current = 0;
-      setQueueIndex(0);
-    }
+    // TrackPlayer doesn't have built-in shuffle, would need to re-order queue
   };
 
   // Repeat
-  const cycleRepeat = () => {
+  const cycleRepeat = async () => {
     const modes = ['off', 'all', 'one'];
     const idx = modes.indexOf(repeat);
     const newRepeat = modes[(idx + 1) % modes.length];
-    repeatRef.current = newRepeat;
     setRepeat(newRepeat);
+    
+    // Map to TrackPlayer repeat modes
+    switch (newRepeat) {
+      case 'off':
+        await TrackPlayer.setRepeatMode(RepeatMode.Off);
+        break;
+      case 'all':
+        await TrackPlayer.setRepeatMode(RepeatMode.Queue);
+        break;
+      case 'one':
+        await TrackPlayer.setRepeatMode(RepeatMode.Track);
+        break;
+    }
   };
 
   const toggleLike = () => setIsLiked(!isLiked);
@@ -507,6 +351,7 @@ export const PlayerProvider = ({ children }) => {
     repeat,
     isLiked,
     autoPlayEnabled,
+    isPlayerReady,
     playTrack,
     togglePlay,
     seekTo,
