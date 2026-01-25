@@ -21,6 +21,7 @@ import BibleScreen from './src/screens/BibleScreen';
 import ChurchesScreen from './src/screens/ChurchesScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import LeaderContentScreen from './src/screens/LeaderContentScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
