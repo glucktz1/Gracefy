@@ -89,13 +89,17 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 ## Current Status (January 2026)
 
 ### Latest Mobile Build
-- **Version:** 1.0.50
+- **Version:** 1.0.51
 - **Status:** 🔄 Building
-- **Build ID:** 7d247d95-4303-4c37-a909-5d830aee2678
-- **Logs:** https://expo.dev/accounts/gracefy2/projects/SpiritSongs/builds/7d247d95-4303-4c37-a909-5d830aee2678
+- **Build ID:** e60a7ac7-ce3a-44ba-b768-3aa1c661c943
+- **Logs:** https://expo.dev/accounts/gracefy2/projects/SpiritSongs/builds/e60a7ac7-ce3a-44ba-b768-3aa1c661c943
 - **Account:** gracefy2
 
 ### Recently Completed (This Session)
+- ✅ **CRITICAL FIX:** Background playback - app now continues to next song when in background/screen locked
+  - Refactored `onPlaybackStatusUpdate` to handle track end directly with refs
+  - Added `playTrackInternal` function for background-safe playback
+  - All queue/index operations now use refs to avoid stale closure issues
 - ✅ Billing/Subscription System implemented:
   - Created `BillingContext.js` for global billing state
   - Created `SubscriptionPlansScreen.js` with 4 plan tiers (Daily/Weekly/Monthly/Yearly)
@@ -103,11 +107,8 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
   - Integrated billing checks in AlbumScreen, NowPlayingScreen, LibraryScreen
 - ✅ Premium feature gating - download, add to playlist, like now show subscription modal
 - ✅ Special mixes rendering on web app - VERIFIED working
-- ✅ Leader Content linking - already implemented in previous session
-- ✅ Toast notification system implemented
-- ✅ Keyboard fix for playlist input (KeyboardAvoidingView)
-- ✅ Simultaneous audio prevention
-- ✅ App Store links added to web sidebar
+- ✅ Leader Content linking
+- ✅ Toast notifications, keyboard fix, audio prevention
 
 ### Completed Builds
 - v1.0.48 APK: Latest build with UI improvements
