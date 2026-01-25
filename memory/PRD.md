@@ -180,7 +180,11 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 - `/app/mobile/SpiritSongs/src/screens/BibleScreen.js`
 - `/app/mobile/SpiritSongs/src/screens/NowPlayingScreen.js`
 - `/app/mobile/SpiritSongs/src/screens/AlbumScreen.js`
+- `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js`
 - `/app/mobile/SpiritSongs/src/components/AddToPlaylistModal.js`
+- `/app/mobile/SpiritSongs/src/components/Toast.js` - Custom toast notification system
+- `/app/mobile/SpiritSongs/src/context/PlayerContext.js` - Audio playback management
+- `/app/mobile/SpiritSongs/src/context/AuthContext.js` - Authentication state
 - `/app/mobile/SpiritSongs/src/services/api.js`
 - `/app/mobile/SpiritSongs/app.json`
 
