@@ -186,7 +186,7 @@ export const userAPI = {
 export const billingAPI = {
   getPlans: () => api.get('/monetization/plans'),
   getSettings: () => api.get('/monetization/settings'),
-  getUserSubscription: () => api.get('/user/subscription'),
+  getUserSubscription: () => api.get('/user/subscription-status'),
   subscribe: (planId, paymentData) => api.post('/user/subscribe', { plan_id: planId, ...paymentData }),
 };
 
