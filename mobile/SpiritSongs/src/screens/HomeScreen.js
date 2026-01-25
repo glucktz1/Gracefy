@@ -660,7 +660,7 @@ const HomeScreen = ({ navigation }) => {
         )}
 
         {/* Mafundisho na Katekesi - Spotify "Picked for you" Style */}
-        {leaderContent.length > 0 && (
+        {mafundishoContent.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Mafundisho na Katekesi</Text>
@@ -669,52 +669,50 @@ const HomeScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {leaderContent.map((leader) => (
+              {mafundishoContent.map((item) => (
                 <TouchableOpacity 
-                  key={leader.leader_id} 
+                  key={item.container_id} 
                   style={styles.mafundishoCard}
                   activeOpacity={0.9}
-                  onPress={() => handleMafundishoPlay(leader)}
+                  onPress={() => navigation.navigate('MafundishoDetail', { containerId: item.container_id, mafundisho: item })}
                 >
                   {/* Purple Accent Band */}
                   <View style={styles.mafundishoBand}>
                     <Text style={styles.mafundishoBandText}>MAFUNDISHO</Text>
                   </View>
                   
-                  {/* Leader Photo */}
+                  {/* Thumbnail Image */}
                   <Image
-                    source={{ uri: getImageUrl(leader.photo) || 'https://via.placeholder.com/200' }}
+                    source={{ uri: getImageUrl(item.thumbnail || item.leader_photo) || 'https://via.placeholder.com/200' }}
                     style={styles.mafundishoImage}
                   />
                   
                   {/* Content Info */}
                   <View style={styles.mafundishoInfo}>
-                    <Text style={styles.mafundishoType}>Teachings</Text>
-                    <Text style={styles.mafundishoTitle} numberOfLines={2}>{leader.name}</Text>
-                    <Text style={styles.mafundishoDesc} numberOfLines={2}>
-                      {leader.title || leader.church_name || 'Mafundisho ya Imani'}
+                    <Text style={styles.mafundishoType}>{item.content_type || 'Teachings'}</Text>
+                    <Text style={styles.mafundishoTitle} numberOfLines={2}>{item.title}</Text>
+                    <Text style={styles.mafundishoDesc} numberOfLines={1}>
+                      Na. {item.leader_name || 'Unknown'}
+                    </Text>
+                    <Text style={styles.mafundishoEpisodes}>
+                      Vipindi {item.episode_count || 0}
                     </Text>
                     
                     {/* Action Icons */}
                     <View style={styles.mafundishoActions}>
                       <TouchableOpacity 
                         style={styles.mafundishoAddBtn}
-                        onPress={() => handleMafundishoAdd(leader)}
+                        onPress={() => navigation.navigate('MafundishoDetail', { containerId: item.container_id, mafundisho: item })}
                       >
-                        <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
+                        <Ionicons name="list-outline" size={28} color={COLORS.textSecondary} />
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={styles.mafundishoPlayBtn}
-                        onPress={() => handleMafundishoPlay(leader)}
+                        onPress={() => navigation.navigate('MafundishoDetail', { containerId: item.container_id, mafundisho: item })}
                       >
                         <Ionicons name="play" size={24} color={COLORS.background} />
                       </TouchableOpacity>
                     </View>
-                    
-                    {/* Three dots menu */}
-                    <TouchableOpacity style={styles.mafundishoMenu}>
-                      <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
-                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               ))}
