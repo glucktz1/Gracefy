@@ -22,6 +22,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
+import { useBilling } from '../context/BillingContext';
 import { getImageUrl, getAudioUrl, contentAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
 import { showToast } from '../components/Toast';
