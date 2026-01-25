@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Share,
-  Alert,
   ScrollView,
   PermissionsAndroid,
   Platform,
