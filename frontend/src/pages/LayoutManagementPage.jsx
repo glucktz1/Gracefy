@@ -857,6 +857,7 @@ export default function LayoutManagementPage() {
   const [churches, setChurches] = useState([]);
   const [choirs, setChoirs] = useState([]);
   const [religiousLeaders, setReligiousLeaders] = useState([]);
+  const [leaderContent, setLeaderContent] = useState([]);
   const [bibleSnippets, setBibleSnippets] = useState([]);
   const [specialMixes, setSpecialMixes] = useState([]);
   const [loading, setLoading] = useState(true);
