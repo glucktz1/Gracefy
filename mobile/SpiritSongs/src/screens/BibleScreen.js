@@ -8,7 +8,6 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,7 @@ import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { bibleAPI } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
+import { showToast } from '../components/Toast';
 
 const BibleScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -184,7 +184,7 @@ const BibleScreen = ({ navigation }) => {
         soundRef.current = newSound;
         setPlayingAudio(verse.verse);
       } else {
-        Alert.alert('Kosa', 'Imeshindikana kupata sauti. Tafadhali jaribu tena.');
+        showToast('Imeshindikana kupata sauti. Jaribu tena', 'error');
         if (wasMusicPlayingRef.current) {
           wasMusicPlayingRef.current = false;
           resumePlayback?.();
@@ -192,7 +192,7 @@ const BibleScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('TTS Error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kusoma aya. Tafadhali jaribu tena.');
+      showToast('Imeshindikana kusoma aya. Jaribu tena', 'error');
       if (wasMusicPlayingRef.current) {
         wasMusicPlayingRef.current = false;
         resumePlayback?.();
@@ -261,7 +261,7 @@ const BibleScreen = ({ navigation }) => {
         soundRef.current = newSound;
         setPlayingAudio('chapter');
       } else {
-        Alert.alert('Kosa', 'Imeshindikana kupata sauti. Tafadhali jaribu tena.');
+        showToast('Imeshindikana kupata sauti. Jaribu tena', 'error');
         if (wasMusicPlayingRef.current) {
           wasMusicPlayingRef.current = false;
           resumePlayback?.();
@@ -269,7 +269,7 @@ const BibleScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('TTS Error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kusoma sura. Tafadhali jaribu tena.');
+      showToast('Imeshindikana kusoma sura. Jaribu tena', 'error');
       if (wasMusicPlayingRef.current) {
         wasMusicPlayingRef.current = false;
         resumePlayback?.();
@@ -285,7 +285,7 @@ const BibleScreen = ({ navigation }) => {
     const end = parseInt(endVerse) || verses.length;
     
     if (start > end || start < 1 || end > verses.length) {
-      Alert.alert('Kosa', 'Tafadhali weka aya sahihi');
+      showToast('Tafadhali weka aya sahihi', 'warning');
       return;
     }
     
@@ -336,11 +336,11 @@ const BibleScreen = ({ navigation }) => {
         soundRef.current = newSound;
         setPlayingAudio('range');
       } else {
-        Alert.alert('Kosa', 'Imeshindikana kupata sauti. Tafadhali jaribu tena.');
+        showToast('Imeshindikana kupata sauti. Jaribu tena', 'error');
       }
     } catch (error) {
       console.error('TTS Error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kusoma aya. Tafadhali jaribu tena.');
+      showToast('Imeshindikana kusoma aya. Jaribu tena', 'error');
     } finally {
       setGeneratingAudio(null);
     }
