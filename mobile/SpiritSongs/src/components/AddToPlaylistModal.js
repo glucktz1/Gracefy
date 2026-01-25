@@ -337,11 +337,11 @@ const AddToPlaylistModal = ({
     }
     try {
       await libraryAPI.addToPlaylist(playlist.playlist_id, song.song_id);
-      Alert.alert('Imefanikiwa', `"${song.title}" imeongezwa kwenye "${playlist.name}"`);
+      showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
       onClose();
     } catch (error) {
       console.error('Error adding to playlist:', error);
-      Alert.alert('Kosa', 'Imeshindikana kuongeza wimbo kwenye playlist');
+      showToast('Imeshindikana kuongeza wimbo', 'error');
     }
   };
 
@@ -355,18 +355,19 @@ const AddToPlaylistModal = ({
       return;
     }
     if (!newPlaylistName.trim()) {
-      Alert.alert('Kosa', 'Tafadhali weka jina la playlist');
+      showToast('Tafadhali weka jina la playlist', 'warning');
       return;
     }
 
     try {
       setCreating(true);
+      Keyboard.dismiss();
       const response = await libraryAPI.createPlaylist({ name: newPlaylistName });
       if (response.data?.playlist_id && song) {
         await libraryAPI.addToPlaylist(response.data.playlist_id, song.song_id);
-        Alert.alert('Imefanikiwa', `Playlist "${newPlaylistName}" imetengenezwa na wimbo umeongezwa`);
+        showToast(`Playlist "${newPlaylistName}" imetengenezwa`, 'success');
       } else {
-        Alert.alert('Imefanikiwa', `Playlist "${newPlaylistName}" imetengenezwa`);
+        showToast(`Playlist "${newPlaylistName}" imetengenezwa`, 'success');
       }
       setNewPlaylistName('');
       setShowCreateNew(false);
@@ -374,7 +375,7 @@ const AddToPlaylistModal = ({
       await loadPlaylists();
     } catch (error) {
       console.error('Error creating playlist:', error);
-      Alert.alert('Kosa', 'Imeshindikana kutengeneza playlist');
+      showToast('Imeshindikana kutengeneza playlist', 'error');
     } finally {
       setCreating(false);
     }
@@ -388,7 +389,7 @@ const AddToPlaylistModal = ({
     }
     try {
       await libraryAPI.likeSong(song.song_id);
-      Alert.alert('Imefanikiwa', `"${song.title}" imeongezwa kwenye nyimbo pendwa`);
+      showToast(`"${song.title}" imependwa ❤️`, 'success');
       if (onLike) onLike();
       onClose();
     } catch (error) {
