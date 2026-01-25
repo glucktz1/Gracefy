@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, getImageUrl } from '../services/api';
+import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
@@ -47,7 +47,7 @@ const HomeScreen = ({ navigation }) => {
   const [likedSongsCount, setLikedSongsCount] = useState(0);
   const [bibleSnippets, setBibleSnippets] = useState([]);
   const [churches, setChurches] = useState([]);
-  const [leaderContent, setLeaderContent] = useState([]);
+  const [mafundishoContent, setMafundishoContent] = useState([]);
   
   // Additional sections from Layout Manager
   const [lentSongs, setLentSongs] = useState([]);
