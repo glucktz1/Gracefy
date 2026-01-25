@@ -99,7 +99,7 @@ const LibraryScreen = ({ navigation }) => {
     try {
       await libraryAPI.unlikeSong(song.song_id);
       setLikedSongs(prev => prev.filter(s => s.song_id !== song.song_id));
-      Alert.alert('Imeondolewa', `"${song.title}" imeondolewa kwenye nyimbo pendwa`);
+      showToast(`"${song.title}" imeondolewa ❌`, 'info');
     } catch (error) {
       console.error('Error unliking song:', error);
     }
@@ -119,7 +119,9 @@ const LibraryScreen = ({ navigation }) => {
       setShowSubscriptionModal(true);
       return;
     }
-    Alert.alert('Kupakua', `Kupakua "${song.title}"... (Kipengele hiki kinakuja hivi karibuni)`);
+    // Open the playlist modal which has download functionality
+    setSelectedSong(song);
+    setShowPlaylistModal(true);
   };
 
   const handleCreatePlaylist = () => {
