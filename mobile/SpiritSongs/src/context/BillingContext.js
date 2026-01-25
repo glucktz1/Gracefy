@@ -17,35 +17,23 @@ export const BillingProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Get billing settings
-      const settingsRes = await billingAPI.getSettings().catch(() => ({ data: {} }));
-      const settings = settingsRes.data || {};
-      setBillingEnabled(settings.subscription_enabled || settings.billing_enabled || false);
-      
       // Get plans
       const plansRes = await billingAPI.getPlans().catch(() => ({ data: { plans: [] } }));
       setPlans(plansRes.data?.plans || []);
       
-      // Get user subscription if authenticated
-      if (isAuthenticated && user) {
-        const subRes = await billingAPI.getUserSubscription().catch(() => ({ data: null }));
-        if (subRes.data) {
-          setSubscription(subRes.data);
-          // Check if subscription is active
-          const isActive = subRes.data.status === 'active' && 
-            new Date(subRes.data.expires_at) > new Date();
-          setIsPremium(isActive);
-        } else {
-          // Check user object for subscription status
-          setIsPremium(user.subscription_status === 'active' || user.is_premium === true);
-        }
+      // Get user subscription status (includes billing_enabled flag)
+      const subRes = await billingAPI.getUserSubscription().catch(() => ({ data: { billing_enabled: false, is_premium: false } }));
+      if (subRes.data) {
+        setBillingEnabled(subRes.data.billing_enabled || false);
+        setIsPremium(subRes.data.is_premium || false);
+        setSubscription(subRes.data.subscription || null);
       }
     } catch (error) {
       console.error('Error loading billing data:', error);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, []);
 
   useEffect(() => {
     loadBillingData();
