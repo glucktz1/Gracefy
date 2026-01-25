@@ -25,6 +25,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl, getAudioUrl, contentAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
+import { showToast } from '../components/Toast';
 
 const { width, height } = Dimensions.get('window');
 
@@ -136,7 +137,7 @@ const NowPlayingScreen = ({ navigation }) => {
     // Check permission for older Android
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako katika Settings.');
+      showToast('Tafadhali ruhusu kuhifadhi faili katika Settings', 'warning');
       return;
     }
 
@@ -167,7 +168,7 @@ const NowPlayingScreen = ({ navigation }) => {
       if (!fileUrl) {
         fileUrl = currentTrack.audio_url || currentTrack.file_url;
         if (!fileUrl) {
-          Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa - hakuna faili');
+          showToast('Wimbo huu hauwezi kupakuliwa - hakuna faili', 'error');
           setIsDownloading(false);
           return;
         }
@@ -212,10 +213,10 @@ const NowPlayingScreen = ({ navigation }) => {
         console.log('Download result:', { uri: result.uri, size: fileInfo.size, exists: fileInfo.exists });
         
         if (fileInfo.exists && fileInfo.size > 1000) {  // At least 1KB
-          Alert.alert('Imefanikiwa! ✓', `"${currentTrack.title}" imehifadhiwa kwenye simu yako.\n\nFaili: ${fileName}`);
+          showToast(`"${currentTrack.title}" imepakuliwa ✓`, 'success');
         } else if (fileInfo.exists && fileInfo.size > 0) {
           // File exists but might be small - could be an error response
-          Alert.alert('Onyo', 'Faili imehifadhiwa lakini inaweza kuwa na tatizo. Ukubwa mdogo sana.');
+          showToast('Faili imehifadhiwa lakini inaweza kuwa na tatizo', 'warning');
         } else {
           throw new Error('Downloaded file is empty or too small');
         }
@@ -224,7 +225,7 @@ const NowPlayingScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Kosa la Kupakua', `Imeshindikana kupakua wimbo.\n\nSababu: ${error.message || 'Tatizo la mtandao'}\n\nJaribu tena baadaye.`);
+      showToast('Imeshindikana kupakua wimbo. Jaribu tena', 'error');
     } finally {
       setIsDownloading(false);
       setDownloadProgress(0);
