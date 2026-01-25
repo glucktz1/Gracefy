@@ -141,7 +141,7 @@ export const SongActionsModal = ({
 
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako katika Settings.');
+      showToast('Tafadhali ruhusu kuhifadhi faili katika Settings', 'warning');
       return;
     }
 
@@ -170,7 +170,7 @@ export const SongActionsModal = ({
       if (!fileUrl) {
         fileUrl = song?.audio_url || song?.file_url;
         if (!fileUrl) {
-          Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
+          showToast('Wimbo huu hauwezi kupakuliwa', 'error');
           setDownloading(false);
           return;
         }
@@ -195,7 +195,7 @@ export const SongActionsModal = ({
       if (result?.uri) {
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
         if (fileInfo.exists && fileInfo.size > 1000) {
-          Alert.alert('Imefanikiwa! ✓', `"${song.title}" imehifadhiwa`);
+          showToast(`"${song.title}" imepakuliwa ✓`, 'success');
         } else {
           throw new Error('Downloaded file is empty or too small');
         }
