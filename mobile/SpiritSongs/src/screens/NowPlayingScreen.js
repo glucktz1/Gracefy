@@ -58,9 +58,8 @@ const NowPlayingScreen = ({ navigation }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
-  // Billing settings
-  const billingEnabled = false;
-  const isPremium = user?.subscription_status === 'active';
+  // Billing settings from context
+  const { billingEnabled, isPremium } = useBilling();
 
   if (!currentTrack) {
     return (
