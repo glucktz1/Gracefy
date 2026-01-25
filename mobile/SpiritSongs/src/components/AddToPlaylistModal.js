@@ -49,14 +49,17 @@ export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
 export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, message }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-      <View style={styles.loginModal}>
-        <Ionicons name="star-outline" size={48} color={COLORS.warning} />
-        <Text style={styles.loginTitle}>Jiandikishe</Text>
-        <Text style={styles.loginMessage}>
-          {message || 'Unahitaji kulipia ili kutengeneza playlist au kupakua nyimbo'}
+      <View style={styles.subscriptionModal}>
+        <View style={styles.subscriptionIconContainer}>
+          <Ionicons name="lock-closed" size={32} color={COLORS.warning} />
+        </View>
+        <Text style={styles.subscriptionTitle}>Changia Kidogo</Text>
+        <Text style={styles.subscriptionMessage}>
+          {message || 'Maudhui ya Gracefy ni bure kuwezesha kupakua nyimbo, au kutengeneza playlist yako au kusikiliza bila kukwama simu yako iki-lock changia kidogo.'}
         </Text>
-        <TouchableOpacity style={[styles.loginButton, { backgroundColor: COLORS.warning }]} onPress={onSubscribe}>
-          <Text style={styles.loginButtonText}>Lipia Sasa</Text>
+        <TouchableOpacity style={styles.subscriptionButton} onPress={onSubscribe}>
+          <Ionicons name="star" size={18} color={COLORS.background} style={{ marginRight: 8 }} />
+          <Text style={styles.subscriptionButtonText}>Lipia Sasa</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelLink} onPress={onClose}>
           <Text style={styles.cancelLinkText}>Baadaye</Text>
@@ -431,7 +434,7 @@ const AddToPlaylistModal = ({
 
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      Alert.alert('Ruhusa Inahitajika', 'Tafadhali ruhusu Gracefy kuhifadhi faili kwenye simu yako katika Settings.');
+      showToast('Tafadhali ruhusu kuhifadhi faili katika Settings', 'warning');
       return;
     }
 
@@ -466,7 +469,7 @@ const AddToPlaylistModal = ({
       if (!fileUrl) {
         fileUrl = song?.audio_url || song?.file_url;
         if (!fileUrl) {
-          Alert.alert('Kosa', 'Wimbo huu hauwezi kupakuliwa');
+          showToast('Wimbo huu hauwezi kupakuliwa', 'error');
           setDownloading(false);
           return;
         }
@@ -485,14 +488,14 @@ const AddToPlaylistModal = ({
       if (result?.uri) {
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
         if (fileInfo.exists && fileInfo.size > 1000) {
-          Alert.alert('Imefanikiwa! ✓', `"${song.title}" imehifadhiwa`);
+          showToast(`"${song.title}" imepakuliwa ✓`, 'success');
         } else {
           throw new Error('Downloaded file is empty or too small');
         }
       }
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena'}`);
+      showToast('Imeshindikana kupakua wimbo', 'error');
     } finally {
       setDownloading(false);
       onClose();
