@@ -105,18 +105,81 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Status update handler
-  const onPlaybackStatusUpdate = useCallback((status) => {
+  // Status update handler - CRITICAL for background playback
+  // This must work even when app is in background
+  const onPlaybackStatusUpdate = useCallback(async (status) => {
     if (status.isLoaded) {
       setPosition(status.positionMillis / 1000);
       setDuration(status.durationMillis / 1000 || 0);
       setIsPlaying(status.isPlaying);
       setIsLoading(status.isBuffering);
 
+      // CRITICAL: Handle track end for continuous playback
       if (status.didJustFinish && !status.isLooping) {
-        console.log('[PlayerContext] Track finished, handling track end');
-        handleTrackEnd();
+        console.log('[PlayerContext] Track finished in background/foreground');
+        
+        // Use refs directly to avoid stale closure issues in background
+        const currentRepeat = repeatRef.current;
+        const currentQueue = queueRef.current;
+        const currentIndex = queueIndexRef.current;
+        
+        console.log('[PlayerContext] Background track end - repeat:', currentRepeat, 'index:', currentIndex, 'queue:', currentQueue.length);
+
+        try {
+          if (currentRepeat === 'one') {
+            // Repeat current track
+            if (soundRef.current) {
+              await soundRef.current.setPositionAsync(0);
+              await soundRef.current.playAsync();
+            }
+          } else if (currentIndex < currentQueue.length - 1) {
+            // Play next track in queue
+            const nextIndex = currentIndex + 1;
+            const nextTrack = currentQueue[nextIndex];
+            if (nextTrack) {
+              console.log('[PlayerContext] Playing next track:', nextTrack.title);
+              queueIndexRef.current = nextIndex;
+              setQueueIndex(nextIndex);
+              await playTrackInternal(nextTrack);
+            }
+          } else if (currentRepeat === 'all' && currentQueue.length > 0) {
+            // Loop back to start of queue
+            const firstTrack = currentQueue[0];
+            console.log('[PlayerContext] Looping to start:', firstTrack.title);
+            queueIndexRef.current = 0;
+            setQueueIndex(0);
+            await playTrackInternal(firstTrack);
+          } else if (autoPlayRef.current) {
+            // Continuous play: fetch more songs
+            console.log('[PlayerContext] Fetching more songs for continuous play');
+            const moreSongs = await fetchMoreSongs();
+            if (moreSongs.length > 0) {
+              queueRef.current = moreSongs;
+              queueIndexRef.current = 0;
+              setQueue(moreSongs);
+              setQueueIndex(0);
+              await playTrackInternal(moreSongs[0]);
+            } else {
+              setIsPlaying(false);
+            }
+          } else {
+            setIsPlaying(false);
+          }
+        } catch (error) {
+          console.error('[PlayerContext] Error handling track end:', error);
+          // Try to continue playback despite error
+          if (currentQueue.length > currentIndex + 1) {
+            const nextTrack = currentQueue[currentIndex + 1];
+            if (nextTrack) {
+              queueIndexRef.current = currentIndex + 1;
+              setQueueIndex(currentIndex + 1);
+              await playTrackInternal(nextTrack);
+            }
+          }
+        }
       }
+    } else if (status.error) {
+      console.error('[PlayerContext] Playback error:', status.error);
     }
   }, []);
 
