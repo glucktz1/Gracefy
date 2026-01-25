@@ -163,9 +163,9 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 | Bunny CDN | ✅ Active | Media storage |
 | FFmpeg | ✅ Active | Audio transcoding |
 | Google Cloud TTS | ✅ Active | Bible audio generation |
-| Expo EAS | ✅ Active | Mobile cloud builds |
-| Stripe | 🔲 Planned | Payment processing |
-| PayPal | 🔲 Planned | Payment processing |
+| Expo EAS | ✅ Active | Mobile cloud builds (gracefy2) |
+| Azam Pay | 🔲 Planned | Payment processing (Tanzania) |
+| Emergent Google Auth | ✅ Active | Google OAuth login |
 
 ---
 
