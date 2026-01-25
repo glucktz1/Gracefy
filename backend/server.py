@@ -3712,16 +3712,20 @@ async def get_rate_change_history():
 async def get_subscription_plans():
     """Get all subscription plans"""
     plans = await db.subscription_plans.find({}, {"_id": 0}).sort("sort_order", 1).to_list(20)
-    if not plans:
-        # Return default plans
+    
+    # Filter to only active plans
+    active_plans = [p for p in plans if p.get("is_active", True)]
+    
+    if not active_plans:
+        # Return default plans if no active plans exist
         default_plans = [
-            {"plan_id": "plan_daily", "name": "daily", "display_name": "Daily Pass", "price": 500, "duration_days": 1, "features": ["Unlimited streaming", "Ad-free"], "is_active": True, "sort_order": 1},
-            {"plan_id": "plan_weekly", "name": "weekly", "display_name": "Weekly", "price": 2000, "duration_days": 7, "features": ["Unlimited streaming", "Ad-free", "Offline downloads"], "is_active": True, "sort_order": 2},
-            {"plan_id": "plan_monthly", "name": "monthly", "display_name": "Monthly", "price": 5000, "duration_days": 30, "features": ["Unlimited streaming", "Ad-free", "Offline downloads", "High quality audio"], "is_active": True, "sort_order": 3},
-            {"plan_id": "plan_yearly", "name": "yearly", "display_name": "Yearly", "price": 50000, "duration_days": 365, "features": ["Unlimited streaming", "Ad-free", "Offline downloads", "High quality audio", "2 months free"], "is_active": True, "sort_order": 4}
+            {"plan_id": "plan_daily", "name": "daily", "display_name": "Siku 1", "display_name_sw": "Siku 1", "price": 500, "duration_days": 1, "features": ["Sikiliza bila kikomo", "Bila matangazo"], "is_active": True, "sort_order": 1},
+            {"plan_id": "plan_weekly", "name": "weekly", "display_name": "Wiki 1", "display_name_sw": "Wiki 1", "price": 2000, "duration_days": 7, "features": ["Sikiliza bila kikomo", "Bila matangazo", "Pakua nyimbo"], "is_active": True, "sort_order": 2},
+            {"plan_id": "plan_monthly", "name": "monthly", "display_name": "Mwezi 1", "display_name_sw": "Mwezi 1", "price": 5000, "duration_days": 30, "features": ["Sikiliza bila kikomo", "Bila matangazo", "Pakua nyimbo", "Ubora wa juu"], "is_active": True, "sort_order": 3},
+            {"plan_id": "plan_yearly", "name": "yearly", "display_name": "Mwaka 1", "display_name_sw": "Mwaka 1", "price": 50000, "duration_days": 365, "features": ["Sikiliza bila kikomo", "Bila matangazo", "Pakua nyimbo", "Ubora wa juu", "Miezi 2 bure"], "is_active": True, "sort_order": 4}
         ]
         return {"plans": default_plans}
-    return {"plans": plans}
+    return {"plans": active_plans}
 
 @api_router.post("/monetization/plans")
 async def create_subscription_plan(data: dict):
