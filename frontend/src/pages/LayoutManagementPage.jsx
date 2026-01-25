@@ -2274,6 +2274,43 @@ export default function LayoutManagementPage() {
                 </div>
               </div>
 
+              {/* Leader Content Section (Teachings, Sermons) */}
+              <div>
+                <h4 className="text-sm font-medium text-orange-400 mb-2 flex items-center gap-2">
+                  <BookOpen size={16} /> Mafundisho na Katekesi ({leaderContent.length})
+                </h4>
+                <div className="space-y-2">
+                  {leaderContent.length > 0 ? leaderContent.map((content) => (
+                    <label key={content.content_id || content.container_id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg cursor-pointer hover:bg-zinc-800">
+                      <input
+                        type="checkbox"
+                        defaultChecked={selectedSection?.content_ids?.includes(content.content_id || content.container_id)}
+                        className="rounded border-zinc-700"
+                        data-id={content.content_id || content.container_id}
+                        data-type="leader_content"
+                      />
+                      {content.thumbnail ? (
+                        <img src={content.thumbnail} alt="" className="w-10 h-10 rounded object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-orange-600/20 flex items-center justify-center">
+                          <BookOpen size={16} className="text-orange-400" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white">{content.title}</p>
+                        <p className="text-xs text-zinc-500">
+                          {content.leader_name || 'Mafundisho'} 
+                          {content.is_container ? ` • ${content.total_episodes || 0} episodes` : ''}
+                          {content.category ? ` • ${content.category}` : ''}
+                        </p>
+                      </div>
+                    </label>
+                  )) : (
+                    <p className="text-zinc-500 text-sm p-3">No leader content available</p>
+                  )}
+                </div>
+              </div>
+
               {/* Bible Snippets Section */}
               <div>
                 <h4 className="text-sm font-medium text-blue-400 mb-2 flex items-center gap-2">
