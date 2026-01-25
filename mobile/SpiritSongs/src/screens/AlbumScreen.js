@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-  Alert,
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +18,7 @@ import { contentAPI, libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { SongListItem } from '../components/Cards';
+import { showToast } from '../components/Toast';
 import AddToPlaylistModal, { 
   SongActionsModal, 
   LoginRequiredModal, 

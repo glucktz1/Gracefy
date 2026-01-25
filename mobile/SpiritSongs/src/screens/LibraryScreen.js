@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +14,7 @@ import { libraryAPI, getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { usePlayer } from '../context/PlayerContext';
+import { showToast } from '../components/Toast';
 import AddToPlaylistModal, { 
   SongActionsModal, 
   LoginRequiredModal, 
