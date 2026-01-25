@@ -202,7 +202,7 @@ export const SongActionsModal = ({
       }
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Kosa', `Imeshindikana kupakua wimbo: ${error.message || 'Jaribu tena'}`);
+      showToast('Imeshindikana kupakua', 'error');
     } finally {
       setDownloading(false);
       onClose();
