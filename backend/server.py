@@ -3174,6 +3174,84 @@ async def get_religious_leaders_for_layout():
     ).to_list(500)
     return {"leaders": leaders, "total": len(leaders)}
 
+@api_router.get("/mafundisho")
+async def get_mafundisho_for_app():
+    """Get Mafundisho na Katekesi content for mobile app - returns content containers with episode counts"""
+    # Get all active content containers (teachings/series)
+    containers = await db.content_containers.find(
+        {"status": "active"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    # Enrich each container with episode count and leader info
+    enriched = []
+    for container in containers:
+        # Count episodes for this container
+        episode_count = await db.leader_content.count_documents({
+            "container_id": container.get("container_id"),
+            "status": "active"
+        })
+        
+        # Get leader info if available
+        leader_info = None
+        if container.get("leader_id"):
+            leader_info = await db.religious_leaders.find_one(
+                {"leader_id": container.get("leader_id")},
+                {"_id": 0, "name": 1, "title": 1, "photo": 1, "church_name": 1}
+            )
+        
+        enriched.append({
+            "container_id": container.get("container_id"),
+            "title": container.get("title"),
+            "description": container.get("description"),
+            "thumbnail": container.get("thumbnail_url") or container.get("thumbnail"),
+            "leader_name": container.get("leader_name") or (leader_info.get("name") if leader_info else None),
+            "leader_title": container.get("leader_title") or (leader_info.get("title") if leader_info else None),
+            "leader_photo": leader_info.get("photo") if leader_info else None,
+            "church_name": container.get("church_name") or (leader_info.get("church_name") if leader_info else None),
+            "episode_count": episode_count or container.get("total_episodes", 0),
+            "content_type": container.get("content_type", "teachings"),
+            "category": container.get("category"),
+            "created_at": container.get("created_at")
+        })
+    
+    return {"mafundisho": enriched, "total": len(enriched)}
+
+@api_router.get("/mafundisho/{container_id}")
+async def get_mafundisho_detail(container_id: str):
+    """Get details of a specific Mafundisho container with all episodes"""
+    # Get container info
+    container = await db.content_containers.find_one(
+        {"container_id": container_id},
+        {"_id": 0}
+    )
+    if not container:
+        raise HTTPException(status_code=404, detail="Mafundisho not found")
+    
+    # Get all episodes
+    episodes = await db.leader_content.find(
+        {"container_id": container_id, "status": "active"},
+        {"_id": 0, "audio_data": 0}
+    ).sort("series_number", 1).to_list(100)
+    
+    # Get leader info
+    leader_info = None
+    if container.get("leader_id"):
+        leader_info = await db.religious_leaders.find_one(
+            {"leader_id": container.get("leader_id")},
+            {"_id": 0}
+        )
+    
+    return {
+        "container": {
+            **container,
+            "thumbnail": container.get("thumbnail_url") or container.get("thumbnail"),
+            "leader_info": leader_info
+        },
+        "episodes": episodes,
+        "total_episodes": len(episodes)
+    }
+
 @api_router.get("/layout/leader-content")
 async def get_leader_content_for_layout():
     """Get leader content (teachings, sermons) for layout manager selection"""
