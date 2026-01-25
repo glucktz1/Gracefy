@@ -398,9 +398,10 @@ const LibraryScreen = ({ navigation }) => {
       <SubscriptionRequiredModal
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
+        navigation={navigation}
         onSubscribe={() => {
           setShowSubscriptionModal(false);
-          navigation.navigate('Checkout');
+          navigation.navigate('SubscriptionPlans');
         }}
       />
     </SafeAreaView>
