@@ -116,7 +116,7 @@ const HomeScreen = ({ navigation }) => {
         likesRes,
         snippetsRes,
         churchesRes,
-        leadersRes,
+        mafundishoRes,
       ] = await Promise.all([
         homeAPI.getSections().catch((e) => { errors.push(`Sections: ${e.message}`); return { data: { sections: [] } }; }),
         homeAPI.getHeroContent().catch((e) => { errors.push(`Hero: ${e.message}`); return { data: { items: [] } }; }),
