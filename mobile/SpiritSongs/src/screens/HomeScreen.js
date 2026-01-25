@@ -342,26 +342,32 @@ const HomeScreen = ({ navigation }) => {
 
   // Handle Mafundisho card play button
   const handleMafundishoPlay = (leader) => {
-    // Navigate to leader's content/playlist
-    navigation.navigate('Playlist', { 
-      mix: { 
-        mix_id: leader.leader_id, 
-        title: leader.name,
-        thumbnail: leader.photo 
+    // Navigate to leader's content screen
+    navigation.navigate('LeaderContent', { 
+      leader: { 
+        leader_id: leader.leader_id, 
+        name: leader.name,
+        title: leader.title,
+        photo: leader.photo,
+        church_name: leader.church_name,
+        followers: leader.followers,
+        bio: leader.bio
       } 
     });
   };
 
   // Handle Mafundisho add button
   const handleMafundishoAdd = (leader) => {
-    // Show add options for leader content
-    setSelectedSong({
-      song_id: leader.leader_id,
-      title: leader.name,
-      thumbnail: leader.photo,
-      artist_name: leader.title || 'Mafundisho'
+    // Navigate to leader's content screen
+    navigation.navigate('LeaderContent', { 
+      leader: { 
+        leader_id: leader.leader_id, 
+        name: leader.name,
+        title: leader.title,
+        photo: leader.photo,
+        church_name: leader.church_name
+      } 
     });
-    setShowPlaylistModal(true);
   };
 
   // Toggle debug info display
