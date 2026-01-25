@@ -1311,6 +1311,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
   },
+  mafundishoEpisodes: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   mafundishoActions: {
     flexDirection: 'row',
     alignItems: 'center',
