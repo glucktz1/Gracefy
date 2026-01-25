@@ -13,6 +13,8 @@ import {
   Share,
   PermissionsAndroid,
   Platform,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 // Use legacy API for backward compatibility with SDK 54
@@ -20,6 +22,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { libraryAPI, contentAPI, getImageUrl, getAudioUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { showToast } from './Toast';
 
 // Login Required Modal Component
 export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
