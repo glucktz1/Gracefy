@@ -211,10 +211,10 @@ const HomeScreen = ({ navigation }) => {
       stats.churches = Array.isArray(churchesData) ? churchesData.length : 0;
       setChurches(Array.isArray(churchesData) ? churchesData : []);
 
-      // Leader content
-      const leaders = leadersRes.data?.leaders || leadersRes.data || [];
-      stats.leaders = Array.isArray(leaders) ? leaders.length : 0;
-      setLeaderContent(Array.isArray(leaders) ? leaders : []);
+      // Mafundisho na Katekesi content
+      const mafundisho = mafundishoRes.data?.mafundisho || [];
+      stats.mafundisho = Array.isArray(mafundisho) ? mafundisho.length : 0;
+      setMafundishoContent(Array.isArray(mafundisho) ? mafundisho : []);
 
       // Quick Access config
       const quickAccessSection = activeSections.find(s => 
