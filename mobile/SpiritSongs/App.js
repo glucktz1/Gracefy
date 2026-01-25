@@ -145,7 +145,9 @@ export default function App() {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
         <AuthProvider>
           <PlayerProvider>
-            <AppContent />
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
           </PlayerProvider>
         </AuthProvider>
       </SafeAreaProvider>
