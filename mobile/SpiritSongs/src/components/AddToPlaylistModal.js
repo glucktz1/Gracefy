@@ -47,7 +47,7 @@ export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
 );
 
 // Subscription Required Modal Component
-export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, message }) => (
+export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, message, navigation }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.centeredOverlay}>
       <TouchableOpacity style={styles.overlayBackground} activeOpacity={1} onPress={onClose} />
@@ -59,9 +59,19 @@ export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, messa
         <Text style={styles.subscriptionMessage}>
           {message || 'Maudhui ya Gracefy ni bure kuwezesha kupakua nyimbo, au kutengeneza playlist yako au kusikiliza bila kukwama simu yako iki-lock changia kidogo.'}
         </Text>
-        <TouchableOpacity style={styles.subscriptionButton} onPress={onSubscribe}>
+        <TouchableOpacity 
+          style={styles.subscriptionButton} 
+          onPress={() => {
+            onClose();
+            if (navigation) {
+              navigation.navigate('SubscriptionPlans', { featurePrompt: message });
+            } else if (onSubscribe) {
+              onSubscribe();
+            }
+          }}
+        >
           <Ionicons name="star" size={18} color={COLORS.background} style={{ marginRight: 8 }} />
-          <Text style={styles.subscriptionButtonText}>Lipia Sasa</Text>
+          <Text style={styles.subscriptionButtonText}>Ona Mipango</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelLink} onPress={onClose}>
           <Text style={styles.cancelLinkText}>Baadaye</Text>
