@@ -99,6 +99,17 @@ export const homeAPI = {
   getQuickAccess: () => api.get('/layout/sections?type=quick_access'),
 };
 
+// ============ LEADER CONTENT API ============
+export const leaderContentAPI = {
+  getAll: (category, skip = 0, limit = 20) => {
+    let url = `/leader-content?skip=${skip}&limit=${limit}`;
+    if (category) url += `&category=${category}`;
+    return api.get(url);
+  },
+  getByLeader: (leaderId) => api.get(`/leaders/${leaderId}/content`),
+  getLeaders: () => api.get('/layout/religious-leaders'),
+};
+
 // ============ CONTENT API ============
 export const contentAPI = {
   getAlbums: () => api.get('/albums'),
