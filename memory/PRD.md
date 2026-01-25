@@ -89,8 +89,9 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 ## Current Status (January 2026)
 
 ### Latest Mobile Build
-- **Version:** 1.0.48
-- **Status:** User Testing
+- **Version:** 1.0.49
+- **Status:** ✅ Ready for Testing
+- **APK Download:** https://expo.dev/artifacts/eas/gNSU1AWj3xVo2FHaszaf7y.apk
 - **Account:** gracefy2
 
 ### Recently Completed (This Session)
@@ -99,10 +100,10 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 - ✅ Fixed keyboard covering input field in AddToPlaylistModal (KeyboardAvoidingView)
 - ✅ Updated SubscriptionRequiredModal with custom Swahili message
 - ✅ Implemented simultaneous audio prevention (music pauses Bible TTS and vice versa)
-- ✅ Fixed session persistence bug (user was logged out on app restart)
-- ✅ Fixed song download feature (expo-file-system legacy API)
-- ✅ Fixed library features (likes, playlists)
-- ✅ Fixed admin content filtering (inactive songs/albums hidden from users)
+- ✅ **NEW:** Linked "Mafundisho na Katekesi" to Leader Content with new LeaderContentScreen
+- ✅ **NEW:** Added Leader Content section to Layout Manager for content attachment
+- ✅ **NEW:** Created backend endpoints for leader content retrieval
+- ✅ Added App Store links (iOS/Android) to web app sidebar
 
 ### Completed Builds
 - v1.0.48 APK: Latest build with UI improvements
