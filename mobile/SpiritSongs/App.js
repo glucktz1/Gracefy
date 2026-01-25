@@ -24,6 +24,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
+import { ToastProvider } from './src/components/Toast';
 
 // Theme
 import { COLORS } from './src/config/theme';
