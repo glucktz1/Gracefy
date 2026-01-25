@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { bibleAPI } from '../services/api';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayer, setStopExternalAudioCallback, clearStopExternalAudioCallback } from '../context/PlayerContext';
 import { showToast } from '../components/Toast';
 
 const BibleScreen = ({ navigation }) => {
@@ -42,9 +42,17 @@ const BibleScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadBooks();
+    
+    // Register callback so PlayerContext can stop our TTS when music starts
+    setStopExternalAudioCallback(async () => {
+      await cleanupAudio();
+      setPlayingAudio(null);
+    });
+    
     return () => {
       // Cleanup audio on unmount
       cleanupAudio();
+      clearStopExternalAudioCallback();
     };
   }, []);
 
