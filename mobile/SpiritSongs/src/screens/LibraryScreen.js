@@ -38,10 +38,7 @@ const LibraryScreen = ({ navigation }) => {
 
   const { isAuthenticated, user } = useAuth();
   const { playTrack, currentTrack } = usePlayer();
-  
-  // Billing settings
-  const billingEnabled = false;
-  const isPremium = user?.subscription_status === 'active';
+  const { billingEnabled, isPremium } = useBilling();
 
   useEffect(() => {
     if (isAuthenticated) {
