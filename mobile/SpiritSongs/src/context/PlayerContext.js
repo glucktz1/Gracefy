@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { getAudioUrl, playerAPI, contentAPI } from '../services/api';
 
@@ -45,6 +45,10 @@ export const PlayerProvider = ({ children }) => {
   const queueIndexRef = useRef(0);
   const repeatRef = useRef('all');
   const autoPlayRef = useRef(true);
+  
+  // CRITICAL: Lock to prevent simultaneous playback
+  const isPlayingLockRef = useRef(false);
+  const currentTrackIdRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => { queueRef.current = queue; }, [queue]);
@@ -52,11 +56,37 @@ export const PlayerProvider = ({ children }) => {
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { autoPlayRef.current = autoPlayEnabled; }, [autoPlayEnabled]);
 
-  // Configure audio for background playback
+  // Configure audio for background playback - ENHANCED
   useEffect(() => {
     const setup = async () => {
       try {
+        // Set audio mode for background playback
         await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: true,
+          playsInSilentModeIOS: true,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+        });
+        console.log('[PlayerContext] Audio mode configured for background playback');
+      } catch (e) {
+        console.error('Error setting audio mode:', e);
+      }
+    };
+    setup();
+
+    // Handle app state changes for background playback
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
           allowsRecordingIOS: false,
           staysActiveInBackground: true,
           playsInSilentModeIOS: true,
