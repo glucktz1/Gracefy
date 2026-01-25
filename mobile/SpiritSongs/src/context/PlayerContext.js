@@ -263,65 +263,36 @@ export const PlayerProvider = ({ children }) => {
     console.log('[PlayerContext] handleTrackEnd called (legacy)');
   }, []);
 
-  // Play a track
+  // Play a track - main entry point for playing tracks
   const playTrack = async (track, trackList = null, startIndex = 0) => {
     try {
       setIsLoading(true);
       console.log('[PlayerContext] Playing track:', track.title);
 
-      // Stop any external audio (like Bible TTS) before playing music
-      if (stopExternalAudioCallback) {
-        try {
-          await stopExternalAudioCallback();
-        } catch (e) {
-          console.log('[PlayerContext] Error stopping external audio:', e);
-        }
-      }
-
-      // Unload previous sound
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
       // Set queue if provided
       if (trackList) {
+        queueRef.current = trackList;
+        queueIndexRef.current = startIndex;
         setQueue(trackList);
         setQueueIndex(startIndex);
       }
 
-      const audioUrl = getAudioUrl(track.audio_url);
-      if (!audioUrl) {
-        console.error('No audio URL for track');
-        setIsLoading(false);
-        return;
+      // Use internal play function
+      const success = await playTrackInternal(track);
+      
+      if (!success && queueRef.current.length > queueIndexRef.current + 1) {
+        // Try next track on error
+        console.log('[PlayerContext] Playback error, trying next track');
+        const nextIndex = queueIndexRef.current + 1;
+        queueIndexRef.current = nextIndex;
+        setQueueIndex(nextIndex);
+        await playTrackInternal(queueRef.current[nextIndex]);
       }
-
-      // Create and play sound
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
-        onPlaybackStatusUpdate
-      );
-
-      soundRef.current = sound;
-      setCurrentTrack(track);
+      
       setIsLoading(false);
-
-      // Track play in backend
-      try {
-        await playerAPI.trackPlay(track.song_id);
-      } catch (e) {
-        // Ignore tracking errors
-      }
     } catch (error) {
       console.error('Error playing track:', error);
       setIsLoading(false);
-      // Try next track on error
-      if (queueRef.current.length > queueIndexRef.current + 1) {
-        console.log('[PlayerContext] Playback error, trying next track');
-        playTrackAtIndex(queueIndexRef.current + 1);
-      }
     }
   };
 
