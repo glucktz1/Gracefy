@@ -291,9 +291,19 @@ const NowPlayingScreen = ({ navigation }) => {
                 </Text>
               </View>
               <View style={styles.trackActions}>
-                {/* X/Dislike button */}
-                <TouchableOpacity style={styles.trackActionBtn}>
-                  <Ionicons name="close-outline" size={28} color={COLORS.textSecondary} />
+                {/* Download Button */}
+                <TouchableOpacity 
+                  style={styles.trackActionBtn}
+                  onPress={handleDownload}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <View style={styles.downloadProgress}>
+                      <Text style={styles.downloadProgressText}>{downloadProgress}%</Text>
+                    </View>
+                  ) : (
+                    <Ionicons name="download-outline" size={26} color={COLORS.text} />
+                  )}
                 </TouchableOpacity>
                 {/* Add to Playlist Button */}
                 <TouchableOpacity 
