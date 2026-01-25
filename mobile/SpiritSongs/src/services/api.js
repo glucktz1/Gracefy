@@ -108,6 +108,8 @@ export const leaderContentAPI = {
   },
   getByLeader: (leaderId) => api.get(`/leaders/${leaderId}/content`),
   getLeaders: () => api.get('/layout/religious-leaders'),
+  getMafundisho: () => api.get('/mafundisho'),
+  getMafundishoDetail: (containerId) => api.get(`/mafundisho/${containerId}`),
 };
 
 // ============ CONTENT API ============
