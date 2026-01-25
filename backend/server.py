@@ -3174,6 +3174,82 @@ async def get_religious_leaders_for_layout():
     ).to_list(500)
     return {"leaders": leaders, "total": len(leaders)}
 
+@api_router.get("/layout/leader-content")
+async def get_leader_content_for_layout():
+    """Get leader content (teachings, sermons) for layout manager selection"""
+    content = await db.leader_content.find(
+        {"status": "active"},
+        {"_id": 0, "content_id": 1, "title": 1, "thumbnail": 1, "leader_name": 1, "category": 1, "duration": 1}
+    ).to_list(100)
+    
+    # Also get content containers
+    containers = await db.content_containers.find(
+        {"status": "active"},
+        {"_id": 0, "container_id": 1, "title": 1, "thumbnail_url": 1, "leader_name": 1, "content_type": 1, "total_episodes": 1}
+    ).to_list(100)
+    
+    return {"content": content, "containers": containers, "total": len(content) + len(containers)}
+
+@api_router.get("/leaders/{leader_id}/content")
+async def get_leader_content_by_id(leader_id: str):
+    """Get all content for a specific religious leader"""
+    # Get leader info
+    leader = await db.religious_leaders.find_one(
+        {"leader_id": leader_id},
+        {"_id": 0}
+    )
+    if not leader:
+        raise HTTPException(status_code=404, detail="Leader not found")
+    
+    # Get leader's content items
+    content_items = await db.leader_content.find(
+        {"$or": [{"leader_id": leader_id}, {"leader_name": leader.get("name")}], "status": "active"},
+        {"_id": 0, "audio_data": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    # Get leader's content containers
+    containers = await db.content_containers.find(
+        {"$or": [{"leader_id": leader_id}, {"leader_name": leader.get("name")}], "status": "active"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return {
+        "leader": leader,
+        "content": content_items,
+        "containers": containers,
+        "total_items": len(content_items) + len(containers)
+    }
+
+@api_router.get("/leader-content")
+async def get_all_leader_content(category: Optional[str] = None, leader_id: Optional[str] = None, skip: int = 0, limit: int = 20):
+    """Get all leader content for mobile app Mafundisho section"""
+    query = {"status": "active"}
+    if category:
+        query["category"] = category
+    if leader_id:
+        query["leader_id"] = leader_id
+    
+    # Get content items with leader info
+    content = await db.leader_content.find(
+        query,
+        {"_id": 0, "audio_data": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Enrich with leader photos if missing
+    for item in content:
+        if not item.get("thumbnail") and item.get("leader_id"):
+            leader = await db.religious_leaders.find_one(
+                {"leader_id": item["leader_id"]},
+                {"_id": 0, "photo": 1, "name": 1, "title": 1}
+            )
+            if leader:
+                item["thumbnail"] = leader.get("photo")
+                item["leader_name"] = item.get("leader_name") or leader.get("name")
+                item["leader_title"] = leader.get("title")
+    
+    total = await db.leader_content.count_documents(query)
+    return {"content": content, "total": total}
+
 @api_router.get("/layout/bible-content")
 async def get_bible_content_for_layout():
     """Get bible snippets/devotional cards for layout manager selection"""
