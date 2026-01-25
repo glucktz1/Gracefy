@@ -263,6 +263,18 @@ const AlbumScreen = ({ route, navigation }) => {
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
               <Ionicons name="share-outline" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={() => {
+                if (songs.length > 0) {
+                  handleAddToPlaylist(songs[0]);
+                } else {
+                  Alert.alert('Hakuna nyimbo', 'Album hii haina nyimbo za kuongeza');
+                }
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
           </View>
           <View style={styles.rightActions}>
             <TouchableOpacity 
