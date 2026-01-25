@@ -89,31 +89,48 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 ## Current Status (January 2026)
 
 ### Latest Mobile Build
-- **Version:** 1.0.34
-- **Status:** IN_QUEUE (EAS Build)
-- **Account:** gracefy12
+- **Version:** 1.0.48
+- **Status:** User Testing
+- **Account:** gracefy2
+
+### Recently Completed (This Session)
+- ✅ Toast notification system implemented (non-blocking notifications)
+- ✅ Replaced all blocking Alert.alert with Toast in key screens
+- ✅ Fixed keyboard covering input field in AddToPlaylistModal (KeyboardAvoidingView)
+- ✅ Updated SubscriptionRequiredModal with custom Swahili message
+- ✅ Implemented simultaneous audio prevention (music pauses Bible TTS and vice versa)
+- ✅ Fixed session persistence bug (user was logged out on app restart)
+- ✅ Fixed song download feature (expo-file-system legacy API)
+- ✅ Fixed library features (likes, playlists)
+- ✅ Fixed admin content filtering (inactive songs/albums hidden from users)
 
 ### Completed Builds
-- v1.0.32 APK: https://expo.dev/artifacts/eas/2TJf9ULWDB31zAnDwFGHEK.apk
-- v1.0.31 APK: https://expo.dev/artifacts/eas/iCKtV3kMbY8g1A87c3rzRV.apk
+- v1.0.48 APK: Latest build with UI improvements
+- v1.0.47 APK: Core features working (download, likes, playlists)
+- v1.0.45 APK: Session persistence fix
 
 ---
 
 ## Prioritized Backlog
 
 ### P0 (Critical)
-- [ ] Monitor and deliver v1.0.34 build APK
+- [x] ~~Toast notification system~~ ✅ DONE
+- [x] ~~Keyboard overlap fix~~ ✅ DONE  
+- [x] ~~Subscription modal with Swahili message~~ ✅ DONE
+- [x] ~~Simultaneous audio prevention~~ ✅ DONE
 
 ### P1 (High Priority)
-- [ ] Complete Checkout and Transaction System
-  - Build CheckoutScreen UI (mobile)
-  - Build TransactionsPage UI (admin)
-  - Integrate payment provider (Stripe/PayPal)
+- [ ] Implement billing logic with Azam Pay integration
+  - Show subscription plans
+  - Enable/disable premium features based on subscription status
+- [ ] Bible Screen Enhancements (Testament → Book → Verse range selection)
+- [ ] Churches Screen Overhaul (choirs, songs, announcements)
+- [ ] Album/Song Actions (download/add entire album/playlist)
 
 ### P2 (Medium Priority)
+- [ ] Animated Splash Screen
 - [ ] PWA "Play All" button for library sections
-- [ ] Mobile lock screen controls
-- [ ] Notification system implementation
+- [ ] Investigate intermittent app crashes
 
 ### P3 (Low Priority / Backlog)
 - [ ] Admin: Enforce free user daily song limits
