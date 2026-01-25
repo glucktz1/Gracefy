@@ -199,42 +199,68 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Handle track end - with continuous play support
-  const handleTrackEnd = useCallback(async () => {
-    const currentRepeat = repeatRef.current;
-    const currentQueue = queueRef.current;
-    const currentIndex = queueIndexRef.current;
-    const autoPlay = autoPlayRef.current;
+  // Internal play function - used for background track advancement
+  // This doesn't modify queue, just plays the track
+  const playTrackInternal = async (track) => {
+    try {
+      console.log('[PlayerContext] playTrackInternal:', track.title);
 
-    console.log('[PlayerContext] handleTrackEnd - repeat:', currentRepeat, 'index:', currentIndex, 'queue length:', currentQueue.length);
+      // Stop any external audio (like Bible TTS) before playing music
+      if (stopExternalAudioCallback) {
+        try {
+          await stopExternalAudioCallback();
+        } catch (e) {
+          console.log('[PlayerContext] Error stopping external audio:', e);
+        }
+      }
 
-    if (currentRepeat === 'one') {
-      // Repeat current track
+      // Unload previous sound
       if (soundRef.current) {
-        await soundRef.current.setPositionAsync(0);
-        await soundRef.current.playAsync();
+        try {
+          await soundRef.current.unloadAsync();
+        } catch (e) {
+          console.log('[PlayerContext] Error unloading previous sound:', e);
+        }
+        soundRef.current = null;
       }
-    } else if (currentIndex < currentQueue.length - 1) {
-      // Play next track in queue
-      playTrackAtIndex(currentIndex + 1);
-    } else if (currentRepeat === 'all' && currentQueue.length > 0) {
-      // Loop back to start of queue
-      playTrackAtIndex(0);
-    } else if (autoPlay) {
-      // Continuous play: fetch more songs and keep playing
-      console.log('[PlayerContext] Queue ended, fetching more songs for continuous play');
-      const moreSongs = await fetchMoreSongs();
-      if (moreSongs.length > 0) {
-        setQueue(moreSongs);
-        setQueueIndex(0);
-        await playTrack(moreSongs[0]);
-      } else {
-        setIsPlaying(false);
+
+      const audioUrl = getAudioUrl(track.audio_url);
+      if (!audioUrl) {
+        console.error('[PlayerContext] No audio URL for track:', track.title);
+        return false;
       }
-    } else {
-      // End of queue, no auto-play
-      setIsPlaying(false);
+
+      // Create and play sound with background-safe callback
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { 
+          shouldPlay: true, 
+          progressUpdateIntervalMillis: 500,
+          // Ensure audio continues in background
+          staysActiveInBackground: true,
+        },
+        onPlaybackStatusUpdate
+      );
+
+      soundRef.current = sound;
+      setCurrentTrack(track);
+      setIsLoading(false);
+      setIsPlaying(true);
+
+      // Track play in backend (non-blocking)
+      playerAPI.trackPlay(track.song_id).catch(() => {});
+      
+      return true;
+    } catch (error) {
+      console.error('[PlayerContext] Error in playTrackInternal:', error);
+      return false;
     }
+  };
+
+  // Handle track end - simplified, main logic moved to onPlaybackStatusUpdate
+  const handleTrackEnd = useCallback(async () => {
+    // This is now handled directly in onPlaybackStatusUpdate for better background support
+    console.log('[PlayerContext] handleTrackEnd called (legacy)');
   }, []);
 
   // Play a track
