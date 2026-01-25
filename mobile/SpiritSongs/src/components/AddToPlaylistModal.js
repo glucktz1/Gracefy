@@ -27,7 +27,8 @@ import { showToast } from './Toast';
 // Login Required Modal Component
 export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+    <View style={styles.centeredOverlay}>
+      <TouchableOpacity style={styles.overlayBackground} activeOpacity={1} onPress={onClose} />
       <View style={styles.loginModal}>
         <Ionicons name="lock-closed-outline" size={48} color={COLORS.primary} />
         <Text style={styles.loginTitle}>Ingia kwanza</Text>
@@ -41,7 +42,7 @@ export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
           <Text style={styles.cancelLinkText}>Baadaye</Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   </Modal>
 );
 
