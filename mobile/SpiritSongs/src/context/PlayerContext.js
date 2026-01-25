@@ -6,6 +6,17 @@ import { getAudioUrl, playerAPI, contentAPI } from '../services/api';
 
 const PlayerContext = createContext(null);
 
+// Global callback for stopping external audio (like Bible TTS)
+let stopExternalAudioCallback = null;
+
+export const setStopExternalAudioCallback = (callback) => {
+  stopExternalAudioCallback = callback;
+};
+
+export const clearStopExternalAudioCallback = () => {
+  stopExternalAudioCallback = null;
+};
+
 export const usePlayer = () => {
   const context = useContext(PlayerContext);
   if (!context) {
@@ -168,6 +179,15 @@ export const PlayerProvider = ({ children }) => {
     try {
       setIsLoading(true);
       console.log('[PlayerContext] Playing track:', track.title);
+
+      // Stop any external audio (like Bible TTS) before playing music
+      if (stopExternalAudioCallback) {
+        try {
+          await stopExternalAudioCallback();
+        } catch (e) {
+          console.log('[PlayerContext] Error stopping external audio:', e);
+        }
+      }
 
       // Unload previous sound
       if (soundRef.current) {
