@@ -182,4 +182,12 @@ export const userAPI = {
   getDailyPlays: () => api.get('/user/daily-plays'),
 };
 
+// ============ BILLING/SUBSCRIPTION API ============
+export const billingAPI = {
+  getPlans: () => api.get('/monetization/plans'),
+  getSettings: () => api.get('/monetization/settings'),
+  getUserSubscription: () => api.get('/user/subscription'),
+  subscribe: (planId, paymentData) => api.post('/user/subscribe', { plan_id: planId, ...paymentData }),
+};
+
 export default api;
