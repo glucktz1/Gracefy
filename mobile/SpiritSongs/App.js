@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 // Context Providers
 import { AuthProvider } from './src/context/AuthContext';
 import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
+import { BillingProvider } from './src/context/BillingContext';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
