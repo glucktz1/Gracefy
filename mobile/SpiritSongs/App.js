@@ -121,6 +121,7 @@ const AppContent = () => {
           <Stack.Screen name="Bible" component={BibleScreen} />
           <Stack.Screen name="Churches" component={ChurchesScreen} />
           <Stack.Screen name="Playlist" component={AlbumScreen} />
+          <Stack.Screen name="LeaderContent" component={LeaderContentScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
