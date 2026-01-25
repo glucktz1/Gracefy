@@ -17,6 +17,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { contentAPI, libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
+import { useBilling } from '../context/BillingContext';
 import { SongListItem } from '../components/Cards';
 import { showToast } from '../components/Toast';
 import AddToPlaylistModal, { 
@@ -44,10 +45,7 @@ const AlbumScreen = ({ route, navigation }) => {
 
   const { playTrack, currentTrack } = usePlayer();
   const { isAuthenticated, user } = useAuth();
-  
-  // Check if billing is enabled (you can get this from app config or backend)
-  const billingEnabled = false; // Set to true when billing is active
-  const isPremium = user?.subscription_status === 'active';
+  const { billingEnabled, isPremium } = useBilling();
 
   useEffect(() => {
     loadSongs();
