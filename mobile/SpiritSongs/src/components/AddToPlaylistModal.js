@@ -48,7 +48,8 @@ export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
 // Subscription Required Modal Component
 export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, message }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+    <View style={styles.centeredOverlay}>
+      <TouchableOpacity style={styles.overlayBackground} activeOpacity={1} onPress={onClose} />
       <View style={styles.subscriptionModal}>
         <View style={styles.subscriptionIconContainer}>
           <Ionicons name="lock-closed" size={32} color={COLORS.warning} />
@@ -65,7 +66,7 @@ export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, messa
           <Text style={styles.cancelLinkText}>Baadaye</Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   </Modal>
 );
 
