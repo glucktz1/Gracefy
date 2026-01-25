@@ -296,28 +296,38 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Play track at index
+  // Play track at index - uses refs for background safety
   const playTrackAtIndex = async (index) => {
     const track = queueRef.current[index];
     if (track) {
+      queueIndexRef.current = index;
       setQueueIndex(index);
-      await playTrack(track);
+      await playTrackInternal(track);
     }
   };
 
   // Pause current playback (for external use like Bible TTS)
   const pausePlayback = async () => {
-    if (soundRef.current && isPlaying) {
-      await soundRef.current.pauseAsync();
-      return true;
+    if (soundRef.current) {
+      try {
+        await soundRef.current.pauseAsync();
+        return true;
+      } catch (e) {
+        console.error('[PlayerContext] Error pausing:', e);
+        return false;
+      }
     }
     return false;
   };
 
   // Resume playback
   const resumePlayback = async () => {
-    if (soundRef.current && !isPlaying) {
-      await soundRef.current.playAsync();
+    if (soundRef.current) {
+      try {
+        await soundRef.current.playAsync();
+      } catch (e) {
+        console.error('[PlayerContext] Error resuming:', e);
+      }
     }
   };
 
@@ -325,17 +335,25 @@ export const PlayerProvider = ({ children }) => {
   const togglePlay = async () => {
     if (!soundRef.current) return;
 
-    if (isPlaying) {
-      await soundRef.current.pauseAsync();
-    } else {
-      await soundRef.current.playAsync();
+    try {
+      if (isPlaying) {
+        await soundRef.current.pauseAsync();
+      } else {
+        await soundRef.current.playAsync();
+      }
+    } catch (e) {
+      console.error('[PlayerContext] Error toggling play:', e);
     }
   };
 
   // Seek to position
   const seekTo = async (seconds) => {
     if (soundRef.current) {
-      await soundRef.current.setPositionAsync(seconds * 1000);
+      try {
+        await soundRef.current.setPositionAsync(seconds * 1000);
+      } catch (e) {
+        console.error('[PlayerContext] Error seeking:', e);
+      }
     }
   };
 
