@@ -381,6 +381,7 @@ const AlbumScreen = ({ route, navigation }) => {
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
         onSubscribe={handleSubscribePress}
+        navigation={navigation}
         message="Unahitaji kulipia ili kutengeneza playlist au kupakua nyimbo"
       />
     </View>
