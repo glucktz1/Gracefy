@@ -149,11 +149,13 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
         <AuthProvider>
-          <PlayerProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
-          </PlayerProvider>
+          <BillingProvider>
+            <PlayerProvider>
+              <ToastProvider>
+                <AppContent />
+              </ToastProvider>
+            </PlayerProvider>
+          </BillingProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
