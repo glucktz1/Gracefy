@@ -14,6 +14,7 @@ import { libraryAPI, getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { usePlayer } from '../context/PlayerContext';
+import { useBilling } from '../context/BillingContext';
 import { showToast } from '../components/Toast';
 import AddToPlaylistModal, { 
   SongActionsModal, 
