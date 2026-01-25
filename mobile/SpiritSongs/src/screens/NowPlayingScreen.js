@@ -624,6 +624,19 @@ const styles = StyleSheet.create({
     padding: SPACING.xs,
     marginLeft: SPACING.sm,
   },
+  downloadProgress: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.primary + '30',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadProgressText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
   progressContainer: {
     marginBottom: SPACING.md,
   },
