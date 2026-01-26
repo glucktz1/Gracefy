@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,31 +10,45 @@ import {
   ActivityIndicator,
   TextInput,
   Linking,
-  Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { churchAPI, libraryAPI, getImageUrl } from '../services/api';
+import { churchAPI, getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import Toast from '../components/Toast';
 
 const ChurchesScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [churches, setChurches] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedChurch, setSelectedChurch] = useState(route.params?.selectedChurch || null);
-  const [followedChurches, setFollowedChurches] = useState(new Set());
+  const [selectedChurch, setSelectedChurch] = useState(null);
+  const [churchDetails, setChurchDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     loadChurches();
-    if (isAuthenticated) {
-      loadFollowedChurches();
+  }, []);
+
+  // Load church details when a church is selected
+  useEffect(() => {
+    if (selectedChurch) {
+      loadChurchDetails(selectedChurch.church_id);
+    } else {
+      setChurchDetails(null);
     }
-  }, [isAuthenticated]);
+  }, [selectedChurch]);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ visible: true, message, type });
+  };
 
   const loadChurches = async () => {
     try {
@@ -42,68 +56,92 @@ const ChurchesScreen = ({ navigation, route }) => {
       setChurches(response.data?.churches || response.data || []);
     } catch (error) {
       console.error('Error loading churches:', error);
+      showToast('Imeshindwa kupakia makanisa', 'error');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const loadFollowedChurches = async () => {
+  const loadChurchDetails = async (churchId) => {
     try {
-      const response = await libraryAPI.getFollowedChurches?.() || { data: [] };
-      const followed = new Set((response.data || []).map(c => c.church_id));
-      setFollowedChurches(followed);
+      setDetailsLoading(true);
+      const userId = user?.user_id || null;
+      const response = await churchAPI.getChurchFull(churchId, userId);
+      setChurchDetails(response.data);
     } catch (error) {
-      console.error('Error loading followed churches:', error);
+      console.error('Error loading church details:', error);
+      showToast('Imeshindwa kupakia maelezo ya kanisa', 'error');
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
-  const handleFollow = async (church) => {
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    if (selectedChurch) {
+      loadChurchDetails(selectedChurch.church_id);
+      setRefreshing(false);
+    } else {
+      loadChurches();
+    }
+  }, [selectedChurch]);
+
+  const handleFollow = async () => {
     if (!isAuthenticated) {
-      Alert.alert('Ingia kwanza', 'Unahitaji kuingia ili kufuatilia kanisa');
+      showToast('Ingia kwanza ili kufuatilia kanisa', 'warning');
+      navigation.navigate('ProfileTab');
       return;
     }
 
+    if (!churchDetails) return;
+
     try {
       setFollowLoading(true);
-      const isFollowing = followedChurches.has(church.church_id);
+      const isFollowing = churchDetails.is_following;
       
       if (isFollowing) {
-        await churchAPI.unfollowChurch?.(church.church_id) || 
-          libraryAPI.unfollowChurch?.(church.church_id);
-        setFollowedChurches(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(church.church_id);
-          return newSet;
-        });
-        Alert.alert('Umefanikiwa', `Umeacha kufuatilia ${church.name}`);
+        await churchAPI.unfollowChurch(churchDetails.church_id);
+        setChurchDetails(prev => ({
+          ...prev,
+          is_following: false,
+          followers_count: Math.max(0, (prev.followers_count || 1) - 1)
+        }));
+        showToast(`Umeacha kufuatilia ${churchDetails.name}`, 'success');
       } else {
-        await churchAPI.followChurch?.(church.church_id) || 
-          libraryAPI.followChurch?.(church.church_id);
-        setFollowedChurches(prev => new Set(prev).add(church.church_id));
-        Alert.alert('Umefanikiwa', `Unafuatilia ${church.name}`);
+        await churchAPI.followChurch(churchDetails.church_id);
+        setChurchDetails(prev => ({
+          ...prev,
+          is_following: true,
+          followers_count: (prev.followers_count || 0) + 1
+        }));
+        showToast(`Unafuatilia ${churchDetails.name}`, 'success');
       }
     } catch (error) {
       console.error('Error following church:', error);
-      Alert.alert('Kosa', 'Imeshindikana kubadilisha hali ya kufuatilia');
+      showToast('Imeshindwa. Jaribu tena', 'error');
     } finally {
       setFollowLoading(false);
     }
   };
 
-  const filteredChurches = churches.filter(church =>
-    church.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    church.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    church.city?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleBack = () => {
+    if (selectedChurch) {
+      setSelectedChurch(null);
+      setChurchDetails(null);
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const openMap = (church) => {
-    if (church.direction) {
-      Linking.openURL(church.direction);
+    if (church.google_maps_url) {
+      Linking.openURL(church.google_maps_url);
     } else if (church.latitude && church.longitude) {
       const url = `https://www.google.com/maps/search/?api=1&query=${church.latitude},${church.longitude}`;
       Linking.openURL(url);
-    } else if (church.google_maps_url) {
-      Linking.openURL(church.google_maps_url);
+    } else if (church.direction) {
+      Linking.openURL(church.direction);
     }
   };
 
@@ -113,176 +151,265 @@ const ChurchesScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleBack = () => {
-    if (selectedChurch) {
-      setSelectedChurch(null);
-    } else {
-      navigation.goBack();
-    }
+  const filteredChurches = churches.filter(church =>
+    church.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    church.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Navigate to choir songs
+  const handleChoirPress = (choir) => {
+    navigation.navigate('ArtistDetail', {
+      artist: {
+        singer_id: choir.singer_id,
+        name: choir.name,
+        bio: choir.bio,
+        profile_image: choir.profile_image,
+        thumbnail: choir.thumbnail,
+      }
+    });
   };
 
-  // Get church thumbnail or placeholder
-  const getChurchImage = (church) => {
-    if (church.thumbnail) return getImageUrl(church.thumbnail);
-    if (church.cover_image) return getImageUrl(church.cover_image);
-    return 'https://via.placeholder.com/400x200?text=Kanisa';
-  };
-
+  // Render a single church card in the list
   const renderChurchCard = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.churchCard}
       onPress={() => setSelectedChurch(item)}
-      activeOpacity={0.9}
+      activeOpacity={0.8}
     >
-      <Image
-        source={{ uri: getChurchImage(item) }}
-        style={styles.churchCardImage}
-      />
-      <LinearGradient 
-        colors={['transparent', 'rgba(0,0,0,0.9)']} 
-        style={styles.churchCardGradient}
-      >
-        <View style={styles.churchCardBadge}>
-          <Ionicons name="business" size={14} color={COLORS.text} />
-        </View>
-        <Text style={styles.churchCardName} numberOfLines={2}>{item.name}</Text>
+      {item.thumbnail || item.image ? (
+        <Image
+          source={{ uri: getImageUrl(item.thumbnail || item.image) }}
+          style={styles.churchImage}
+        />
+      ) : (
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.primaryDark || '#1a5a2e']}
+          style={styles.churchImagePlaceholder}
+        >
+          <Ionicons name="business" size={40} color={COLORS.text} />
+        </LinearGradient>
+      )}
+      <View style={styles.churchInfo}>
+        <Text style={styles.churchName} numberOfLines={1}>{item.name}</Text>
         {item.location && (
-          <View style={styles.churchCardLocation}>
-            <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
-            <Text style={styles.churchCardLocationText} numberOfLines={1}>{item.location}</Text>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={14} color={COLORS.textMuted} />
+            <Text style={styles.churchLocation} numberOfLines={1}>{item.location}</Text>
           </View>
         )}
-        <View style={styles.churchCardMeta}>
-          <View style={styles.churchCardFollowers}>
-            <Ionicons name="people-outline" size={12} color={COLORS.textSecondary} />
-            <Text style={styles.churchCardFollowersText}>{item.followers_count || 0}</Text>
+        {item.followers_count > 0 && (
+          <View style={styles.followersRow}>
+            <Ionicons name="people-outline" size={14} color={COLORS.textMuted} />
+            <Text style={styles.followersText}>
+              Wafuasi {item.followers_count}
+            </Text>
           </View>
-          {followedChurches.has(item.church_id) && (
-            <View style={styles.followingBadge}>
-              <Ionicons name="checkmark" size={10} color={COLORS.primary} />
-              <Text style={styles.followingBadgeText}>Unafuatilia</Text>
-            </View>
-          )}
-        </View>
-      </LinearGradient>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
 
+  // Render choir card
+  const renderChoirCard = ({ item }) => (
+    <TouchableOpacity
+      style={styles.choirCard}
+      onPress={() => handleChoirPress(item)}
+      activeOpacity={0.8}
+    >
+      {item.profile_image || item.thumbnail ? (
+        <Image
+          source={{ uri: getImageUrl(item.profile_image || item.thumbnail) }}
+          style={styles.choirImage}
+        />
+      ) : (
+        <View style={styles.choirImagePlaceholder}>
+          <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
+        </View>
+      )}
+      <Text style={styles.choirName} numberOfLines={2}>{item.name}</Text>
+      {item.albums_count > 0 && (
+        <Text style={styles.choirAlbums}>Albamu {item.albums_count}</Text>
+      )}
+    </TouchableOpacity>
+  );
+
+  // Render announcement item
+  const renderAnnouncement = (announcement, index) => (
+    <View key={announcement.announcement_id || index} style={styles.announcementCard}>
+      <View style={styles.announcementHeader}>
+        <View style={styles.announcementIconContainer}>
+          <Ionicons name="megaphone" size={18} color={COLORS.warning} />
+        </View>
+        <View style={styles.announcementMeta}>
+          {announcement.title && (
+            <Text style={styles.announcementTitle}>{announcement.title}</Text>
+          )}
+          {announcement.date && (
+            <Text style={styles.announcementDate}>{announcement.date}</Text>
+          )}
+        </View>
+      </View>
+      <Text style={styles.announcementMessage}>
+        {announcement.message || announcement.content}
+      </Text>
+    </View>
+  );
+
+  // Church detail view
   const renderChurchDetail = () => {
-    const isFollowing = followedChurches.has(selectedChurch.church_id);
-    
+    if (detailsLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Inapakia maelezo...</Text>
+        </View>
+      );
+    }
+
+    const church = churchDetails || selectedChurch;
+    if (!church) return null;
+
+    const isFollowing = churchDetails?.is_following || false;
+    const followersCount = churchDetails?.followers_count || 0;
+    const announcements = churchDetails?.announcements || [];
+    const choirs = churchDetails?.choirs || [];
+    const leaders = churchDetails?.leaders || [];
+
     return (
-      <ScrollView style={styles.detailContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.detailContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
         {/* Church Header Image */}
-        <View style={styles.detailHeader}>
+        {church.thumbnail || church.image ? (
           <Image
-            source={{ uri: getChurchImage(selectedChurch) }}
+            source={{ uri: getImageUrl(church.thumbnail || church.image) }}
             style={styles.detailImage}
           />
-          <LinearGradient 
-            colors={['transparent', COLORS.background]} 
-            style={styles.detailGradient}
+        ) : (
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.primaryDark || '#1a5a2e']}
+            style={styles.detailImagePlaceholder}
           >
-            <Text style={styles.detailName}>{selectedChurch.name}</Text>
-            {selectedChurch.denomination && (
-              <Text style={styles.detailDenomination}>{selectedChurch.denomination}</Text>
-            )}
+            <Ionicons name="business" size={80} color={COLORS.text} />
           </LinearGradient>
-        </View>
+        )}
 
-        {/* Church Info */}
         <View style={styles.detailContent}>
+          {/* Church Name & Follow Button */}
+          <View style={styles.detailHeader}>
+            <View style={styles.detailTitleContainer}>
+              <Text style={styles.detailName}>{church.name}</Text>
+              {followersCount > 0 && (
+                <Text style={styles.detailFollowers}>
+                  Wafuasi {followersCount}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing ? styles.followingButton : styles.notFollowingButton
+              ]}
+              onPress={handleFollow}
+              disabled={followLoading}
+            >
+              {followLoading ? (
+                <ActivityIndicator size="small" color={isFollowing ? COLORS.primary : COLORS.background} />
+              ) : (
+                <>
+                  <Ionicons
+                    name={isFollowing ? "checkmark-circle" : "heart"}
+                    size={18}
+                    color={isFollowing ? COLORS.primary : COLORS.background}
+                  />
+                  <Text style={[
+                    styles.followButtonText,
+                    isFollowing ? styles.followingButtonText : styles.notFollowingButtonText
+                  ]}>
+                    {isFollowing ? 'Unafuatilia' : 'Fuatilia'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
           {/* Location */}
-          {selectedChurch.location && (
-            <TouchableOpacity style={styles.detailRow} onPress={() => openMap(selectedChurch)}>
-              <View style={styles.detailIconContainer}>
+          {(church.location || church.address) && (
+            <TouchableOpacity 
+              style={styles.infoRow}
+              onPress={() => openMap(church)}
+              disabled={!church.direction && !church.latitude && !church.google_maps_url}
+            >
+              <View style={styles.infoIconContainer}>
                 <Ionicons name="location" size={20} color={COLORS.primary} />
               </View>
-              <View style={styles.detailRowContent}>
-                <Text style={styles.detailLabel}>Mahali</Text>
-                <Text style={styles.detailValue}>{selectedChurch.location}</Text>
-                {selectedChurch.address && (
-                  <Text style={styles.detailSubValue}>{selectedChurch.address}</Text>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Mahali</Text>
+                <Text style={styles.infoValue}>{church.location}</Text>
+                {church.address && (
+                  <Text style={styles.infoSubValue}>{church.address}</Text>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+              {(church.direction || church.latitude || church.google_maps_url) && (
+                <Ionicons name="navigate" size={20} color={COLORS.primary} />
+              )}
             </TouchableOpacity>
           )}
 
-          {/* Priest/Leader Info */}
-          {(selectedChurch.priest_name || selectedChurch.leader_name) && (
-            <View style={styles.detailRow}>
-              <View style={styles.detailIconContainer}>
+          {/* Priest/Leader */}
+          {(church.priest_name || church.leader_name || leaders.length > 0) && (
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconContainer}>
                 <Ionicons name="person" size={20} color={COLORS.primary} />
               </View>
-              <View style={styles.detailRowContent}>
-                <Text style={styles.detailLabel}>
-                  {selectedChurch.leader_title || 'Kasisi'}
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>
+                  {church.leader_title || 'Kiongozi'}
                 </Text>
-                <Text style={styles.detailValue}>
-                  {selectedChurch.priest_name || selectedChurch.leader_name}
+                <Text style={styles.infoValue}>
+                  {church.priest_name || church.leader_name || leaders[0]?.name}
                 </Text>
               </View>
             </View>
           )}
 
           {/* Phone */}
-          {(selectedChurch.phone || selectedChurch.leader_phone) && (
+          {(church.phone || church.leader_phone) && (
             <TouchableOpacity 
-              style={styles.detailRow} 
-              onPress={() => openPhone(selectedChurch.phone || selectedChurch.leader_phone)}
+              style={styles.infoRow}
+              onPress={() => openPhone(church.phone || church.leader_phone)}
             >
-              <View style={styles.detailIconContainer}>
+              <View style={styles.infoIconContainer}>
                 <Ionicons name="call" size={20} color={COLORS.primary} />
               </View>
-              <View style={styles.detailRowContent}>
-                <Text style={styles.detailLabel}>Simu</Text>
-                <Text style={styles.detailValue}>
-                  {selectedChurch.phone || selectedChurch.leader_phone}
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Simu</Text>
+                <Text style={styles.infoValue}>
+                  {church.phone || church.leader_phone}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
 
-          {/* Bio */}
-          {selectedChurch.bio && (
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Kuhusu</Text>
-              <Text style={styles.detailBio}>{selectedChurch.bio}</Text>
-            </View>
-          )}
-
-          {/* Announcements (Matangazo) */}
-          {selectedChurch.announcements && selectedChurch.announcements.length > 0 && (
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Matangazo</Text>
-              {selectedChurch.announcements.map((announcement, index) => (
-                <View key={index} style={styles.announcementItem}>
-                  <View style={styles.announcementIcon}>
-                    <Ionicons name="megaphone" size={16} color={COLORS.warning} />
-                  </View>
-                  <View style={styles.announcementContent}>
-                    {announcement.title && (
-                      <Text style={styles.announcementTitle}>{announcement.title}</Text>
-                    )}
-                    <Text style={styles.announcementText}>
-                      {announcement.message || announcement.content || announcement}
-                    </Text>
-                    {announcement.date && (
-                      <Text style={styles.announcementDate}>{announcement.date}</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
+          {/* About */}
+          {church.bio && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Kuhusu Kanisa</Text>
+              <Text style={styles.bioText}>{church.bio}</Text>
             </View>
           )}
 
           {/* Prayer Schedule */}
-          {selectedChurch.prayer_schedule && selectedChurch.prayer_schedule.length > 0 && (
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Ratiba ya Ibada</Text>
-              {selectedChurch.prayer_schedule.map((schedule, index) => (
+          {church.prayer_schedule && church.prayer_schedule.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ratiba ya Ibada</Text>
+              {church.prayer_schedule.map((schedule, index) => (
                 <View key={index} style={styles.scheduleItem}>
                   <View style={styles.scheduleDay}>
                     <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
@@ -290,10 +417,73 @@ const ChurchesScreen = ({ navigation, route }) => {
                   </View>
                   <View style={styles.scheduleDetails}>
                     <Text style={styles.scheduleTime}>{schedule.time}</Text>
-                    {(schedule.service || schedule.service_type || schedule.description) && (
-                      <Text style={styles.scheduleService}>
-                        {schedule.service || schedule.service_type || schedule.description}
-                      </Text>
+                    {schedule.service && (
+                      <Text style={styles.scheduleService}>{schedule.service}</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Announcements Section */}
+          {announcements.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="megaphone" size={20} color={COLORS.warning} />
+                <Text style={styles.sectionTitle}>Matangazo</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{announcements.length}</Text>
+                </View>
+              </View>
+              {announcements.map((announcement, index) => renderAnnouncement(announcement, index))}
+            </View>
+          )}
+
+          {/* Choirs Section */}
+          {choirs.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="musical-notes" size={20} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>Kwaya za Kanisa</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{choirs.length}</Text>
+                </View>
+              </View>
+              <FlatList
+                data={choirs}
+                keyExtractor={(item) => item.singer_id}
+                renderItem={renderChoirCard}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.choirsListContent}
+              />
+            </View>
+          )}
+
+          {/* Leaders Section */}
+          {leaders.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="people" size={20} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>Viongozi wa Dini</Text>
+              </View>
+              {leaders.map((leader, index) => (
+                <View key={leader.leader_id || index} style={styles.leaderCard}>
+                  {leader.image ? (
+                    <Image
+                      source={{ uri: getImageUrl(leader.image) }}
+                      style={styles.leaderImage}
+                    />
+                  ) : (
+                    <View style={styles.leaderImagePlaceholder}>
+                      <Ionicons name="person" size={24} color={COLORS.primary} />
+                    </View>
+                  )}
+                  <View style={styles.leaderInfo}>
+                    <Text style={styles.leaderName}>{leader.name}</Text>
+                    {leader.title && (
+                      <Text style={styles.leaderTitle}>{leader.title}</Text>
                     )}
                   </View>
                 </View>
@@ -302,51 +492,25 @@ const ChurchesScreen = ({ navigation, route }) => {
           )}
 
           {/* Action Buttons */}
-          <View style={styles.detailActions}>
-            {(selectedChurch.direction || selectedChurch.latitude || selectedChurch.google_maps_url) && (
+          <View style={styles.actionButtons}>
+            {(church.direction || church.latitude || church.google_maps_url) && (
               <TouchableOpacity 
                 style={styles.actionButton}
-                onPress={() => openMap(selectedChurch)}
+                onPress={() => openMap(church)}
               >
                 <Ionicons name="navigate" size={20} color={COLORS.text} />
                 <Text style={styles.actionButtonText}>Uelekeo</Text>
               </TouchableOpacity>
             )}
-            {(selectedChurch.phone || selectedChurch.leader_phone) && (
+            {(church.phone || church.leader_phone) && (
               <TouchableOpacity 
                 style={styles.actionButton}
-                onPress={() => openPhone(selectedChurch.phone || selectedChurch.leader_phone)}
+                onPress={() => openPhone(church.phone || church.leader_phone)}
               >
                 <Ionicons name="call" size={20} color={COLORS.text} />
                 <Text style={styles.actionButtonText}>Piga Simu</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity 
-              style={[
-                styles.actionButton, 
-                isFollowing ? styles.actionButtonFollowing : styles.actionButtonPrimary
-              ]}
-              onPress={() => handleFollow(selectedChurch)}
-              disabled={followLoading}
-            >
-              {followLoading ? (
-                <ActivityIndicator size="small" color={isFollowing ? COLORS.text : COLORS.background} />
-              ) : (
-                <>
-                  <Ionicons 
-                    name={isFollowing ? "checkmark-circle" : "heart-outline"} 
-                    size={20} 
-                    color={isFollowing ? COLORS.primary : COLORS.background} 
-                  />
-                  <Text style={[
-                    styles.actionButtonText, 
-                    !isFollowing && styles.actionButtonTextPrimary
-                  ]}>
-                    {isFollowing ? 'Unafuatilia' : 'Fuatilia'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -370,7 +534,9 @@ const ChurchesScreen = ({ navigation, route }) => {
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{selectedChurch ? selectedChurch.name : 'Makanisa'}</Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {selectedChurch ? selectedChurch.name : 'Makanisa'}
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -388,6 +554,11 @@ const ChurchesScreen = ({ navigation, route }) => {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Churches List */}
@@ -398,16 +569,28 @@ const ChurchesScreen = ({ navigation, route }) => {
               renderItem={renderChurchCard}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
             />
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="business-outline" size={64} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Hakuna makanisa</Text>
-              <Text style={styles.emptyText}>Jaribu utafutaji tofauti</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery ? 'Jaribu utafutaji tofauti' : 'Makanisa hayajapatikana'}
+              </Text>
             </View>
           )}
         </>
       )}
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 };
@@ -422,6 +605,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.sm,
   },
   header: {
     flexDirection: 'row',
@@ -448,11 +636,11 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.lg,
+    height: 48,
   },
   searchInput: {
     flex: 1,
-    height: 44,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
@@ -461,214 +649,193 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: 100,
   },
+  // Church Card Styles
   churchCard: {
-    height: 200,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
-    overflow: 'hidden',
-    backgroundColor: COLORS.card,
-  },
-  churchCardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  churchCardGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '70%',
     padding: SPACING.md,
-    justifyContent: 'flex-end',
-  },
-  churchCardBadge: {
-    position: 'absolute',
-    top: SPACING.md,
-    left: SPACING.md,
-    backgroundColor: COLORS.primary,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  churchCardName: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  churchCardLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  churchCardLocationText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-    flex: 1,
-  },
-  churchCardMeta: {
-    flexDirection: 'row',
-    marginTop: SPACING.sm,
-    alignItems: 'center',
-  },
-  churchCardFollowers: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  churchCardFollowersText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  followingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(29, 185, 84, 0.2)',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
-    marginLeft: SPACING.sm,
-  },
-  followingBadgeText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.primary,
-    marginLeft: 2,
-  },
-  
-  // Detail View
-  detailContainer: {
-    flex: 1,
-  },
-  detailHeader: {
-    height: 250,
-    position: 'relative',
-  },
-  detailImage: {
-    width: '100%',
-    height: '100%',
-  },
-  detailGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    padding: SPACING.md,
-    justifyContent: 'flex-end',
-  },
-  detailName: {
-    fontSize: FONT_SIZES.xxxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  detailDenomination: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textTransform: 'capitalize',
-    marginTop: 4,
-  },
-  detailContent: {
-    padding: SPACING.md,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.card,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.sm,
-  },
-  detailIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(29, 185, 84, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  detailRowContent: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  detailSubValue: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  detailSection: {
-    marginTop: SPACING.md,
-  },
-  detailSectionTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.text,
     marginBottom: SPACING.md,
   },
-  detailBio: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    lineHeight: 22,
-    backgroundColor: COLORS.card,
-    padding: SPACING.md,
+  churchImage: {
+    width: 60,
+    height: 60,
     borderRadius: BORDER_RADIUS.md,
   },
-  // Announcements
-  announcementItem: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.card,
-    padding: SPACING.md,
+  churchImagePlaceholder: {
+    width: 60,
+    height: 60,
     borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.warning,
-  },
-  announcementIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 193, 7, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
-  announcementContent: {
+  churchInfo: {
     flex: 1,
+    marginLeft: SPACING.md,
   },
-  announcementTitle: {
+  churchName: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 4,
   },
-  announcementText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
-  announcementDate: {
+  churchLocation: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginLeft: 4,
+    flex: 1,
+  },
+  followersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  followersText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+  },
+  // Detail View Styles
+  detailContainer: {
+    flex: 1,
+  },
+  detailImage: {
+    width: '100%',
+    height: 200,
+  },
+  detailImagePlaceholder: {
+    width: '100%',
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailContent: {
+    padding: SPACING.md,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.lg,
+  },
+  detailTitleContainer: {
+    flex: 1,
+    marginRight: SPACING.md,
+  },
+  detailName: {
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  detailFollowers: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+  },
+  followButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 6,
+  },
+  followingButton: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  notFollowingButton: {
+    backgroundColor: COLORS.primary,
+  },
+  followButtonText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+  },
+  followingButtonText: {
+    color: COLORS.primary,
+  },
+  notFollowingButtonText: {
+    color: COLORS.background,
+  },
+  // Info Row Styles
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+  },
+  infoIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${COLORS.primary}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textMuted,
-    marginTop: SPACING.sm,
+    marginBottom: 2,
   },
-  // Schedule
+  infoValue: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  infoSubValue: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  // Section Styles
+  section: {
+    marginTop: SPACING.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  sectionTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    color: COLORS.text,
+    flex: 1,
+  },
+  badge: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  badgeText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.background,
+    fontWeight: '600',
+  },
+  bioText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
+  },
+  // Schedule Styles
   scheduleItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: COLORS.card,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
@@ -677,16 +844,15 @@ const styles = StyleSheet.create({
   scheduleDay: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 100,
+    gap: SPACING.xs,
   },
   scheduleDayText: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.md,
     color: COLORS.text,
     fontWeight: '500',
-    marginLeft: SPACING.xs,
   },
   scheduleDetails: {
-    flex: 1,
+    alignItems: 'flex-end',
   },
   scheduleTime: {
     fontSize: FONT_SIZES.md,
@@ -695,11 +861,124 @@ const styles = StyleSheet.create({
   },
   scheduleService: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
+  },
+  // Announcement Styles
+  announcementCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.warning,
+  },
+  announcementHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.sm,
+  },
+  announcementIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${COLORS.warning}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+  },
+  announcementMeta: {
+    flex: 1,
+  },
+  announcementTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  announcementDate: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
     marginTop: 2,
   },
-  detailActions: {
+  announcementMessage: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  // Choir Styles
+  choirsListContent: {
+    paddingVertical: SPACING.sm,
+  },
+  choirCard: {
+    width: 120,
+    marginRight: SPACING.md,
+    alignItems: 'center',
+  },
+  choirImage: {
+    width: 100,
+    height: 100,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.sm,
+  },
+  choirImagePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  choirName: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  choirAlbums: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  // Leader Styles
+  leaderCard: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+  },
+  leaderImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  leaderImagePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: `${COLORS.primary}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leaderInfo: {
+    marginLeft: SPACING.md,
+    flex: 1,
+  },
+  leaderName: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  leaderTitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  // Action Buttons
+  actionButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
     marginTop: SPACING.lg,
   },
   actionButton: {
@@ -708,29 +987,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.card,
-    padding: SPACING.md,
+    paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    marginRight: SPACING.sm,
-  },
-  actionButtonPrimary: {
-    backgroundColor: COLORS.primary,
-    marginRight: 0,
-  },
-  actionButtonFollowing: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    marginRight: 0,
+    gap: SPACING.sm,
   },
   actionButtonText: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    fontWeight: '600',
-    marginLeft: SPACING.xs,
+    fontWeight: '500',
   },
-  actionButtonTextPrimary: {
-    color: COLORS.background,
-  },
+  // Empty State
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -745,8 +1011,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    color: COLORS.textMuted,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
   },
 });
 
