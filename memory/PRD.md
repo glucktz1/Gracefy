@@ -130,8 +130,9 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
   - Show subscription plans
   - Enable/disable premium features based on subscription status
 - [ ] Bible Screen Enhancements (Testament → Book → Verse range selection)
-- [ ] Churches Screen Overhaul (choirs, songs, announcements)
+- [x] ~~Churches Screen Overhaul (choirs, songs, announcements)~~ ✅ DONE (Jan 2026)
 - [ ] Album/Song Actions (download/add entire album/playlist)
+- [ ] Background audio advancement when screen locked (requires react-native-track-player)
 
 ### P2 (Medium Priority)
 - [ ] Animated Splash Screen
