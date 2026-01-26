@@ -81,7 +81,13 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 - [x] Authentication endpoints
 - [x] Content management APIs
 - [x] Layout Manager API
-- [x] Bible TTS endpoint
+- [x] Bible TTS with voice options and auto-caching:
+  - Select Book → Chapter → Verse Range (e.g., "Mathayo 5:21-29")
+  - Voice selection (male/female - Swahili voices)
+  - Auto-caching: first user generates audio, subsequent users get cached version
+  - Cache indicator showing when using stored audio
+  - Quick range selection buttons (1-5, 1-10, Full Chapter)
+  - Now Playing bar with stop functionality
 - [x] Streaming and playback APIs
 - [x] User analytics tracking
 - [x] Revenue and transaction APIs
