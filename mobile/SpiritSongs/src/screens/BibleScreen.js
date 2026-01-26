@@ -8,6 +8,7 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +16,7 @@ import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { bibleAPI } from '../services/api';
 import { usePlayer, setStopExternalAudioCallback, clearStopExternalAudioCallback } from '../context/PlayerContext';
-import { showToast } from '../components/Toast';
+import Toast from '../components/Toast';
 
 const BibleScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -27,30 +28,37 @@ const BibleScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [testamentFilter, setTestamentFilter] = useState('all');
   
-  // Verse range selection for TTS
-  const [startVerse, setStartVerse] = useState('');
+  // Verse range selection
+  const [showRangeModal, setShowRangeModal] = useState(false);
+  const [startVerse, setStartVerse] = useState('1');
   const [endVerse, setEndVerse] = useState('');
+  const [selectedVoice, setSelectedVoice] = useState('female'); // 'male' or 'female'
   
-  // TTS State - matching web implementation
-  const [playingAudio, setPlayingAudio] = useState(null); // Can be verse number or 'chapter' or 'range'
-  const [generatingAudio, setGeneratingAudio] = useState(null); // Which verse is generating
+  // TTS State
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const [generatingAudio, setGeneratingAudio] = useState(null);
+  const [wasCached, setWasCached] = useState(false);
   const soundRef = useRef(null);
   const wasMusicPlayingRef = useRef(false);
+  
+  // Toast
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
 
-  // Get player context to pause music during TTS
   const { isPlaying: isMusicPlaying, pausePlayback, resumePlayback } = usePlayer();
+
+  const showToast = (message, type = 'info') => {
+    setToast({ visible: true, message, type });
+  };
 
   useEffect(() => {
     loadBooks();
     
-    // Register callback so PlayerContext can stop our TTS when music starts
     setStopExternalAudioCallback(async () => {
       await cleanupAudio();
       setPlayingAudio(null);
     });
     
     return () => {
-      // Cleanup audio on unmount
       cleanupAudio();
       clearStopExternalAudioCallback();
     };
@@ -66,7 +74,6 @@ const BibleScreen = ({ navigation }) => {
       }
       soundRef.current = null;
     }
-    // Resume music if it was playing before
     if (wasMusicPlayingRef.current) {
       wasMusicPlayingRef.current = false;
       await resumePlayback?.();
@@ -79,6 +86,7 @@ const BibleScreen = ({ navigation }) => {
       setBooks(response.data?.books || []);
     } catch (error) {
       console.error('Error loading books:', error);
+      showToast('Imeshindwa kupakia vitabu', 'error');
     } finally {
       setLoading(false);
     }
@@ -86,10 +94,8 @@ const BibleScreen = ({ navigation }) => {
 
   const loadChapters = async (book) => {
     try {
-      // Stop any playing audio when navigating
       await cleanupAudio();
       setPlayingAudio(null);
-      
       setSelectedBook(book);
       setSelectedChapter(null);
       setVerses([]);
@@ -97,25 +103,28 @@ const BibleScreen = ({ navigation }) => {
       setChapters(response.data?.chapters || []);
     } catch (error) {
       console.error('Error loading chapters:', error);
+      showToast('Imeshindwa kupakia sura', 'error');
     }
   };
 
   const loadVerses = async (chapter) => {
     try {
-      // Stop any playing audio when changing chapter
       await cleanupAudio();
       setPlayingAudio(null);
-      
       setSelectedChapter(chapter);
       const response = await bibleAPI.getVerses(selectedBook.name, chapter);
-      setVerses(response.data?.verses || []);
+      const versesData = response.data?.verses || [];
+      setVerses(versesData);
+      // Set default end verse to last verse
+      setEndVerse(versesData.length.toString());
+      setStartVerse('1');
     } catch (error) {
       console.error('Error loading verses:', error);
+      showToast('Imeshindwa kupakia aya', 'error');
     }
   };
 
   const goBack = () => {
-    // Stop any playing audio when navigating back
     cleanupAudio();
     setPlayingAudio(null);
     
@@ -130,9 +139,17 @@ const BibleScreen = ({ navigation }) => {
     }
   };
 
-  // Generate and play audio for a single verse - matching web logic
+  // Generate reference string (e.g., "Mathayo 5:21-29")
+  const getReference = (start, end) => {
+    const bookName = selectedBook?.name_localized || selectedBook?.name || '';
+    if (start === end) {
+      return `${bookName} ${selectedChapter}:${start}`;
+    }
+    return `${bookName} ${selectedChapter}:${start}-${end}`;
+  };
+
+  // Play a single verse
   const handleReadVerse = async (verse) => {
-    // If clicking the same verse that's playing, stop it
     if (playingAudio === verse.verse) {
       await cleanupAudio();
       setPlayingAudio(null);
@@ -140,19 +157,16 @@ const BibleScreen = ({ navigation }) => {
     }
 
     try {
-      // Pause any music that's playing
       if (isMusicPlaying) {
         wasMusicPlayingRef.current = true;
         await pausePlayback?.();
       }
 
-      // Stop any currently playing TTS audio
       await cleanupAudio();
-      
       setGeneratingAudio(verse.verse);
       setPlayingAudio(null);
+      setWasCached(false);
 
-      // Configure audio mode
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
@@ -160,27 +174,25 @@ const BibleScreen = ({ navigation }) => {
         shouldDuckAndroid: true,
       });
 
-      // Request TTS audio from backend - matching web API call
       const response = await bibleAPI.generateTTS({
         book: selectedBook.name,
         chapter: selectedChapter,
         verse: verse.verse,
         language: 'sw',
-        voice: 'nova' // Same as web
+        voice: selectedVoice
       });
 
       if (response.data?.audio_base64) {
-        // Create audio from base64 - same as web
+        setWasCached(response.data.cached || false);
+        
         const audioUri = `data:audio/mp3;base64,${response.data.audio_base64}`;
         
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { shouldPlay: true },
           (status) => {
-            // When audio finishes playing
             if (status.didJustFinish) {
               setPlayingAudio(null);
-              // Resume music if it was playing
               if (wasMusicPlayingRef.current) {
                 wasMusicPlayingRef.current = false;
                 resumePlayback?.();
@@ -191,8 +203,12 @@ const BibleScreen = ({ navigation }) => {
         
         soundRef.current = newSound;
         setPlayingAudio(verse.verse);
+        
+        if (response.data.cached) {
+          showToast('Sauti iliyohifadhiwa', 'info');
+        }
       } else {
-        showToast('Imeshindikana kupata sauti. Jaribu tena', 'error');
+        showToast('Imeshindikana kupata sauti', 'error');
         if (wasMusicPlayingRef.current) {
           wasMusicPlayingRef.current = false;
           resumePlayback?.();
@@ -200,7 +216,7 @@ const BibleScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('TTS Error:', error);
-      showToast('Imeshindikana kusoma aya. Jaribu tena', 'error');
+      showToast('Imeshindikana kusoma aya', 'error');
       if (wasMusicPlayingRef.current) {
         wasMusicPlayingRef.current = false;
         resumePlayback?.();
@@ -210,11 +226,95 @@ const BibleScreen = ({ navigation }) => {
     }
   };
 
-  // Play entire chapter - similar to web range reader
+  // Play verse range from modal
+  const handlePlayRange = async () => {
+    const start = parseInt(startVerse) || 1;
+    const end = parseInt(endVerse) || verses.length;
+    
+    if (start > end || start < 1 || end > verses.length) {
+      showToast('Tafadhali weka aya sahihi', 'warning');
+      return;
+    }
+    
+    setShowRangeModal(false);
+    
+    // If range is playing, stop it
+    if (playingAudio === 'range') {
+      await cleanupAudio();
+      setPlayingAudio(null);
+      return;
+    }
+    
+    try {
+      if (isMusicPlaying) {
+        wasMusicPlayingRef.current = true;
+        await pausePlayback?.();
+      }
+
+      await cleanupAudio();
+      setGeneratingAudio('range');
+      setPlayingAudio(null);
+      setWasCached(false);
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      });
+
+      showToast(`Inaandaa: ${getReference(start, end)}...`, 'info');
+
+      const response = await bibleAPI.generatePassageTTS({
+        book: selectedBook.name,
+        chapter: selectedChapter,
+        start_verse: start,
+        end_verse: end,
+        language: 'sw',
+        voice: selectedVoice
+      });
+
+      if (response.data?.audio_base64) {
+        setWasCached(response.data.cached || false);
+        
+        const audioUri = `data:audio/mp3;base64,${response.data.audio_base64}`;
+        
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: audioUri },
+          { shouldPlay: true },
+          (status) => {
+            if (status.didJustFinish) {
+              setPlayingAudio(null);
+              if (wasMusicPlayingRef.current) {
+                wasMusicPlayingRef.current = false;
+                resumePlayback?.();
+              }
+            }
+          }
+        );
+        
+        soundRef.current = newSound;
+        setPlayingAudio('range');
+        
+        const cacheMsg = response.data.cached 
+          ? ' (Sauti iliyohifadhiwa)' 
+          : ' (Sauti mpya - imehifadhiwa)';
+        showToast(`Inasoma: ${getReference(start, end)}${cacheMsg}`, 'success');
+      } else {
+        showToast('Imeshindikana kupata sauti', 'error');
+      }
+    } catch (error) {
+      console.error('TTS Error:', error);
+      showToast('Imeshindikana kusoma aya', 'error');
+    } finally {
+      setGeneratingAudio(null);
+    }
+  };
+
+  // Play entire chapter
   const handlePlayChapter = async () => {
     if (verses.length === 0) return;
     
-    // If chapter is already playing, stop it
     if (playingAudio === 'chapter') {
       await cleanupAudio();
       setPlayingAudio(null);
@@ -222,7 +322,6 @@ const BibleScreen = ({ navigation }) => {
     }
     
     try {
-      // Pause any music that's playing
       if (isMusicPlaying) {
         wasMusicPlayingRef.current = true;
         await pausePlayback?.();
@@ -239,14 +338,15 @@ const BibleScreen = ({ navigation }) => {
         shouldDuckAndroid: true,
       });
 
-      // Request TTS for entire passage
+      showToast(`Inaandaa sura nzima...`, 'info');
+
       const response = await bibleAPI.generatePassageTTS({
         book: selectedBook.name,
         chapter: selectedChapter,
         start_verse: 1,
         end_verse: verses.length,
         language: 'sw',
-        voice: 'nova'
+        voice: selectedVoice
       });
 
       if (response.data?.audio_base64) {
@@ -268,87 +368,15 @@ const BibleScreen = ({ navigation }) => {
         
         soundRef.current = newSound;
         setPlayingAudio('chapter');
+        
+        const cacheMsg = response.data.cached ? ' (Iliyohifadhiwa)' : '';
+        showToast(`Inasoma sura${cacheMsg}`, 'success');
       } else {
-        showToast('Imeshindikana kupata sauti. Jaribu tena', 'error');
-        if (wasMusicPlayingRef.current) {
-          wasMusicPlayingRef.current = false;
-          resumePlayback?.();
-        }
+        showToast('Imeshindikana kupata sauti', 'error');
       }
     } catch (error) {
       console.error('TTS Error:', error);
-      showToast('Imeshindikana kusoma sura. Jaribu tena', 'error');
-      if (wasMusicPlayingRef.current) {
-        wasMusicPlayingRef.current = false;
-        resumePlayback?.();
-      }
-    } finally {
-      setGeneratingAudio(null);
-    }
-  };
-
-  // Play selected verse range
-  const handlePlayRange = async () => {
-    const start = parseInt(startVerse) || 1;
-    const end = parseInt(endVerse) || verses.length;
-    
-    if (start > end || start < 1 || end > verses.length) {
-      showToast('Tafadhali weka aya sahihi', 'warning');
-      return;
-    }
-    
-    try {
-      // Pause any music that's playing
-      if (isMusicPlaying) {
-        wasMusicPlayingRef.current = true;
-        await pausePlayback?.();
-      }
-
-      await cleanupAudio();
-      setGeneratingAudio('range');
-      setPlayingAudio(null);
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-      });
-
-      const response = await bibleAPI.generatePassageTTS({
-        book: selectedBook.name,
-        chapter: selectedChapter,
-        start_verse: start,
-        end_verse: end,
-        language: 'sw',
-        voice: 'nova'
-      });
-
-      if (response.data?.audio_base64) {
-        const audioUri = `data:audio/mp3;base64,${response.data.audio_base64}`;
-        
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: audioUri },
-          { shouldPlay: true },
-          (status) => {
-            if (status.didJustFinish) {
-              setPlayingAudio(null);
-              if (wasMusicPlayingRef.current) {
-                wasMusicPlayingRef.current = false;
-                resumePlayback?.();
-              }
-            }
-          }
-        );
-        
-        soundRef.current = newSound;
-        setPlayingAudio('range');
-      } else {
-        showToast('Imeshindikana kupata sauti. Jaribu tena', 'error');
-      }
-    } catch (error) {
-      console.error('TTS Error:', error);
-      showToast('Imeshindikana kusoma aya. Jaribu tena', 'error');
+      showToast('Imeshindikana kusoma sura', 'error');
     } finally {
       setGeneratingAudio(null);
     }
@@ -367,6 +395,152 @@ const BibleScreen = ({ navigation }) => {
     return 'Biblia Takatifu';
   };
 
+  // Render verse range selection modal
+  const renderRangeModal = () => (
+    <Modal
+      visible={showRangeModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowRangeModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Chagua Aya za Kusoma</Text>
+            <TouchableOpacity onPress={() => setShowRangeModal(false)}>
+              <Ionicons name="close" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Reference Preview */}
+          <View style={styles.referencePreview}>
+            <Ionicons name="book" size={20} color={COLORS.primary} />
+            <Text style={styles.referenceText}>
+              {getReference(parseInt(startVerse) || 1, parseInt(endVerse) || verses.length)}
+            </Text>
+          </View>
+
+          {/* Verse Range Inputs */}
+          <View style={styles.rangeInputs}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Aya ya Kwanza</Text>
+              <TextInput
+                style={styles.rangeInput}
+                keyboardType="number-pad"
+                value={startVerse}
+                onChangeText={setStartVerse}
+                placeholder="1"
+                placeholderTextColor={COLORS.textMuted}
+                maxLength={3}
+              />
+            </View>
+            
+            <Text style={styles.rangeSeparator}>hadi</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Aya ya Mwisho</Text>
+              <TextInput
+                style={styles.rangeInput}
+                keyboardType="number-pad"
+                value={endVerse}
+                onChangeText={setEndVerse}
+                placeholder={verses.length.toString()}
+                placeholderTextColor={COLORS.textMuted}
+                maxLength={3}
+              />
+            </View>
+          </View>
+
+          {/* Quick Select Buttons */}
+          <View style={styles.quickSelectContainer}>
+            <Text style={styles.quickSelectLabel}>Chagua Haraka:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TouchableOpacity 
+                style={styles.quickSelectButton}
+                onPress={() => { setStartVerse('1'); setEndVerse('5'); }}
+              >
+                <Text style={styles.quickSelectText}>1-5</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.quickSelectButton}
+                onPress={() => { setStartVerse('1'); setEndVerse('10'); }}
+              >
+                <Text style={styles.quickSelectText}>1-10</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.quickSelectButton}
+                onPress={() => { setStartVerse('1'); setEndVerse(verses.length.toString()); }}
+              >
+                <Text style={styles.quickSelectText}>Sura Nzima</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+          {/* Voice Selection */}
+          <View style={styles.voiceSelection}>
+            <Text style={styles.voiceLabel}>Sauti:</Text>
+            <View style={styles.voiceButtons}>
+              <TouchableOpacity 
+                style={[styles.voiceButton, selectedVoice === 'female' && styles.voiceButtonActive]}
+                onPress={() => setSelectedVoice('female')}
+              >
+                <Ionicons 
+                  name="woman" 
+                  size={20} 
+                  color={selectedVoice === 'female' ? COLORS.background : COLORS.text} 
+                />
+                <Text style={[
+                  styles.voiceButtonText,
+                  selectedVoice === 'female' && styles.voiceButtonTextActive
+                ]}>Kike</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.voiceButton, selectedVoice === 'male' && styles.voiceButtonActive]}
+                onPress={() => setSelectedVoice('male')}
+              >
+                <Ionicons 
+                  name="man" 
+                  size={20} 
+                  color={selectedVoice === 'male' ? COLORS.background : COLORS.text} 
+                />
+                <Text style={[
+                  styles.voiceButtonText,
+                  selectedVoice === 'male' && styles.voiceButtonTextActive
+                ]}>Kiume</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Info about caching */}
+          <View style={styles.cacheInfo}>
+            <Ionicons name="cloud-done-outline" size={16} color={COLORS.textMuted} />
+            <Text style={styles.cacheInfoText}>
+              Sauti itahifadhiwa ili kupunguza gharama kwa watumiaji wengine
+            </Text>
+          </View>
+
+          {/* Play Button */}
+          <TouchableOpacity 
+            style={styles.playRangeButton}
+            onPress={handlePlayRange}
+            disabled={generatingAudio === 'range'}
+          >
+            {generatingAudio === 'range' ? (
+              <ActivityIndicator size="small" color={COLORS.background} />
+            ) : (
+              <>
+                <Ionicons name="play-circle" size={24} color={COLORS.background} />
+                <Text style={styles.playRangeButtonText}>
+                  Soma {getReference(parseInt(startVerse) || 1, parseInt(endVerse) || verses.length)}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -383,23 +557,55 @@ const BibleScreen = ({ navigation }) => {
           <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{getTitle()}</Text>
-        {selectedChapter && (
-          <TouchableOpacity 
-            style={[styles.playAllButton, playingAudio === 'chapter' && styles.playAllButtonActive]} 
-            onPress={handlePlayChapter}
-            disabled={generatingAudio === 'chapter'}
-          >
-            {generatingAudio === 'chapter' ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
-            ) : playingAudio === 'chapter' ? (
-              <Ionicons name="stop" size={24} color={COLORS.primary} />
-            ) : (
-              <Ionicons name="headset" size={24} color={COLORS.primary} />
-            )}
-          </TouchableOpacity>
+        {selectedChapter ? (
+          <View style={styles.headerActions}>
+            {/* Range Selection Button */}
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => setShowRangeModal(true)}
+            >
+              <Ionicons name="options" size={22} color={COLORS.primary} />
+            </TouchableOpacity>
+            {/* Play All Button */}
+            <TouchableOpacity 
+              style={[styles.headerButton, playingAudio === 'chapter' && styles.headerButtonActive]} 
+              onPress={handlePlayChapter}
+              disabled={generatingAudio === 'chapter'}
+            >
+              {generatingAudio === 'chapter' ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : playingAudio === 'chapter' ? (
+                <Ionicons name="stop" size={22} color={COLORS.primary} />
+              ) : (
+                <Ionicons name="headset" size={22} color={COLORS.primary} />
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ width: 40 }} />
         )}
-        {!selectedChapter && <View style={{ width: 40 }} />}
       </View>
+
+      {/* Now Playing Indicator */}
+      {playingAudio === 'range' && (
+        <TouchableOpacity 
+          style={styles.nowPlayingBar}
+          onPress={() => { cleanupAudio(); setPlayingAudio(null); }}
+        >
+          <View style={styles.nowPlayingContent}>
+            <Ionicons name="volume-high" size={18} color={COLORS.primary} />
+            <Text style={styles.nowPlayingText} numberOfLines={1}>
+              Inasoma: {getReference(parseInt(startVerse) || 1, parseInt(endVerse) || verses.length)}
+            </Text>
+            {wasCached && (
+              <View style={styles.cachedBadge}>
+                <Text style={styles.cachedBadgeText}>Iliyohifadhiwa</Text>
+              </View>
+            )}
+          </View>
+          <Ionicons name="stop-circle" size={24} color={COLORS.error} />
+        </TouchableOpacity>
+      )}
 
       {/* Books View */}
       {!selectedBook && (
@@ -442,6 +648,11 @@ const BibleScreen = ({ navigation }) => {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Books Grid */}
@@ -505,7 +716,7 @@ const BibleScreen = ({ navigation }) => {
           <View style={styles.ttsInstructions}>
             <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
             <Text style={styles.ttsInstructionsText}>
-              Bofya kitufe cha sauti kusikia aya kwa Kiswahili. Bofya ikoni ya headset hapo juu kusikia sura nzima.
+              Bofya 🔊 kusikia aya moja. Bofya ⚙️ kuchagua aya nyingi (mfano: 21-29).
             </Text>
           </View>
 
@@ -547,6 +758,16 @@ const BibleScreen = ({ navigation }) => {
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
+
+      {/* Range Selection Modal */}
+      {renderRangeModal()}
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 };
@@ -580,16 +801,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: SPACING.sm,
   },
-  playAllButton: {
-    width: 44,
-    height: 44,
+  headerActions: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.full,
   },
-  playAllButtonActive: {
+  headerButtonActive: {
     backgroundColor: 'rgba(29, 185, 84, 0.2)',
+  },
+  nowPlayingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  nowPlayingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.sm,
+  },
+  nowPlayingText: {
+    flex: 1,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  cachedBadge: {
+    backgroundColor: COLORS.primary + '30',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  cachedBadgeText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -650,46 +910,41 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.text,
+    marginBottom: 4,
   },
   bookTestament: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
-    marginTop: 4,
+    color: COLORS.textMuted,
+    marginBottom: 6,
   },
   bookMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: SPACING.sm,
-    backgroundColor: 'rgba(29, 185, 84, 0.15)',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-    alignSelf: 'flex-start',
   },
   bookMetaText: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.primary,
   },
-  chapterHeader: {
+  chaptersGrid: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingBottom: 100,
+  },
+  chapterHeader: {
+    marginBottom: SPACING.md,
   },
   chapterHeaderText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  chaptersGrid: {
-    paddingHorizontal: SPACING.md,
+    color: COLORS.text,
   },
   chapterButton: {
-    width: 56,
-    height: 56,
-    margin: SPACING.sm,
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
+    width: '18%',
+    aspectRatio: 1,
+    margin: '1%',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
   },
   chapterText: {
     fontSize: FONT_SIZES.lg,
@@ -702,31 +957,32 @@ const styles = StyleSheet.create({
   },
   ttsInstructions: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(29, 185, 84, 0.1)',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
   ttsInstructionsText: {
     flex: 1,
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
-    marginLeft: SPACING.sm,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   verseItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: SPACING.md,
-    backgroundColor: COLORS.card,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.card,
   },
   verseItemPlaying: {
-    backgroundColor: 'rgba(29, 185, 84, 0.15)',
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '15',
+    marginHorizontal: -SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderBottomWidth: 0,
   },
   verseContent: {
     flex: 1,
@@ -749,27 +1005,172 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   verseTTSButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.full,
+    padding: SPACING.sm,
     marginLeft: SPACING.sm,
   },
   verseTTSButtonActive: {
-    backgroundColor: 'rgba(29, 185, 84, 0.3)',
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: BORDER_RADIUS.full,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: SPACING.xxl,
+    paddingVertical: SPACING.xl * 2,
   },
   emptyText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
     marginTop: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textMuted,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  referencePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  referenceText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  rangeInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+    gap: SPACING.md,
+  },
+  inputGroup: {
+    alignItems: 'center',
+  },
+  inputLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.xs,
+  },
+  rangeInput: {
+    width: 80,
+    height: 50,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    textAlign: 'center',
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  rangeSeparator: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textMuted,
+    marginTop: SPACING.lg,
+  },
+  quickSelectContainer: {
+    marginBottom: SPACING.lg,
+  },
+  quickSelectLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.sm,
+  },
+  quickSelectButton: {
+    backgroundColor: COLORS.card,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    marginRight: SPACING.sm,
+  },
+  quickSelectText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  voiceSelection: {
+    marginBottom: SPACING.lg,
+  },
+  voiceLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.sm,
+  },
+  voiceButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  voiceButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.card,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    gap: SPACING.sm,
+  },
+  voiceButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  voiceButtonText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  voiceButtonTextActive: {
+    color: COLORS.background,
+  },
+  cacheInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+    padding: SPACING.sm,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  cacheInfoText: {
+    flex: 1,
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+  },
+  playRangeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.full,
+    gap: SPACING.sm,
+  },
+  playRangeButtonText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.background,
   },
 });
 
