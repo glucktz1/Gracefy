@@ -17,7 +17,7 @@ import { Audio } from 'expo-av';
 const { width } = Dimensions.get('window');
 
 // ============ CONFIG ============
-const API_URL = 'https://gracefy-mobile.preview.emergentagent.com/api';
+const API_URL = 'https://gracefy-music.preview.emergentagent.com/api';
 const COLORS = {
   primary: '#1DB954',
   background: '#121212',
