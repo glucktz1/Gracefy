@@ -64,7 +64,15 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 - [x] Add to Playlist modal with auth-gating
 - [x] Three-dots action menu (like, share, download)
 - [x] Bible section with Text-to-Speech (Google TTS)
-- [x] Churches screen with announcements, thumbnails, follow buttons
+- [x] Churches screen with full details:
+  - Announcements (Matangazo) with date/title/message
+  - Choirs belonging to the church with albums count
+  - Religious leaders section
+  - Follow/Unfollow capability with follower count
+  - Prayer schedule (Ratiba ya Ibada)
+  - Location with map navigation
+  - Phone call integration
+  - All text in Swahili
 - [x] Auth prompts for playlist creation and downloads
 - [x] Fixed taskbar interference with system navigation
 - [x] Library screen improvements
