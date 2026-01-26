@@ -12580,6 +12580,11 @@ async def generate_verse_audio(data: dict):
     speed = data.get("speed", 1.0)
     gender = data.get("gender")  # "male" or "female"
     
+    # Handle voice as gender selection
+    if voice in ["male", "female"]:
+        gender = voice
+        voice = None
+    
     if not all([book_name, chapter, verse]):
         raise HTTPException(status_code=400, detail="book_name, chapter, and verse are required")
     
