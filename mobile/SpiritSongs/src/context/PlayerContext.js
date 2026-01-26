@@ -44,6 +44,8 @@ export const PlayerProvider = ({ children }) => {
   const queueIndexRef = useRef(0);
   const repeatRef = useRef('all');
   const autoPlayRef = useRef(true);
+  const durationRef = useRef(0);
+  const isPlayingRef = useRef(false);
   
   // CRITICAL: Lock to prevent simultaneous playback when user taps quickly
   const playLockRef = useRef(false);
@@ -51,12 +53,17 @@ export const PlayerProvider = ({ children }) => {
   
   // Track if we're handling track end to prevent double-trigger
   const isHandlingTrackEndRef = useRef(false);
+  
+  // BACKGROUND POLLING: Interval ref for position monitoring
+  const pollingIntervalRef = useRef(null);
 
   // Keep refs in sync with state
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { autoPlayRef.current = autoPlayEnabled; }, [autoPlayEnabled]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
 
   // Configure audio mode for background playback
   const configureAudioMode = async () => {
@@ -76,20 +83,86 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
+  // CRITICAL: Start background polling for track completion
+  const startBackgroundPolling = () => {
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    console.log('[PlayerContext] Starting background polling for track completion');
+    
+    // Poll every 1 second to check if track has ended
+    pollingIntervalRef.current = setInterval(async () => {
+      if (!soundRef.current || !isPlayingRef.current) return;
+      
+      try {
+        const status = await soundRef.current.getStatusAsync();
+        
+        if (status.isLoaded) {
+          const currentPos = status.positionMillis;
+          const totalDuration = status.durationMillis;
+          
+          // Update UI state
+          setPosition(currentPos / 1000);
+          if (totalDuration) {
+            setDuration(totalDuration / 1000);
+            durationRef.current = totalDuration / 1000;
+          }
+          setIsPlaying(status.isPlaying);
+          isPlayingRef.current = status.isPlaying;
+          
+          // CRITICAL: Detect track completion
+          // Check if we're within 500ms of the end OR if didJustFinish is true
+          if (totalDuration && currentPos >= totalDuration - 500) {
+            console.log('[PlayerContext] POLLING detected track near end:', currentPos, '/', totalDuration);
+            
+            // Double-check the track has actually finished
+            if (!status.isPlaying && currentPos >= totalDuration - 1000) {
+              console.log('[PlayerContext] POLLING: Track finished, advancing...');
+              playNextTrackInternal();
+            }
+          }
+          
+          // Also handle didJustFinish if it fires
+          if (status.didJustFinish && !status.isLooping) {
+            console.log('[PlayerContext] POLLING: didJustFinish detected');
+            playNextTrackInternal();
+          }
+        }
+      } catch (error) {
+        // Sound might be unloaded, ignore errors
+      }
+    }, 1000);
+  };
+
+  // Stop background polling
+  const stopBackgroundPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+      console.log('[PlayerContext] Stopped background polling');
+    }
+  };
+
   // Initialize audio on mount
   useEffect(() => {
     configureAudioMode();
+    startBackgroundPolling();
 
     // Re-configure when app comes to foreground
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       console.log('[PlayerContext] App state changed to:', nextAppState);
       if (nextAppState === 'active') {
         await configureAudioMode();
+        // Restart polling when app becomes active
+        startBackgroundPolling();
       }
     });
 
     return () => {
       subscription?.remove();
+      stopBackgroundPolling();
       if (soundRef.current) {
         soundRef.current.unloadAsync().catch(() => {});
       }
@@ -111,7 +184,7 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Play next track - used by onPlaybackStatusUpdate for auto-advance
+  // Play next track - used by polling and onPlaybackStatusUpdate for auto-advance
   const playNextTrackInternal = async () => {
     if (isHandlingTrackEndRef.current) {
       console.log('[PlayerContext] Already handling track end, skipping');
@@ -162,18 +235,23 @@ export const PlayerProvider = ({ children }) => {
           await loadAndPlayTrack(moreSongs[0]);
         } else {
           setIsPlaying(false);
+          isPlayingRef.current = false;
         }
       } else {
         setIsPlaying(false);
+        isPlayingRef.current = false;
       }
     } catch (error) {
       console.error('[PlayerContext] Error in playNextTrackInternal:', error);
     } finally {
-      isHandlingTrackEndRef.current = false;
+      // Reset the lock after a short delay
+      setTimeout(() => {
+        isHandlingTrackEndRef.current = false;
+      }, 1000);
     }
   };
 
-  // Status update handler - CRITICAL for background playback
+  // Status update handler - still useful for foreground updates
   const onPlaybackStatusUpdate = useCallback((status) => {
     if (!status.isLoaded) {
       if (status.error) {
@@ -185,12 +263,14 @@ export const PlayerProvider = ({ children }) => {
     // Update UI state
     setPosition(status.positionMillis / 1000);
     setDuration(status.durationMillis / 1000 || 0);
+    durationRef.current = status.durationMillis / 1000 || 0;
     setIsPlaying(status.isPlaying);
+    isPlayingRef.current = status.isPlaying;
     setIsLoading(status.isBuffering);
 
-    // Handle track end - this MUST work in background
+    // Handle track end - backup to polling
     if (status.didJustFinish && !status.isLooping) {
-      console.log('[PlayerContext] Track finished, advancing to next...');
+      console.log('[PlayerContext] onPlaybackStatusUpdate: Track finished');
       playNextTrackInternal();
     }
   }, []);
@@ -228,7 +308,7 @@ export const PlayerProvider = ({ children }) => {
 
       console.log('[PlayerContext] Loading audio from:', audioUrl);
 
-      // Create and play sound
+      // Create and play sound with frequent progress updates
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
         { 
@@ -243,6 +323,12 @@ export const PlayerProvider = ({ children }) => {
       setCurrentTrack(track);
       setIsLoading(false);
       setIsPlaying(true);
+      isPlayingRef.current = true;
+
+      // Ensure polling is running
+      if (!pollingIntervalRef.current) {
+        startBackgroundPolling();
+      }
 
       // Track play in backend (non-blocking)
       playerAPI.trackPlay(track.song_id).catch(() => {});
@@ -320,6 +406,8 @@ export const PlayerProvider = ({ children }) => {
     if (soundRef.current) {
       try {
         await soundRef.current.pauseAsync();
+        setIsPlaying(false);
+        isPlayingRef.current = false;
         return true;
       } catch (e) {
         console.error('[PlayerContext] Error pausing:', e);
@@ -334,6 +422,8 @@ export const PlayerProvider = ({ children }) => {
     if (soundRef.current) {
       try {
         await soundRef.current.playAsync();
+        setIsPlaying(true);
+        isPlayingRef.current = true;
       } catch (e) {
         console.error('[PlayerContext] Error resuming:', e);
       }
@@ -349,8 +439,12 @@ export const PlayerProvider = ({ children }) => {
       if (status.isLoaded) {
         if (status.isPlaying) {
           await soundRef.current.pauseAsync();
+          setIsPlaying(false);
+          isPlayingRef.current = false;
         } else {
           await soundRef.current.playAsync();
+          setIsPlaying(true);
+          isPlayingRef.current = true;
         }
       }
     } catch (e) {
