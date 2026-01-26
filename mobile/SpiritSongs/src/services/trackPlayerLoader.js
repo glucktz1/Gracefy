@@ -1,5 +1,5 @@
-// Lazy loader for react-native-track-player to avoid EAS config parse issues
-// This file delays loading until runtime (after Metro bundler processes it)
+// Lazy loader for react-native-track-player
+// The actual require happens at runtime via Metro bundler, not during EAS config parse
 
 let _TrackPlayer = null;
 let _Capability = null;
@@ -11,30 +11,41 @@ let _useProgress = null;
 let _useActiveTrack = null;
 let _isLoaded = false;
 
+// This function is called at RUNTIME, after Metro bundles everything
 export const loadTrackPlayer = () => {
   if (_isLoaded) return true;
   
-  try {
-    const tp = require('react-native-track-player');
-    _TrackPlayer = tp.default;
-    _Capability = tp.Capability;
-    _Event = tp.Event;
-    _RepeatMode = tp.RepeatMode;
-    _State = tp.State;
-    _usePlaybackState = tp.usePlaybackState;
-    _useProgress = tp.useProgress;
-    _useActiveTrack = tp.useActiveTrack;
-    _isLoaded = true;
-    
-    // Register playback service
-    _TrackPlayer.registerPlaybackService(() => require('./playbackService'));
-    
-    console.log('[TrackPlayerLoader] Successfully loaded react-native-track-player');
-    return true;
-  } catch (e) {
-    console.warn('[TrackPlayerLoader] Failed to load:', e.message);
-    return false;
+  // Use global.require to ensure this only runs at runtime
+  // Metro will handle the actual bundling
+  if (typeof __DEV__ !== 'undefined' || true) {
+    try {
+      // Dynamic require - Metro handles this at bundle time, not EAS config time
+      const moduleName = 'react-native-track-player';
+      const tp = __non_webpack_require__ ? __non_webpack_require__(moduleName) : require(moduleName);
+      
+      _TrackPlayer = tp.default || tp;
+      _Capability = tp.Capability;
+      _Event = tp.Event;
+      _RepeatMode = tp.RepeatMode;
+      _State = tp.State;
+      _usePlaybackState = tp.usePlaybackState;
+      _useProgress = tp.useProgress;
+      _useActiveTrack = tp.useActiveTrack;
+      _isLoaded = true;
+      
+      // Register playback service
+      if (_TrackPlayer && _TrackPlayer.registerPlaybackService) {
+        _TrackPlayer.registerPlaybackService(() => require('../services/playbackService'));
+      }
+      
+      console.log('[TrackPlayerLoader] Successfully loaded react-native-track-player');
+      return true;
+    } catch (e) {
+      console.warn('[TrackPlayerLoader] Failed to load:', e.message);
+      return false;
+    }
   }
+  return false;
 };
 
 export const getTrackPlayer = () => _TrackPlayer;
