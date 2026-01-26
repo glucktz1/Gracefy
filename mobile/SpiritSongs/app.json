@@ -82,6 +82,9 @@
           "icon": "./assets/icon.png",
           "color": "#3498DB"
         }
+      ],
+      [
+        "react-native-track-player"
       ]
     ],
     "owner": "gracefy15",
