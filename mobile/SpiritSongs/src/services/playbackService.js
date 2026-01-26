@@ -1,56 +1,65 @@
-import TrackPlayer, { Event } from 'react-native-track-player';
+// playbackService.js - Background audio service for react-native-track-player
+// This runs NATIVELY and doesn't depend on JavaScript being active
 
-// This service runs natively in the background - NO JavaScript suspension issues!
 module.exports = async function() {
-  
-  // Handle remote play button (lock screen, notification, headphones)
+  const TrackPlayer = require('react-native-track-player').default;
+  const { Event } = require('react-native-track-player');
+
+  // Remote play (from lock screen, notification, or headphones)
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
-    console.log('[PlaybackService] Remote Play');
+    console.log('[PlaybackService] RemotePlay');
     TrackPlayer.play();
   });
 
-  // Handle remote pause button
+  // Remote pause
   TrackPlayer.addEventListener(Event.RemotePause, () => {
-    console.log('[PlaybackService] Remote Pause');
+    console.log('[PlaybackService] RemotePause');
     TrackPlayer.pause();
   });
 
-  // Handle remote next button
+  // Remote next - THIS IS KEY for background advancement
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
-    console.log('[PlaybackService] Remote Next');
+    console.log('[PlaybackService] RemoteNext');
     TrackPlayer.skipToNext();
   });
 
-  // Handle remote previous button
+  // Remote previous
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
-    console.log('[PlaybackService] Remote Previous');
+    console.log('[PlaybackService] RemotePrevious');
     TrackPlayer.skipToPrevious();
   });
 
-  // Handle remote stop
+  // Remote stop
   TrackPlayer.addEventListener(Event.RemoteStop, () => {
-    console.log('[PlaybackService] Remote Stop');
+    console.log('[PlaybackService] RemoteStop');
     TrackPlayer.stop();
   });
 
-  // Handle seeking from lock screen / notification
+  // Remote seek (from notification slider)
   TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {
-    console.log('[PlaybackService] Remote Seek to:', event.position);
+    console.log('[PlaybackService] RemoteSeek', event.position);
     TrackPlayer.seekTo(event.position);
   });
 
-  // CRITICAL: Handle when playback reaches the end of the queue
-  // This fires NATIVELY even when the app is in background!
-  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
-    console.log('[PlaybackService] Queue ended, position:', event.position, 'track:', event.track);
-    // The queue has ended - the PlayerContext will handle fetching more songs
-    // when the app comes back to foreground, or we can loop the queue
+  // Playback state changes
+  TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
+    console.log('[PlaybackService] PlaybackState:', event.state);
   });
 
-  // Handle playback errors
+  // Track changed - fires when moving to next/prev track
+  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (event) => {
+    console.log('[PlaybackService] ActiveTrackChanged:', event.track?.title);
+  });
+
+  // Queue ended - all tracks finished
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, (event) => {
+    console.log('[PlaybackService] QueueEnded at position:', event.position);
+  });
+
+  // Playback error
   TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
-    console.error('[PlaybackService] Playback error:', event.code, event.message);
+    console.error('[PlaybackService] Error:', event.code, event.message);
   });
 
-  console.log('[PlaybackService] Background service registered successfully');
+  console.log('[PlaybackService] Service registered successfully');
 };
