@@ -137,7 +137,7 @@ Build a complete Christian music mobile app called "Gracefy" with a Spotify-like
 - [ ] Implement billing logic with Azam Pay integration
   - Show subscription plans
   - Enable/disable premium features based on subscription status
-- [ ] Bible Screen Enhancements (Testament → Book → Verse range selection)
+- [x] ~~Bible Screen Enhancements (Testament → Book → Verse range selection)~~ ✅ DONE (Jan 2026)
 - [x] ~~Churches Screen Overhaul (choirs, songs, announcements)~~ ✅ DONE (Jan 2026)
 - [ ] Album/Song Actions (download/add entire album/playlist)
 - [ ] Background audio advancement when screen locked (requires react-native-track-player)
