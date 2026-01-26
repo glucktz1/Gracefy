@@ -6,10 +6,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import TrackPlayer from 'react-native-track-player';
-
-// Register playback service for background audio - MUST be called early
-TrackPlayer.registerPlaybackService(() => require('./src/services/playbackService'));
 
 // Context Providers
 import { AuthProvider } from './src/context/AuthContext';
