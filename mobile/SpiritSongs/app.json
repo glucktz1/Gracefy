@@ -70,6 +70,7 @@
     },
     "plugins": [
       "expo-secure-store",
+      "expo-dev-client",
       [
         "expo-av",
         {
