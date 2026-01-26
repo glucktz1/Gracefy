@@ -144,7 +144,7 @@ export const churchAPI = {
   getChurchAnnouncements: (id) => api.get(`/churches/${id}/announcements`),
   getNearbyChurches: (lat, lng) => api.get(`/churches/nearby?lat=${lat}&lng=${lng}`),
   followChurch: (churchId) => api.post('/user/follow', { entity_type: 'church', entity_id: churchId }),
-  unfollowChurch: (churchId) => api.delete('/user/follow', { data: { entity_type: 'church', entity_id: churchId } }),
+  unfollowChurch: (churchId) => api.delete('/user/unfollow', { data: { entity_type: 'church', entity_id: churchId } }),
 };
 
 // ============ PLAYER API ============
