@@ -303,7 +303,7 @@ export default function ContentManagementPage() {
   };
 
   const resetEpisodeForm = () => {
-    setEpisodeForm({ title: "", description: "", audio_url: "", duration_seconds: 0, thumbnail_url: "" });
+    setEpisodeForm({ title: "", description: "", audio_url: "", duration_seconds: 0 });
   };
 
   const filteredContainers = containers.filter(c =>
