@@ -876,7 +876,7 @@ export default function ContentManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Detail View Modal */}
+      {/* Detail View Modal - Shows Series with their Episodes */}
       <Dialog open={isDetailViewOpen} onOpenChange={setIsDetailViewOpen}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -884,68 +884,104 @@ export default function ContentManagementPage() {
               {containerDetail?.container?.thumbnail_url && (
                 <img src={containerDetail.container.thumbnail_url} alt="" className="w-12 h-12 rounded object-cover" />
               )}
-              {containerDetail?.container?.title}
+              <div>
+                <span className="block">{containerDetail?.container?.title}</span>
+                {containerDetail?.container?.leader_name && (
+                  <span className="text-sm font-normal text-zinc-400">
+                    by {containerDetail.container.leader_name}
+                  </span>
+                )}
+              </div>
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             {/* Container Info */}
-            <div className="flex gap-4 text-sm text-zinc-400">
-              <span>{containerDetail?.container?.total_series || 0} series</span>
-              <span>{containerDetail?.container?.total_episodes || 0} episodes</span>
-              <span>{formatDuration(containerDetail?.container?.total_duration_minutes || 0)}</span>
+            <div className="flex gap-4 text-sm text-zinc-400 p-3 bg-zinc-800/30 rounded-lg">
+              <span className="flex items-center gap-1"><ListOrdered size={14} /> {containerDetail?.series?.length || 0} series</span>
+              <span className="flex items-center gap-1"><FileAudio size={14} /> {containerDetail?.total_episodes || 0} episodes</span>
+              <span className="flex items-center gap-1"><Clock size={14} /> {formatDuration(containerDetail?.container?.total_duration_minutes || 0)}</span>
             </div>
             
             {/* Add Series Button */}
             <div className="flex justify-end">
               <Button size="sm" onClick={() => { setSelectedContainer(containerDetail?.container); setIsSeriesModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700">
-                <Plus size={14} className="mr-1" /> Add Series
+                <Plus size={14} className="mr-1" /> Add Series (Main Topic)
               </Button>
             </div>
             
-            {/* Series List */}
+            {/* Series List - Beautiful Cards */}
             <div className="space-y-4">
               {containerDetail?.series?.length === 0 ? (
                 <div className="text-center py-8 text-zinc-500">
                   <ListOrdered size={32} className="mx-auto mb-2 opacity-50" />
                   <p>No series added yet</p>
+                  <p className="text-xs mt-1">Add a series (main topic) with a thumbnail first</p>
                 </div>
               ) : (
                 containerDetail?.series?.map((series, sIdx) => (
-                  <Card key={series.series_id} className="bg-zinc-800/50 border-zinc-700">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <span className="w-6 h-6 rounded bg-violet-500/20 flex items-center justify-center text-xs text-violet-400">{sIdx + 1}</span>
-                          {series.title}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => { setSelectedContainer(containerDetail?.container); setSelectedSeries(series); setIsEpisodeModalOpen(true); }}>
-                            <Plus size={14} className="mr-1" /> Episode
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-red-400" onClick={() => handleDeleteSeries(series.series_id)}>
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
+                  <Card key={series.series_id} className="bg-zinc-800/50 border-zinc-700 overflow-hidden">
+                    {/* Series Header with Thumbnail */}
+                    <div className="flex gap-4 p-4 border-b border-zinc-700/50">
+                      {/* Series Thumbnail */}
+                      <div className="w-20 h-20 rounded-lg bg-zinc-900 overflow-hidden flex-shrink-0">
+                        {series.thumbnail_url ? (
+                          <img src={series.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen size={24} className="text-zinc-600" />
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-zinc-500">{series.total_episodes || 0} episodes • {formatDuration(series.total_duration_minutes || 0)}</p>
-                    </CardHeader>
-                    <CardContent>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold text-white flex items-center gap-2">
+                              <span className="w-6 h-6 rounded bg-violet-500/20 flex items-center justify-center text-xs text-violet-400">{sIdx + 1}</span>
+                              {series.title}
+                            </h3>
+                            <p className="text-xs text-zinc-400 mt-1">{series.description || "No description"}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="ghost" onClick={() => { setSelectedContainer(containerDetail?.container); setSelectedSeries(series); setIsEpisodeModalOpen(true); }} className="text-emerald-400">
+                              <Plus size={14} className="mr-1" /> Episode
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-red-400" onClick={() => handleDeleteSeries(series.series_id)}>
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-2">
+                          {series.episodes?.length || 0} episodes • {formatDuration(series.total_duration_minutes || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Episodes List */}
+                    <CardContent className="p-0">
                       {series.episodes?.length === 0 ? (
-                        <p className="text-sm text-zinc-500 py-2">No episodes yet</p>
+                        <p className="text-sm text-zinc-500 py-4 px-4">No episodes yet - add episodes (subtopics) to this series</p>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="divide-y divide-zinc-700/30">
                           {series.episodes?.map((ep, eIdx) => (
-                            <div key={ep.episode_id} className="flex items-center justify-between p-2 bg-zinc-900/50 rounded">
+                            <div key={ep.episode_id} className="flex items-center justify-between p-3 hover:bg-zinc-700/20 transition-colors">
                               <div className="flex items-center gap-3">
-                                <span className="text-xs text-zinc-500 w-4">{eIdx + 1}</span>
+                                <span className="text-xs text-zinc-500 w-6 text-center">{eIdx + 1}</span>
                                 <div>
                                   <p className="text-sm text-white">{ep.title}</p>
-                                  <p className="text-xs text-zinc-500">{Math.floor(ep.duration_seconds / 60)} min</p>
+                                  <p className="text-xs text-zinc-500">
+                                    {ep.duration_seconds > 0 ? `${Math.floor(ep.duration_seconds / 60)}m ${ep.duration_seconds % 60}s` : 'Duration pending'}
+                                  </p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {ep.audio_url && <Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">Audio</Badge>}
+                                {ep.audio_url ? (
+                                  <Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">
+                                    <FileAudio size={10} className="mr-1" /> Audio
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs border-red-500/50 text-red-400">No Audio</Badge>
+                                )}
                                 <Button size="sm" variant="ghost" className="text-red-400 h-7 w-7 p-0" onClick={() => handleDeleteEpisode(ep.episode_id)}>
                                   <Trash2 size={12} />
                                 </Button>
