@@ -61,7 +61,7 @@ export default function ContentManagementPage() {
   });
   
   const [episodeForm, setEpisodeForm] = useState({
-    title: "", description: "", audio_url: "", duration_seconds: 0, thumbnail_url: ""
+    title: "", description: "", audio_url: "", duration_seconds: 0
   });
   
   const [uploading, setUploading] = useState(false);
