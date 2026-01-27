@@ -2331,17 +2331,26 @@ async def create_content_episodes_bulk(data: dict):
     """Create multiple episodes at once"""
     episodes_data = data.get("episodes", [])
     series_id = data.get("series_id")
-    container_id = data.get("container_id")
     
     if not episodes_data:
         raise HTTPException(status_code=400, detail="No episodes provided")
+    if not series_id:
+        raise HTTPException(status_code=400, detail="series_id is required")
+    
+    # Get the series to ensure correct container_id
+    series = await db.content_series.find_one({"series_id": series_id}, {"_id": 0})
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    
+    # IMPORTANT: Always use the series' container_id
+    container_id = series["container_id"]
     
     created_ids = []
     total_duration = 0
     
     for idx, ep_data in enumerate(episodes_data):
         ep_data["series_id"] = series_id
-        ep_data["container_id"] = container_id
+        ep_data["container_id"] = container_id  # Use series' container_id
         ep_data["episode_number"] = idx + 1
         
         episode = ContentEpisode(**ep_data)
