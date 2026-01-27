@@ -52,6 +52,7 @@ const NowPlayingScreen = ({ navigation }) => {
 
   const { isAuthenticated, user } = useAuth();
   const insets = useSafeAreaInsets();
+  const { isDownloaded, addDownload, removeDownload } = useDownloads();
   
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -59,6 +60,9 @@ const NowPlayingScreen = ({ navigation }) => {
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  
+  // Check if current song is downloaded
+  const songIsDownloaded = currentTrack ? isDownloaded(currentTrack.song_id) : false;
 
   // Billing settings from context
   const { billingEnabled, isPremium } = useBilling();
