@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { usePlayer } from '../context/PlayerContext';
 import { useBilling } from '../context/BillingContext';
+import { useDownloads } from '../context/DownloadContext';
 import { showToast } from '../components/Toast';
 import AddToPlaylistModal, { 
   SongActionsModal, 
