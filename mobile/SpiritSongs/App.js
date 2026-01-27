@@ -26,6 +26,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import LeaderContentScreen from './src/screens/LeaderContentScreen';
 import SubscriptionPlansScreen from './src/screens/SubscriptionPlansScreen';
 import MafundishoDetailScreen from './src/screens/MafundishoDetailScreen';
+import SeeAllScreen from './src/screens/SeeAllScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
