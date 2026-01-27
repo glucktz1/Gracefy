@@ -955,8 +955,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Nyimbo Maarufu</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>Ona yote</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'songs', title: 'Nyimbo Maarufu' })}>
+                <Text style={styles.seeAll}>Ona zote</Text>
               </TouchableOpacity>
             </View>
             {allSongs.slice(0, 5).map((song, index) => (
