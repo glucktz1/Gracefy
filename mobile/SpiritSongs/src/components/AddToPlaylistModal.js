@@ -161,6 +161,23 @@ export const SongActionsModal = ({
   };
 
   const handleDownload = async () => {
+    // If already downloaded, show option to delete
+    if (songIsDownloaded) {
+      Alert.alert(
+        'Tayari Imepakuliwa',
+        'Wimbo huu tayari umepakuliwa. Je, unataka kuufuta?',
+        [
+          { text: 'Hapana', style: 'cancel' },
+          { 
+            text: 'Futa', 
+            style: 'destructive',
+            onPress: handleDeleteDownload
+          }
+        ]
+      );
+      return;
+    }
+
     if (!isAuthenticated) {
       onLoginRequired?.();
       return;
@@ -180,7 +197,7 @@ export const SongActionsModal = ({
       setDownloading(true);
       
       let fileUrl = null;
-      let fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
+      let fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}_${song.song_id}.mp3`;
 
       // Try to get download URL from API first
       if (song?.song_id) {
@@ -226,6 +243,8 @@ export const SongActionsModal = ({
       if (result?.uri) {
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
         if (fileInfo.exists && fileInfo.size > 1000) {
+          // Add to download context
+          await addDownload(song, result.uri);
           showToast(`"${song.title}" imepakuliwa ✓`, 'success');
         } else {
           throw new Error('Downloaded file is empty or too small');
