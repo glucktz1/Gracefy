@@ -155,6 +155,29 @@ const BibleScreen = ({ navigation }) => {
     setEndVerse(end.toString());
   };
 
+  // Log listening history to database
+  const logListeningHistory = async (durationSeconds, cached, completed) => {
+    try {
+      const start = parseInt(startVerse) || 1;
+      const end = parseInt(endVerse) || verses.length;
+      
+      await bibleAPI.logListeningHistory({
+        user_id: user?.user_id || null,
+        book: selectedBook?.name,
+        chapter: selectedChapter,
+        start_verse: start,
+        end_verse: end,
+        voice: selectedVoice,
+        duration_seconds: durationSeconds,
+        was_cached: cached,
+        completed: completed
+      });
+      console.log('Bible listening history logged successfully');
+    } catch (error) {
+      console.error('Failed to log listening history:', error);
+    }
+  };
+
   // MAIN: Play verse range - "Sikiliza Sasa" / Listen Now
   const handleListenNow = async () => {
     const start = parseInt(startVerse) || 1;
@@ -165,10 +188,17 @@ const BibleScreen = ({ navigation }) => {
       return;
     }
     
-    // If already playing, stop
+    // If already playing, stop and log partial listen
     if (playingAudio) {
+      if (playbackStartTime) {
+        const listenedSeconds = Math.floor((Date.now() - playbackStartTime) / 1000);
+        if (listenedSeconds > 0) {
+          logListeningHistory(listenedSeconds, wasCached, false);
+        }
+      }
       await cleanupAudio();
       setPlayingAudio(null);
+      setPlaybackStartTime(null);
       return;
     }
     
@@ -181,6 +211,7 @@ const BibleScreen = ({ navigation }) => {
       await cleanupAudio();
       setGeneratingAudio(true);
       setWasCached(false);
+      setAudioDuration(0);
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -201,16 +232,32 @@ const BibleScreen = ({ navigation }) => {
       });
 
       if (response.data?.audio_base64) {
-        setWasCached(response.data.cached || false);
+        const isCached = response.data.cached || false;
+        setWasCached(isCached);
         
         const audioUri = `data:audio/mp3;base64,${response.data.audio_base64}`;
         
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { shouldPlay: true },
-          (status) => {
+          async (status) => {
+            // Track duration when available
+            if (status.durationMillis && !audioDuration) {
+              setAudioDuration(Math.floor(status.durationMillis / 1000));
+            }
+            
             if (status.didJustFinish) {
+              // Log completed listen with full duration
+              const totalDuration = status.durationMillis 
+                ? Math.floor(status.durationMillis / 1000) 
+                : (playbackStartTime ? Math.floor((Date.now() - playbackStartTime) / 1000) : 0);
+              
+              if (totalDuration > 0) {
+                logListeningHistory(totalDuration, isCached, true);
+              }
+              
               setPlayingAudio(null);
+              setPlaybackStartTime(null);
               if (wasMusicPlayingRef.current) {
                 wasMusicPlayingRef.current = false;
                 resumePlayback?.();
@@ -221,8 +268,9 @@ const BibleScreen = ({ navigation }) => {
         
         soundRef.current = newSound;
         setPlayingAudio('range');
+        setPlaybackStartTime(Date.now());
         
-        const cacheMsg = response.data.cached 
+        const cacheMsg = isCached 
           ? ' (Sauti iliyohifadhiwa)' 
           : ' (Sauti mpya - imehifadhiwa)';
         showToast(`Inasoma: ${getReference(start, end)}${cacheMsg}`, 'success');
