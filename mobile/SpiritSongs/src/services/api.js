@@ -179,6 +179,8 @@ export const bibleAPI = {
   }),
   getListeningStatus: () => api.get('/bible/listening-status'),
   trackListening: (data) => api.post('/bible/listening-track', data),
+  logListeningHistory: (data) => api.post('/bible/listening-history', data),
+  getListeningHistory: (userId, limit = 50) => api.get(`/bible/listening-history/${userId}?limit=${limit}`),
 };
 
 // ============ USER API ============
