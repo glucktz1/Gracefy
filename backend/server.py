@@ -13104,7 +13104,8 @@ async def log_bible_listening_history(data: dict):
     )
     
     # Return the history record without _id
-    del history_record["_id"] if "_id" in history_record else None
+    if "_id" in history_record:
+        del history_record["_id"]
     return {"success": True, "history": history_record}
 
 
