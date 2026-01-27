@@ -1037,6 +1037,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: SPACING.md,
   },
+  actionTextDownloaded: {
+    color: COLORS.primary,
+  },
+  downloadedIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default AddToPlaylistModal;
