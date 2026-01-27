@@ -13031,6 +13031,96 @@ async def track_listening_time(data: dict):
     return {"success": True, "seconds_added": seconds_listened}
 
 
+@api_router.post("/bible/listening-history")
+async def log_bible_listening_history(data: dict):
+    """Log detailed Bible listening history for a user"""
+    user_id = data.get("user_id")
+    book = data.get("book")
+    chapter = data.get("chapter")
+    start_verse = data.get("start_verse")
+    end_verse = data.get("end_verse")
+    voice = data.get("voice", "female")  # Kike/Kiume
+    duration_seconds = data.get("duration_seconds", 0)
+    was_cached = data.get("was_cached", False)
+    completed = data.get("completed", False)
+    
+    if not book or not chapter:
+        raise HTTPException(status_code=400, detail="book and chapter are required")
+    
+    # Create listening history record
+    history_record = {
+        "history_id": f"bh_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "book": book,
+        "chapter": chapter,
+        "start_verse": start_verse,
+        "end_verse": end_verse,
+        "reference": f"{book} {chapter}:{start_verse}-{end_verse}" if start_verse and end_verse else f"{book} {chapter}",
+        "voice": voice,
+        "duration_seconds": duration_seconds,
+        "was_cached": was_cached,
+        "completed": completed,
+        "listened_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.bible_listening_history.insert_one(history_record)
+    
+    # Also update the aggregate listening stats
+    listening_key = user_id if user_id else "anonymous"
+    today_str = datetime.utcnow().date().isoformat()
+    month_str = datetime.utcnow().strftime("%Y-%m")
+    
+    await db.bible_listening.update_one(
+        {"user_key": listening_key},
+        {
+            "$inc": {
+                "daily_seconds": duration_seconds,
+                "monthly_seconds": duration_seconds,
+                "total_seconds": duration_seconds,
+                "total_listens": 1
+            },
+            "$set": {
+                "daily_date": today_str,
+                "monthly_period": month_str,
+                "updated_at": datetime.now(timezone.utc),
+                "last_listen": {
+                    "book": book,
+                    "chapter": chapter,
+                    "start_verse": start_verse,
+                    "end_verse": end_verse,
+                    "voice": voice,
+                    "at": datetime.now(timezone.utc).isoformat()
+                }
+            },
+            "$setOnInsert": {
+                "user_key": listening_key,
+                "user_id": user_id,
+                "prompt_count": 0,
+                "created_at": datetime.now(timezone.utc)
+            }
+        },
+        upsert=True
+    )
+    
+    # Return the history record without _id
+    del history_record["_id"] if "_id" in history_record else None
+    return {"success": True, "history": history_record}
+
+
+@api_router.get("/bible/listening-history/{user_id}")
+async def get_bible_listening_history(user_id: str, limit: int = 50, skip: int = 0):
+    """Get Bible listening history for a user"""
+    history = await db.bible_listening_history.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    total = await db.bible_listening_history.count_documents({"user_id": user_id})
+    
+    return {"history": history, "total": total}
+
+
 @api_router.post("/bible/prompt-shown")
 async def record_prompt_shown(data: dict):
     """Record that donation prompt was shown to user"""
