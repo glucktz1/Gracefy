@@ -737,8 +737,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Nyimbo za Kwaresma</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>Ona yote</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Nyimbo za Kwaresma', category: 'lent' })}>
+                <Text style={styles.seeAll}>Ona zote</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
@@ -752,7 +752,7 @@ const HomeScreen = ({ navigation }) => {
                     source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
                     style={styles.smallSquareImage}
                   />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
                   <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name}</Text>
                 </TouchableOpacity>
               ))}
@@ -765,8 +765,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Nyimbo za Krismasi</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>Ona yote</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Nyimbo za Krismasi', category: 'christmas' })}>
+                <Text style={styles.seeAll}>Ona zote</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
@@ -780,7 +780,7 @@ const HomeScreen = ({ navigation }) => {
                     source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
                     style={styles.smallSquareImage}
                   />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
                   <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name}</Text>
                 </TouchableOpacity>
               ))}
