@@ -37,6 +37,13 @@ const ChurchesScreen = ({ navigation, route }) => {
     loadChurches();
   }, []);
 
+  // Handle church passed from navigation params (direct click from home)
+  useEffect(() => {
+    if (route.params?.selectedChurch) {
+      setSelectedChurch(route.params.selectedChurch);
+    }
+  }, [route.params?.selectedChurch]);
+
   // Load church details when a church is selected
   useEffect(() => {
     if (selectedChurch) {
