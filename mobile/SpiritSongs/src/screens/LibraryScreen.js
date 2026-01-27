@@ -529,6 +529,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.md,
   },
+  downloadsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    padding: SPACING.sm,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  downloadsGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   likedSongsGradient: {
     width: 56,
     height: 56,
