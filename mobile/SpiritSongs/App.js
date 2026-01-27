@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider } from './src/context/AuthContext';
 import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
+import { DownloadProvider } from './src/context/DownloadContext';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
