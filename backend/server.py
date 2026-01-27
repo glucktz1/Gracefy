@@ -2292,8 +2292,20 @@ async def get_content_episodes(series_id: Optional[str] = None, container_id: Op
 @api_router.post("/content-episodes")
 async def create_content_episode(data: dict):
     """Create a new episode within a series"""
-    # Get next episode number
-    existing = await db.content_episodes.count_documents({"series_id": data.get("series_id")})
+    series_id = data.get("series_id")
+    if not series_id:
+        raise HTTPException(status_code=400, detail="series_id is required")
+    
+    # Get the series to ensure correct container_id
+    series = await db.content_series.find_one({"series_id": series_id}, {"_id": 0})
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    
+    # IMPORTANT: Always use the series' container_id to prevent mix-ups
+    data["container_id"] = series["container_id"]
+    
+    # Get next episode number for this specific series
+    existing = await db.content_episodes.count_documents({"series_id": series_id})
     data["episode_number"] = data.get("episode_number", existing + 1)
     
     episode = ContentEpisode(**data)
@@ -2302,17 +2314,15 @@ async def create_content_episode(data: dict):
     await db.content_episodes.insert_one(doc)
     
     # Update series and container episode counts
-    series = await db.content_series.find_one({"series_id": data["series_id"]}, {"_id": 0})
-    if series:
-        duration_mins = doc.get("duration_seconds", 0) // 60
-        await db.content_series.update_one(
-            {"series_id": data["series_id"]},
-            {"$inc": {"total_episodes": 1, "total_duration_minutes": duration_mins}}
-        )
-        await db.content_containers.update_one(
-            {"container_id": series["container_id"]},
-            {"$inc": {"total_episodes": 1, "total_duration_minutes": duration_mins}}
-        )
+    duration_mins = doc.get("duration_seconds", 0) // 60
+    await db.content_series.update_one(
+        {"series_id": series_id},
+        {"$inc": {"total_episodes": 1, "total_duration_minutes": duration_mins}}
+    )
+    await db.content_containers.update_one(
+        {"container_id": series["container_id"]},
+        {"$inc": {"total_episodes": 1, "total_duration_minutes": duration_mins}}
+    )
     
     return {"episode_id": doc["episode_id"], "message": "Episode created successfully"}
 
