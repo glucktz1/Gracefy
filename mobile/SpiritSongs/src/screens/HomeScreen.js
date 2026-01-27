@@ -689,13 +689,12 @@ const HomeScreen = ({ navigation }) => {
                   
                   {/* Content Info */}
                   <View style={styles.mafundishoInfo}>
-                    <Text style={styles.mafundishoType}>{item.content_type || 'Teachings'}</Text>
                     <Text style={styles.mafundishoTitle} numberOfLines={2}>{item.title}</Text>
                     <Text style={styles.mafundishoDesc} numberOfLines={1}>
-                      Na. {item.leader_name || 'Unknown'}
+                      na {item.leader_name || 'Unknown'}
                     </Text>
                     <Text style={styles.mafundishoEpisodes}>
-                      Vipindi {item.episode_count || 0}
+                      {item.series_count || 0} mfululizo • {item.total_classes || item.episode_count || 0} vipindi
                     </Text>
                     
                     {/* Action Icons */}
