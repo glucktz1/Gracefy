@@ -660,6 +660,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xs,
     marginLeft: SPACING.sm,
   },
+  trackActionBtnDownloaded: {
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: 15,
+  },
   downloadProgress: {
     width: 26,
     height: 26,
