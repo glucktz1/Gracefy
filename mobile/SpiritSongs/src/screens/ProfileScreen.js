@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,26 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
+import { useDownloads } from '../context/DownloadContext';
 import { userAPI, libraryAPI, getImageUrl } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LANGUAGE_KEY = '@gracefy_language';
+const THEME_KEY = '@gracefy_theme';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { downloads, clearAllDownloads, getTotalSize } = useDownloads();
+  
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     playlists: 0,
     liked_songs: 0,
@@ -29,14 +38,45 @@ const ProfileScreen = ({ navigation }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedPhone, setEditedPhone] = useState('');
+  const [currentLanguage, setCurrentLanguage] = useState('sw');
+  const [currentTheme, setCurrentTheme] = useState('dark');
+  const [downloadSize, setDownloadSize] = useState(0);
 
   useEffect(() => {
     if (isAuthenticated) {
       loadStats();
+      loadSettings();
       setEditedName(user?.name || '');
       setEditedPhone(user?.phone || '');
     }
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    // Update download stats when downloads change
+    setStats(prev => ({
+      ...prev,
+      downloads: downloads.length
+    }));
+    loadDownloadSize();
+  }, [downloads]);
+
+  const loadSettings = async () => {
+    try {
+      const [lang, theme] = await Promise.all([
+        AsyncStorage.getItem(LANGUAGE_KEY),
+        AsyncStorage.getItem(THEME_KEY),
+      ]);
+      if (lang) setCurrentLanguage(lang);
+      if (theme) setCurrentTheme(theme);
+    } catch (error) {
+      console.log('Error loading settings:', error);
+    }
+  };
+
+  const loadDownloadSize = async () => {
+    const size = await getTotalSize();
+    setDownloadSize(size);
+  };
 
   const loadStats = async () => {
     try {
@@ -45,15 +85,26 @@ const ProfileScreen = ({ navigation }) => {
         libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
       ]);
       
+      const playlistsData = playlistsRes.data?.playlists || playlistsRes.data || [];
+      const likesData = likesRes.data?.songs || likesRes.data || [];
+      
       setStats({
-        playlists: playlistsRes.data?.length || 0,
-        liked_songs: likesRes.data?.length || 0,
-        downloads: 0,
+        playlists: playlistsData.length,
+        liked_songs: likesData.length,
+        downloads: downloads.length,
         following: 0,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadStats();
+    await loadSettings();
+    await loadDownloadSize();
+    setRefreshing(false);
   };
 
   const handleLogout = () => {
@@ -88,6 +139,86 @@ const ProfileScreen = ({ navigation }) => {
       Alert.alert('Kosa', 'Imeshindikana kusasisha taarifa');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLanguageChange = async () => {
+    const newLang = currentLanguage === 'sw' ? 'en' : 'sw';
+    try {
+      await AsyncStorage.setItem(LANGUAGE_KEY, newLang);
+      setCurrentLanguage(newLang);
+      Alert.alert(
+        newLang === 'sw' ? 'Lugha Imebadilishwa' : 'Language Changed',
+        newLang === 'sw' 
+          ? 'Sasa programu itatumia Kiswahili' 
+          : 'App will now use English'
+      );
+    } catch (error) {
+      console.error('Error saving language:', error);
+    }
+  };
+
+  const handleThemeChange = () => {
+    Alert.alert(
+      'Mandhari',
+      'Chagua mandhari unayopenda',
+      [
+        { text: 'Giza (Dark)', onPress: () => saveTheme('dark') },
+        { text: 'Mwanga (Light)', onPress: () => saveTheme('light') },
+        { text: 'Kufuata Mfumo', onPress: () => saveTheme('system') },
+        { text: 'Ghairi', style: 'cancel' },
+      ]
+    );
+  };
+
+  const saveTheme = async (theme) => {
+    try {
+      await AsyncStorage.setItem(THEME_KEY, theme);
+      setCurrentTheme(theme);
+      Alert.alert('Umefanikiwa', 'Mandhari imebadilishwa');
+    } catch (error) {
+      console.error('Error saving theme:', error);
+    }
+  };
+
+  const handleClearDownloads = () => {
+    if (downloads.length === 0) {
+      Alert.alert('Hakuna Downloads', 'Huna nyimbo zilizopakuliwa');
+      return;
+    }
+    Alert.alert(
+      'Futa Downloads',
+      `Una uhakika unataka kufuta nyimbo ${downloads.length} zilizopakuliwa?`,
+      [
+        { text: 'Hapana', style: 'cancel' },
+        { 
+          text: 'Futa Zote', 
+          style: 'destructive',
+          onPress: async () => {
+            const success = await clearAllDownloads();
+            if (success) {
+              Alert.alert('Umefanikiwa', 'Downloads zote zimefutwa');
+              loadStats();
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getThemeName = () => {
+    switch (currentTheme) {
+      case 'light': return 'Mwanga';
+      case 'system': return 'Mfumo';
+      default: return 'Giza';
     }
   };
 
@@ -127,7 +258,17 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -207,55 +348,81 @@ const ProfileScreen = ({ navigation }) => {
 
         {/* Stats */}
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => navigation.navigate('Library', { tab: 'playlists' })}
+          >
             <Text style={styles.statNumber}>{stats.playlists}</Text>
             <Text style={styles.statLabel}>Playlists</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => navigation.navigate('Library', { tab: 'liked' })}
+          >
             <Text style={styles.statNumber}>{stats.liked_songs}</Text>
-            <Text style={styles.statLabel}>Nyimbo Pendwa</Text>
-          </View>
+            <Text style={styles.statLabel}>Pendwa</Text>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => navigation.navigate('Library', { tab: 'downloads' })}
+          >
             <Text style={styles.statNumber}>{stats.downloads}</Text>
             <Text style={styles.statLabel}>Downloads</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Akaunti</Text>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Library', { tab: 'liked' })}
+          >
             <View style={styles.menuIconContainer}>
               <Ionicons name="heart" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Nyimbo Unazopenda</Text>
+            <Text style={styles.menuItemCount}>{stats.liked_songs}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Library', { tab: 'playlists' })}
+          >
             <View style={styles.menuIconContainer}>
               <Ionicons name="list" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Playlists Zako</Text>
+            <Text style={styles.menuItemCount}>{stats.playlists}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Library', { tab: 'downloads' })}
+          >
             <View style={styles.menuIconContainer}>
               <Ionicons name="download" size={20} color={COLORS.primary} />
             </View>
-            <Text style={styles.menuItemText}>Downloads</Text>
+            <View style={styles.menuItemTextContainer}>
+              <Text style={styles.menuItemText}>Downloads</Text>
+              {downloadSize > 0 && (
+                <Text style={styles.menuItemSubtext}>{formatFileSize(downloadSize)}</Text>
+              )}
+            </View>
+            <Text style={styles.menuItemCount}>{stats.downloads}</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="time" size={20} color={COLORS.primary} />
+          <TouchableOpacity style={styles.menuItem} onPress={handleClearDownloads}>
+            <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
             </View>
-            <Text style={styles.menuItemText}>Historia ya Kusikiliza</Text>
+            <Text style={styles.menuItemText}>Futa Downloads Zote</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -268,6 +435,9 @@ const ProfileScreen = ({ navigation }) => {
               <Ionicons name="notifications" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Arifa</Text>
+            <View style={styles.menuItemBadge}>
+              <Text style={styles.menuItemBadgeText}>Zimewezeshwa</Text>
+            </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
@@ -276,27 +446,32 @@ const ProfileScreen = ({ navigation }) => {
               <Ionicons name="musical-notes" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Ubora wa Sauti</Text>
+            <View style={styles.menuItemBadge}>
+              <Text style={styles.menuItemBadgeText}>Hali ya Juu</Text>
+            </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleThemeChange}>
             <View style={styles.menuIconContainer}>
               <Ionicons name="moon" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Mandhari</Text>
             <View style={styles.menuItemBadge}>
-              <Text style={styles.menuItemBadgeText}>Giza</Text>
+              <Text style={styles.menuItemBadgeText}>{getThemeName()}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleLanguageChange}>
             <View style={styles.menuIconContainer}>
               <Ionicons name="language" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Lugha</Text>
             <View style={styles.menuItemBadge}>
-              <Text style={styles.menuItemBadgeText}>Kiswahili</Text>
+              <Text style={styles.menuItemBadgeText}>
+                {currentLanguage === 'sw' ? 'Kiswahili' : 'English'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
@@ -335,7 +510,7 @@ const ProfileScreen = ({ navigation }) => {
             </View>
             <Text style={styles.menuItemText}>Kuhusu</Text>
             <View style={styles.menuItemBadge}>
-              <Text style={styles.menuItemBadgeText}>v1.0.36</Text>
+              <Text style={styles.menuItemBadgeText}>v1.0.65</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
@@ -541,10 +716,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: SPACING.md,
   },
+  menuItemTextContainer: {
+    flex: 1,
+  },
   menuItemText: {
     flex: 1,
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
+  },
+  menuItemSubtext: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  menuItemCount: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginRight: SPACING.sm,
   },
   menuItemBadge: {
     backgroundColor: COLORS.surface,
