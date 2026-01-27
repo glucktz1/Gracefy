@@ -22,6 +22,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { libraryAPI, contentAPI, getImageUrl, getAudioUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useDownloads } from '../context/DownloadContext';
 import { showToast } from './Toast';
 
 // Login Required Modal Component
