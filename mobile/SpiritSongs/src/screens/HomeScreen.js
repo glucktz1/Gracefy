@@ -856,8 +856,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Mpya za Moto 🔥</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>Ona yote</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Mpya za Moto' })}>
+                <Text style={styles.seeAll}>Ona zote</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
