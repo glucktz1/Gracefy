@@ -305,8 +305,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
   },
+  songIndexContainer: {
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   songIndex: {
-    width: 24,
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
     textAlign: 'center',
@@ -314,12 +318,23 @@ const styles = StyleSheet.create({
   songIndexActive: {
     color: COLORS.primary,
   },
+  songImageContainer: {
+    position: 'relative',
+    marginLeft: SPACING.sm,
+  },
   songListImage: {
     width: 48,
     height: 48,
     borderRadius: BORDER_RADIUS.sm,
-    marginLeft: SPACING.sm,
     backgroundColor: COLORS.card,
+  },
+  downloadedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 1,
   },
   songListInfo: {
     flex: 1,
@@ -333,10 +348,27 @@ const styles = StyleSheet.create({
   songListTitleActive: {
     color: COLORS.primary,
   },
+  songListMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  downloadedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  downloadedTagText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
+    marginLeft: 2,
+  },
   songListArtist: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
-    marginTop: 2,
+  },
+  songListArtistWithTag: {
+    flex: 1,
   },
   songListMore: {
     padding: SPACING.sm,
