@@ -37,6 +37,8 @@ const BibleScreen = ({ navigation }) => {
   const [playingAudio, setPlayingAudio] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   const [wasCached, setWasCached] = useState(false);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [playbackStartTime, setPlaybackStartTime] = useState(null);
   const soundRef = useRef(null);
   const wasMusicPlayingRef = useRef(false);
   
@@ -44,6 +46,7 @@ const BibleScreen = ({ navigation }) => {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
 
   const { isPlaying: isMusicPlaying, pausePlayback, resumePlayback } = usePlayer();
+  const { user } = useAuth();
 
   const showToast = (message, type = 'info') => {
     setToast({ visible: true, message, type });
