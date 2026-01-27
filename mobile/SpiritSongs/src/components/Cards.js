@@ -66,45 +66,86 @@ export const SmallCard = ({ item, onPress, style }) => (
   </TouchableOpacity>
 );
 
-// Song List Item - With three dots menu
+// Song List Item - With three dots menu, equalizer, and download status
 export const SongListItem = ({ 
   item, 
   index, 
   onPress, 
-  isPlaying, 
+  isPlaying,
+  isCurrentSong,
+  isDownloaded,
   onAddPress, 
   onMorePress,
   albumThumbnail, 
   style 
-}) => (
-  <TouchableOpacity 
-    style={[styles.songListItem, style]} 
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <Text style={[styles.songIndex, isPlaying && styles.songIndexActive]}>
-      {isPlaying ? <Ionicons name="musical-note" size={14} color={COLORS.primary} /> : index + 1}
-    </Text>
-    <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail) || 'https://via.placeholder.com/50' }}
-      style={styles.songListImage}
-    />
-    <View style={styles.songListInfo}>
-      <Text style={[styles.songListTitle, isPlaying && styles.songListTitleActive]} numberOfLines={1}>
-        {item.title}
-      </Text>
-      <Text style={styles.songListArtist} numberOfLines={1}>{item.artist_name}</Text>
-    </View>
-    {/* Three dots menu button */}
+}) => {
+  const showEqualizer = isCurrentSong || isPlaying;
+  
+  return (
     <TouchableOpacity 
-      style={styles.songListMore} 
-      onPress={() => onMorePress ? onMorePress(item) : (onAddPress && onAddPress(item))}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      style={[styles.songListItem, style]} 
+      onPress={onPress}
+      activeOpacity={0.7}
     >
-      <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+      {/* Index/Equalizer column */}
+      <View style={styles.songIndexContainer}>
+        {showEqualizer ? (
+          <AnimatedEqualizer 
+            isPlaying={isPlaying} 
+            barCount={3} 
+            barWidth={3} 
+            barHeight={14}
+            color={COLORS.primary}
+            gap={2}
+          />
+        ) : (
+          <Text style={styles.songIndex}>{index + 1}</Text>
+        )}
+      </View>
+      
+      {/* Thumbnail */}
+      <View style={styles.songImageContainer}>
+        <Image
+          source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail) || 'https://via.placeholder.com/50' }}
+          style={styles.songListImage}
+        />
+        {/* Download indicator badge */}
+        {isDownloaded && (
+          <View style={styles.downloadedBadge}>
+            <Ionicons name="arrow-down-circle" size={14} color={COLORS.primary} />
+          </View>
+        )}
+      </View>
+      
+      {/* Song info */}
+      <View style={styles.songListInfo}>
+        <Text style={[styles.songListTitle, (isCurrentSong || isPlaying) && styles.songListTitleActive]} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <View style={styles.songListMeta}>
+          {isDownloaded && (
+            <View style={styles.downloadedTag}>
+              <Ionicons name="checkmark-circle" size={12} color={COLORS.primary} />
+              <Text style={styles.downloadedTagText}>Imepakuliwa</Text>
+            </View>
+          )}
+          <Text style={[styles.songListArtist, isDownloaded && styles.songListArtistWithTag]} numberOfLines={1}>
+            {item.artist_name}
+          </Text>
+        </View>
+      </View>
+      
+      {/* Three dots menu button */}
+      <TouchableOpacity 
+        style={styles.songListMore} 
+        onPress={() => onMorePress ? onMorePress(item) : (onAddPress && onAddPress(item))}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+      </TouchableOpacity>
     </TouchableOpacity>
-  </TouchableOpacity>
-);
+  );
+};
 
 // Quick Access Grid Item
 export const QuickAccessItem = ({ item, onPress }) => (
