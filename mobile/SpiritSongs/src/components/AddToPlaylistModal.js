@@ -99,6 +99,9 @@ export const SongActionsModal = ({
   onSubscriptionRequired,
 }) => {
   const [downloading, setDownloading] = useState(false);
+  const { isDownloaded, addDownload, removeDownload } = useDownloads();
+  
+  const songIsDownloaded = song ? isDownloaded(song.song_id) : false;
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -120,6 +123,18 @@ export const SongActionsModal = ({
     }
     onAddToPlaylist?.(song);
     onClose();
+  };
+
+  const handleDeleteDownload = async () => {
+    if (song && songIsDownloaded) {
+      const success = await removeDownload(song.song_id);
+      if (success) {
+        showToast(`"${song.title}" imefutwa ✓`, 'info');
+      } else {
+        showToast('Imeshindikana kufuta', 'error');
+      }
+      onClose();
+    }
   };
 
   const requestStoragePermission = async () => {
