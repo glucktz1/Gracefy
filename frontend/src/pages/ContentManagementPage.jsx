@@ -218,7 +218,7 @@ export default function ContentManagementPage() {
       const data = {
         ...episodeForm,
         series_id: selectedSeries.series_id,
-        container_id: selectedContainer.container_id
+        // container_id is automatically derived from series on backend
       };
       
       await axios.post(`${API}/content-episodes`, data, { withCredentials: true });
