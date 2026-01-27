@@ -718,21 +718,27 @@ export default function ContentManagementPage() {
                   placeholder="Thumbnail URL or upload"
                   className="bg-zinc-950 border-zinc-700 flex-1"
                 />
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const url = await handleFileUpload(e.target.files?.[0], "image");
-                      if (url) setSeriesForm({ ...seriesForm, thumbnail_url: url });
-                    }}
-                  />
-                  <Button type="button" variant="outline" className="border-emerald-500/50 text-emerald-400" disabled={uploading}>
-                    <Image size={14} className="mr-1" /> 
-                    {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload"}
-                  </Button>
-                </label>
+                <input
+                  ref={seriesThumbnailRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const url = await handleFileUpload(e.target.files?.[0], "image");
+                    if (url) setSeriesForm({ ...seriesForm, thumbnail_url: url });
+                    e.target.value = ''; // Reset input for re-upload
+                  }}
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="border-emerald-500/50 text-emerald-400" 
+                  disabled={uploading}
+                  onClick={() => seriesThumbnailRef.current?.click()}
+                >
+                  <Image size={14} className="mr-1" /> 
+                  {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload"}
+                </Button>
               </div>
               {seriesForm.thumbnail_url && (
                 <div className="mt-3 p-3 bg-zinc-800/50 rounded-lg">
