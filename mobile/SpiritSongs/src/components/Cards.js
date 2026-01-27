@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZES } from '../config/theme';
 import { getImageUrl } from '../services/api';
+import AnimatedEqualizer from './AnimatedEqualizer';
 
 const { width } = Dimensions.get('window');
 
