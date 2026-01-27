@@ -3176,19 +3176,27 @@ async def get_religious_leaders_for_layout():
 
 @api_router.get("/mafundisho")
 async def get_mafundisho_for_app():
-    """Get Mafundisho na Katekesi content for mobile app - returns content containers with episode counts"""
-    # Get all active content containers (teachings/series)
+    """Get Mafundisho na Katekesi content for mobile app - returns content containers with series and episode counts"""
+    # Get all active content containers (teachings/courses)
     containers = await db.content_containers.find(
         {"status": "active"},
         {"_id": 0}
     ).sort("created_at", -1).to_list(50)
     
-    # Enrich each container with episode count and leader info
+    # Enrich each container with series count, episode count, and leader info
     enriched = []
     for container in containers:
+        container_id = container.get("container_id")
+        
+        # Count series for this container
+        series_count = await db.content_series.count_documents({
+            "container_id": container_id,
+            "status": "active"
+        })
+        
         # Count episodes for this container
-        episode_count = await db.leader_content.count_documents({
-            "container_id": container.get("container_id"),
+        episode_count = await db.content_episodes.count_documents({
+            "container_id": container_id,
             "status": "active"
         })
         
@@ -3201,7 +3209,7 @@ async def get_mafundisho_for_app():
             )
         
         enriched.append({
-            "container_id": container.get("container_id"),
+            "container_id": container_id,
             "title": container.get("title"),
             "description": container.get("description"),
             "thumbnail": container.get("thumbnail_url") or container.get("thumbnail"),
@@ -3209,9 +3217,13 @@ async def get_mafundisho_for_app():
             "leader_title": container.get("leader_title") or (leader_info.get("title") if leader_info else None),
             "leader_photo": leader_info.get("photo") if leader_info else None,
             "church_name": container.get("church_name") or (leader_info.get("church_name") if leader_info else None),
+            "series_count": series_count or container.get("total_series", 0),
             "episode_count": episode_count or container.get("total_episodes", 0),
-            "content_type": container.get("content_type", "teachings"),
+            "total_classes": episode_count or container.get("total_episodes", 0),
+            "content_type": container.get("content_type", "teaching"),
             "category": container.get("category"),
+            "monetization_type": container.get("monetization_type", "standard"),
+            "is_featured": container.get("is_featured", False),
             "created_at": container.get("created_at")
         })
     
@@ -3219,7 +3231,7 @@ async def get_mafundisho_for_app():
 
 @api_router.get("/mafundisho/{container_id}")
 async def get_mafundisho_detail(container_id: str):
-    """Get details of a specific Mafundisho container with all episodes"""
+    """Get details of a specific Mafundisho container with all series and their episodes"""
     # Get container info
     container = await db.content_containers.find_one(
         {"container_id": container_id},
@@ -3228,11 +3240,26 @@ async def get_mafundisho_detail(container_id: str):
     if not container:
         raise HTTPException(status_code=404, detail="Mafundisho not found")
     
-    # Get all episodes
-    episodes = await db.leader_content.find(
+    # Get all series for this container
+    series_list = await db.content_series.find(
         {"container_id": container_id, "status": "active"},
-        {"_id": 0, "audio_data": 0}
+        {"_id": 0}
     ).sort("series_number", 1).to_list(100)
+    
+    # Get episodes for each series
+    enriched_series = []
+    for series in series_list:
+        episodes = await db.content_episodes.find(
+            {"series_id": series["series_id"], "status": "active"},
+            {"_id": 0}
+        ).sort("episode_number", 1).to_list(100)
+        
+        enriched_series.append({
+            **series,
+            "thumbnail": series.get("thumbnail_url"),  # Series thumbnail for the card
+            "episodes": episodes,
+            "episode_count": len(episodes)
+        })
     
     # Get leader info
     leader_info = None
@@ -3242,14 +3269,26 @@ async def get_mafundisho_detail(container_id: str):
             {"_id": 0}
         )
     
+    # Calculate total episodes and duration
+    total_episodes = sum(len(s.get("episodes", [])) for s in enriched_series)
+    total_duration = sum(
+        sum(ep.get("duration_seconds", 0) for ep in s.get("episodes", []))
+        for s in enriched_series
+    )
+    
     return {
         "container": {
             **container,
             "thumbnail": container.get("thumbnail_url") or container.get("thumbnail"),
-            "leader_info": leader_info
+            "leader_info": leader_info,
+            "total_series": len(enriched_series),
+            "total_episodes": total_episodes,
+            "total_duration_seconds": total_duration,
+            "total_duration_formatted": f"{total_duration // 3600}h {(total_duration % 3600) // 60}m" if total_duration > 0 else "0m"
         },
-        "episodes": episodes,
-        "total_episodes": len(episodes)
+        "series": enriched_series,
+        "total_series": len(enriched_series),
+        "total_episodes": total_episodes
     }
 
 @api_router.get("/layout/leader-content")
