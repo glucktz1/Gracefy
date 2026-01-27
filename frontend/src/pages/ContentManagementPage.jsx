@@ -65,6 +65,11 @@ export default function ContentManagementPage() {
   });
   
   const [uploading, setUploading] = useState(false);
+  
+  // File input refs
+  const containerThumbnailRef = useRef(null);
+  const seriesThumbnailRef = useRef(null);
+  const episodeAudioRef = useRef(null);
 
   useEffect(() => {
     fetchData();
