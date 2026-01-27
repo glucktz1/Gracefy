@@ -313,10 +313,16 @@ export const SongActionsModal = ({
             <TouchableOpacity style={styles.actionItem} onPress={handleDownload} disabled={downloading}>
               {downloading ? (
                 <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : songIsDownloaded ? (
+                <View style={styles.downloadedIcon}>
+                  <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                </View>
               ) : (
                 <Ionicons name="download-outline" size={24} color={COLORS.text} />
               )}
-              <Text style={styles.actionText}>{downloading ? 'Inapakua...' : 'Pakua'}</Text>
+              <Text style={[styles.actionText, songIsDownloaded && styles.actionTextDownloaded]}>
+                {downloading ? 'Inapakua...' : songIsDownloaded ? 'Imepakuliwa ✓' : 'Pakua'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionItem} onPress={handleShare}>
