@@ -804,38 +804,44 @@ export default function ContentManagementPage() {
                   placeholder="Audio URL or upload file"
                   className="bg-zinc-950 border-zinc-700 flex-1"
                 />
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const url = await handleFileUpload(file, "audio");
-                        if (url) {
-                          // Try to get duration from the audio file
-                          const audio = new Audio();
-                          audio.src = URL.createObjectURL(file);
-                          audio.onloadedmetadata = () => {
-                            setEpisodeForm(prev => ({ 
-                              ...prev, 
-                              audio_url: url,
-                              duration_seconds: Math.round(audio.duration) || 0
-                            }));
-                          };
-                          audio.onerror = () => {
-                            setEpisodeForm(prev => ({ ...prev, audio_url: url }));
-                          };
-                        }
+                <input
+                  ref={episodeAudioRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const url = await handleFileUpload(file, "audio");
+                      if (url) {
+                        // Try to get duration from the audio file
+                        const audio = new Audio();
+                        audio.src = URL.createObjectURL(file);
+                        audio.onloadedmetadata = () => {
+                          setEpisodeForm(prev => ({ 
+                            ...prev, 
+                            audio_url: url,
+                            duration_seconds: Math.round(audio.duration) || 0
+                          }));
+                        };
+                        audio.onerror = () => {
+                          setEpisodeForm(prev => ({ ...prev, audio_url: url }));
+                        };
                       }
-                    }}
-                  />
-                  <Button type="button" variant="outline" className="border-emerald-500/50 text-emerald-400" disabled={uploading}>
-                    <FileAudio size={14} className="mr-1" /> 
-                    {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload Audio"}
-                  </Button>
-                </label>
+                    }
+                    e.target.value = ''; // Reset input for re-upload
+                  }}
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="border-emerald-500/50 text-emerald-400" 
+                  disabled={uploading}
+                  onClick={() => episodeAudioRef.current?.click()}
+                >
+                  <FileAudio size={14} className="mr-1" /> 
+                  {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload Audio"}
+                </Button>
               </div>
               {uploading && uploadProgress > 0 && (
                 <div className="mt-2">
