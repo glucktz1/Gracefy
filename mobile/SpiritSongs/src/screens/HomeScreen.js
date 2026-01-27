@@ -248,15 +248,22 @@ const HomeScreen = ({ navigation }) => {
     const lentSection = sections.find(s => 
       s.name?.toLowerCase().includes('lent') || 
       s.name?.toLowerCase().includes('kwaresima') ||
+      s.name?.toLowerCase().includes('kwaresma') ||
       s.section_type === 'seasonal' && s.filter_category === 'lent'
     );
     if (lentSection?.content_items?.length > 0) {
       console.log('[loadLayoutSections] Found lent section with', lentSection.content_items.length, 'items');
       setLentSongs(lentSection.content_items);
     } else if (albums.length > 0) {
-      // Fallback: use first 4 albums as lent songs placeholder
+      // Fallback: use first 4 albums as lent songs placeholder, normalize fields
       console.log('[loadLayoutSections] Using album fallback for lent');
-      setLentSongs(albums.slice(0, 4));
+      const lentFallback = albums.slice(0, 4).map(a => ({
+        ...a,
+        title: a.name || a.title,
+        thumbnail: a.thumbnail || a.thumbnail_url,
+        artist_name: a.artist_name || a.choir_name || 'Unknown'
+      }));
+      setLentSongs(lentFallback);
     }
 
     // Find Christmas songs section
@@ -269,9 +276,15 @@ const HomeScreen = ({ navigation }) => {
       console.log('[loadLayoutSections] Found christmas section with', christmasSection.content_items.length, 'items');
       setChristmasSongs(christmasSection.content_items);
     } else if (albums.length > 2) {
-      // Fallback: use different albums
+      // Fallback: use different albums, normalize fields
       console.log('[loadLayoutSections] Using album fallback for christmas');
-      setChristmasSongs(albums.slice(2, 6));
+      const christmasFallback = albums.slice(2, 6).map(a => ({
+        ...a,
+        title: a.name || a.title,
+        thumbnail: a.thumbnail || a.thumbnail_url,
+        artist_name: a.artist_name || a.choir_name || 'Unknown'
+      }));
+      setChristmasSongs(christmasFallback);
     }
 
     // Most listened albums - always use albums as fallback
