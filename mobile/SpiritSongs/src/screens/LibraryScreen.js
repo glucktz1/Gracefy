@@ -28,8 +28,8 @@ const LibraryScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('playlists');
   const [playlists, setPlaylists] = useState([]);
   const [likedSongs, setLikedSongs] = useState([]);
-  const [downloads, setDownloads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Modals
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -39,8 +39,9 @@ const LibraryScreen = ({ navigation }) => {
   const [selectedSong, setSelectedSong] = useState(null);
 
   const { isAuthenticated, user } = useAuth();
-  const { playTrack, currentTrack } = usePlayer();
+  const { playTrack, currentTrack, isPlaying } = usePlayer();
   const { billingEnabled, isPremium } = useBilling();
+  const { downloads, isDownloaded, refreshDownloads } = useDownloads();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -70,6 +71,15 @@ const LibraryScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      loadLibraryData(),
+      refreshDownloads(),
+    ]);
+    setRefreshing(false);
   };
 
   const handlePlaySong = (song, songList) => {
