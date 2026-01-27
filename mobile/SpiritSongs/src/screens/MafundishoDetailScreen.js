@@ -7,24 +7,29 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { leaderContentAPI, getImageUrl, getAudioUrl } from '../services/api';
+import { leaderContentAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
-import { showToast } from '../components/Toast';
+import Toast from '../components/Toast';
 
 const MafundishoDetailScreen = ({ route, navigation }) => {
   const { containerId, mafundisho } = route.params || {};
   
   const [loading, setLoading] = useState(true);
   const [container, setContainer] = useState(mafundisho || null);
-  const [episodes, setEpisodes] = useState([]);
+  const [series, setSeries] = useState([]);
+  const [expandedSeries, setExpandedSeries] = useState({});
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
   
   const { playTrack, currentTrack, isPlaying } = usePlayer();
+
+  const showToast = (message, type = 'info') => {
+    setToast({ visible: true, message, type });
+  };
 
   useEffect(() => {
     loadMafundishoDetail();
@@ -36,7 +41,11 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
       const response = await leaderContentAPI.getMafundishoDetail(containerId);
       if (response.data) {
         setContainer(response.data.container || mafundisho);
-        setEpisodes(response.data.episodes || []);
+        setSeries(response.data.series || []);
+        // Auto-expand first series
+        if (response.data.series?.length > 0) {
+          setExpandedSeries({ [response.data.series[0].series_id]: true });
+        }
       }
     } catch (error) {
       console.error('Error loading mafundisho detail:', error);
@@ -46,24 +55,61 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const handlePlayEpisode = (episode, index) => {
-    // Create track list from episodes
-    const trackList = episodes.map((ep, idx) => ({
-      song_id: ep.content_id,
-      title: ep.title,
-      artist_name: container?.leader_name || mafundisho?.leader_name || 'Mafundisho',
-      audio_url: ep.audio_url,
-      thumbnail: ep.thumbnail || container?.thumbnail || mafundisho?.thumbnail,
-      series_number: ep.series_number || idx + 1,
+  const toggleSeriesExpand = (seriesId) => {
+    setExpandedSeries(prev => ({
+      ...prev,
+      [seriesId]: !prev[seriesId]
     }));
+  };
+
+  const handlePlayEpisode = (episode, seriesItem, episodeIndex) => {
+    if (!episode.audio_url) {
+      showToast('Hakuna sauti kwa kipindi hiki', 'warning');
+      return;
+    }
     
-    const track = trackList[index];
-    playTrack(track, trackList, index);
+    // Get series thumbnail for the episode
+    const seriesThumbnail = seriesItem.thumbnail_url || seriesItem.thumbnail;
+    
+    // Create track list from all episodes in this series
+    const trackList = (seriesItem.episodes || [])
+      .filter(ep => ep.audio_url)
+      .map((ep, idx) => ({
+        song_id: ep.episode_id,
+        title: ep.title,
+        artist_name: container?.leader_name || mafundisho?.leader_name || 'Mafundisho',
+        audio_url: ep.audio_url,
+        thumbnail: seriesThumbnail || container?.thumbnail,
+        episode_number: idx + 1,
+      }));
+    
+    const trackIndex = trackList.findIndex(t => t.song_id === episode.episode_id);
+    const track = trackList[trackIndex >= 0 ? trackIndex : 0];
+    playTrack(track, trackList, trackIndex >= 0 ? trackIndex : 0);
   };
 
   const handlePlayAll = () => {
-    if (episodes.length > 0) {
-      handlePlayEpisode(episodes[0], 0);
+    // Collect all episodes from all series that have audio
+    const allTracks = [];
+    series.forEach(s => {
+      const seriesThumbnail = s.thumbnail_url || s.thumbnail;
+      (s.episodes || []).forEach(ep => {
+        if (ep.audio_url) {
+          allTracks.push({
+            song_id: ep.episode_id,
+            title: ep.title,
+            artist_name: container?.leader_name || mafundisho?.leader_name || 'Mafundisho',
+            audio_url: ep.audio_url,
+            thumbnail: seriesThumbnail || container?.thumbnail,
+          });
+        }
+      });
+    });
+    
+    if (allTracks.length > 0) {
+      playTrack(allTracks[0], allTracks, 0);
+    } else {
+      showToast('Hakuna sauti za kucheza', 'warning');
     }
   };
 
@@ -82,7 +128,8 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
     );
   }
 
-  const thumbnailUrl = getImageUrl(container?.thumbnail || mafundisho?.thumbnail) || 'https://via.placeholder.com/300';
+  const thumbnailUrl = getImageUrl(container?.thumbnail) || 'https://via.placeholder.com/300';
+  const totalEpisodes = series.reduce((acc, s) => acc + (s.episodes?.length || 0), 0);
 
   return (
     <View style={styles.container}>
@@ -109,13 +156,13 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
               />
               <Text style={styles.title}>{container?.title || mafundisho?.title}</Text>
               <Text style={styles.leaderName}>
-                Na. {container?.leader_name || mafundisho?.leader_name || 'Unknown'}
+                na {container?.leader_name || mafundisho?.leader_name || 'Unknown'}
               </Text>
               {container?.leader_title && (
                 <Text style={styles.leaderTitle}>{container.leader_title}</Text>
               )}
-              <Text style={styles.episodeCount}>
-                Vipindi {episodes.length}
+              <Text style={styles.statsText}>
+                {series.length} mfululizo • {totalEpisodes} vipindi
               </Text>
             </View>
 
@@ -128,9 +175,6 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
                 <Ionicons name="play" size={24} color={COLORS.background} />
                 <Text style={styles.playAllText}>Cheza Zote</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.shuffleButton}>
-                <Ionicons name="shuffle" size={24} color={COLORS.text} />
-              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -142,50 +186,107 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {/* Episodes List */}
-        <View style={styles.episodesSection}>
-          <Text style={styles.sectionTitle}>Vipindi ({episodes.length})</Text>
-          
-          {episodes.length === 0 ? (
+        {/* Series List */}
+        <View style={styles.seriesSection}>
+          {series.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
-              <Text style={styles.emptyText}>Hakuna vipindi kwa sasa</Text>
+              <Ionicons name="folder-open-outline" size={48} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>Hakuna mfululizo kwa sasa</Text>
+              <Text style={styles.emptySubtext}>Maudhui mapya yatakuja hivi karibuni</Text>
             </View>
           ) : (
-            episodes.map((episode, index) => {
-              const isCurrentlyPlaying = currentTrack?.song_id === episode.content_id && isPlaying;
+            series.map((seriesItem, sIdx) => {
+              const isExpanded = expandedSeries[seriesItem.series_id];
+              const seriesThumbnail = getImageUrl(seriesItem.thumbnail_url || seriesItem.thumbnail) || thumbnailUrl;
+              
               return (
-                <TouchableOpacity
-                  key={episode.content_id || index}
-                  style={[styles.episodeItem, isCurrentlyPlaying && styles.episodeItemPlaying]}
-                  onPress={() => handlePlayEpisode(episode, index)}
-                >
-                  <View style={styles.episodeNumber}>
-                    {isCurrentlyPlaying ? (
-                      <Ionicons name="volume-high" size={20} color={COLORS.primary} />
-                    ) : (
-                      <Text style={styles.episodeNumberText}>{episode.series_number || index + 1}</Text>
-                    )}
-                  </View>
-                  
-                  <View style={styles.episodeInfo}>
-                    <Text style={[styles.episodeTitle, isCurrentlyPlaying && styles.episodeTitlePlaying]} numberOfLines={2}>
-                      {episode.title}
-                    </Text>
-                    <Text style={styles.episodeMeta}>
-                      {episode.category || 'Mafundisho'} 
-                      {episode.duration ? ` • ${formatDuration(episode.duration)}` : ''}
-                    </Text>
-                  </View>
-                  
-                  <TouchableOpacity style={styles.playButton}>
+                <View key={seriesItem.series_id} style={styles.seriesCard}>
+                  {/* Series Header - Beautiful Card */}
+                  <TouchableOpacity 
+                    style={styles.seriesHeader}
+                    onPress={() => toggleSeriesExpand(seriesItem.series_id)}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{ uri: seriesThumbnail }}
+                      style={styles.seriesThumbnail}
+                    />
+                    <View style={styles.seriesInfo}>
+                      <Text style={styles.seriesTitle} numberOfLines={2}>
+                        {seriesItem.title}
+                      </Text>
+                      <Text style={styles.seriesMeta}>
+                        {seriesItem.episodes?.length || 0} vipindi
+                      </Text>
+                    </View>
                     <Ionicons 
-                      name={isCurrentlyPlaying ? "pause" : "play"} 
-                      size={20} 
-                      color={isCurrentlyPlaying ? COLORS.primary : COLORS.text} 
+                      name={isExpanded ? "chevron-up" : "chevron-down"} 
+                      size={24} 
+                      color={COLORS.textMuted} 
                     />
                   </TouchableOpacity>
-                </TouchableOpacity>
+                  
+                  {/* Episodes List - Expandable */}
+                  {isExpanded && (
+                    <View style={styles.episodesContainer}>
+                      {seriesItem.episodes?.length === 0 ? (
+                        <Text style={styles.noEpisodesText}>Hakuna vipindi bado</Text>
+                      ) : (
+                        seriesItem.episodes?.map((episode, eIdx) => {
+                          const isCurrentlyPlaying = currentTrack?.song_id === episode.episode_id && isPlaying;
+                          
+                          return (
+                            <TouchableOpacity
+                              key={episode.episode_id}
+                              style={[
+                                styles.episodeItem,
+                                isCurrentlyPlaying && styles.episodeItemPlaying
+                              ]}
+                              onPress={() => handlePlayEpisode(episode, seriesItem, eIdx)}
+                            >
+                              <View style={styles.episodeNumber}>
+                                {isCurrentlyPlaying ? (
+                                  <Ionicons name="volume-high" size={18} color={COLORS.primary} />
+                                ) : (
+                                  <Text style={styles.episodeNumberText}>{eIdx + 1}</Text>
+                                )}
+                              </View>
+                              
+                              <View style={styles.episodeInfo}>
+                                <Text 
+                                  style={[
+                                    styles.episodeTitle, 
+                                    isCurrentlyPlaying && styles.episodeTitlePlaying
+                                  ]} 
+                                  numberOfLines={2}
+                                >
+                                  {episode.title}
+                                </Text>
+                                <Text style={styles.episodeDuration}>
+                                  {episode.duration_seconds ? formatDuration(episode.duration_seconds) : ''}
+                                </Text>
+                              </View>
+                              
+                              {episode.audio_url ? (
+                                <View style={styles.playIcon}>
+                                  <Ionicons 
+                                    name={isCurrentlyPlaying ? "pause-circle" : "play-circle"} 
+                                    size={32} 
+                                    color={isCurrentlyPlaying ? COLORS.primary : COLORS.textMuted} 
+                                  />
+                                </View>
+                              ) : (
+                                <View style={styles.noAudioBadge}>
+                                  <Text style={styles.noAudioText}>Inakuja</Text>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
+                    </View>
+                  )}
+                </View>
               );
             })
           )}
@@ -193,6 +294,13 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 };
@@ -225,8 +333,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   coverImage: {
-    width: 200,
-    height: 200,
+    width: 180,
+    height: 180,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.card,
     marginBottom: SPACING.lg,
@@ -250,7 +358,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
   },
-  episodeCount: {
+  statsText: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
     marginTop: SPACING.sm,
@@ -276,14 +384,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.background,
   },
-  shuffleButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   descriptionSection: {
     padding: SPACING.lg,
     borderBottomWidth: 1,
@@ -294,35 +394,68 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 22,
   },
-  episodesSection: {
-    padding: SPACING.lg,
+  seriesSection: {
+    padding: SPACING.md,
   },
-  sectionTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.text,
+  seriesCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
+    overflow: 'hidden',
+  },
+  seriesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    gap: SPACING.md,
+  },
+  seriesThumbnail: {
+    width: 70,
+    height: 70,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surface,
+  },
+  seriesInfo: {
+    flex: 1,
+  },
+  seriesTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  seriesMeta: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+  },
+  episodesContainer: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingVertical: SPACING.xs,
+  },
+  noEpisodesText: {
+    textAlign: 'center',
+    color: COLORS.textMuted,
+    paddingVertical: SPACING.md,
+    fontSize: FONT_SIZES.sm,
   },
   episodeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   episodeItemPlaying: {
     backgroundColor: 'rgba(29, 185, 84, 0.1)',
-    marginHorizontal: -SPACING.md,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    borderBottomWidth: 0,
   },
   episodeNumber: {
-    width: 32,
+    width: 30,
     alignItems: 'center',
   },
   episodeNumberText: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
     fontWeight: '500',
   },
@@ -331,23 +464,30 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   episodeTitle: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '500',
     color: COLORS.text,
   },
   episodeTitlePlaying: {
     color: COLORS.primary,
   },
-  episodeMeta: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+  episodeDuration: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
     marginTop: 2,
   },
-  playButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  playIcon: {
+    padding: SPACING.xs,
+  },
+  noAudioBadge: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  noAudioText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
   },
   emptyState: {
     alignItems: 'center',
@@ -355,9 +495,15 @@ const styles = StyleSheet.create({
     padding: SPACING.xxl,
   },
   emptyText: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
     color: COLORS.textSecondary,
     marginTop: SPACING.md,
+  },
+  emptySubtext: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginTop: SPACING.xs,
   },
 });
 
