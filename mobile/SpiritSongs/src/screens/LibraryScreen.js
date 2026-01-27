@@ -222,7 +222,18 @@ const LibraryScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         {/* Playlists Tab */}
         {activeTab === 'playlists' && (
           <>
@@ -242,6 +253,28 @@ const LibraryScreen = ({ navigation }) => {
                 <TouchableOpacity 
                   style={styles.playIconButton}
                   onPress={() => handlePlayAll(likedSongs)}
+                >
+                  <Ionicons name="play" size={20} color={COLORS.background} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+
+            {/* Downloads Card */}
+            <TouchableOpacity 
+              style={styles.downloadsCard}
+              onPress={() => setActiveTab('downloads')}
+            >
+              <View style={styles.downloadsGradient}>
+                <Ionicons name="download" size={24} color={COLORS.text} />
+              </View>
+              <View style={styles.likedSongsInfo}>
+                <Text style={styles.likedSongsTitle}>Zilizopakuwa</Text>
+                <Text style={styles.likedSongsCount}>{downloads.length} nyimbo</Text>
+              </View>
+              {downloads.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.playIconButton}
+                  onPress={() => handlePlayAll(downloads)}
                 >
                   <Ionicons name="play" size={20} color={COLORS.background} />
                 </TouchableOpacity>
@@ -297,7 +330,9 @@ const LibraryScreen = ({ navigation }) => {
                     key={song.song_id}
                     item={song}
                     index={index}
-                    isPlaying={currentTrack?.song_id === song.song_id}
+                    isPlaying={currentTrack?.song_id === song.song_id && isPlaying}
+                    isCurrentSong={currentTrack?.song_id === song.song_id}
+                    isDownloaded={isDownloaded(song.song_id)}
                     onPress={() => handlePlaySong(song, likedSongs)}
                     onMorePress={handleSongMore}
                   />
@@ -331,7 +366,9 @@ const LibraryScreen = ({ navigation }) => {
                     key={song.song_id}
                     item={song}
                     index={index}
-                    isPlaying={currentTrack?.song_id === song.song_id}
+                    isPlaying={currentTrack?.song_id === song.song_id && isPlaying}
+                    isCurrentSong={currentTrack?.song_id === song.song_id}
+                    isDownloaded={true}
                     onPress={() => handlePlaySong(song, downloads)}
                     onMorePress={handleSongMore}
                   />
