@@ -12,6 +12,7 @@ import {
   Platform,
   Modal,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +24,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
+import { useDownloads } from '../context/DownloadContext';
 import { getImageUrl, getAudioUrl, contentAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
 import { showToast } from '../components/Toast';
