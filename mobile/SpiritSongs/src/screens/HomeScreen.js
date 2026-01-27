@@ -828,8 +828,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Album Zinazosikilizwa Zaidi</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>Ona yote</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Album Zinazosikilizwa Zaidi' })}>
+                <Text style={styles.seeAll}>Ona zote</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
