@@ -321,9 +321,12 @@ const NowPlayingScreen = ({ navigation }) => {
                 </Text>
               </View>
               <View style={styles.trackActions}>
-                {/* Download Button */}
+                {/* Download Button - Shows checkmark if downloaded */}
                 <TouchableOpacity 
-                  style={styles.trackActionBtn}
+                  style={[
+                    styles.trackActionBtn, 
+                    songIsDownloaded && styles.trackActionBtnDownloaded
+                  ]}
                   onPress={handleDownload}
                   disabled={isDownloading}
                 >
@@ -331,6 +334,8 @@ const NowPlayingScreen = ({ navigation }) => {
                     <View style={styles.downloadProgress}>
                       <Text style={styles.downloadProgressText}>{downloadProgress}%</Text>
                     </View>
+                  ) : songIsDownloaded ? (
+                    <Ionicons name="checkmark-circle" size={26} color={COLORS.primary} />
                   ) : (
                     <Ionicons name="download-outline" size={26} color={COLORS.text} />
                   )}
