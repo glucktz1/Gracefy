@@ -668,23 +668,26 @@ export default function ContentManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Series Modal */}
+      {/* Series Modal - Thumbnail per Series */}
       <Dialog open={isSeriesModalOpen} onOpenChange={setIsSeriesModalOpen}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Series/Lesson</DialogTitle>
+            <DialogTitle>Add Series (Main Topic)</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Add a new series to &quot;{selectedContainer?.title}&quot;
+              Add a new series to &quot;{selectedContainer?.title}&quot;. 
+              <span className="text-amber-400 block mt-1">
+                ⚠️ Upload ONE thumbnail here - it will apply to ALL episodes in this series
+              </span>
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm text-zinc-400 mb-1.5 block">Title *</label>
+              <label className="text-sm text-zinc-400 mb-1.5 block">Series Title (Main Topic) *</label>
               <Input
                 value={seriesForm.title}
                 onChange={(e) => setSeriesForm({ ...seriesForm, title: e.target.value })}
-                placeholder="e.g., Lesson 1: Introduction"
+                placeholder="e.g., Parenting in Modern Days"
                 className="bg-zinc-950 border-zinc-700"
               />
             </div>
@@ -698,7 +701,11 @@ export default function ContentManagementPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-zinc-400 mb-1.5 block">Thumbnail (Optional)</label>
+              <label className="text-sm text-zinc-400 mb-1.5 block flex items-center gap-2">
+                <Image size={16} className="text-emerald-400" />
+                Series Thumbnail *
+                <span className="text-xs text-amber-400">(Applies to all episodes)</span>
+              </label>
               <div className="flex gap-3">
                 <Input
                   value={seriesForm.thumbnail_url}
@@ -716,15 +723,16 @@ export default function ContentManagementPage() {
                       if (url) setSeriesForm({ ...seriesForm, thumbnail_url: url });
                     }}
                   />
-                  <Button type="button" variant="outline" className="border-zinc-700" disabled={uploading}>
+                  <Button type="button" variant="outline" className="border-emerald-500/50 text-emerald-400" disabled={uploading}>
                     <Image size={14} className="mr-1" /> 
                     {uploading && uploadProgress > 0 ? `${uploadProgress}%` : "Upload"}
                   </Button>
                 </label>
               </div>
               {seriesForm.thumbnail_url && (
-                <div className="mt-2">
-                  <img src={seriesForm.thumbnail_url} alt="Preview" className="w-16 h-16 rounded object-cover" />
+                <div className="mt-3 p-3 bg-zinc-800/50 rounded-lg">
+                  <img src={seriesForm.thumbnail_url} alt="Preview" className="w-24 h-24 rounded object-cover mx-auto" />
+                  <p className="text-xs text-zinc-400 text-center mt-2">This thumbnail will appear on all episodes</p>
                 </div>
               )}
             </div>
@@ -732,7 +740,9 @@ export default function ContentManagementPage() {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSeriesModalOpen(false)} className="border-zinc-700">Cancel</Button>
-            <Button onClick={handleCreateSeries} className="bg-emerald-600 hover:bg-emerald-700">Create Series</Button>
+            <Button onClick={handleCreateSeries} className="bg-emerald-600 hover:bg-emerald-700" disabled={!seriesForm.title || !seriesForm.thumbnail_url}>
+              Create Series
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
