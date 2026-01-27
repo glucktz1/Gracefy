@@ -1,224 +1,97 @@
-# Gracefy - Christian Music Streaming App PRD
+# Gracefy - Christian Music Streaming App
 
-## Original Problem Statement
-Build a complete Christian music mobile app called "Gracefy" with a Spotify-like look and feel, connected to an existing FastAPI backend. The app serves Christian communities with music streaming, Bible content, church management, and religious leader content.
+## Overview
+A Christian music streaming mobile app with a Spotify-like interface, featuring:
+- Music streaming with choirs and albums
+- Bible reader with TTS (Text-to-Speech)
+- Church discovery and follow features
+- Admin panel for content management
+- Choir portal for artists
 
-## Architecture Overview
-```
-/app/
-├── backend/           # FastAPI backend (monolithic server.py)
-├── frontend/          # React Admin Panel
-└── mobile/
-    └── SpiritSongs/   # React Native Mobile App (Expo)
-```
+## Architecture
+- **Backend**: FastAPI (Python) - Monolithic `/app/backend/server.py`
+- **Frontend/Admin Panel**: React - `/app/frontend/`
+- **Mobile App**: React Native (Expo) - `/app/mobile/SpiritSongs/`
+- **Database**: MongoDB
+- **CDN**: Bunny CDN for media storage
+- **TTS**: Google Cloud TTS for Bible audio
 
-## Tech Stack
-- **Backend:** FastAPI, MongoDB, Bunny CDN, FFmpeg
-- **Admin Panel:** React, TailwindCSS, Shadcn/UI
-- **Mobile App:** React Native (Expo SDK 54), EAS Build
-- **Auth:** Google OAuth (Emergent-managed)
-- **TTS:** Google Cloud Text-to-Speech
+## Completed Features
 
----
+### Mobile App
+- [x] Music player with expo-av
+- [x] Albums and songs browsing
+- [x] Bible reader with book/chapter/verse navigation
+- [x] Bible TTS with verse range selection
+- [x] Voice selection (Kike/Kiume - Female/Male)
+- [x] Quick select buttons (1-5, 1-10, Sura Nzima)
+- [x] **User listening history tracking to database** (Added 2026-01-27)
+- [x] Churches screen with announcements, choirs, leaders
+- [x] Church follow/unfollow feature
+- [x] User authentication (Google OAuth)
+- [x] Billing plans UI
 
-## What's Been Implemented
-
-### Admin Panel (React)
+### Admin Panel
 - [x] Dashboard with analytics
-- [x] User management
-- [x] Content management (Albums, Songs, Leader Content, Bible)
-- [x] Church management
-- [x] Choir/Singer management with accounts
-- [x] Role-based access control (RBAC)
-- [x] Layout management for mobile app sections
-- [x] Special mixes management
-- [x] Revenue analytics
-- [x] Monetization settings
-- [x] CDN management
-- [x] **Sidebar reorganization (Jan 2026):**
-  - Reports & Analytics (Dashboard, Analytics, Revenue, Transactions, Withdrawals)
-  - Contents (Albums & Songs, Leader Content, Biblia na Vitabu, Special Mixes, Song Categories)
-  - Control & Management (Role Management, Approvals, Layout Management, CDN Management)
-  - Settings (System Settings, App Settings, Monetization)
-  - Choir & Singers (Singers & Choirs, Choir Management, Choir Accounts)
-- [x] **User Navigation Analytics (Jan 2026):**
-  - Toggle between Overview and User Navigation sections
-  - Most visited pages with view counts
-  - Entry points (first page visited)
-  - Platform distribution (mobile/web)
-  - Daily page views trend chart
-  - Common user journeys/flows
+- [x] Album and song management
+- [x] Church management and approval
+- [x] Choir/Singer management
+- [x] Layout management for app sections
+- [x] Revenue settings
+- [x] User management with RBAC
 
-### Mobile App (React Native/Expo)
-- [x] Spotify-like dark theme UI
-- [x] Dynamic home screen with Layout Manager integration
-  - Hero Carousel
-  - Quick Access Grid
-  - Mafundisho na Katekesi section
-  - Special Mixes section
-  - Churches section
-  - Lent/Christmas songs sections
-- [x] Category filter chips
-- [x] Now Playing screen (Spotify-style)
-- [x] Album/Playlist screens with "Play All" button
-- [x] Add to Playlist modal with auth-gating
-- [x] Three-dots action menu (like, share, download)
-- [x] Bible section with Text-to-Speech (Google TTS)
-- [x] Churches screen with full details:
-  - Announcements (Matangazo) with date/title/message
-  - Choirs belonging to the church with albums count
-  - Religious leaders section
-  - Follow/Unfollow capability with follower count
-  - Prayer schedule (Ratiba ya Ibada)
-  - Location with map navigation
-  - Phone call integration
-  - All text in Swahili
-- [x] Auth prompts for playlist creation and downloads
-- [x] Fixed taskbar interference with system navigation
-- [x] Library screen improvements
-
-### Backend (FastAPI)
+### Backend APIs
 - [x] Authentication endpoints
-- [x] Content management APIs
-- [x] Layout Manager API
-- [x] Bible TTS with voice options and auto-caching:
-  - Select Book → Chapter → Verse Range (e.g., "Mathayo 5:21-29")
-  - Voice selection (male/female - Swahili voices)
-  - Auto-caching: first user generates audio, subsequent users get cached version
-  - Cache indicator showing when using stored audio
-  - Quick range selection buttons (1-5, 1-10, Full Chapter)
-  - Now Playing bar with stop functionality
-- [x] Streaming and playback APIs
-- [x] User analytics tracking
-- [x] Revenue and transaction APIs
-- [x] Church management APIs
-
-### Build & Deployment
-- [x] EAS Build pipeline established (gracefy12 account)
-- [x] Android keystore credentials configured
-- [x] Automated credential generation scripts
-
----
-
-## Current Status (January 2026)
-
-### Latest Mobile Build
-- **Version:** 1.0.51
-- **Status:** 🔄 Building
-- **Build ID:** e60a7ac7-ce3a-44ba-b768-3aa1c661c943
-- **Logs:** https://expo.dev/accounts/gracefy2/projects/SpiritSongs/builds/e60a7ac7-ce3a-44ba-b768-3aa1c661c943
-- **Account:** gracefy2
-
-### Recently Completed (This Session)
-- ✅ **CRITICAL FIX:** Background playback - app now continues to next song when in background/screen locked
-  - Refactored `onPlaybackStatusUpdate` to handle track end directly with refs
-  - Added `playTrackInternal` function for background-safe playback
-  - All queue/index operations now use refs to avoid stale closure issues
-- ✅ Billing/Subscription System implemented:
-  - Created `BillingContext.js` for global billing state
-  - Created `SubscriptionPlansScreen.js` with 4 plan tiers (Daily/Weekly/Monthly/Yearly)
-  - Updated `SubscriptionRequiredModal` to navigate to plans screen
-  - Integrated billing checks in AlbumScreen, NowPlayingScreen, LibraryScreen
-- ✅ Premium feature gating - download, add to playlist, like now show subscription modal
-- ✅ Special mixes rendering on web app - VERIFIED working
-- ✅ Leader Content linking
-- ✅ Toast notifications, keyboard fix, audio prevention
-
-### Completed Builds
-- v1.0.48 APK: Latest build with UI improvements
-- v1.0.47 APK: Core features working (download, likes, playlists)
-- v1.0.45 APK: Session persistence fix
-
----
-
-## Prioritized Backlog
-
-### P0 (Critical)
-- [x] ~~Toast notification system~~ ✅ DONE
-- [x] ~~Keyboard overlap fix~~ ✅ DONE  
-- [x] ~~Subscription modal with Swahili message~~ ✅ DONE
-- [x] ~~Simultaneous audio prevention~~ ✅ DONE
-
-### P1 (High Priority)
-- [ ] Implement billing logic with Azam Pay integration
-  - Show subscription plans
-  - Enable/disable premium features based on subscription status
-- [x] ~~Bible Screen Enhancements (Testament → Book → Verse range selection)~~ ✅ DONE (Jan 2026)
-- [x] ~~Churches Screen Overhaul (choirs, songs, announcements)~~ ✅ DONE (Jan 2026)
-- [ ] Album/Song Actions (download/add entire album/playlist)
-- [ ] Background audio advancement when screen locked (requires react-native-track-player)
-
-### P2 (Medium Priority)
-- [ ] Animated Splash Screen
-- [ ] PWA "Play All" button for library sections
-- [ ] Investigate intermittent app crashes
-
-### P3 (Low Priority / Backlog)
-- [ ] Admin: Enforce free user daily song limits
-- [ ] Admin: Device limits per user
-- [ ] Remove unused Supabase integration
-- [ ] Backend refactoring (break down monolithic server.py into routers)
-- [ ] PWA repeat logic review
-
----
+- [x] Music streaming endpoints
+- [x] Bible content and TTS endpoints
+- [x] Church and choir endpoints
+- [x] Layout configuration endpoints
+- [x] Revenue and analytics endpoints
+- [x] **Bible listening history endpoints** (Added 2026-01-27)
+  - POST /api/bible/listening-history
+  - GET /api/bible/listening-history/{user_id}
 
 ## Known Issues
 
-### Recurring
-1. **Corrupted File in Build Environment**
-   - Workaround: Added to .gitignore and .easignore
-   - Root cause: Unknown
+### P0 - Critical
+- **Background audio advancement** - App doesn't play next song when screen is locked
+  - Cause: expo-av JavaScript gets suspended on mobile OS
+  - Required Solution: `react-native-track-player` integration
+  - Status: BLOCKED - EAS build failures with native modules
 
-### Resolved
-- EAS authentication issues (fixed with gracefy12 account)
-- Android keystore credential generation (automated with pexpect)
-- Taskbar interference on mobile (fixed in App.js)
-- Bible TTS endpoint consumption bug (fixed in api.js)
+### P1 - High Priority
+- **Admin panel thumbnail upload** - Leader Contents thumbnail upload not working
+- **Azam Pay integration** - Billing system needs payment processing
 
----
+### P2 - Medium Priority
+- Animated splash screen needed
+- Intermittent app crashes to investigate
 
-## 3rd Party Integrations
+## Upcoming Tasks
+1. Fix background audio advancement (P0)
+2. Azam Pay payment integration (P1)
+3. Fix thumbnail upload in admin (P1)
+4. Animated splash screen (P2)
 
-| Service | Status | Purpose |
-|---------|--------|---------|
-| Bunny CDN | ✅ Active | Media storage |
-| FFmpeg | ✅ Active | Audio transcoding |
-| Google Cloud TTS | ✅ Active | Bible audio generation |
-| Expo EAS | ✅ Active | Mobile cloud builds (gracefy2) |
-| Azam Pay | 🔲 Planned | Payment processing (Tanzania) |
-| Emergent Google Auth | ✅ Active | Google OAuth login |
+## Future/Backlog
+- Backend refactoring (server.py is 13,000+ lines)
+- PWA "Play All" button
+- PWA repeat logic review
+- Live audio/video rooms (Agora/100ms)
+- Remove unused Supabase code
 
----
+## Technical Notes
 
-## Key Files Reference
+### EAS Build
+- Project uses `gracefy15` Expo account
+- Current version: 1.0.64
+- Build profiles in `/app/mobile/SpiritSongs/eas.json`
 
-### Admin Panel
-- `/app/frontend/src/App.js` - Main app with sidebar navigation
-- `/app/frontend/src/pages/` - All admin pages
+### Test Credentials
+- Choir Portal: demo@gracefy.com / demo123456
 
-### Mobile App
-- `/app/mobile/SpiritSongs/src/screens/HomeScreen.js`
-- `/app/mobile/SpiritSongs/src/screens/BibleScreen.js`
-- `/app/mobile/SpiritSongs/src/screens/NowPlayingScreen.js`
-- `/app/mobile/SpiritSongs/src/screens/AlbumScreen.js`
-- `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js`
-- `/app/mobile/SpiritSongs/src/components/AddToPlaylistModal.js`
-- `/app/mobile/SpiritSongs/src/components/Toast.js` - Custom toast notification system
-- `/app/mobile/SpiritSongs/src/context/PlayerContext.js` - Audio playback management
-- `/app/mobile/SpiritSongs/src/context/AuthContext.js` - Authentication state
-- `/app/mobile/SpiritSongs/src/services/api.js`
-- `/app/mobile/SpiritSongs/app.json`
-
-### Backend
-- `/app/backend/server.py` - Monolithic backend (needs refactoring)
-
----
-
-## User Preferences
-- **Language:** English with Swahili terms for UI elements
-- **Design:** Spotify-like dark theme
-- **Build Account:** gracefy12 (Expo)
-
----
-
-*Last Updated: January 26, 2026*
+### Key Files
+- `/app/mobile/SpiritSongs/src/screens/BibleScreen.js` - Bible reader
+- `/app/mobile/SpiritSongs/src/context/PlayerContext.js` - Audio player
+- `/app/mobile/SpiritSongs/src/screens/ChurchesScreen.js` - Churches
+- `/app/backend/server.py` - Main backend
