@@ -15,6 +15,7 @@ import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { bibleAPI } from '../services/api';
 import { usePlayer, setStopExternalAudioCallback, clearStopExternalAudioCallback } from '../context/PlayerContext';
+import { useAuth } from '../context/AuthContext';
 import Toast from '../components/Toast';
 
 const BibleScreen = ({ navigation }) => {
