@@ -129,6 +129,28 @@ const NowPlayingScreen = ({ navigation }) => {
   };
 
   const handleDownload = async () => {
+    // If already downloaded, offer to delete
+    if (songIsDownloaded) {
+      Alert.alert(
+        'Tayari Imepakuliwa',
+        `"${currentTrack.title}" tayari imepakuliwa. Je, unataka kuifuta?`,
+        [
+          { text: 'Hapana', style: 'cancel' },
+          { 
+            text: 'Futa', 
+            style: 'destructive',
+            onPress: async () => {
+              const success = await removeDownload(currentTrack.song_id);
+              if (success) {
+                showToast(`"${currentTrack.title}" imefutwa ✓`, 'info');
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
     if (!isAuthenticated) {
       setShowLoginModal(true);
       return;
@@ -151,7 +173,7 @@ const NowPlayingScreen = ({ navigation }) => {
       setDownloadProgress(0);
 
       let fileUrl = null;
-      let fileName = `${currentTrack.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
+      let fileName = `${currentTrack.title.replace(/[^a-zA-Z0-9]/g, '_')}_${currentTrack.song_id}.mp3`;
 
       // Try to get download URL from API first
       if (currentTrack.song_id) {
@@ -218,6 +240,8 @@ const NowPlayingScreen = ({ navigation }) => {
         console.log('Download result:', { uri: result.uri, size: fileInfo.size, exists: fileInfo.exists });
         
         if (fileInfo.exists && fileInfo.size > 1000) {  // At least 1KB
+          // Add to download context
+          await addDownload(currentTrack, result.uri);
           showToast(`"${currentTrack.title}" imepakuliwa ✓`, 'success');
         } else if (fileInfo.exists && fileInfo.size > 0) {
           // File exists but might be small - could be an error response
