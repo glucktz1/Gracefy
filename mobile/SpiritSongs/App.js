@@ -129,6 +129,7 @@ const AppContent = () => {
           <Stack.Screen name="LeaderContent" component={LeaderContentScreen} />
           <Stack.Screen name="MafundishoDetail" component={MafundishoDetailScreen} />
           <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} />
+          <Stack.Screen name="SeeAll" component={SeeAllScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
