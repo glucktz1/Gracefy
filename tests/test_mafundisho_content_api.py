@@ -134,11 +134,13 @@ class TestContentContainersAPI:
         self.__class__.created_container_id = data["container_id"]
         print(f"✓ Created container: {data['container_id']}")
         
-        # Verify by GET
+        # Verify by GET - the endpoint returns {"container": {...}, "series": [...]}
         get_response = requests.get(f"{BASE_URL}/api/content-containers/{data['container_id']}")
         assert get_response.status_code == 200
-        container = get_response.json()
-        assert container.get("title") == payload["title"], "Title should match"
+        response_data = get_response.json()
+        # Handle both direct container response and nested container response
+        container = response_data.get("container", response_data)
+        assert container.get("title") == payload["title"], f"Title should match. Got: {container.get('title')}"
         assert container.get("leader_name") == payload["leader_name"], "Leader name should match"
         print(f"✓ Verified container creation with leader_name: {container.get('leader_name')}")
     
