@@ -6,6 +6,7 @@ import { BlurView } from 'expo-blur';
 import { usePlayer } from '../context/PlayerContext';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { getImageUrl } from '../services/api';
+import AnimatedEqualizer from './AnimatedEqualizer';
 
 const { width } = Dimensions.get('window');
 
@@ -41,11 +42,26 @@ const MiniPlayer = ({ onPress }) => {
         </View>
 
         <View style={styles.content}>
-          {/* Album art */}
-          <Image
-            source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url) || 'https://via.placeholder.com/48' }}
-            style={styles.albumArt}
-          />
+          {/* Album art with equalizer overlay */}
+          <View style={styles.albumArtContainer}>
+            <Image
+              source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url) || 'https://via.placeholder.com/48' }}
+              style={styles.albumArt}
+            />
+            {/* Show equalizer on album art when playing */}
+            {isPlaying && (
+              <View style={styles.equalizerOverlay}>
+                <AnimatedEqualizer 
+                  isPlaying={isPlaying} 
+                  barCount={3} 
+                  barWidth={3} 
+                  barHeight={16}
+                  color={COLORS.text}
+                  gap={2}
+                />
+              </View>
+            )}
+          </View>
 
           {/* Track info */}
           <View style={styles.trackInfo}>
@@ -116,11 +132,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.sm,
   },
+  albumArtContainer: {
+    position: 'relative',
+    width: 48,
+    height: 48,
+  },
   albumArt: {
     width: 48,
     height: 48,
     borderRadius: BORDER_RADIUS.sm,
     backgroundColor: COLORS.card,
+  },
+  equalizerOverlay: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 4,
+    padding: 2,
   },
   trackInfo: {
     flex: 1,
