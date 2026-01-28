@@ -711,6 +711,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.background,
   },
+  // Test mode styles
+  testModeSection: {
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    alignItems: 'center',
+  },
+  testModeLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.warning,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+  },
+  testConfirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  testConfirmText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.background,
+    marginLeft: SPACING.xs,
+  },
 });
 
 export default CheckoutScreen;
