@@ -59,7 +59,8 @@ async def create_indexes():
     
     print("\n👤 App users collection:")
     await db.app_users.create_index("user_id", unique=True, background=True)
-    await db.app_users.create_index("email", unique=True, sparse=True, background=True)
+    # Skip unique email index - some users may have null emails
+    await db.app_users.create_index("email", sparse=True, background=True)
     await db.app_users.create_index("google_id", sparse=True, background=True)
     await db.app_users.create_index("status", background=True)
     await db.app_users.create_index([("created_at", -1)], background=True)
