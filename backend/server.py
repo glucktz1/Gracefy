@@ -16,9 +16,14 @@ from datetime import datetime, timezone, timedelta
 import httpx
 import base64
 import io
+import asyncio
 
-# Import caching service
+# Import caching service (keeping for backward compatibility)
 from cache_service import cache, cached, invalidate_home_cache, invalidate_albums_cache, invalidate_layout_cache
+
+# Import new modular core
+from core.database import connect_db, disconnect_db
+from core.cache import cache as new_cache, periodic_cache_cleanup
 
 # Import encoding service
 from services.encoding_service import get_encoding_service, EncodingService
@@ -29,9 +34,15 @@ from services.bunny_cdn_service import get_bunny_service, is_cdn_enabled, BunnyC
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
+# MongoDB connection (keeping for backward compatibility with existing routes)
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(
+    mongo_url,
+    maxPoolSize=100,  # Connection pooling
+    minPoolSize=10,
+    maxIdleTimeMS=30000,
+    serverSelectionTimeoutMS=5000,
+)
 db = client[os.environ['DB_NAME']]
 
 # Initialize encoding service
@@ -41,10 +52,17 @@ encoding_service: EncodingService = None
 bunny_service: BunnyCDNService = None
 
 # Create the main app
-app = FastAPI(title="Gracefy Admin API")
+app = FastAPI(
+    title="Gracefy Admin API",
+    description="Christian Music Streaming Platform API",
+    version="2.0.0",
+)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+# Background task for cache cleanup
+cache_cleanup_task = None
 
 # ============== PERFORMANCE HELPERS ==============
 
