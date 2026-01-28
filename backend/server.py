@@ -4422,7 +4422,35 @@ async def azampay_checkout(data: dict, request: Request):
     doc["mno"] = mno
     await db.transactions.insert_one(doc)
     
-    # Call Azam Pay API
+    # Check if we're in test/demo mode (for development without real Azam Pay credentials)
+    use_test_mode = os.environ.get("AZAMPAY_TEST_MODE", "true").lower() == "true"
+    
+    if use_test_mode:
+        # In test mode, simulate successful checkout initiation
+        logging.info(f"[TEST MODE] Simulating Azam Pay checkout for {normalized_phone}")
+        
+        # Update transaction to indicate it's waiting for user confirmation
+        await db.transactions.update_one(
+            {"transaction_id": doc["transaction_id"]},
+            {"$set": {"azampay_test_mode": True}}
+        )
+        
+        return {
+            "success": True,
+            "transaction_id": doc["transaction_id"],
+            "external_id": external_id,
+            "amount": plan["price"],
+            "currency": "TZS",
+            "mno": mno,
+            "phone": normalized_phone,
+            "message": f"[DEMO] Thibitisha malipo kwenye simu yako ya {mno}. Utapokea ujumbe wa USSD.",
+            "message_en": f"[DEMO] Confirm payment on your {mno} phone. You will receive a USSD prompt.",
+            "status": "pending",
+            "test_mode": True,
+            "test_note": "Bofya 'Thibitisha Malipo' kupitisha malipo kwa majaribio"
+        }
+    
+    # Production mode - Call Azam Pay API
     try:
         from azampay import Azampay
         
