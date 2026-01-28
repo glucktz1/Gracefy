@@ -200,6 +200,9 @@ export const billingAPI = {
   initiateAzamPay: (userId, planId, phoneNumber) => 
     api.post('/payment/azampay/checkout', { user_id: userId, plan_id: planId, phone_number: phoneNumber }),
   getPaymentStatus: (transactionId) => api.get(`/payment/azampay/status/${transactionId}`),
+  // Test mode: Confirm payment manually (for demo/testing)
+  testConfirmPayment: (transactionId, action = 'confirm') => 
+    api.post(`/payment/azampay/test-confirm/${transactionId}`, { action }),
   getUserTransactions: () => api.get('/user/transactions'),
 };
 
