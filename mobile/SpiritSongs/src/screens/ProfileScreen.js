@@ -406,6 +406,84 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Subscription Section - Only show if billing is enabled */}
+        {billingEnabled && (
+          <View style={styles.menuSection}>
+            <Text style={styles.menuSectionTitle}>Usajili</Text>
+            
+            {isPremium ? (
+              <View style={styles.premiumCard}>
+                <LinearGradient
+                  colors={[COLORS.primary, '#1ed760']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.premiumGradient}
+                >
+                  <View style={styles.premiumHeader}>
+                    <Ionicons name="star" size={24} color="#FFD700" />
+                    <Text style={styles.premiumTitle}>Premium Amilifu</Text>
+                  </View>
+                  <Text style={styles.premiumPlan}>{subscription?.plan_name || 'Premium'}</Text>
+                  <Text style={styles.premiumExpiry}>
+                    {subscription?.expires_at 
+                      ? `Inaisha: ${formatDate(subscription.expires_at)}`
+                      : 'Usajili wako upo sawa'}
+                  </Text>
+                </LinearGradient>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.upgradeBanner}
+                onPress={() => navigation.navigate('SubscriptionPlans')}
+              >
+                <View style={styles.upgradeContent}>
+                  <Ionicons name="star" size={24} color={COLORS.warning} />
+                  <View style={styles.upgradeText}>
+                    <Text style={styles.upgradeTitle}>Pata Gracefy Premium</Text>
+                    <Text style={styles.upgradeSubtitle}>Fungua vipengele vyote bila kikomo</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            )}
+
+            {/* Recent Transactions */}
+            {transactions.length > 0 && (
+              <View style={styles.transactionsContainer}>
+                <Text style={styles.transactionsTitle}>Historia ya Malipo</Text>
+                {transactions.slice(0, 3).map((txn, index) => (
+                  <View key={txn.transaction_id || index} style={styles.transactionItem}>
+                    <View style={styles.transactionIcon}>
+                      <Ionicons 
+                        name={txn.status === 'completed' ? 'checkmark-circle' : 
+                              txn.status === 'pending' ? 'time' : 'close-circle'} 
+                        size={20} 
+                        color={txn.status === 'completed' ? COLORS.primary : 
+                               txn.status === 'pending' ? COLORS.warning : COLORS.error} 
+                      />
+                    </View>
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionPlan}>{txn.plan_name}</Text>
+                      <Text style={styles.transactionDate}>{formatDate(txn.initiated_at)}</Text>
+                    </View>
+                    <View style={styles.transactionAmount}>
+                      <Text style={styles.transactionPrice}>{formatPrice(txn.amount)}</Text>
+                      <Text style={[
+                        styles.transactionStatus,
+                        { color: txn.status === 'completed' ? COLORS.primary : 
+                                 txn.status === 'pending' ? COLORS.warning : COLORS.error }
+                      ]}>
+                        {txn.status === 'completed' ? 'Imekamilika' : 
+                         txn.status === 'pending' ? 'Inasubiri' : 'Imeshindikana'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Menu Items */}
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Akaunti</Text>
