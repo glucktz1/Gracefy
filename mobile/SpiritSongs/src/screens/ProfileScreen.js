@@ -108,7 +108,36 @@ const ProfileScreen = ({ navigation }) => {
     await loadStats();
     await loadSettings();
     await loadDownloadSize();
+    await loadTransactions();
+    await refreshBilling();
     setRefreshing(false);
+  };
+
+  const loadTransactions = async () => {
+    try {
+      const res = await billingAPI.getUserTransactions();
+      setTransactions(res.data?.transactions || []);
+    } catch (error) {
+      console.log('Error loading transactions:', error);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sw-TZ', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  const formatPrice = (amount) => {
+    return new Intl.NumberFormat('sw-TZ', {
+      style: 'currency',
+      currency: 'TZS',
+      minimumFractionDigits: 0,
+    }).format(amount);
   };
 
   const handleLogout = () => {
