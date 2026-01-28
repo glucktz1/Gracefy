@@ -4313,6 +4313,281 @@ async def get_user_transactions(request: Request):
     
     return {"transactions": transactions}
 
+# ============== AZAM PAY INTEGRATION ==============
+
+def normalize_phone_tz(phone: str) -> str:
+    """Normalize Tanzanian phone number to +255XXXXXXXXX format"""
+    phone = ''.join(c for c in phone if c.isdigit() or c == '+')
+    if phone.startswith('+255'):
+        return phone
+    elif phone.startswith('255'):
+        return '+' + phone
+    elif phone.startswith('0'):
+        return '+255' + phone[1:]
+    else:
+        raise ValueError(f"Invalid Tanzanian phone format: {phone}")
+
+def get_mno_from_phone(phone: str) -> str:
+    """Detect MNO from Tanzanian phone number prefix"""
+    normalized = normalize_phone_tz(phone)
+    prefix = normalized[4:6]  # Get first 2 digits after +255
+    
+    # Vodacom (M-Pesa): 74, 75, 76
+    if prefix in ['74', '75', '76']:
+        return 'Vodacom'
+    # Tigo: 65, 67, 71
+    elif prefix in ['65', '67', '71']:
+        return 'Tigo'
+    # Airtel: 68, 69, 78, 79
+    elif prefix in ['68', '69', '78', '79']:
+        return 'Airtel'
+    # Halotel: 62
+    elif prefix in ['62']:
+        return 'Halotel'
+    # TTCL: 73
+    elif prefix in ['73']:
+        return 'TTCL'
+    # Zantel: 77
+    elif prefix in ['77']:
+        return 'Zantel'
+    else:
+        return 'Vodacom'  # Default to Vodacom
+
+@api_router.post("/payment/azampay/checkout")
+async def azampay_checkout(data: dict, request: Request):
+    """
+    Initiate Azam Pay mobile money checkout.
+    User receives USSD prompt on their phone to authorize payment.
+    """
+    user_id = data.get("user_id")
+    plan_id = data.get("plan_id")
+    phone_number = data.get("phone_number")
+    
+    if not all([user_id, plan_id, phone_number]):
+        raise HTTPException(status_code=400, detail="Missing required fields: user_id, plan_id, phone_number")
+    
+    # Normalize phone number
+    try:
+        normalized_phone = normalize_phone_tz(phone_number)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Detect MNO
+    mno = get_mno_from_phone(normalized_phone)
+    
+    # Get subscription plan
+    plan = await db.subscription_plans.find_one({"plan_id": plan_id}, {"_id": 0})
+    if not plan:
+        # Try default plans
+        default_plans = {
+            "plan_daily": {"plan_id": "plan_daily", "name": "daily", "display_name": "Siku 1", "price": 500, "duration_days": 1},
+            "plan_weekly": {"plan_id": "plan_weekly", "name": "weekly", "display_name": "Wiki 1", "price": 2000, "duration_days": 7},
+            "plan_monthly": {"plan_id": "plan_monthly", "name": "monthly", "display_name": "Mwezi 1", "price": 5000, "duration_days": 30},
+            "plan_yearly": {"plan_id": "plan_yearly", "name": "yearly", "display_name": "Mwaka 1", "price": 50000, "duration_days": 365}
+        }
+        plan = default_plans.get(plan_id)
+    
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    
+    # Get user info
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
+    
+    # Generate unique external reference
+    external_id = f"GRC{uuid.uuid4().hex[:12].upper()}"
+    
+    # Create transaction record
+    txn = Transaction(
+        user_id=user_id,
+        user_email=user.get("email") if user else None,
+        user_phone=normalized_phone,
+        gateway_id="azampay",
+        gateway_name=f"Azam Pay ({mno})",
+        gateway_type="mobile_money",
+        payment_method="azampay",
+        amount=plan["price"],
+        currency="TZS",
+        amount_usd=round(plan["price"] / 2500, 2),  # Approximate USD conversion
+        plan_id=plan_id,
+        plan_name=plan.get("display_name", plan.get("name", "Premium")),
+        plan_duration_days=plan.get("duration_days", 30),
+        status="pending",
+        phone_number=normalized_phone,
+        external_ref=external_id,
+        initiated_at=datetime.now(timezone.utc).isoformat()
+    )
+    
+    doc = txn.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["mno"] = mno
+    await db.transactions.insert_one(doc)
+    
+    # Call Azam Pay API
+    try:
+        from azampay import Azampay
+        
+        azampay_client = Azampay(
+            app_name="Gracefy",
+            client_id=os.environ.get("AZAMPAY_CLIENT_ID"),
+            client_secret=os.environ.get("AZAMPAY_CLIENT_SECRET"),
+            x_api_key=os.environ.get("AZAMPAY_TOKEN"),
+            sandbox=False  # Production mode
+        )
+        
+        # Initiate MNO checkout
+        checkout_response = azampay_client.mobile_checkout(
+            amount=int(plan["price"]),
+            mobile=normalized_phone.replace("+", ""),  # Azampay expects without +
+            external_id=external_id,
+            provider=mno
+        )
+        
+        logging.info(f"Azam Pay checkout response: {checkout_response}")
+        
+        # Update transaction with Azam Pay response
+        await db.transactions.update_one(
+            {"transaction_id": doc["transaction_id"]},
+            {"$set": {
+                "azampay_response": checkout_response,
+                "azampay_txn_id": checkout_response.get("transactionId")
+            }}
+        )
+        
+        return {
+            "success": True,
+            "transaction_id": doc["transaction_id"],
+            "external_id": external_id,
+            "amount": plan["price"],
+            "currency": "TZS",
+            "mno": mno,
+            "phone": normalized_phone,
+            "message": f"Thibitisha malipo kwenye simu yako ya {mno}. Utapokea ujumbe wa USSD.",
+            "message_en": f"Confirm payment on your {mno} phone. You will receive a USSD prompt.",
+            "status": "pending"
+        }
+        
+    except Exception as e:
+        logging.error(f"Azam Pay checkout error: {str(e)}")
+        
+        # Update transaction with error
+        await db.transactions.update_one(
+            {"transaction_id": doc["transaction_id"]},
+            {"$set": {"status": "failed", "failure_reason": str(e)}}
+        )
+        
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Payment initiation failed. Please try again. Error: {str(e)}"
+        )
+
+@api_router.post("/payment/callback/azampay")
+async def azampay_callback(request: Request):
+    """
+    Handle Azam Pay payment callback/webhook.
+    Called when user completes or cancels payment.
+    """
+    try:
+        body = await request.json()
+        logging.info(f"Azam Pay callback received: {body}")
+        
+        # Extract callback data
+        external_id = body.get("utilityref") or body.get("externalId") or body.get("reference")
+        transaction_status = body.get("transactionstatus", "").lower()
+        azam_txn_id = body.get("transactionId") or body.get("mnoreference")
+        message = body.get("message", "")
+        
+        if not external_id:
+            logging.error("Azam Pay callback missing external_id")
+            return {"received": True, "error": "Missing reference"}
+        
+        # Find transaction by external reference
+        txn = await db.transactions.find_one({"external_ref": external_id}, {"_id": 0})
+        if not txn:
+            logging.error(f"Transaction not found for external_id: {external_id}")
+            return {"received": True, "error": "Transaction not found"}
+        
+        # Map Azam Pay status to our status
+        status_map = {
+            "success": "completed",
+            "successful": "completed",
+            "completed": "completed",
+            "failed": "failed",
+            "failure": "failed",
+            "cancelled": "cancelled",
+            "cancel": "cancelled",
+            "pending": "pending"
+        }
+        payment_status = status_map.get(transaction_status, "pending")
+        
+        # Update transaction
+        update_data = {
+            "status": payment_status,
+            "azampay_callback": body,
+            "callback_received_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        if azam_txn_id:
+            update_data["azampay_txn_id"] = azam_txn_id
+        
+        if payment_status == "completed":
+            update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
+            
+            # Activate user subscription
+            user_id = txn["user_id"]
+            plan_duration = txn["plan_duration_days"]
+            plan_name = txn["plan_name"]
+            expires_at = (datetime.now(timezone.utc) + timedelta(days=plan_duration)).isoformat()
+            
+            await db.app_users.update_one(
+                {"user_id": user_id},
+                {"$set": {
+                    "subscription.status": "active",
+                    "subscription.plan_id": txn["plan_id"],
+                    "subscription.plan_name": plan_name,
+                    "subscription.started_at": datetime.now(timezone.utc).isoformat(),
+                    "subscription.expires_at": expires_at,
+                    "subscription.last_payment_id": txn["transaction_id"],
+                    "is_premium": True
+                }}
+            )
+            
+            logging.info(f"Subscription activated for user {user_id}, expires: {expires_at}")
+        
+        elif payment_status == "failed":
+            update_data["failure_reason"] = message or "Payment failed"
+        
+        await db.transactions.update_one(
+            {"transaction_id": txn["transaction_id"]},
+            {"$set": update_data}
+        )
+        
+        return {"received": True, "status": "processed", "payment_status": payment_status}
+        
+    except Exception as e:
+        logging.error(f"Azam Pay callback processing error: {str(e)}")
+        return {"received": True, "error": str(e)}
+
+@api_router.get("/payment/azampay/status/{transaction_id}")
+async def azampay_status(transaction_id: str):
+    """Check Azam Pay transaction status"""
+    txn = await db.transactions.find_one({"transaction_id": transaction_id}, {"_id": 0})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    return {
+        "transaction_id": txn["transaction_id"],
+        "external_id": txn.get("external_ref"),
+        "status": txn["status"],
+        "amount": txn["amount"],
+        "currency": txn["currency"],
+        "phone": txn.get("phone_number"),
+        "mno": txn.get("mno"),
+        "plan": txn["plan_name"],
+        "initiated_at": txn["initiated_at"],
+        "completed_at": txn.get("completed_at"),
+        "failure_reason": txn.get("failure_reason")
+    }
+
 # ============== NAVIGATION ANALYTICS ==============
 
 @api_router.post("/analytics/track-pageview")
