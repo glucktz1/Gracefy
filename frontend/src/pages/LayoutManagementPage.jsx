@@ -1369,6 +1369,11 @@ export default function LayoutManagementPage() {
           </div>
         </TabsContent>
 
+        {/* Home Filters Tab */}
+        <TabsContent value="filters" className="space-y-4">
+          <HomeFiltersTab />
+        </TabsContent>
+
         {/* Burners Tab */}
         <TabsContent value="burners" className="space-y-4">
           <div className="flex justify-between items-center">
