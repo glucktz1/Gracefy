@@ -27,6 +27,7 @@ const THEME_KEY = '@gracefy_theme';
 const ProfileScreen = ({ navigation }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { downloads, clearAllDownloads, getTotalSize } = useDownloads();
+  const { billingEnabled, isPremium, subscription, refreshBilling } = useBilling();
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,6 +43,7 @@ const ProfileScreen = ({ navigation }) => {
   const [currentLanguage, setCurrentLanguage] = useState('sw');
   const [currentTheme, setCurrentTheme] = useState('dark');
   const [downloadSize, setDownloadSize] = useState(0);
+  const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
     if (isAuthenticated) {
