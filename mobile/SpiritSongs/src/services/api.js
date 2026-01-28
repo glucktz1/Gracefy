@@ -196,6 +196,11 @@ export const billingAPI = {
   getSettings: () => api.get('/monetization/settings'),
   getUserSubscription: () => api.get('/user/subscription-status'),
   subscribe: (planId, paymentData) => api.post('/user/subscribe', { plan_id: planId, ...paymentData }),
+  // Azam Pay specific endpoints
+  initiateAzamPay: (userId, planId, phoneNumber) => 
+    api.post('/payment/azampay/checkout', { user_id: userId, plan_id: planId, phone_number: phoneNumber }),
+  getPaymentStatus: (transactionId) => api.get(`/payment/azampay/status/${transactionId}`),
+  getUserTransactions: () => api.get('/user/transactions'),
 };
 
 export default api;
