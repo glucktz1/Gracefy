@@ -120,6 +120,7 @@ export const contentAPI = {
   getCategories: () => api.get('/categories'),
   getSpecialMix: (id) => api.get(`/special-mixes/${id}`),
   getSpecialMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
+  getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),  // Alias for getSpecialMixSongs
   search: (query) => api.get(`/search?q=${encodeURIComponent(query)}`),
   getSongDownloadUrl: (songId) => api.get(`/songs/${songId}/download`),
 };
