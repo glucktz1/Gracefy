@@ -493,6 +493,364 @@ const HeroBannersTab = ({ albums }) => {
   );
 };
 
+// Home Filters Tab Component - Manage filters shown on the mobile app home page
+const HomeFiltersTab = () => {
+  const [filters, setFilters] = useState([]);
+  const [songCategories, setSongCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingFilter, setEditingFilter] = useState(null);
+  const [form, setForm] = useState({
+    name: '',
+    name_en: '',
+    filter_type: 'song_category',
+    category_id: '',
+    content_type: '',
+    color: '#6366f1',
+    icon: 'music',
+    is_active: true
+  });
+
+  const FILTER_ICONS = [
+    { value: 'music', label: 'Music' },
+    { value: 'gift', label: 'Gift' },
+    { value: 'sun', label: 'Sun' },
+    { value: 'cross', label: 'Cross' },
+    { value: 'heart', label: 'Heart' },
+    { value: 'book', label: 'Book' },
+    { value: 'star', label: 'Star' },
+    { value: 'candle', label: 'Candle' },
+    { value: 'flower', label: 'Flower' },
+    { value: 'disc', label: 'Disc' },
+  ];
+
+  const fetchFilters = async () => {
+    try {
+      const res = await axios.get(`${API}/layout/home-filters`, { withCredentials: true });
+      setFilters(res.data.filters || []);
+    } catch (e) {
+      toast.error("Failed to load filters");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSongCategories = async () => {
+    try {
+      const res = await axios.get(`${API}/song-categories`, { withCredentials: true });
+      setSongCategories(res.data.categories || []);
+    } catch (e) {
+      console.error("Failed to load song categories");
+    }
+  };
+
+  useEffect(() => {
+    fetchFilters();
+    fetchSongCategories();
+  }, []);
+
+  const resetForm = () => {
+    setForm({
+      name: '',
+      name_en: '',
+      filter_type: 'song_category',
+      category_id: '',
+      content_type: '',
+      color: '#6366f1',
+      icon: 'music',
+      is_active: true
+    });
+  };
+
+  const handleEdit = (filter) => {
+    setEditingFilter(filter);
+    setForm({
+      name: filter.name,
+      name_en: filter.name_en || filter.name,
+      filter_type: filter.filter_type,
+      category_id: filter.category_id || '',
+      content_type: filter.content_type || '',
+      color: filter.color || '#6366f1',
+      icon: filter.icon || 'music',
+      is_active: filter.is_active
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name) {
+      toast.error("Name is required");
+      return;
+    }
+    try {
+      if (editingFilter) {
+        await axios.put(`${API}/layout/home-filters/${editingFilter.filter_id}`, form, { withCredentials: true });
+        toast.success("Filter updated");
+      } else {
+        await axios.post(`${API}/layout/home-filters`, form, { withCredentials: true });
+        toast.success("Filter created");
+      }
+      setIsModalOpen(false);
+      setEditingFilter(null);
+      resetForm();
+      fetchFilters();
+    } catch (e) {
+      toast.error("Failed to save filter");
+    }
+  };
+
+  const handleDelete = async (filterId) => {
+    if (filterId === 'filter_all') {
+      toast.error("Cannot delete the 'All' filter");
+      return;
+    }
+    if (!window.confirm("Delete this filter?")) return;
+    try {
+      await axios.delete(`${API}/layout/home-filters/${filterId}`, { withCredentials: true });
+      toast.success("Filter deleted");
+      fetchFilters();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to delete");
+    }
+  };
+
+  const handleToggle = async (filter) => {
+    try {
+      await axios.put(`${API}/layout/home-filters/${filter.filter_id}/toggle`, 
+        { is_active: !filter.is_active }, 
+        { withCredentials: true }
+      );
+      toast.success(filter.is_active ? "Filter deactivated" : "Filter activated");
+      fetchFilters();
+    } catch (e) {
+      toast.error("Failed to toggle");
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><RefreshCw className="animate-spin text-violet-500" size={32} /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Home Page Filters</h3>
+          <p className="text-zinc-400 text-sm">Manage the category filter chips shown on the mobile app home screen</p>
+        </div>
+        <Button onClick={() => { resetForm(); setEditingFilter(null); setIsModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700">
+          <Plus size={16} className="mr-2" /> Add Filter
+        </Button>
+      </div>
+
+      {/* Preview of filters */}
+      <Card className="bg-zinc-900/50 border-zinc-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-zinc-400">Preview (How filters appear in app)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {filters.filter(f => f.is_active).map(filter => (
+              <div
+                key={filter.filter_id}
+                className="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap"
+                style={{ 
+                  backgroundColor: filter.filter_id === 'filter_all' ? '#8b5cf6' : `${filter.color}20`,
+                  color: filter.filter_id === 'filter_all' ? 'white' : filter.color,
+                  border: `1px solid ${filter.filter_id === 'filter_all' ? '#8b5cf6' : filter.color}40`
+                }}
+              >
+                {filter.name}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filters List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filters.map(filter => (
+          <Card 
+            key={filter.filter_id}
+            className={`bg-zinc-900/50 border-zinc-800 ${!filter.is_active ? 'opacity-50' : ''}`}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: `${filter.color}20` }}
+                  >
+                    <Music2 size={20} style={{ color: filter.color }} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-white">{filter.name}</p>
+                    <p className="text-xs text-zinc-500">{filter.name_en}</p>
+                    <p className="text-xs text-zinc-600">{filter.filter_type}</p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={filter.is_active}
+                  onCheckedChange={() => handleToggle(filter)}
+                  disabled={filter.filter_id === 'filter_all'}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2 mt-4">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => handleEdit(filter)}
+                  disabled={filter.filter_id === 'filter_all'}
+                >
+                  <Edit2 size={14} className="mr-1" /> Edit
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="text-red-400 hover:text-red-300"
+                  onClick={() => handleDelete(filter.filter_id)}
+                  disabled={filter.filter_id === 'filter_all'}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Add/Edit Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingFilter ? 'Edit Filter' : 'Add New Filter'}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-zinc-400">Display Name (Swahili)</label>
+              <Input 
+                value={form.name}
+                onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Krismasi"
+                className="bg-zinc-800 border-zinc-700"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Display Name (English)</label>
+              <Input 
+                value={form.name_en}
+                onChange={e => setForm(prev => ({ ...prev, name_en: e.target.value }))}
+                placeholder="e.g., Christmas"
+                className="bg-zinc-800 border-zinc-700"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Filter Type</label>
+              <Select value={form.filter_type} onValueChange={v => setForm(prev => ({ ...prev, filter_type: v }))}>
+                <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="song_category">Song Category</SelectItem>
+                  <SelectItem value="content_type">Content Type</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {form.filter_type === 'song_category' && (
+              <div>
+                <label className="text-sm text-zinc-400">Song Category</label>
+                <Select value={form.category_id} onValueChange={v => setForm(prev => ({ ...prev, category_id: v }))}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {songCategories.map(cat => (
+                      <SelectItem key={cat.song_category_id} value={cat.song_category_id}>
+                        {cat.name} ({cat.name_sw || cat.name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {form.filter_type === 'content_type' && (
+              <div>
+                <label className="text-sm text-zinc-400">Content Type</label>
+                <Select value={form.content_type} onValueChange={v => setForm(prev => ({ ...prev, content_type: v }))}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                    <SelectValue placeholder="Select content type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mafundisho">Mafundisho</SelectItem>
+                    <SelectItem value="mahubiri">Mahubiri</SelectItem>
+                    <SelectItem value="praise">Sifa na Ibada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-zinc-400">Color</label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="color" 
+                    value={form.color}
+                    onChange={e => setForm(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-10 h-10 rounded cursor-pointer"
+                  />
+                  <Input 
+                    value={form.color}
+                    onChange={e => setForm(prev => ({ ...prev, color: e.target.value }))}
+                    className="bg-zinc-800 border-zinc-700 flex-1"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm text-zinc-400">Icon</label>
+                <Select value={form.icon} onValueChange={v => setForm(prev => ({ ...prev, icon: v }))}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FILTER_ICONS.map(icon => (
+                      <SelectItem key={icon.value} value={icon.value}>{icon.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Switch 
+                checked={form.is_active}
+                onCheckedChange={v => setForm(prev => ({ ...prev, is_active: v }))}
+              />
+              <span className="text-sm text-zinc-400">Active</span>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} className="bg-violet-600 hover:bg-violet-700">
+              {editingFilter ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 // Hero Configuration Component - Choose between Static Banners or Dynamic Content
 const HeroConfigTab = ({ albums }) => {
   const [config, setConfig] = useState({
