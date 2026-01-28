@@ -97,6 +97,7 @@ export const homeAPI = {
   getAppHome: () => api.get('/home/app'),
   getLeaderContent: () => api.get('/layout/religious-leaders'),
   getQuickAccess: () => api.get('/layout/sections?type=quick_access'),
+  getHomeFilters: () => api.get('/layout/home-filters'),
 };
 
 // ============ LEADER CONTENT API ============
