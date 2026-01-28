@@ -875,6 +875,113 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     marginLeft: SPACING.sm,
   },
+  // Subscription styles
+  premiumCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    marginBottom: SPACING.md,
+  },
+  premiumGradient: {
+    padding: SPACING.lg,
+  },
+  premiumHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  premiumTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.background,
+    marginLeft: SPACING.sm,
+  },
+  premiumPlan: {
+    fontSize: FONT_SIZES.md,
+    color: 'rgba(0,0,0,0.7)',
+    marginBottom: 4,
+  },
+  premiumExpiry: {
+    fontSize: FONT_SIZES.sm,
+    color: 'rgba(0,0,0,0.5)',
+  },
+  upgradeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warning + '15',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '30',
+    marginBottom: SPACING.md,
+  },
+  upgradeContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  upgradeText: {
+    marginLeft: SPACING.md,
+  },
+  upgradeTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  upgradeSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+  },
+  transactionsContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+  },
+  transactionsTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  transactionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  transactionDetails: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+  },
+  transactionPlan: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  transactionDate: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+  },
+  transactionAmount: {
+    alignItems: 'flex-end',
+  },
+  transactionPrice: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  transactionStatus: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '500',
+  },
 });
 
 export default ProfileScreen;
