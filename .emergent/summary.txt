@@ -1,186 +1,202 @@
 <analysis>**original_problem_statement:**
-The user's initial request was to rebuild a Christian music mobile app, Gracefy, with a Spotify-like look and feel. The project has since evolved into a rapid, iterative cycle of feature development and bug fixing based on user feedback for a React Native mobile app and a React admin panel.
+The user wants to build a Christian music streaming mobile app, Gracefy, with a Spotify-like look and feel. The project involves iterative development on a React Native mobile app and a React admin panel, based on continuous user feedback.
 
-Most recent user requests include:
-*   Fixing critical bugs: session persistence (user logs out on app restart), non-functional song downloads, and invisible liked songs/playlists.
-*   Fixing content visibility: ensuring songs added in the admin panel appear for users and inactive content is hidden.
-*   Fixing the user-facing web app (PWA) to display special mixes.
-*   Implementing UI improvements: adding a download button to the player, an add to playlist button on album screens.
-*   A new batch of UX improvements: fix keyboard covering input fields, replace blocking  with non-blocking , implement UI locks for premium features based on a billing toggle, and prevent simultaneous audio playback.
+**PRODUCT REQUIREMENTS:**
+*   **Core Functionality:** Music streaming (songs, albums, playlists), Bible reader with Text-to-Speech.
+*   **Admin Panel:** Content management for leaders, churches, music, and home screen layout.
+*   **Mobile App Features:**
+    *   (Critical) Continuous background audio playback.
+    *   (New) Animated splash screen.
+    *   (New) Animated equalizer bars for playing audio.
+    *   (New) Download functionality with offline access and UI indicators.
+    *   (New) Functional user profile screen (language change, downloaded songs, etc.).
+    *   (New) See All pages for content categories.
+    *   (New) Shuffle and repeat controls for the music player.
+    *   (New) Dynamic home page filters managed from the admin panel.
+*   **Billing System:**
+    *   (New) A full checkout page for web and mobile.
+    *   (New) Integration with Azam Pay for mobile money payments (Lipa kwa simu), plus options for Card/Stripe/PayPal.
+    *   (New) Transaction tracking in the admin panel and user profile.
+*   **UI/UX Refinements:**
+    *   Fix Nyimbo za Kwaresma (Lent songs) thumbnails.
+    *   Optimize church navigation to open the specific church directly.
+    *   Bible player should automatically pause other playing audio.
 
 **User's preferred language**: English (with Swahili terms for UI elements)
 
 **what currently exists?**
-A full-stack application with a monolithic FastAPI backend, a React admin panel, and a React Native (Expo) mobile app. The agent has been delivering frequent  builds via EAS for user testing. A series of critical bugs related to session persistence, song downloads, and library features (likes/playlists) have just been resolved. Fixes were also applied to the backend to ensure correct content filtering (hiding inactive items) and to the user-facing web app to display special mixes. The agent is in the middle of implementing a new set of UX improvements, starting with a custom Toast notification system.
+A full-stack application with a monolithic FastAPI backend, a React admin panel, and a React Native (Expo) mobile app.
+
+In this session, the agent implemented several features:
+1.  **Bible Screen:** Added a feature to log user's Bible listening history to the database.
+2.  **Leader Content:** Fixed a critical bug where content (series, episodes) from different leaders/containers were getting mixed up. Also fixed the file upload functionality in the admin panel, which was a recurring issue. The backend APIs for  (leader content) were corrected to fetch and display data hierarchically (Container -> Series -> Episodes).
+3.  **Mobile App UX:**
+    *   Added an animated equalizer for playing audio.
+    *   Implemented a  to manage offline songs, highlight already downloaded content, and display downloads on the library screen.
+    *   Reworked the user profile screen to be functional.
+    *   Fixed various navigation issues, including See All buttons and direct navigation to a selected church.
+4.  **Build:** Successfully resolved a missing dependency () and triggered a new EAS build (v1.0.66).
 
 **Last working item**:
--   **Last item agent was working**: Implementing a new batch of UX improvements. The agent started by creating a custom, non-blocking Toast notification system to replace the native  popups. A  component and  were created and integrated into the main . The agent then began replacing alerts in .
--   **Status**: IN PROGRESS
+-   **Last item agent was working**: The user requested a comprehensive payment system and other features. The agent began exploration by viewing relevant files (, , backend payment models) and was preparing to integrate Azam Pay.
+-   **Status**: NOT STARTED
 -   **Agent Testing Done**: N
--   **Which testing method agent to use?**: frontend testing agent
+-   **Which testing method agent to use?**: both. The payment flow requires end-to-end verification. The backend will need testing for the Azam Pay callback and transaction logic. The frontend (web and mobile) will need testing to ensure the checkout UI works correctly.
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   Issue 1: (P0) Complete UI/UX Improvements
--   Issue 2: (P1) Investigate and fix intermittent app crashes
+-   **Issue 1**: (P0) Continuous background playback fails when the screen is locked or the app is in the background.
 
 **Issues Detail:**
--   **Issue 1: Complete UI/UX Improvements**
-    -   **Attempted fixes**: The agent successfully created a  component and , integrated it into the root of the mobile app, and started replacing  calls in  to use the new  function.
+-   **Issue 1: Continuous background playback fails when the screen is locked**
+    -   **Attempted fixes**: Previous attempts with  failed.  integration has consistently failed due to complex EAS build errors.
     -   **Next debug checklist**:
-        1.  Finish replacing all remaining  calls with the new  system, particularly in  and  for download/playlist actions.
-        2.  Address the keyboard covering the Create Playlist input field in , likely by using a .
-        3.  Implement the billing-related UI. This requires fetching a backend setting and conditionally rendering lock icons on premium feature buttons (Download, Add to Playlist, Like) and disabling their functionality.
-        4.  Fix simultaneous audio playback. Modify  to ensure any currently playing audio (song or Bible TTS) is paused or stopped before a new audio track begins.
-    -   **Status**: IN PROGRESS
-    -   **Is recurring issue?**: N
-    -   **Should Test frontend/backend/both after fix?**: frontend
-    -   **Blocked on other issue**: None
-
--   **Issue 2: Investigate and fix intermittent app crashes**
-    -   **Attempted fixes**: None directly, but some error handling was improved during other bug fixes.
-    -   **Next debug checklist**:
-        1.  Review  for unhandled errors in audio playback state transitions.
-        2.  Add  blocks around major asynchronous operations in key components (, , ).
-        3.  If crashes persist, ask the user for specific steps to reproduce the crash.
-    -   **Why fix this issue and what will be achieved with the fix?**: To improve app stability and user experience.
-    -   **Status**: NOT STARTED
+        1.  Re-attempt  integration.
+        2.  Systematically investigate build failures by checking version compatibility between , , and .
+        3.  Ensure  is correctly configured for a  build profile to handle native code.
+        4.  Create a minimal reproducible example project with only  to isolate environmental build issues.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is the most critical feature for a music streaming app and the user's most persistent request.
+    -   **Status**: BLOCKED
     -   **Is recurring issue?**: Y
     -   **Should Test frontend/backend/both after fix?**: frontend
-    -   **Blocked on other issue**: None
+    -   **Blocked on other issue**: Blocked on resolving EAS build issues with native modules.
 
 **In progress Task List**:
--   **Task 1: Replace Alerts with Toasts**
-    -   **Where to resume**: The agent has partially updated . The next step is to complete the replacements in that file and then update .
-    -   **What will be achieved with this?**: A modern, non-blocking notification system for user actions like Playlist created or Song downloaded.
+-   **Task 1: Implement Payment System and Checkout Flow (P0)**
+    -   **Where to resume**: The agent was gathering context and received Azam Pay credentials. The next step is to call  for Azam Pay integration.
+    -   **What will be achieved with this?**: A full billing and subscription system, enabling monetization.
     -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: frontend
-    -   **Blocked on something**: None
+    -   **Should Test frontend/backend/both after fix?**: both
+    -   **Blocked on something**: NA
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
-*   (P1) Implement billing logic: Show plans and use the admin toggle to enable/disable premium features.
-*   (P1) Bible Screen Enhancements: Implement Testament → Book → Verse range selection and search functionality.
-*   (P1) Churches Screen Overhaul: Display choirs associated with each church, their songs, and church announcements.
-*   (P1) Album/Song Actions: Add functionality to download or add a whole album/playlist to a user's library.
-*   (P2) Animated Splash Screen: Design and implement an animated splash screen.
+*   **(P0) Admin Filter Toggle**: Implement functionality in the Layout Manager for admins to toggle homepage content filters (e.g., Christmas Songs, Mafundisho).
+*   **(P1) Animated Splash Screen**: Design and implement an animated splash screen for the mobile app.
+*   **(P1) Fix Nyimbo za Kwaresma Thumbnails**: Investigate and fix why thumbnails are not appearing for this section on the home screen. The agent made a fix, but it should be verified.
+*   **(P2) PWA Feature Parity**: Add a Play All button and review repeat logic for the web app (PWA).
 
 **Future Tasks:**
 *   Backend Refactoring: Break down the monolithic  into smaller FastAPI routers.
-*   PWA Feature Parity: Add Play All button and review repeat logic.
 *   Admin Controls: Enforce daily song limits and device limits for free users.
-*   Remove unused Supabase integration.
+*   Live Audio/Video: Integrate a platform like Agora or 100ms for live rooms and classes.
+*   Remove unused Supabase integration code.
 
 **Completed work in this session**
--   **Mobile App Critical Fixes (v1.0.45 - v1.0.47)**:
-    -   **Session Persistence**: Fixed user being logged out on app restart by correcting the auth check endpoint from  to .
-    -   **Library Features**: Implemented all missing  backend endpoints (like, playlist) and fixed frontend logic to correctly display liked songs and playlists.
-    -   **Song Download**: Fixed a critical crash caused by a deprecated  API in SDK 54 and removed outdated Android storage permission requests.
--   **Mobile App UI Improvements (v1.0.48)**:
-    -   Replaced the 'X' button with a 'Download' button on the .
-    -   Added a '+' (add to playlist) button on the .
--   **Backend Content Filtering**: Fixed API endpoints (, ) to correctly filter out inactive songs and albums.
--   **Web PWA Special Mixes Fix**: Implemented rendering logic in the user-facing web app to correctly display the Special Mixes section.
--   **Admin Panel Choir Login Fix**: Resolved a bug where choir login failed by updating backend session logic to handle different account ID formats.
--   **EAS Build Account Switch**: Successfully switched from an old Expo account with no build credits to a new one () to continue delivering app builds.
+-   **Bible Listening History**: Implemented a backend endpoint () and updated the mobile  to track what passages users listen to.
+-   **Leader Content System Fixed**:
+    -   Resolved data integrity issue where episodes were incorrectly linked to the wrong content container. Wrote a script to fix existing data in the DB.
+    -   Fixed the frontend file upload UI in  by using  to handle click events, resolving a long-standing bug.
+    -   Verified all associated backend endpoints (, thumbnail/audio uploads) are working correctly via  and the .
+-   **Mobile App UX Overhaul**:
+    -   **Downloads**: Created a  to manage downloads. The UI now indicates downloaded songs, prevents re-downloads, and lists them correctly in the Library.
+    -   **Audio Playback**: Added an animated equalizer component that appears on song cards and the mini-player when audio is playing.
+    -   **Profile Screen**: Rewrote  to be functional, pulling real user data.
+    -   **Navigation**:
+        - Created a generic  and linked all Ona Zote (See All) buttons on the  to it.
+        - Fixed  to navigate directly to a specific church when passed as a parameter.
+-   **EAS Build Success**:
+    -   Identified and installed a missing dependency () that was causing build failures.
+    -   Successfully triggered and monitored an EAS build for , providing the user with the APK link.
 
 **Earlier issues found/mentioned but not fixed**
--   PWA Play All Button
--   PWA Repeat Logic Review
--   Supabase Removal
+-   PWA Play All Button not implemented.
+-   PWA Repeat Logic has not been reviewed.
+-   Supabase integration code has not been removed.
 
 **Known issue recurrence from previous fork**
-*   A corrupted file issue that could break mobile builds was mentioned in the previous handoff. The root cause remains unknown, posing a minor risk to future builds.
+-   The critical background audio playback issue (Issue #1) remains unresolved and is the primary blocker for core functionality.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-*   **Iterative Development & UAT:** A tight feedback loop of building features, deploying  files via EAS, and incorporating user bug reports.
-*   **Full-Stack Debugging:** Tracing issues from React Native through FastAPI to MongoDB.
-*   **Expo Application Services (EAS):** Used for all mobile app builds. Agent successfully managed switching accounts to overcome build limits.
-*   **Android Storage & Permissions:** Addressed issues with  deprecation and  API changes in newer Expo SDKs.
+*   **Expo FileSystem**: Used for downloading and storing audio files locally on the device.
+*   **React Context API**: Used to create  for global state management of downloaded tracks.
+*   **React **: Used to fix a tricky file input bug in the React admin panel by programmatically triggering the file input's click event.
+*   **EAS Build Debugging**: Diagnosed a build failure by inspecting dependencies and finding a missing package.
+*   **Backend Data Integrity**: Identified and fixed a logical flaw in the episode creation endpoint that was causing data corruption. Wrote a migration script to clean up existing incorrect data.
 
 **key DB schema**
-*   **choir_accounts**: Patched to handle both  and  as primary identifiers to support different registration methods.
-*   **user_tokens**: Contains  format session tokens, which are now correctly used by the  endpoint for session validation.
-*   **playlists**: A user sub-document storing an array of playlist objects.
-*   **users**: Contains a  array of song IDs.
+-   **bible_listening_history**: New collection to track user's Bible listening activity.
+-   **content_episodes**: Schema is unchanged, but the agent fixed a logical error where  was being saved incorrectly.
+-   **transactions**: An existing model that will be used for the new payment system.
 
 **All files of reference**
-*   **Backend:** 
-*   **Mobile App (Key Files):**
-    *   
-    *   
-    *   
-    *   
-    *   
-    *    (new)
-*   **Web PWA:** 
-
-**Areas that need refactoring**:
-*   **:** This monolithic file is now over 11,000 lines long and is a significant source of complexity and potential regressions. It should be broken into logical routers (e.g., , , ).
-
-**key api endpoints**
-*    (GET): **Correct endpoint** for mobile app session validation.
-*    (GET): **Incorrect endpoint** for mobile, expects JWT, caused session bug.
-*    (GET),  (GET/POST): New endpoints added to fix library features.
-*    (GET): New endpoint created to provide a reliable download URL.
-*    (GET): Fixed to handle different account ID schemas.
-*    (GET): Fixed to filter out inactive content.
-*    (GET): Fixed to filter out inactive albums for users, but allow for admins.
-
-**Critical Info for New Agent**
-*   Your immediate task is to complete the user-requested UX improvements: finish the Toast notifications, fix the keyboard overlap, implement UI locks for premium features, and prevent simultaneous audio playback.
-*   The user has confirmed that the core logic for downloads, likes, and playlists is now working correctly in v1.0.47. **Do not disrupt this logic.**
-*   The mobile app is now being built using the  Expo account. All  commands should work.
-*   A regression was introduced and fixed due to an  API change in SDK 54. The fix involved importing from . Be cautious if you interact with file system APIs again.
-
-**documents and test reports created in this job**
+*    (New)
+*    (New)
+*    (Updated)
+*    (Updated)
+*    (Updated)
+*    (Updated)
+*    (Updated)
 *    (Updated)
 
+**Areas that need refactoring**:
+*   ****: This monolithic file is over 13,000 lines long and urgently needs to be broken down into logical FastAPI routers to improve maintainability.
+
+**key api endpoints**
+*    (POST): New endpoint to log bible listening events.
+*    (GET): Fixed to return correct hierarchical data.
+*    (GET): Fixed to return correct series and episodes for a given container.
+*    (POST): Verified working.
+*    (POST): Verified working.
+*    (POST): Fixed to prevent data corruption by deriving  from the .
+
+**Critical Info for New Agent**
+*   **Payment System is the Top Priority**: The user's latest request is a large one focusing on implementing a full payment system with Azam Pay. You have the credentials. Start by using the  for Azam Pay.
+*   **Background Audio is Still Broken**: This is the P0 bug. Do not attempt  workarounds. The only solution is , which requires careful debugging of the EAS build process.
+*   **A New APK is Available**: A build () containing all the latest UI/UX fixes was successfully completed. The user can test these features using the provided APK link: 
+
+**documents and test reports created in this job**
+*    (updated multiple times)
+*    (from testing leader content backend)
+
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **App works but song dowload doesnt work...**: User reported download permission issues, app crashes, and invisible playlists/likes. (FIXED in v1.0.46)
-2.  **playlist get created but doesnt populate...**: User reported download error and playlist refresh issue. (FIXED in v1.0.47)
-3.  **download like add to playlist works well...**: User confirmed core features are working and requested UI improvements (download shortcut, remove X button, add playlist button). (FIXED in v1.0.48)
-4.  **App Works perfectly..lets do minor improvement...**: User requested a new batch of UX improvements: fix keyboard covering input, use toasts instead of alerts, add lock icons for premium features, and fix two audios playing at once. (IN PROGRESS)
-5.  **song dowload issue is unresolved**: User reported download failure. (FIXED in v1.0.44 & v1.0.47)
-6.  **in the admin page when admin adds songs...**: User reported that songs added in admin were not showing up for users. (FIXED)
-7.  **when app closes it forces signs the user out...**: User reported critical session persistence bug. (FIXED in v1.0.45)
-8.  **fix choir login...still cant login**: User reported choir login failure. (FIXED)
-9.  **App signs out user when user closes the app...**: User reported session and Google sign-in errors. (FIXED)
-10. **add to / create playlist, download like are key features...**: User reported that several core features were broken. (FIXED in v1.0.45)
+1.  **now lets build apk for testing**: User requested an APK build.
+2.  **I had already provided token before...**: User reminded agent about a previously provided Expo token.
+3.  **I have created new token...**: User provided a new Expo token.
+4.  **Lets fix few thing in the leaders content...**: User reported a critical data mixing issue where episodes from different series/leaders were being mixed up. (RESOLVED)
+5.  **The app is almost ready, in the native app...**: User provided a list of UI/UX improvements: bold download button, pause music when bible plays, fix church navigation, add See All pages, and enable shuffle/repeat. (RESOLVED, new build triggered)
+6.  **Lets develope the following and ensure they are functional...**: User initiated the next major task: implement a full payment system with Azam Pay, admin filter toggles, and an animated splash screen. (IN PROGRESS)
+7.  **Azam pay Call back URL...**: User provided credentials and details for the Azam Pay integration.
+8.  **Create annimated beautful splash screen**: User reiterated the request for a splash screen.
 
 **Project Health Check:**
-*   **Broken:** No core features are currently broken.
-*   **Mocked:** Billing/payment system is not implemented, only the UI toggle is planned.
+*   **Broken:** The core feature of continuous background audio playback remains non-functional and is a critical blocker.
+*   **Mocked:** No features are currently mocked.
 *   **At Risk:**
-    *   Intermittent app crashes reported by the user need investigation.
-    *   The monolithic backend () is a major architectural risk.
+    *   The mobile app build process is fragile, specifically when native modules like  are involved.
+    *   The monolithic  backend is a significant technical debt.
 
 **3rd Party Integrations**
 *   **Bunny CDN**: Media storage.
 *   **FFmpeg**: Audio processing.
 *   **Google Cloud TTS**: Bible audio generation.
-*   **Expo Application Services (EAS)**: Mobile app cloud builds (now using  account).
-*   **Emergent-managed Google Auth**: Used for Google login on the mobile app.
+*   **Expo Application Services (EAS)**: Mobile app cloud builds.
+*   **Emergent-managed Google Auth**: Used for Google login.
+*   **Azam Pay**: **Pending integration**. Required for the new payment system.
+*   ****: Not currently integrated, but it is the required solution for the main P0 bug.
 
 **Testing status**
--   Testing agent used after significant changes: NO
+-   Testing agent used after significant changes: YES. Used for backend leader content endpoints, results in .
 -   Troubleshoot agent used after agent stuck in loop: NO
 -   Test files created: None
--   Known regressions: A download bug was introduced due to an Expo SDK update, but it was subsequently fixed.
+-   Known regressions: None.
 
 **Credentials to test flow:**
 *   **Choir Portal:**
-    *   **URL**:  route on the preview URL.
-    *   **Email**: 
-    *   **Password**: 
+    *   URL: 
+    *   Email: 
+    *   Password: 
+*   **Expo Account:**
+    *   Account Name: 
+    *   Token: 
+*   **Azam Pay (for integration):**
+    *   Callback URL: 
+    *   Client ID: 
+    *   Client Secret Key: 
+    *   Token: 
 
 **What agent forgot to execute**
-The agent is actively working on the latest user request for UX improvements. The following sub-tasks from that request are pending:
-*   Finish replacing all  calls with the new Toast system.
-*   Fix the keyboard covering the input field when creating a playlist.
-*   Implement the billing toggle logic and lock icons.
-*   Prevent simultaneous audio playback from different sources.
-*   Investigate and fix intermittent app crashes.</analysis>
+The agent has a new, large set of tasks from the user's last message. Nothing has been forgotten yet, as work on this new set has just commenced. The agent correctly identified the first step is to handle the Azam Pay integration.</analysis>
