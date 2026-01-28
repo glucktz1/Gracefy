@@ -212,6 +212,36 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   };
 
+  // Test mode: Simulate payment confirmation
+  const handleTestConfirm = async () => {
+    if (!transactionId) return;
+    
+    setProcessing(true);
+    try {
+      const response = await billingAPI.testConfirmPayment(transactionId, 'confirm');
+      
+      if (response.data?.success) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        setPollingActive(false);
+        setPaymentStatus('completed');
+        refreshBilling();
+        
+        Alert.alert(
+          'Malipo Yamefanikiwa!',
+          response.data.message || 'Akaunti yako imefunguliwa.',
+          [{ text: 'Sawa', onPress: () => navigation.navigate('Home') }]
+        );
+      } else {
+        showToast('Imeshindikana kuthibitisha malipo', 'error');
+      }
+    } catch (error) {
+      console.error('Test confirm error:', error);
+      showToast(error.response?.data?.detail || 'Kosa limetokea', 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   if (!plan) {
     return (
       <View style={styles.errorContainer}>
