@@ -1227,6 +1227,9 @@ export default function LayoutManagementPage() {
           <TabsTrigger value="sections" className="data-[state=active]:bg-violet-600">
             <Layout size={14} className="mr-2" /> Sections ({sections.length})
           </TabsTrigger>
+          <TabsTrigger value="filters" className="data-[state=active]:bg-violet-600">
+            <Grid size={14} className="mr-2" /> Home Filters
+          </TabsTrigger>
           <TabsTrigger value="hero-config" className="data-[state=active]:bg-violet-600">
             <Star size={14} className="mr-2" /> Hero Config
           </TabsTrigger>
