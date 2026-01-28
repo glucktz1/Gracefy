@@ -347,6 +347,25 @@ const CheckoutScreen = ({ navigation, route }) => {
                   {pollingActive && (
                     <Text style={styles.pollingText}>Inakagua hali ya malipo...</Text>
                   )}
+                  
+                  {/* Test Mode: Manual Confirm Button */}
+                  <View style={styles.testModeSection}>
+                    <Text style={styles.testModeLabel}>[DEMO MODE]</Text>
+                    <TouchableOpacity 
+                      style={styles.testConfirmButton}
+                      onPress={handleTestConfirm}
+                      disabled={processing}
+                    >
+                      {processing ? (
+                        <ActivityIndicator size="small" color={COLORS.background} />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle" size={18} color={COLORS.background} />
+                          <Text style={styles.testConfirmText}>Thibitisha Malipo (Jaribio)</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
               
