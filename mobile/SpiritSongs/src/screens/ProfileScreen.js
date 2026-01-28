@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { useDownloads } from '../context/DownloadContext';
-import { userAPI, libraryAPI, getImageUrl } from '../services/api';
+import { useBilling } from '../context/BillingContext';
+import { userAPI, libraryAPI, billingAPI, getImageUrl } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LANGUAGE_KEY = '@gracefy_language';
