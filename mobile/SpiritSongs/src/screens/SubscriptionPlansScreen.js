@@ -82,27 +82,8 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
       return;
     }
 
-    setProcessing(true);
-    try {
-      // For now, open Azam Pay or show payment instructions
-      // In production, this would integrate with Azam Pay API
-      showToast('Unakwenda kwenye malipo...', 'info');
-      
-      // Placeholder for Azam Pay integration
-      // const response = await billingAPI.subscribe(selectedPlan.plan_id, { payment_method: 'azam_pay' });
-      
-      // For demo, show success after delay
-      setTimeout(() => {
-        showToast('Asante! Malipo yanasubiri kuthibitishwa', 'success');
-        setProcessing(false);
-        navigation.goBack();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Subscription error:', error);
-      showToast('Imeshindikana kulipia. Jaribu tena', 'error');
-      setProcessing(false);
-    }
+    // Navigate to Checkout screen with selected plan
+    navigation.navigate('Checkout', { plan: selectedPlan });
   };
 
   if (loading) {
