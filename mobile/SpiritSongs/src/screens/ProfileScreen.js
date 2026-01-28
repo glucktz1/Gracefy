@@ -49,6 +49,7 @@ const ProfileScreen = ({ navigation }) => {
     if (isAuthenticated) {
       loadStats();
       loadSettings();
+      loadTransactions();
       setEditedName(user?.name || '');
       setEditedPhone(user?.phone || '');
     }
