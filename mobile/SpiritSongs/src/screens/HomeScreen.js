@@ -117,6 +117,7 @@ const HomeScreen = ({ navigation }) => {
         snippetsRes,
         churchesRes,
         mafundishoRes,
+        filtersRes,
       ] = await Promise.all([
         homeAPI.getSections().catch((e) => { errors.push(`Sections: ${e.message}`); return { data: { sections: [] } }; }),
         homeAPI.getHeroContent().catch((e) => { errors.push(`Hero: ${e.message}`); return { data: { items: [] } }; }),
@@ -128,6 +129,7 @@ const HomeScreen = ({ navigation }) => {
         bibleAPI.getFeaturedSnippets().catch((e) => { errors.push(`Bible: ${e.message}`); return { data: [] }; }),
         churchAPI.getChurches().catch((e) => { errors.push(`Churches: ${e.message}`); return { data: { churches: [] } }; }),
         leaderContentAPI.getMafundisho().catch((e) => { errors.push(`Mafundisho: ${e.message}`); return { data: { mafundisho: [] } }; }),
+        homeAPI.getHomeFilters().catch((e) => { errors.push(`Filters: ${e.message}`); return { data: { filters: [] } }; }),
       ]);
 
       // Layout sections - handle both nested and direct response
@@ -139,28 +141,27 @@ const HomeScreen = ({ navigation }) => {
       stats.activeSections = activeSections.length;
       setLayoutSections(activeSections);
 
-      // Build category filters from inactive sections (remove Muziki, Podcasts, Quick Access)
-      const categoryFilters = [
-        { id: 'all', name: 'Yote', icon: null },
-      ];
-      rawSections.forEach(section => {
-        if (section.is_active === false && section.name) {
-          // Skip muziki, podcasts, and quick_access filters
-          const sectionName = (section.name || '').toLowerCase();
-          if (sectionName.includes('muziki') || 
-              sectionName.includes('podcast') || 
-              sectionName.includes('quick') ||
-              section.section_type === 'quick_access') {
-            return;
-          }
-          categoryFilters.push({
-            id: section.section_id || section.section_type,
-            name: section.display_name || section.name,
-            icon: section.icon || null,
-          });
-        }
-      });
-      setCategories(categoryFilters);
+      // Home filters from admin panel (new endpoint)
+      const homeFilters = filtersRes.data?.filters || [];
+      if (homeFilters.length > 0) {
+        // Use filters from admin-managed endpoint
+        const categoryFilters = homeFilters
+          .filter(f => f.is_active)
+          .map(f => ({
+            id: f.filter_id,
+            name: f.name,
+            name_en: f.name_en,
+            icon: f.icon,
+            color: f.color,
+            filter_type: f.filter_type,
+            category_id: f.category_id,
+            content_type: f.content_type,
+          }));
+        setCategories(categoryFilters);
+      } else {
+        // Fallback to default
+        setCategories([{ id: 'all', name: 'Yote', icon: null }]);
+      }
 
       // Hero content
       const heroData = heroRes.data || { items: [] };
