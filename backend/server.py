@@ -3450,6 +3450,142 @@ async def get_special_mixes_for_layout():
     ).to_list(100)
     return {"mixes": mixes, "total": len(mixes)}
 
+# ============== HOME FILTERS MANAGEMENT ==============
+
+@api_router.get("/layout/home-filters")
+async def get_home_filters():
+    """Get home page filter configuration"""
+    filters = await db.home_filters.find({}, {"_id": 0}).sort("sort_order", 1).to_list(50)
+    
+    # If no filters exist, create defaults from song categories
+    if not filters:
+        song_cats = await db.song_categories.find({"status": "active"}, {"_id": 0}).to_list(20)
+        
+        default_filters = [
+            {"filter_id": "filter_all", "name": "Yote", "name_en": "All", "filter_type": "all", "is_active": True, "sort_order": 0},
+        ]
+        
+        for idx, cat in enumerate(song_cats[:6]):  # Limit to 6 categories
+            default_filters.append({
+                "filter_id": f"filter_{cat['song_category_id']}",
+                "name": cat.get("name_sw") or cat["name"],
+                "name_en": cat["name"],
+                "filter_type": "song_category",
+                "category_id": cat["song_category_id"],
+                "color": cat.get("color", "#6366f1"),
+                "icon": cat.get("icon"),
+                "is_active": True,
+                "sort_order": idx + 1
+            })
+        
+        # Add Mafundisho filter
+        default_filters.append({
+            "filter_id": "filter_mafundisho",
+            "name": "Mafundisho",
+            "name_en": "Teachings",
+            "filter_type": "content_type",
+            "content_type": "mafundisho",
+            "color": "#8b5cf6",
+            "icon": "book",
+            "is_active": True,
+            "sort_order": len(default_filters)
+        })
+        
+        # Save defaults
+        for f in default_filters:
+            f["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.home_filters.insert_one(f)
+        
+        filters = default_filters
+    
+    return {"filters": filters, "total": len(filters)}
+
+@api_router.post("/layout/home-filters")
+async def create_home_filter(data: dict):
+    """Create a new home filter"""
+    filter_id = f"filter_{uuid.uuid4().hex[:12]}"
+    
+    # Get max sort order
+    max_order = await db.home_filters.find_one({}, sort=[("sort_order", -1)])
+    sort_order = (max_order.get("sort_order", 0) + 1) if max_order else 0
+    
+    doc = {
+        "filter_id": filter_id,
+        "name": data.get("name", "New Filter"),
+        "name_en": data.get("name_en", data.get("name", "New Filter")),
+        "filter_type": data.get("filter_type", "song_category"),
+        "category_id": data.get("category_id"),
+        "content_type": data.get("content_type"),
+        "color": data.get("color", "#6366f1"),
+        "icon": data.get("icon"),
+        "is_active": data.get("is_active", True),
+        "sort_order": sort_order,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.home_filters.insert_one(doc)
+    await invalidate_home_cache()
+    
+    return {"filter_id": filter_id, "message": "Filter created successfully"}
+
+@api_router.put("/layout/home-filters/{filter_id}")
+async def update_home_filter(filter_id: str, updates: dict):
+    """Update a home filter"""
+    updates.pop("_id", None)
+    updates.pop("filter_id", None)
+    updates.pop("created_at", None)
+    
+    result = await db.home_filters.update_one({"filter_id": filter_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Filter not found")
+    
+    await invalidate_home_cache()
+    return {"message": "Filter updated successfully"}
+
+@api_router.put("/layout/home-filters/{filter_id}/toggle")
+async def toggle_home_filter(filter_id: str, data: dict):
+    """Toggle home filter active status"""
+    is_active = data.get("is_active", True)
+    
+    result = await db.home_filters.update_one(
+        {"filter_id": filter_id},
+        {"$set": {"is_active": is_active}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Filter not found")
+    
+    await invalidate_home_cache()
+    return {"message": f"Filter {'activated' if is_active else 'deactivated'}"}
+
+@api_router.delete("/layout/home-filters/{filter_id}")
+async def delete_home_filter(filter_id: str):
+    """Delete a home filter"""
+    # Don't allow deleting the "All" filter
+    if filter_id == "filter_all":
+        raise HTTPException(status_code=400, detail="Cannot delete the 'All' filter")
+    
+    result = await db.home_filters.delete_one({"filter_id": filter_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Filter not found")
+    
+    await invalidate_home_cache()
+    return {"message": "Filter deleted successfully"}
+
+@api_router.put("/layout/home-filters/reorder")
+async def reorder_home_filters(data: dict):
+    """Reorder home filters"""
+    filter_ids = data.get("filter_ids", [])
+    
+    for idx, filter_id in enumerate(filter_ids):
+        await db.home_filters.update_one(
+            {"filter_id": filter_id},
+            {"$set": {"sort_order": idx}}
+        )
+    
+    await invalidate_home_cache()
+    return {"message": "Filters reordered successfully"}
+
 # ============== RELIGIOUS LEADERS MANAGEMENT ==============
 
 @api_router.get("/leaders")
