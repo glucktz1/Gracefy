@@ -1,0 +1,434 @@
+"""
+Music routes for Gracefy - Albums, Songs, Streaming.
+Optimized for high traffic with caching and efficient queries.
+"""
+
+from fastapi import APIRouter, HTTPException, Query, Request
+from typing import Optional, List
+import logging
+
+from core.database import get_db
+from core.cache import cache, cached, invalidate_albums_cache, invalidate_songs_cache
+from models.schemas import Album, Song
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api", tags=["music"])
+
+# Optimized projections for list queries (exclude large fields)
+ALBUM_LIST_PROJECTION = {
+    "_id": 0,
+    "album_id": 1,
+    "title": 1,
+    "description": 1,
+    "artist_id": 1,
+    "artist_name": 1,
+    "category_id": 1,
+    "category_name": 1,
+    "thumbnail": 1,
+    "release_date": 1,
+    "monetization_type": 1,
+    "status": 1,
+    "songs_count": 1,
+    "total_plays": 1,
+    "created_at": 1
+}
+
+SONG_LIST_PROJECTION = {
+    "_id": 0,
+    "song_id": 1,
+    "title": 1,
+    "album_id": 1,
+    "duration": 1,
+    "duration_formatted": 1,
+    "audio_url": 1,
+    "track_number": 1,
+    "plays": 1,
+    "likes": 1,
+    "status": 1,
+    "song_categories": 1,
+    "song_category_names": 1,
+}
+
+
+def optimize_thumbnails(items: list) -> list:
+    """
+    Optimize thumbnails by truncating base64 data.
+    CDN URLs are kept, but large embedded base64 is trimmed.
+    """
+    for item in items:
+        thumb = item.get("thumbnail", "")
+        if isinstance(thumb, str) and thumb.startswith("data:image"):
+            # Truncate base64 - return placeholder or first 100 chars
+            item["thumbnail"] = thumb[:100] + "..." if len(thumb) > 100 else thumb
+            item["thumbnail_type"] = "base64_truncated"
+        elif isinstance(thumb, str) and (thumb.startswith("http") or thumb.startswith("/")):
+            item["thumbnail_type"] = "url"
+    return items
+
+
+# ============== ALBUMS ==============
+
+@router.get("/albums")
+async def get_albums(
+    category_id: Optional[str] = None,
+    artist_id: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    include_inactive: bool = False
+):
+    """Get albums with pagination. Cached for 2 minutes."""
+    db = get_db()
+    
+    # Try cache first
+    cache_key = f"albums:list:{category_id}:{artist_id}:{skip}:{limit}:{include_inactive}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    # Build query
+    query = {}
+    if not include_inactive:
+        query["status"] = "active"
+    if category_id:
+        query["category_id"] = category_id
+    if artist_id:
+        query["artist_id"] = artist_id
+    
+    # Execute query with pagination
+    cursor = db.albums.find(query, ALBUM_LIST_PROJECTION)
+    cursor = cursor.sort("created_at", -1).skip(skip).limit(limit)
+    
+    # Run count and fetch in parallel for better performance
+    albums = await cursor.to_list(limit)
+    total = await db.albums.count_documents(query)
+    
+    albums = optimize_thumbnails(albums)
+    
+    result = {
+        "albums": albums,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+    
+    # Cache for 2 minutes
+    await cache.set(cache_key, result, 120)
+    
+    return result
+
+
+@router.get("/albums/{album_id}")
+async def get_album(album_id: str):
+    """Get single album with songs. Cached for 5 minutes."""
+    db = get_db()
+    
+    # Try cache
+    cache_key = f"album_detail:{album_id}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    album = await db.albums.find_one({"album_id": album_id}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    # Get active songs sorted by track number
+    songs = await db.songs.find(
+        {"album_id": album_id, "status": "active"},
+        SONG_LIST_PROJECTION
+    ).sort("track_number", 1).to_list(100)
+    
+    result = {"album": album, "songs": songs}
+    
+    # Cache for 5 minutes
+    await cache.set(cache_key, result, 300)
+    
+    return result
+
+
+@router.get("/albums/all-songs")
+async def get_all_songs_flat(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    category: Optional[str] = None
+):
+    """
+    Get all songs with album info flattened.
+    Optimized for initial app load - returns songs with album details merged.
+    """
+    db = get_db()
+    
+    # Cache key includes all params
+    cache_key = f"songs:all_flat:{skip}:{limit}:{category}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    # Build aggregation pipeline for efficient join
+    pipeline = [
+        {"$match": {"status": "active"}},
+        {"$sort": {"created_at": -1}},
+        {"$skip": skip},
+        {"$limit": limit},
+        # Lookup album info
+        {
+            "$lookup": {
+                "from": "albums",
+                "localField": "album_id",
+                "foreignField": "album_id",
+                "as": "album_info",
+                "pipeline": [
+                    {"$project": {
+                        "_id": 0,
+                        "title": 1,
+                        "thumbnail": 1,
+                        "artist_name": 1,
+                        "category_name": 1
+                    }}
+                ]
+            }
+        },
+        # Flatten album info
+        {
+            "$addFields": {
+                "album_title": {"$arrayElemAt": ["$album_info.title", 0]},
+                "album_thumbnail": {"$arrayElemAt": ["$album_info.thumbnail", 0]},
+                "artist_name": {"$arrayElemAt": ["$album_info.artist_name", 0]},
+                "category_name": {"$arrayElemAt": ["$album_info.category_name", 0]},
+            }
+        },
+        # Remove temporary fields
+        {"$project": {"album_info": 0, "_id": 0}}
+    ]
+    
+    # Add category filter if provided
+    if category:
+        pipeline[0]["$match"]["song_categories"] = category
+    
+    songs = await db.songs.aggregate(pipeline).to_list(limit)
+    
+    # Get total count
+    count_query = {"status": "active"}
+    if category:
+        count_query["song_categories"] = category
+    total = await db.songs.count_documents(count_query)
+    
+    result = {
+        "songs": songs,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+    
+    # Cache for 2 minutes
+    await cache.set(cache_key, result, 120)
+    
+    return result
+
+
+@router.get("/albums/songs-by-category")
+async def get_songs_by_category(
+    category_id: str = Query(..., description="Song category ID to filter by"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get songs filtered by song category (Christmas, Easter, etc.)"""
+    db = get_db()
+    
+    cache_key = f"songs:by_category:{category_id}:{skip}:{limit}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    # Use aggregation for efficient join
+    pipeline = [
+        {
+            "$match": {
+                "status": "active",
+                "song_categories": category_id
+            }
+        },
+        {"$sort": {"plays": -1}},  # Sort by popularity
+        {"$skip": skip},
+        {"$limit": limit},
+        {
+            "$lookup": {
+                "from": "albums",
+                "localField": "album_id",
+                "foreignField": "album_id",
+                "as": "album_info",
+                "pipeline": [
+                    {"$project": {"_id": 0, "title": 1, "thumbnail": 1, "artist_name": 1}}
+                ]
+            }
+        },
+        {
+            "$addFields": {
+                "album_title": {"$arrayElemAt": ["$album_info.title", 0]},
+                "album_thumbnail": {"$arrayElemAt": ["$album_info.thumbnail", 0]},
+                "artist_name": {"$arrayElemAt": ["$album_info.artist_name", 0]},
+            }
+        },
+        {"$project": {"album_info": 0, "_id": 0}}
+    ]
+    
+    songs = await db.songs.aggregate(pipeline).to_list(limit)
+    total = await db.songs.count_documents({
+        "status": "active",
+        "song_categories": category_id
+    })
+    
+    # Get category info
+    category = await db.song_categories.find_one(
+        {"song_category_id": category_id},
+        {"_id": 0}
+    )
+    
+    result = {
+        "category": category,
+        "songs": songs,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+    
+    await cache.set(cache_key, result, 120)
+    
+    return result
+
+
+# ============== SONGS ==============
+
+@router.get("/songs")
+async def get_songs(
+    album_id: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get songs with pagination."""
+    db = get_db()
+    
+    query = {"status": "active"}
+    if album_id:
+        query["album_id"] = album_id
+    
+    songs = await db.songs.find(query, SONG_LIST_PROJECTION)\
+        .sort("track_number", 1)\
+        .skip(skip)\
+        .limit(limit)\
+        .to_list(limit)
+    
+    total = await db.songs.count_documents(query)
+    
+    return {"songs": songs, "total": total, "skip": skip, "limit": limit}
+
+
+@router.post("/albums")
+async def create_album(album: dict):
+    """Create a new album."""
+    db = get_db()
+    
+    album_obj = Album(**album)
+    doc = album_obj.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    
+    await db.albums.insert_one(doc)
+    await invalidate_albums_cache()
+    
+    return {"album_id": doc["album_id"], "message": "Album created successfully"}
+
+
+@router.put("/albums/{album_id}")
+async def update_album(album_id: str, updates: dict):
+    """Update album."""
+    db = get_db()
+    
+    updates.pop("_id", None)
+    updates.pop("album_id", None)
+    
+    result = await db.albums.update_one({"album_id": album_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    await invalidate_albums_cache(album_id)
+    
+    return {"message": "Album updated successfully"}
+
+
+@router.delete("/albums/{album_id}")
+async def delete_album(album_id: str):
+    """Delete album and its songs."""
+    db = get_db()
+    
+    await db.songs.delete_many({"album_id": album_id})
+    result = await db.albums.delete_one({"album_id": album_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    await invalidate_albums_cache()
+    
+    return {"message": "Album and songs deleted successfully"}
+
+
+@router.post("/songs")
+async def create_song(song: dict):
+    """Create a new song."""
+    db = get_db()
+    
+    song_obj = Song(**song)
+    doc = song_obj.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    
+    await db.songs.insert_one(doc)
+    
+    # Update album song count
+    await db.albums.update_one(
+        {"album_id": doc["album_id"]},
+        {"$inc": {"songs_count": 1}}
+    )
+    
+    await invalidate_songs_cache()
+    await invalidate_albums_cache(doc["album_id"])
+    
+    return {"song_id": doc["song_id"], "message": "Song created successfully"}
+
+
+@router.put("/songs/{song_id}")
+async def update_song(song_id: str, updates: dict):
+    """Update song."""
+    db = get_db()
+    
+    updates.pop("_id", None)
+    updates.pop("song_id", None)
+    
+    result = await db.songs.update_one({"song_id": song_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    await invalidate_songs_cache(song_id)
+    
+    return {"message": "Song updated successfully"}
+
+
+@router.delete("/songs/{song_id}")
+async def delete_song(song_id: str):
+    """Delete song."""
+    db = get_db()
+    
+    song = await db.songs.find_one({"song_id": song_id})
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    await db.songs.delete_one({"song_id": song_id})
+    
+    # Update album song count
+    if song.get("album_id"):
+        await db.albums.update_one(
+            {"album_id": song["album_id"]},
+            {"$inc": {"songs_count": -1}}
+        )
+    
+    await invalidate_songs_cache()
+    
+    return {"message": "Song deleted successfully"}
