@@ -13708,9 +13708,15 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_db_migration():
     """Run database migrations and initialize services on startup"""
-    # Initialize Redis cache
+    global cache_cleanup_task
+    
+    # Initialize Redis cache (legacy)
     await cache.connect()
     logger.info("Cache service initialized")
+    
+    # Start background cache cleanup task
+    cache_cleanup_task = asyncio.create_task(periodic_cache_cleanup(300))  # Cleanup every 5 minutes
+    logger.info("Cache cleanup background task started")
     
     # Migrate singers: convert 'followers' to 'followers_count' for consistency
     result = await db.singers.update_many(
@@ -13735,8 +13741,21 @@ async def startup_db_migration():
     )
     if result3.modified_count > 0:
         logger.info(f"Initialized followers_count for {result3.modified_count} church records")
+    
+    logger.info("Gracefy API startup complete - optimized for high traffic")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global cache_cleanup_task
+    
+    # Cancel background tasks
+    if cache_cleanup_task:
+        cache_cleanup_task.cancel()
+        try:
+            await cache_cleanup_task
+        except asyncio.CancelledError:
+            pass
+    
     await cache.disconnect()
     client.close()
+    logger.info("Gracefy API shutdown complete")
