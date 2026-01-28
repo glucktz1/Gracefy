@@ -27,6 +27,7 @@ import LeaderContentScreen from './src/screens/LeaderContentScreen';
 import SubscriptionPlansScreen from './src/screens/SubscriptionPlansScreen';
 import MafundishoDetailScreen from './src/screens/MafundishoDetailScreen';
 import SeeAllScreen from './src/screens/SeeAllScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
