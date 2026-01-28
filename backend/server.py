@@ -4613,8 +4613,86 @@ async def azampay_status(transaction_id: str):
         "plan": txn["plan_name"],
         "initiated_at": txn["initiated_at"],
         "completed_at": txn.get("completed_at"),
-        "failure_reason": txn.get("failure_reason")
+        "failure_reason": txn.get("failure_reason"),
+        "test_mode": txn.get("azampay_test_mode", False)
     }
+
+@api_router.post("/payment/azampay/test-confirm/{transaction_id}")
+async def azampay_test_confirm(transaction_id: str, data: dict = None):
+    """
+    [TEST MODE ONLY] Simulate payment confirmation.
+    Use this endpoint to test the payment flow without real Azam Pay.
+    """
+    txn = await db.transactions.find_one({"transaction_id": transaction_id}, {"_id": 0})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if not txn.get("azampay_test_mode"):
+        raise HTTPException(status_code=400, detail="This endpoint is only for test mode transactions")
+    
+    if txn.get("status") != "pending":
+        raise HTTPException(status_code=400, detail=f"Transaction already processed: {txn.get('status')}")
+    
+    # Simulate successful payment
+    action = (data or {}).get("action", "confirm")  # confirm or fail
+    
+    if action == "confirm":
+        # Update transaction to completed
+        update_data = {
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "azampay_txn_id": f"TEST_{uuid.uuid4().hex[:8].upper()}"
+        }
+        
+        await db.transactions.update_one(
+            {"transaction_id": transaction_id},
+            {"$set": update_data}
+        )
+        
+        # Activate user subscription
+        user_id = txn["user_id"]
+        plan_duration = txn["plan_duration_days"]
+        plan_name = txn["plan_name"]
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=plan_duration)).isoformat()
+        
+        await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "subscription.status": "active",
+                "subscription.plan_id": txn["plan_id"],
+                "subscription.plan_name": plan_name,
+                "subscription.started_at": datetime.now(timezone.utc).isoformat(),
+                "subscription.expires_at": expires_at,
+                "subscription.last_payment_id": transaction_id,
+                "is_premium": True
+            }}
+        )
+        
+        logging.info(f"[TEST MODE] Subscription activated for user {user_id}, expires: {expires_at}")
+        
+        return {
+            "success": True,
+            "message": "Malipo yamekamilika! Akaunti yako imefunguliwa.",
+            "message_en": "Payment completed! Your account has been activated.",
+            "status": "completed",
+            "expires_at": expires_at
+        }
+    else:
+        # Simulate failed payment
+        await db.transactions.update_one(
+            {"transaction_id": transaction_id},
+            {"$set": {
+                "status": "failed",
+                "failure_reason": "User cancelled or insufficient funds (TEST)"
+            }}
+        )
+        
+        return {
+            "success": False,
+            "message": "Malipo yameshindikana",
+            "message_en": "Payment failed",
+            "status": "failed"
+        }
 
 # ============== NAVIGATION ANALYTICS ==============
 
