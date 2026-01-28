@@ -11,13 +11,46 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Payment system with Azam Pay mobile money**
 
 ## Architecture
-- **Backend**: FastAPI (Python) - Monolithic `/app/backend/server.py`
+- **Backend**: FastAPI (Python) - Modular architecture with routers
+  - Main: `/app/backend/server.py` (legacy endpoints)
+  - Core: `/app/backend/core/` (database, caching)
+  - Routes: `/app/backend/routes/` (music, home, payment)
+  - Models: `/app/backend/models/` (Pydantic schemas)
+  - Services: `/app/backend/services/` (CDN, encoding, TTS)
 - **Frontend/Admin Panel**: React - `/app/frontend/`
 - **Mobile App**: React Native (Expo) - `/app/mobile/SpiritSongs/`
-- **Database**: MongoDB
+- **Database**: MongoDB with indexes for optimal performance
 - **CDN**: Bunny CDN for media storage
 - **TTS**: Google Cloud TTS for Bible audio
 - **Payments**: Azam Pay (Mobile Money - M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa)
+- **Caching**: In-memory LRU cache with TTL
+
+## Performance Optimizations (2026-01-28)
+
+### Database Indexes Created
+- 175 total indexes across 68 collections
+- Compound indexes for common query patterns
+- TTL indexes for session/analytics auto-cleanup
+- Sparse indexes for optional fields
+
+### Caching Strategy
+- Home screen: 60 second cache
+- Albums list: 120 second cache
+- Album detail: 300 second cache
+- Categories: 600 second cache
+- LRU eviction when max entries (10,000) reached
+- Background cleanup every 5 minutes
+
+### Query Optimizations
+- Minimal projections (exclude large fields)
+- Parallel async queries where possible
+- Connection pooling (100 max connections)
+- GZIP compression for responses > 500 bytes
+- Rate limiting (100 requests/minute per IP)
+
+### Performance Results
+- Home endpoint: ~170ms first call → ~70ms cached
+- Albums endpoint: ~80ms first call → ~45ms cached
 
 ## Completed Features
 
@@ -54,6 +87,7 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - [x] Leader Content Management
 - [x] **Billing Toggle** - Enable/disable billing system globally
 - [x] **Transaction Tracking** - View all payment transactions with filters
+- [x] **Cache Monitoring** - View cache stats at `/api/admin/cache/stats`
 
 ### Backend APIs
 - [x] Authentication endpoints
@@ -66,10 +100,7 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - [x] Mafundisho endpoints
 - [x] Content upload endpoints verified
 - [x] **Azam Pay Payment Endpoints** (Added 2026-01-28)
-  - POST /api/payment/azampay/checkout - Initiate mobile money payment
-  - POST /api/payment/callback/azampay - Handle Azam Pay webhooks
-  - GET /api/payment/azampay/status/{id} - Check payment status
-  - POST /api/payment/azampay/test-confirm/{id} - Test mode confirmation
+- [x] **Cache Stats Endpoint** (Added 2026-01-28)
 
 ## Payment System (2026-01-28)
 
@@ -78,21 +109,6 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **MNO Support**: M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa, Ezy Pesa
 - **Phone Auto-Detection**: Detects MNO from phone prefix
 - **Demo Checkout**: Users can test the flow with manual confirmation button
-
-### Checkout Flow
-1. User selects subscription plan
-2. User enters phone number (+255)
-3. System detects MNO automatically
-4. Payment initiated → USSD prompt sent to phone
-5. User confirms on phone OR uses test confirm button (demo)
-6. Subscription activated upon successful payment
-
-### Admin Controls
-- Billing can be toggled on/off from Admin Settings
-- When billing is disabled:
-  - All users get premium features free
-  - Payment screens hidden in mobile app
-  - Subscription section not shown in profile
 
 ## Known Issues
 
@@ -104,7 +120,6 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ### P1 - High Priority
 - **Azam Pay Credentials** - Current credentials may need verification with Azam Pay support
-  - Test mode working, production mode requires valid credentials
 
 ### P2 - Medium Priority
 - Animated splash screen needed
@@ -116,7 +131,7 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 3. Admin filter toggles for homepage categories
 
 ## Future/Backlog
-- Backend refactoring (server.py is 13,000+ lines)
+- Continue backend modularization (more routes to extract)
 - PWA "Play All" button
 - Live audio/video rooms (Agora/100ms)
 - Remove unused Supabase code
@@ -124,39 +139,43 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Technical Notes
 
-### Payment Configuration
+### New Backend Structure
 ```
-AZAMPAY_CLIENT_ID=<configured>
-AZAMPAY_CLIENT_SECRET=<configured>
-AZAMPAY_TOKEN=<configured>
-AZAMPAY_CALLBACK_URL=https://faith-audio-3.preview.emergentagent.com/api/payment/callback/azampay
-AZAMPAY_TEST_MODE=true
+/app/backend/
+├── server.py              # Main app + legacy routes
+├── core/
+│   ├── __init__.py
+│   ├── database.py        # MongoDB connection with pooling
+│   └── cache.py           # In-memory LRU cache
+├── models/
+│   ├── __init__.py
+│   └── schemas.py         # Pydantic models
+├── routes/
+│   ├── __init__.py
+│   ├── music.py           # Albums, songs endpoints
+│   ├── home.py            # Home screen data
+│   └── payment.py         # Azam Pay integration
+├── services/
+│   ├── bunny_cdn_service.py
+│   ├── encoding_service.py
+│   └── tts_service.py
+└── create_indexes.py      # Database index creation
 ```
 
-### EAS Build
-- Project uses `gracefy15` Expo account
-- Current version: 1.0.66
-- Build profiles in `/app/mobile/SpiritSongs/eas.json`
+### Cache Configuration
+```python
+CACHE_TTL = {
+    'home': 60,           # 1 minute
+    'albums': 120,        # 2 minutes
+    'album_detail': 300,  # 5 minutes
+    'songs': 120,         # 2 minutes
+    'categories': 600,    # 10 minutes
+    'churches': 300,      # 5 minutes
+    'settings': 300,      # 5 minutes
+    'bible': 3600,        # 1 hour
+}
+```
 
 ### Test Credentials
 - Choir Portal: demo@gracefy.com / demo123456
 - Expo Token: Ocf09mEKf7N8E9Pjwyf5-hQYLOevZO3OYEsrr9Bq
-
-### Key Files
-- `/app/mobile/SpiritSongs/src/screens/CheckoutScreen.js` - Payment checkout (NEW)
-- `/app/mobile/SpiritSongs/src/screens/SubscriptionPlansScreen.js` - Plans selection
-- `/app/mobile/SpiritSongs/src/screens/ProfileScreen.js` - User profile with transactions
-- `/app/mobile/SpiritSongs/src/context/BillingContext.js` - Billing state management
-- `/app/mobile/SpiritSongs/src/services/api.js` - Billing API endpoints
-- `/app/frontend/src/pages/AdminSettingsPage.jsx` - Billing toggle
-- `/app/frontend/src/pages/TransactionsPage.jsx` - Transaction tracking
-- `/app/backend/server.py` - Azam Pay endpoints (lines 4315-4700)
-
-### MNO Phone Prefixes (Tanzania)
-```
-Vodacom (M-Pesa): 74, 75, 76
-Tigo (Tigo Pesa): 65, 67, 71
-Airtel (Airtel Money): 68, 69, 78, 79
-Halotel (Halo Pesa): 62
-Zantel (Ezy Pesa): 77
-```
