@@ -1468,6 +1468,28 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}
 
+# ============== CACHE MONITORING ==============
+
+@api_router.get("/admin/cache/stats")
+async def get_cache_stats():
+    """Get cache statistics for monitoring."""
+    # Get stats from both cache systems
+    old_cache_stats = await cache.get_stats()
+    new_cache_stats = await new_cache.get_stats()
+    
+    return {
+        "legacy_cache": old_cache_stats,
+        "new_cache": new_cache_stats,
+        "total_entries": old_cache_stats.get('keys_count', 0) + new_cache_stats.get('entries', 0)
+    }
+
+@api_router.post("/admin/cache/clear")
+async def clear_cache():
+    """Clear all cache entries. Use with caution."""
+    await cache.clear_all()
+    await new_cache.clear_all()
+    return {"message": "All cache cleared", "status": "success"}
+
 # ============== DASHBOARD ANALYTICS ==============
 
 @api_router.get("/analytics/overview")
