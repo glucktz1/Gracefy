@@ -13827,8 +13827,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
-# Add rate limiting middleware (100 requests per minute per IP)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
+# Add rate limiting middleware (1000 requests per minute per IP for production, increase for load testing)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=1000)
 
 # ============== GZIP COMPRESSION ==============
 from starlette.middleware.gzip import GZipMiddleware
