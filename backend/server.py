@@ -13872,10 +13872,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Background tasks
+cache_cleanup_task = None
+traffic_monitoring_task_ref = None
+
 @app.on_event("startup")
 async def startup_db_migration():
     """Run database migrations and initialize services on startup"""
-    global cache_cleanup_task
+    global cache_cleanup_task, traffic_monitoring_task_ref
     
     # Initialize Redis cache (legacy)
     await cache.connect()
@@ -13884,6 +13888,10 @@ async def startup_db_migration():
     # Start background cache cleanup task
     cache_cleanup_task = asyncio.create_task(periodic_cache_cleanup(300))  # Cleanup every 5 minutes
     logger.info("Cache cleanup background task started")
+    
+    # Start traffic monitoring task (auto-scaling)
+    traffic_monitoring_task_ref = asyncio.create_task(traffic_monitoring_task(30))
+    logger.info("🚀 Auto-scaling traffic monitor started")
     
     # Migrate singers: convert 'followers' to 'followers_count' for consistency
     result = await db.singers.update_many(
@@ -13909,11 +13917,13 @@ async def startup_db_migration():
     if result3.modified_count > 0:
         logger.info(f"Initialized followers_count for {result3.modified_count} church records")
     
-    logger.info("Gracefy API startup complete - optimized for high traffic")
+    logger.info("✅ Gracefy API startup complete - AUTO-SCALING ENABLED")
+    logger.info("   📊 Traffic levels: low (<50 req/s), medium (50-150), high (150-300), critical (>300)")
+    logger.info("   🔄 Cache TTL auto-adjusts: 1x (low) → 4x (critical)")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    global cache_cleanup_task
+    global cache_cleanup_task, traffic_monitoring_task_ref
     
     # Cancel background tasks
     if cache_cleanup_task:
