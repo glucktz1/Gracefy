@@ -13933,6 +13933,13 @@ async def shutdown_db_client():
         except asyncio.CancelledError:
             pass
     
+    if traffic_monitoring_task_ref:
+        traffic_monitoring_task_ref.cancel()
+        try:
+            await traffic_monitoring_task_ref
+        except asyncio.CancelledError:
+            pass
+    
     await cache.disconnect()
     client.close()
     logger.info("Gracefy API shutdown complete")
