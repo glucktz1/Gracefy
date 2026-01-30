@@ -25,6 +25,9 @@ from cache_service import cache, cached, invalidate_home_cache, invalidate_album
 from core.database import connect_db, disconnect_db
 from core.cache import cache as new_cache, periodic_cache_cleanup
 
+# Import Redis cache (primary cache for production)
+from core.redis_cache import redis_cache, cache_get, cache_set, invalidate_pattern
+
 # Import auto-scaling system
 from core.auto_scaling import (
     traffic_monitor, 
