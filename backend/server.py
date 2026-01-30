@@ -25,6 +25,15 @@ from cache_service import cache, cached, invalidate_home_cache, invalidate_album
 from core.database import connect_db, disconnect_db
 from core.cache import cache as new_cache, periodic_cache_cleanup
 
+# Import auto-scaling system
+from core.auto_scaling import (
+    traffic_monitor, 
+    adaptive_cache, 
+    TrafficTrackingMiddleware,
+    traffic_monitoring_task,
+    auto_scaling_recommendations
+)
+
 # Import encoding service
 from services.encoding_service import get_encoding_service, EncodingService
 
@@ -54,8 +63,8 @@ bunny_service: BunnyCDNService = None
 # Create the main app
 app = FastAPI(
     title="Gracefy Admin API",
-    description="Christian Music Streaming Platform API",
-    version="2.0.0",
+    description="Christian Music Streaming Platform API - Auto-Scaling Enabled",
+    version="2.1.0",
 )
 
 # Create a router with the /api prefix
