@@ -13839,6 +13839,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # Add rate limiting middleware (500 requests per minute per IP for production)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=500)
 
+# ============== TRAFFIC TRACKING (Auto-Scaling) ==============
+# Add traffic tracking middleware for auto-scaling
+app.add_middleware(TrafficTrackingMiddleware)
+
 # ============== GZIP COMPRESSION ==============
 from starlette.middleware.gzip import GZipMiddleware
 
