@@ -1485,16 +1485,22 @@ async def logout(request: Request, response: Response):
 @api_router.get("/admin/cache/stats")
 async def get_cache_stats():
     """Get cache statistics for monitoring."""
-    # Get stats from both cache systems
+    # Get stats from all cache systems
     old_cache_stats = await cache.get_stats()
     new_cache_stats = await new_cache.get_stats()
     adaptive_stats = await adaptive_cache.get_stats()
+    redis_stats = await redis_cache.get_stats()
     
     return {
-        "legacy_cache": old_cache_stats,
-        "new_cache": new_cache_stats,
+        "redis_cache": redis_stats,
         "adaptive_cache": adaptive_stats,
-        "total_entries": old_cache_stats.get('keys_count', 0) + new_cache_stats.get('entries', 0) + adaptive_stats.get('entries', 0)
+        "legacy_cache": old_cache_stats,
+        "memory_cache": new_cache_stats,
+        "summary": {
+            "primary": "redis" if redis_stats.get('connected') else "memory",
+            "redis_connected": redis_stats.get('connected', False),
+            "total_hit_rate": redis_stats.get('hit_rate', '0%'),
+        }
     }
 
 @api_router.get("/admin/auto-scaling")
