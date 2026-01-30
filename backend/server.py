@@ -1485,11 +1485,33 @@ async def get_cache_stats():
     # Get stats from both cache systems
     old_cache_stats = await cache.get_stats()
     new_cache_stats = await new_cache.get_stats()
+    adaptive_stats = await adaptive_cache.get_stats()
     
     return {
         "legacy_cache": old_cache_stats,
         "new_cache": new_cache_stats,
-        "total_entries": old_cache_stats.get('keys_count', 0) + new_cache_stats.get('entries', 0)
+        "adaptive_cache": adaptive_stats,
+        "total_entries": old_cache_stats.get('keys_count', 0) + new_cache_stats.get('entries', 0) + adaptive_stats.get('entries', 0)
+    }
+
+@api_router.get("/admin/auto-scaling")
+async def get_auto_scaling_status():
+    """Get auto-scaling status and recommendations."""
+    return await auto_scaling_recommendations()
+
+@api_router.get("/admin/traffic")
+async def get_traffic_stats():
+    """Get real-time traffic statistics."""
+    stats = await traffic_monitor.get_stats()
+    return {
+        "requests_per_second": stats.requests_per_second,
+        "requests_per_minute": stats.requests_per_minute,
+        "avg_response_time_ms": stats.avg_response_time_ms,
+        "active_connections": stats.active_connections,
+        "peak_rps_today": stats.peak_rps_today,
+        "traffic_level": stats.traffic_level,
+        "cache_ttl_multiplier": traffic_monitor.get_cache_ttl_multiplier(),
+        "last_updated": stats.last_updated
     }
 
 @api_router.post("/admin/cache/clear")
@@ -1497,6 +1519,7 @@ async def clear_cache():
     """Clear all cache entries. Use with caution."""
     await cache.clear_all()
     await new_cache.clear_all()
+    await adaptive_cache.clear_all()
     return {"message": "All cache cleared", "status": "success"}
 
 # ============== DASHBOARD ANALYTICS ==============
