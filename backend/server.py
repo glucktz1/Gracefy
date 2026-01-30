@@ -13911,9 +13911,16 @@ async def startup_db_migration():
     """Run database migrations and initialize services on startup"""
     global cache_cleanup_task, traffic_monitoring_task_ref
     
-    # Initialize Redis cache (legacy)
+    # Initialize legacy cache (in-memory)
     await cache.connect()
-    logger.info("Cache service initialized")
+    logger.info("Legacy cache service initialized")
+    
+    # Initialize Redis cache (primary cache for production)
+    redis_connected = await redis_cache.connect()
+    if redis_connected:
+        logger.info("🔴 Redis cache connected - PRODUCTION MODE")
+    else:
+        logger.info("⚠️ Redis not available - using in-memory fallback")
     
     # Start background cache cleanup task
     cache_cleanup_task = asyncio.create_task(periodic_cache_cleanup(300))  # Cleanup every 5 minutes
