@@ -73,8 +73,8 @@ async def get_albums(
     category_id: Optional[str] = None,
     artist_id: Optional[str] = None,
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    include_inactive: bool = False
+    limit: int = Query(20, ge=1, le=500),
+    include_inactive: bool = Query(False)
 ):
     """Get albums with pagination. Cached for 2 minutes."""
     db = get_db()
