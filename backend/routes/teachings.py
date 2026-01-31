@@ -435,7 +435,8 @@ async def upload_teaching_audio(
         try:
             import httpx
             
-            storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/teachings/{cdn_filename}"
+            # Use main storage URL (region prefix may not resolve in all environments)
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/teachings/{cdn_filename}"
             
             async with httpx.AsyncClient() as client:
                 response = await client.put(
@@ -453,7 +454,7 @@ async def upload_teaching_audio(
                     storage_type = "cdn"
                     logger.info(f"Teaching audio uploaded to CDN: {cdn_url}")
                 else:
-                    logger.warning(f"CDN upload failed with status {response.status_code}")
+                    logger.warning(f"CDN upload failed with status {response.status_code}: {response.text}")
         except Exception as e:
             logger.error(f"CDN upload failed: {e}")
     
