@@ -212,7 +212,7 @@ async def upload_multiple_files(
 
 @router.get("/files/{file_id}/stream")
 async def stream_file(file_id: str):
-    """Stream a file"""
+    """Stream a file - supports both direct and chunked storage"""
     db = get_db()
     
     file_doc = await db.files.find_one({"file_id": file_id})
@@ -222,6 +222,35 @@ async def stream_file(file_id: str):
     # If CDN URL available, redirect
     if file_doc.get("cdn_url"):
         return RedirectResponse(url=file_doc["cdn_url"])
+    
+    # Handle chunked storage
+    if file_doc.get("storage_type") == "chunked":
+        import base64
+        
+        # Fetch all chunks and reassemble
+        chunks = await db.file_chunks.find(
+            {"file_id": file_id}
+        ).sort("chunk_index", 1).to_list(100)
+        
+        if not chunks:
+            raise HTTPException(status_code=404, detail="File chunks not found")
+        
+        # Reassemble the file
+        content_parts = []
+        for chunk in chunks:
+            chunk_data = base64.b64decode(chunk["data"])
+            content_parts.append(chunk_data)
+        
+        content = b''.join(content_parts)
+        
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type=file_doc.get("content_type", "application/octet-stream"),
+            headers={
+                "Content-Disposition": f'inline; filename="{file_doc.get("filename", "file")}"',
+                "Content-Length": str(len(content))
+            }
+        )
     
     # Check for data in different field names (data_base64 or data)
     file_data = file_doc.get("data_base64") or file_doc.get("data")
