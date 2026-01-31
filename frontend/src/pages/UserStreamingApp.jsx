@@ -3281,7 +3281,7 @@ export default function UserStreamingApp() {
 
               {/* Empty State */}
               {libraryTab !== 'all' && (
-                (libraryTab === 'liked' && library.favorites?.filter(f => f.type === 'song').length === 0) ||
+                (libraryTab === 'liked' && library.favorites?.filter(f => f.type === 'song' && f.item).length === 0) ||
                 (libraryTab === 'playlists' && library.playlists?.length === 0)
               ) && (
                 <div className="text-center py-16">
