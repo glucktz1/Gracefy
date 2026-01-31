@@ -1,0 +1,347 @@
+"""
+User browse and search routes for Gracefy mobile app.
+Handles browse, search, and user content discovery.
+"""
+
+from fastapi import APIRouter, HTTPException, Request, Query
+from datetime import datetime, timezone
+from typing import Optional, List
+import logging
+
+from core.database import get_db
+from core.cache import cache
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api", tags=["browse"])
+
+
+async def get_user_from_token(request: Request):
+    """Helper to get user from auth token"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        return None
+    
+    return await db.app_users.find_one(
+        {"user_id": token_doc["user_id"]},
+        {"_id": 0, "password_hash": 0}
+    )
+
+
+# ============== BROWSE ==============
+
+@router.get("/user/browse/categories")
+async def browse_categories():
+    """Get categories for browse screen"""
+    db = get_db()
+    
+    categories = await db.categories.find(
+        {"status": "active"},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(50)
+    
+    # Also get song categories
+    song_categories = await db.song_categories.find(
+        {"status": "active"},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(50)
+    
+    return {
+        "categories": categories,
+        "song_categories": song_categories
+    }
+
+
+@router.get("/user/browse/category/{category_id}")
+async def browse_category(category_id: str):
+    """Get content for a specific category"""
+    db = get_db()
+    
+    # Get albums in this category
+    albums = await db.albums.find(
+        {"category_id": category_id, "status": "active"},
+        {"_id": 0}
+    ).sort("total_plays", -1).limit(50).to_list(50)
+    
+    # Get category info
+    category = await db.categories.find_one(
+        {"category_id": category_id},
+        {"_id": 0}
+    )
+    
+    return {
+        "category": category,
+        "albums": albums
+    }
+
+
+# ============== SEARCH ==============
+
+@router.get("/user/search")
+async def search(
+    q: str = Query(..., min_length=1),
+    type: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Search for songs, albums, choirs, churches"""
+    db = get_db()
+    
+    results = {
+        "query": q,
+        "songs": [],
+        "albums": [],
+        "choirs": [],
+        "churches": []
+    }
+    
+    search_regex = {"$regex": q, "$options": "i"}
+    
+    if not type or type == "song":
+        songs = await db.songs.find(
+            {"title": search_regex, "status": "active"},
+            {"_id": 0}
+        ).limit(limit).to_list(limit)
+        results["songs"] = songs
+    
+    if not type or type == "album":
+        albums = await db.albums.find(
+            {"$or": [
+                {"title": search_regex},
+                {"artist_name": search_regex}
+            ], "status": "active"},
+            {"_id": 0}
+        ).limit(limit).to_list(limit)
+        results["albums"] = albums
+    
+    if not type or type == "choir":
+        choirs = await db.singers.find(
+            {"name": search_regex, "status": {"$in": ["active", "approved"]}},
+            {"_id": 0}
+        ).limit(limit).to_list(limit)
+        results["choirs"] = choirs
+    
+    if not type or type == "church":
+        churches = await db.churches.find(
+            {"name": search_regex, "status": "approved"},
+            {"_id": 0}
+        ).limit(limit).to_list(limit)
+        results["churches"] = churches
+    
+    return results
+
+
+# ============== USER CONTENT ==============
+
+@router.get("/user/content")
+async def get_user_content(request: Request):
+    """Get content for authenticated user (teachings, sermons)"""
+    db = get_db()
+    user = await get_user_from_token(request)
+    
+    # Get content containers
+    containers = await db.content_containers.find(
+        {"status": "active"},
+        {"_id": 0}
+    ).sort("total_plays", -1).limit(20).to_list(20)
+    
+    return {"containers": containers}
+
+
+@router.get("/user/content/{container_id}")
+async def get_user_content_detail(container_id: str, request: Request):
+    """Get detailed content container for user"""
+    db = get_db()
+    
+    container = await db.content_containers.find_one(
+        {"container_id": container_id},
+        {"_id": 0}
+    )
+    
+    if not container:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    # Get series
+    series = await db.content_series.find(
+        {"container_id": container_id},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(50)
+    
+    # Get episodes for each series
+    for s in series:
+        episodes = await db.content_episodes.find(
+            {"series_id": s["series_id"]},
+            {"_id": 0}
+        ).sort("sort_order", 1).to_list(100)
+        s["episodes"] = episodes
+    
+    return {"container": container, "series": series}
+
+
+@router.get("/user/album/{album_id}")
+async def get_user_album(album_id: str, request: Request):
+    """Get album details for user"""
+    db = get_db()
+    user = await get_user_from_token(request)
+    
+    album = await db.albums.find_one({"album_id": album_id}, {"_id": 0})
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    
+    songs = await db.songs.find(
+        {"album_id": album_id, "status": "active"},
+        {"_id": 0}
+    ).sort("track_number", 1).to_list(100)
+    
+    # Check if user has liked any songs
+    if user:
+        liked_ids = set()
+        likes = await db.user_likes.find(
+            {"user_id": user["user_id"], "item_type": "song"},
+            {"item_id": 1}
+        ).to_list(1000)
+        liked_ids = {l["item_id"] for l in likes}
+        
+        for song in songs:
+            song["is_liked"] = song.get("song_id") in liked_ids
+    
+    return {"album": album, "songs": songs}
+
+
+# ============== SUBSCRIPTION STATUS ==============
+
+@router.get("/user/subscription-status")
+async def get_subscription_status(request: Request):
+    """Get user's subscription status"""
+    db = get_db()
+    user = await get_user_from_token(request)
+    
+    if not user:
+        return {
+            "subscription_type": "free",
+            "is_subscribed": False,
+            "can_download": False
+        }
+    
+    subscription_type = user.get("subscription_type", "free")
+    expires = user.get("subscription_expires")
+    
+    is_subscribed = False
+    if subscription_type != "free" and expires:
+        from datetime import datetime, timezone
+        if isinstance(expires, str):
+            expires = datetime.fromisoformat(expires)
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        is_subscribed = expires > datetime.now(timezone.utc)
+    
+    # Check trial
+    trial_active = False
+    trial = user.get("trial")
+    if trial and trial.get("status") == "active":
+        trial_expires = trial.get("expires_at")
+        if trial_expires:
+            if isinstance(trial_expires, str):
+                trial_expires = datetime.fromisoformat(trial_expires)
+            if trial_expires.tzinfo is None:
+                trial_expires = trial_expires.replace(tzinfo=timezone.utc)
+            trial_active = trial_expires > datetime.now(timezone.utc)
+    
+    # Determine capabilities
+    can_download = is_subscribed or subscription_type == "premium"
+    
+    return {
+        "subscription_type": subscription_type,
+        "is_subscribed": is_subscribed,
+        "trial_active": trial_active,
+        "can_download": can_download,
+        "subscription_expires": expires.isoformat() if expires else None
+    }
+
+
+# ============== LISTENING TRACKING ==============
+
+@router.post("/listening/start")
+async def start_listening(request: Request, data: dict):
+    """Track start of listening session"""
+    db = get_db()
+    user = await get_user_from_token(request)
+    
+    import uuid
+    
+    session = {
+        "session_id": f"ls_{uuid.uuid4().hex[:12]}",
+        "user_id": user["user_id"] if user else "anonymous",
+        "song_id": data.get("song_id"),
+        "album_id": data.get("album_id"),
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "end_time": None,
+        "duration_seconds": 0,
+        "platform": data.get("platform", "mobile"),
+        "device_info": data.get("device_info")
+    }
+    
+    await db.listening_sessions.insert_one(session)
+    session.pop("_id", None)
+    
+    return {"session_id": session["session_id"]}
+
+
+@router.post("/listening/end")
+async def end_listening(request: Request, data: dict):
+    """Track end of listening session"""
+    db = get_db()
+    
+    session_id = data.get("session_id")
+    duration = data.get("duration_seconds", 0)
+    
+    if not session_id:
+        return {"tracked": False}
+    
+    result = await db.listening_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "end_time": datetime.now(timezone.utc).isoformat(),
+            "duration_seconds": duration
+        }}
+    )
+    
+    # If duration >= 45 seconds, count as play
+    if duration >= 45:
+        session = await db.listening_sessions.find_one({"session_id": session_id})
+        if session:
+            song_id = session.get("song_id")
+            album_id = session.get("album_id")
+            
+            if song_id:
+                await db.songs.update_one({"song_id": song_id}, {"$inc": {"plays": 1}})
+            if album_id:
+                await db.albums.update_one({"album_id": album_id}, {"$inc": {"total_plays": 1}})
+    
+    return {"tracked": True}
+
+
+# ============== TRANSLATIONS ==============
+
+@router.get("/translations")
+async def get_translations(
+    language: str = Query("sw", description="Language code")
+):
+    """Get UI translations for the app"""
+    db = get_db()
+    
+    translations = await db.translations.find_one(
+        {"language": language},
+        {"_id": 0}
+    )
+    
+    if not translations:
+        # Return empty translations
+        return {"language": language, "strings": {}}
+    
+    return translations
