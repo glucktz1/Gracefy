@@ -160,7 +160,7 @@ export default function CDNManagementPage() {
                 </h3>
                 <p className="text-sm text-zinc-400">
                   {cdnStatus?.enabled 
-                    ? `Connected to ${cdnStatus?.storage_zone} (${cdnStatus?.storage_region.toUpperCase()})`
+                    ? `Connected to ${cdnStatus?.storage_zone || 'Unknown'} (${cdnStatus?.storage_region?.toUpperCase() || 'N/A'})`
                     : 'Add BUNNY_API_KEY to enable CDN'}
                 </p>
               </div>
