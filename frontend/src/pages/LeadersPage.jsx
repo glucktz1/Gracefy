@@ -316,22 +316,23 @@ export default function LeadersPage() {
                 </div>
 
                 {leader.church_name && (
-                  <p className="text-sm text-zinc-500 mb-2">{leader.church_name}</p>
+                  <p className="text-sm text-zinc-500 mb-2">{String(leader.church_name)}</p>
                 )}
 
                 {leader.bio && (
-                  <p className="text-sm text-zinc-400 line-clamp-2 mb-3">{leader.bio}</p>
+                  <p className="text-sm text-zinc-400 line-clamp-2 mb-3">{String(leader.bio)}</p>
                 )}
 
                 <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
                   <span className={`badge ${leader.status === "approved" ? "badge-success" : leader.status === "pending" ? "badge-warning" : "badge-error"}`}>
-                    {leader.status}
+                    {String(leader.status || 'pending')}
                   </span>
                   <span className="text-xs text-zinc-500">{leader.followers || 0} followers</span>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       )}
 
