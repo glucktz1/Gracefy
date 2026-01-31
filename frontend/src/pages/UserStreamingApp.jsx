@@ -1062,7 +1062,17 @@ const BibleView = ({ language, t, onBack }) => {
   useEffect(() => {
     if (selectedBook) {
       axios.get(`${API}/bible/books/${selectedBook.name}/chapters?language=${language}`)
-        .then(res => setChapters(res.data.chapters || []))
+        .then(res => {
+          // API returns chapter count as number, convert to array [1, 2, 3, ...]
+          const chaptersData = res.data.chapters;
+          if (typeof chaptersData === 'number') {
+            setChapters(Array.from({ length: chaptersData }, (_, i) => i + 1));
+          } else if (Array.isArray(chaptersData)) {
+            setChapters(chaptersData);
+          } else {
+            setChapters([]);
+          }
+        })
         .catch(() => setChapters([]));
     }
   }, [selectedBook, language]);
