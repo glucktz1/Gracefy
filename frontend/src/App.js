@@ -518,7 +518,6 @@ function AppRouter() {
         <Route path="/bible" element={<ProtectedRoute><BibleManagementPage /></ProtectedRoute>} />
         <Route path="/admin/cdn" element={<ProtectedRoute><CDNManagementPage /></ProtectedRoute>} />
         <Route path="/churches" element={<ProtectedRoute><ChurchesPage /></ProtectedRoute>} />
-        <Route path="/leaders" element={<ProtectedRoute><LeadersPage /></ProtectedRoute>} />
         <Route path="/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
         <Route path="/seminars" element={<ProtectedRoute><SeminarsPage /></ProtectedRoute>} />
         <Route path="/audiorooms" element={<ProtectedRoute><AudioRoomsPage /></ProtectedRoute>} />
