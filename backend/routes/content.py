@@ -589,14 +589,52 @@ async def create_special_mix(data: dict):
     """Create a special mix"""
     db = get_db()
     
+    # Handle song data - frontend sends 'songs' array with full objects
+    # Extract song_ids from songs array and also store full song objects for display
+    songs_data = data.get("songs", [])
+    song_ids = []
+    songs_list = []
+    
+    for song in songs_data:
+        if isinstance(song, dict):
+            song_id = song.get("song_id")
+            if song_id:
+                song_ids.append(song_id)
+                songs_list.append({
+                    "song_id": song.get("song_id"),
+                    "title": song.get("title"),
+                    "album_id": song.get("album_id"),
+                    "album_title": song.get("album_title"),
+                    "artist_name": song.get("artist_name"),
+                    "duration": song.get("duration"),
+                    "duration_formatted": song.get("duration_formatted"),
+                    "audio_url": song.get("audio_url"),
+                    "order": song.get("order", 0)
+                })
+        elif isinstance(song, str):
+            # Legacy format - just song_id strings
+            song_ids.append(song)
+    
+    # Also check for song_ids directly if provided
+    if not song_ids and data.get("song_ids"):
+        song_ids = data.get("song_ids", [])
+    
+    # Get title - frontend sends 'title', also check 'name' for backwards compatibility
+    title = data.get("title") or data.get("name")
+    
     mix = {
         "mix_id": f"mix_{uuid.uuid4().hex[:12]}",
-        "name": data.get("name"),
+        "title": title,
+        "name": title,  # Keep for backwards compatibility
         "name_sw": data.get("name_sw"),
         "description": data.get("description"),
         "thumbnail": data.get("thumbnail"),
-        "song_ids": data.get("song_ids", []),
-        "songs_count": len(data.get("song_ids", [])),
+        "song_ids": song_ids,
+        "songs": songs_list,  # Store full song objects for display
+        "songs_count": len(song_ids),
+        "category_id": data.get("category_id"),
+        "category_name": data.get("category_name"),
+        "monetization_type": data.get("monetization_type", "standard"),
         "sort_order": data.get("sort_order", 0),
         "is_featured": data.get("is_featured", False),
         "status": "active",
