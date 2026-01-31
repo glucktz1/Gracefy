@@ -390,8 +390,11 @@ export default function LeadersPage() {
                     <SelectValue placeholder="Select a church" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    {churches.map(church => (
-                      <SelectItem key={church.church_id} value={church.church_id}>{church.name}</SelectItem>
+                    <SelectItem value="">No church</SelectItem>
+                    {churches && churches.map(church => (
+                      <SelectItem key={church.church_id} value={church.church_id || ''}>
+                        {church.name || 'Unnamed Church'}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
