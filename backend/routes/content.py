@@ -610,6 +610,54 @@ async def delete_special_mix(mix_id: str):
     return {"message": "Mix deleted"}
 
 
+@router.get("/special-mixes/{mix_id}/songs")
+async def get_special_mix_songs(mix_id: str):
+    """Get songs in a special mix for playback"""
+    db = get_db()
+    
+    mix = await db.special_mixes.find_one({"mix_id": mix_id}, {"_id": 0})
+    if not mix:
+        raise HTTPException(status_code=404, detail="Special mix not found")
+    
+    return {
+        "mix_id": mix_id,
+        "title": mix.get("title"),
+        "songs": mix.get("songs", [])
+    }
+
+
+@router.get("/layout/special-mixes")
+async def get_special_mixes_for_layout():
+    """Get special mixes for layout manager selection"""
+    db = get_db()
+    
+    mixes = await db.special_mixes.find(
+        {"status": "active"},
+        {"_id": 0, "mix_id": 1, "title": 1, "thumbnail": 1, "songs_count": 1, "is_featured": 1}
+    ).to_list(100)
+    
+    return {"mixes": mixes, "total": len(mixes)}
+
+
+@router.get("/layout/bible-content")
+async def get_bible_content_for_layout():
+    """Get bible snippets/devotional cards for layout manager selection"""
+    db = get_db()
+    
+    snippets = await db.bible_snippets.find(
+        {"status": "active"},
+        {"_id": 0, "snippet_id": 1, "heading": 1, "reference": 1, "verse_ref": 1, "book_name": 1}
+    ).to_list(100)
+    
+    cards = await db.bible_devotional_cards.find(
+        {"is_active": True},
+        {"_id": 0, "card_id": 1, "heading": 1, "reference": 1, "verse_ref": 1}
+    ).to_list(100)
+    
+    all_content = list(snippets) + list(cards)
+    return {"content": all_content, "total": len(all_content)}
+
+
 # ============== DONATION CAMPAIGNS ==============
 
 @router.get("/donation-campaigns")
