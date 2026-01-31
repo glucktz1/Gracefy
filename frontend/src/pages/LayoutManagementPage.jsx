@@ -1126,7 +1126,7 @@ const HeroConfigTab = ({ albums }) => {
                     <div className="w-full aspect-square bg-zinc-700 rounded-lg mb-2 overflow-hidden">
                       {album.thumbnail ? (
                         <img 
-                          src={album.thumbnail?.startsWith('data:') ? album.thumbnail : `${BACKEND_URL}${album.thumbnail_url || `/api/thumbnails/${album.album_id}`}`} 
+                          src={getImageUrl(album.thumbnail)} 
                           alt="" 
                           className="w-full h-full object-cover" 
                         />
