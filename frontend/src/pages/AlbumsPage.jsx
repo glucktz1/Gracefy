@@ -701,7 +701,7 @@ export default function AlbumsPage() {
               <div className="bg-gradient-to-r from-violet-900/30 to-zinc-900 rounded-xl p-6 mb-6">
                 <div className="flex items-start gap-6">
                   {selectedAlbum.thumbnail ? (
-                    <img src={selectedAlbum.thumbnail} alt="" className="w-32 h-32 rounded-xl object-cover shadow-xl" />
+                    <img src={getImageUrl(selectedAlbum.thumbnail)} alt="" className="w-32 h-32 rounded-xl object-cover shadow-xl" />
                   ) : (
                     <div className="w-32 h-32 rounded-xl bg-zinc-800 flex items-center justify-center">
                       <Music2 size={48} className="text-zinc-600" />
