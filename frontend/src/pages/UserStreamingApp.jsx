@@ -1203,7 +1203,12 @@ const BibleView = ({ language, t, onBack }) => {
               <Volume2 size={16} className="text-zinc-400" />
               <select
                 value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
+                onChange={(e) => {
+                  const newVoice = e.target.value;
+                  setSelectedVoice(newVoice);
+                  const voiceName = availableVoices.find(v => v.id === newVoice)?.name || newVoice;
+                  toast.success(`Voice changed to ${voiceName}`);
+                }}
                 className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 data-testid="voice-selector"
               >
