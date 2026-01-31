@@ -281,37 +281,58 @@ async def get_tts_cache_stats():
 
 
 @router.post("/bible/tts/generate")
-async def generate_tts(data: dict):
+async def generate_tts_endpoint(data: dict):
     """Generate TTS for text"""
     db = get_db()
     
     text = data.get("text")
-    voice = data.get("voice", "sw-KE-Female")
+    voice = data.get("voice", "sw-KE-Zuri-Female")
+    speed = data.get("speed", 1.0)
     
     if not text:
         raise HTTPException(status_code=400, detail="Text required")
     
-    # Check cache
+    if len(text) > 4096:
+        raise HTTPException(status_code=400, detail="Text too long. Maximum 4096 characters.")
+    
+    # Check cache first
     cache_key = f"bible_tts:{voice}:{hash(text)}"
     cached = await db.bible_tts_cache.find_one({"cache_key": cache_key}, {"_id": 0})
     
-    if cached:
-        return {"audio_url": cached.get("audio_url"), "cached": True}
+    if cached and cached.get("audio_base64"):
+        return {
+            "audio_base64": cached.get("audio_base64"),
+            "text": text,
+            "voice": voice,
+            "cached": True
+        }
     
-    # Generate TTS (placeholder - actual implementation would call TTS service)
-    audio_url = f"/api/bible/tts/audio/{uuid.uuid4().hex[:12]}"
-    
-    # Cache result
-    await db.bible_tts_cache.insert_one({
-        "cache_key": cache_key,
-        "text": text,
-        "voice": voice,
-        "audio_url": audio_url,
-        "size_bytes": len(text) * 100,  # Estimate
-        "created_at": datetime.now(timezone.utc).isoformat()
-    })
-    
-    return {"audio_url": audio_url, "cached": False}
+    try:
+        audio_base64 = await generate_tts_audio(text, voice, speed)
+        
+        # Cache the result
+        await db.bible_tts_cache.update_one(
+            {"cache_key": cache_key},
+            {"$set": {
+                "cache_key": cache_key,
+                "text": text,
+                "voice": voice,
+                "audio_base64": audio_base64,
+                "size_bytes": len(audio_base64),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }},
+            upsert=True
+        )
+        
+        return {
+            "audio_base64": audio_base64,
+            "text": text,
+            "voice": voice,
+            "cached": False
+        }
+    except Exception as e:
+        logger.error(f"TTS generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
 
 
 @router.post("/bible/tts/verse")
@@ -319,19 +340,28 @@ async def generate_verse_tts(data: dict):
     """Generate TTS for a specific verse"""
     db = get_db()
     
-    book = data.get("book")
+    # Support both field names for compatibility
+    book = data.get("book") or data.get("book_name")
     chapter = data.get("chapter")
     verse = data.get("verse")
-    voice = data.get("voice", "sw-KE-Female")
+    voice = data.get("voice", "sw-KE-Zuri-Female")
+    speed = data.get("speed", 1.0)
     
     if not all([book, chapter, verse]):
         raise HTTPException(status_code=400, detail="Book, chapter and verse required")
     
-    # Get verse text
+    # Get verse text - try both field names
     verse_doc = await db.bible_verses.find_one(
-        {"book": book, "chapter": chapter, "verse": verse},
+        {"book_name": book, "chapter": int(chapter), "verse": int(verse)},
         {"_id": 0}
     )
+    
+    if not verse_doc:
+        # Try alternative field name
+        verse_doc = await db.bible_verses.find_one(
+            {"book": book, "chapter": int(chapter), "verse": int(verse)},
+            {"_id": 0}
+        )
     
     if not verse_doc:
         raise HTTPException(status_code=404, detail="Verse not found")
@@ -342,13 +372,38 @@ async def generate_verse_tts(data: dict):
     cache_key = f"bible_tts:verse:{book}:{chapter}:{verse}:{voice}"
     cached = await db.bible_tts_cache.find_one({"cache_key": cache_key}, {"_id": 0})
     
-    if cached:
-        return {"audio_url": cached.get("audio_url"), "verse": verse_doc, "cached": True}
+    if cached and cached.get("audio_base64"):
+        return {
+            "audio_base64": cached.get("audio_base64"),
+            "verse": verse_doc,
+            "cached": True
+        }
     
-    # Generate TTS placeholder
-    audio_url = f"/api/bible/tts/audio/{uuid.uuid4().hex[:12]}"
-    
-    return {"audio_url": audio_url, "verse": verse_doc, "cached": False}
+    try:
+        audio_base64 = await generate_tts_audio(text, voice, speed)
+        
+        # Cache the result
+        await db.bible_tts_cache.update_one(
+            {"cache_key": cache_key},
+            {"$set": {
+                "cache_key": cache_key,
+                "text": text,
+                "voice": voice,
+                "audio_base64": audio_base64,
+                "size_bytes": len(audio_base64),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }},
+            upsert=True
+        )
+        
+        return {
+            "audio_base64": audio_base64,
+            "verse": verse_doc,
+            "cached": False
+        }
+    except Exception as e:
+        logger.error(f"Verse TTS generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
 
 
 @router.post("/bible/tts/passage")
