@@ -26,9 +26,13 @@ async def get_bible_stats():
     books_count = await db.bible_books.count_documents({})
     verses_count = await db.bible_verses.count_documents({})
     
+    # Return both formats for backwards compatibility
     return {
         "books_count": books_count,
-        "verses_count": verses_count
+        "verses_count": verses_count,
+        "book_count": books_count,  # Frontend expects this format
+        "verse_count": verses_count,  # Frontend expects this format
+        "has_data": books_count > 0
     }
 
 
