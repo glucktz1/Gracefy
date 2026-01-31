@@ -76,8 +76,6 @@ function LeadersPageContent() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLeader, setEditingLeader] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [photoFile, setPhotoFile] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     title: "priest",
@@ -95,7 +93,6 @@ function LeadersPageContent() {
         axios.get(`${API}/leaders`, { withCredentials: true }),
         axios.get(`${API}/churches`, { withCredentials: true })
       ]);
-      // Ensure we always set arrays, never error objects
       const leadersData = leadersRes.data?.leaders;
       const churchesData = churchesRes.data?.churches;
       setLeaders(Array.isArray(leadersData) ? leadersData : []);
