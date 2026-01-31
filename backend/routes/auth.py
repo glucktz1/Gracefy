@@ -60,14 +60,17 @@ async def process_session(request: Request, response: Response):
             }}
         )
     else:
-        # Create new user (first user is admin for testing)
+        # Create new user - only glucktz1904@gmail.com gets admin role
         user_id = f"user_{uuid.uuid4().hex[:12]}"
+        admin_email = "glucktz1904@gmail.com"
+        is_admin = user_data["email"].lower() == admin_email.lower()
+        
         new_user = {
             "user_id": user_id,
             "email": user_data["email"],
             "name": user_data["name"],
             "picture": user_data.get("picture"),
-            "role": "admin",
+            "role": "admin" if is_admin else "user",
             "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
