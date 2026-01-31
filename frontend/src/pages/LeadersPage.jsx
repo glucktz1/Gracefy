@@ -82,7 +82,6 @@ function LeadersPageContent() {
     church_id: "",
     church_name: "",
     bio: "",
-    photo: "",
     is_verified: false,
     status: "pending"
   });
