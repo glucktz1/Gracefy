@@ -198,69 +198,51 @@ async def get_albums_with_songs(
 
 
 @router.get("/albums/songs-by-category")
-async def get_songs_by_category(
-    category_id: str = Query(..., description="Song category ID to filter by"),
+async def get_albums_with_songs_by_category(
+    song_category_id: str = Query(..., description="Song category ID to filter by"),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200)
+    limit: int = Query(100, ge=1, le=500)
 ):
-    """Get songs filtered by song category (Christmas, Easter, etc.)"""
+    """Get albums with songs filtered by song category (Christmas, Easter, etc.)"""
     db = get_db()
     
-    cache_key = f"songs:by_category:{category_id}:{skip}:{limit}"
+    cache_key = f"albums:by_song_category:{song_category_id}:{skip}:{limit}"
     cached_result = await cache.get(cache_key)
     if cached_result:
         return cached_result
     
-    # Use aggregation for efficient join
-    pipeline = [
-        {
-            "$match": {
-                "status": "active",
-                "song_categories": category_id
-            }
-        },
-        {"$sort": {"plays": -1}},  # Sort by popularity
-        {"$skip": skip},
-        {"$limit": limit},
-        {
-            "$lookup": {
-                "from": "albums",
-                "localField": "album_id",
-                "foreignField": "album_id",
-                "as": "album_info",
-                "pipeline": [
-                    {"$project": {"_id": 0, "title": 1, "thumbnail": 1, "artist_name": 1}}
-                ]
-            }
-        },
-        {
-            "$addFields": {
-                "album_title": {"$arrayElemAt": ["$album_info.title", 0]},
-                "album_thumbnail": {"$arrayElemAt": ["$album_info.thumbnail", 0]},
-                "artist_name": {"$arrayElemAt": ["$album_info.artist_name", 0]},
-            }
-        },
-        {"$project": {"album_info": 0, "_id": 0}}
-    ]
+    # Get all songs in this category
+    songs_in_category = await db.songs.find(
+        {"song_categories": song_category_id, "$or": [{"status": "active"}, {"status": {"$exists": False}}]},
+        {"_id": 0}
+    ).to_list(500)
     
-    songs = await db.songs.aggregate(pipeline).to_list(limit)
-    total = await db.songs.count_documents({
-        "status": "active",
-        "song_categories": category_id
-    })
+    # Get unique album IDs
+    album_ids = list(set(s.get("album_id") for s in songs_in_category if s.get("album_id")))
+    
+    # Get albums
+    albums = await db.albums.find(
+        {"album_id": {"$in": album_ids}},
+        {"_id": 0}
+    ).to_list(limit)
+    
+    # Add songs to each album
+    for album in albums:
+        album["songs"] = [s for s in songs_in_category if s.get("album_id") == album.get("album_id")]
+    
+    # Optimize thumbnails
+    albums = optimize_thumbnails(albums)
     
     # Get category info
     category = await db.song_categories.find_one(
-        {"song_category_id": category_id},
+        {"song_category_id": song_category_id},
         {"_id": 0}
     )
     
     result = {
         "category": category,
-        "songs": songs,
-        "total": total,
-        "skip": skip,
-        "limit": limit
+        "albums": albums,
+        "total": len(albums)
     }
     
     await cache.set(cache_key, result, 120)
