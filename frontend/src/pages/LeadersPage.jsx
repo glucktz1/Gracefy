@@ -160,12 +160,11 @@ function LeadersPageContent() {
       title: String(leader.title || 'priest'),
       church_id: String(leader.church_id || ''),
       church_name: String(leader.church_name || ''),
-      bio: leader.bio || "",
-      photo: leader.photo || "",
-      is_verified: leader.is_verified,
-      status: leader.status
+      bio: String(leader.bio || ''),
+      photo: String(leader.photo || ''),
+      is_verified: Boolean(leader.is_verified),
+      status: String(leader.status || 'pending')
     });
-    setPhotoFile(null);
     setIsModalOpen(true);
   };
 
