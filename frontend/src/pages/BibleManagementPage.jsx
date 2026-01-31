@@ -834,18 +834,151 @@ export default function BibleManagementPage() {
 
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardHeader>
-                <CardTitle className="text-lg">TTS Voices</CardTitle>
-                <CardDescription>Available AI voices for Bible reading</CardDescription>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Volume2 size={20} className="text-violet-500" />
+                  TTS Voices
+                </CardTitle>
+                <CardDescription>Select and preview AI voices for Bible reading</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-2">
-                  {voices.map(voice => (
-                    <div key={voice.id} className="p-2 bg-zinc-800/50 rounded-lg text-center">
-                      <p className="text-sm font-medium text-white">{voice.name}</p>
-                      <p className="text-xs text-zinc-400">{voice.description}</p>
-                    </div>
-                  ))}
+              <CardContent className="space-y-6">
+                {/* Female Voices Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-pink-400">♀ Kike (Female Voices)</h4>
+                    <Select value={defaultVoiceFemale} onValueChange={setDefaultVoiceFemale}>
+                      <SelectTrigger className="w-48 bg-zinc-800 border-zinc-700 text-sm h-8">
+                        <SelectValue placeholder="Select default" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900 border-zinc-800">
+                        {femaleVoices.map(v => (
+                          <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {femaleVoices.map(voice => (
+                      <div 
+                        key={voice.id} 
+                        className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                          defaultVoiceFemale === voice.id 
+                            ? 'bg-pink-500/20 border-pink-500/50' 
+                            : 'bg-zinc-800/50 border-zinc-700 hover:border-pink-500/30'
+                        }`}
+                        onClick={() => setDefaultVoiceFemale(voice.id)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              defaultVoiceFemale === voice.id ? 'bg-pink-500' : 'bg-zinc-700'
+                            }`}>
+                              <Volume2 size={14} className="text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-white">{voice.name}</p>
+                              <p className="text-xs text-zinc-500">{voice.language}</p>
+                            </div>
+                          </div>
+                          {defaultVoiceFemale === voice.id && (
+                            <Check size={16} className="text-pink-400" />
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-400 mb-2">{voice.description}</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full h-7 text-xs ${
+                            previewingVoice === voice.id 
+                              ? 'bg-pink-600 border-pink-600 text-white' 
+                              : 'border-zinc-700'
+                          }`}
+                          onClick={(e) => { e.stopPropagation(); handlePreviewVoice(voice); }}
+                          disabled={previewingVoice && previewingVoice !== voice.id}
+                        >
+                          {previewingVoice === voice.id ? (
+                            <><Pause size={12} className="mr-1" /> Stop</>
+                          ) : (
+                            <><Play size={12} className="mr-1" /> Preview</>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Male Voices Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-blue-400">♂ Kiume (Male Voices)</h4>
+                    <Select value={defaultVoiceMale} onValueChange={setDefaultVoiceMale}>
+                      <SelectTrigger className="w-48 bg-zinc-800 border-zinc-700 text-sm h-8">
+                        <SelectValue placeholder="Select default" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900 border-zinc-800">
+                        {maleVoices.map(v => (
+                          <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {maleVoices.map(voice => (
+                      <div 
+                        key={voice.id} 
+                        className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                          defaultVoiceMale === voice.id 
+                            ? 'bg-blue-500/20 border-blue-500/50' 
+                            : 'bg-zinc-800/50 border-zinc-700 hover:border-blue-500/30'
+                        }`}
+                        onClick={() => setDefaultVoiceMale(voice.id)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              defaultVoiceMale === voice.id ? 'bg-blue-500' : 'bg-zinc-700'
+                            }`}>
+                              <Volume2 size={14} className="text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-white">{voice.name}</p>
+                              <p className="text-xs text-zinc-500">{voice.language}</p>
+                            </div>
+                          </div>
+                          {defaultVoiceMale === voice.id && (
+                            <Check size={16} className="text-blue-400" />
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-400 mb-2">{voice.description}</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full h-7 text-xs ${
+                            previewingVoice === voice.id 
+                              ? 'bg-blue-600 border-blue-600 text-white' 
+                              : 'border-zinc-700'
+                          }`}
+                          onClick={(e) => { e.stopPropagation(); handlePreviewVoice(voice); }}
+                          disabled={previewingVoice && previewingVoice !== voice.id}
+                        >
+                          {previewingVoice === voice.id ? (
+                            <><Pause size={12} className="mr-1" /> Stop</>
+                          ) : (
+                            <><Play size={12} className="mr-1" /> Preview</>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <Button 
+                  onClick={saveVoiceSettings}
+                  disabled={savingVoiceSettings}
+                  className="w-full bg-violet-600 hover:bg-violet-700"
+                >
+                  {savingVoiceSettings ? "Saving..." : "Save Voice Settings"}
+                </Button>
               </CardContent>
             </Card>
           </div>
