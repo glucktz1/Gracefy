@@ -45,6 +45,33 @@ async def get_monetization_types():
     return {"types": MONETIZATION_TYPES}
 
 
+@router.get("/teachings/stats")
+async def get_teachings_stats():
+    """Get teachings statistics"""
+    db = get_db()
+    
+    total_teachings = await db.teachings.count_documents({})
+    total_topics = await db.teaching_topics.count_documents({})
+    total_lessons = await db.teaching_lessons.count_documents({})
+    published = await db.teachings.count_documents({"status": "published"})
+    draft = await db.teachings.count_documents({"status": "draft"})
+    
+    # Category breakdown
+    category_pipeline = [
+        {"$group": {"_id": "$category_id", "count": {"$sum": 1}}}
+    ]
+    category_stats = await db.teachings.aggregate(category_pipeline).to_list(20)
+    
+    return {
+        "total_teachings": total_teachings,
+        "total_topics": total_topics,
+        "total_lessons": total_lessons,
+        "published": published,
+        "draft": draft,
+        "by_category": {item["_id"]: item["count"] for item in category_stats if item["_id"]}
+    }
+
+
 @router.get("/teachings")
 async def get_teachings(
     category: Optional[str] = None,
