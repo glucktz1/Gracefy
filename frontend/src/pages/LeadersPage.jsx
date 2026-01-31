@@ -1,6 +1,6 @@
 import { useEffect, useState, Component } from "react";
 import axios from "axios";
-import { UserCheck, Plus, Edit2, Trash2, MoreVertical, CheckCircle, XCircle, Image, X, Upload } from "lucide-react";
+import { UserCheck, Plus, Edit2, Trash2, MoreVertical, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
