@@ -336,8 +336,9 @@ const AuthCallback = () => {
             if (response.data.user.role === 'admin') {
               navigate("/dashboard", { state: { user: response.data.user }, replace: true });
             } else {
-              // Non-admin users should be redirected to user app
-              navigate("/app", { replace: true });
+              // Non-admin users - redirect to /app with session_id so user app can process it
+              // This ensures the user is also created in app_users collection
+              navigate(`/app#session_id=${sessionId}`, { replace: true });
             }
           }
         } catch (error) {
