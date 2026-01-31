@@ -92,7 +92,7 @@ async def get_verse(book_name: str, chapter: int, verse: int):
     db = get_db()
     
     verse_doc = await db.bible_verses.find_one(
-        {"book": book_name, "chapter": chapter, "verse": verse},
+        {"book_name": book_name, "chapter": chapter, "verse": verse},
         {"_id": 0}
     )
     
@@ -109,7 +109,7 @@ async def get_passage(book_name: str, chapter: int, start_verse: int, end_verse:
     
     verses = await db.bible_verses.find(
         {
-            "book": book_name,
+            "book_name": book_name,
             "chapter": chapter,
             "verse": {"$gte": start_verse, "$lte": end_verse}
         },
