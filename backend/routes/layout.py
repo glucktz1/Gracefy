@@ -143,7 +143,11 @@ async def reorder_sections(data: dict):
     """Reorder sections by updating sort_order"""
     db = get_db()
     
-    section_ids = data.get("section_ids", [])
+    # Support both "section_ids" and "section_order" for compatibility
+    section_ids = data.get("section_ids") or data.get("section_order", [])
+    
+    if not section_ids:
+        raise HTTPException(status_code=400, detail="No section IDs provided")
     
     for index, section_id in enumerate(section_ids):
         await db.layout_sections.update_one(
@@ -152,7 +156,7 @@ async def reorder_sections(data: dict):
         )
     
     await invalidate_home_cache()
-    return {"message": "Sections reordered successfully"}
+    return {"message": "Sections reordered successfully", "updated": len(section_ids)}
 
 
 @router.post("/layout/sections/sync-defaults")
