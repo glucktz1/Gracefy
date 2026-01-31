@@ -1115,18 +1115,20 @@ const BibleView = ({ language, t, onBack }) => {
   // Generate audio for a verse
   const handleReadVerse = async (verse) => {
     setGeneratingAudio(true);
-    console.log("Generating TTS with voice:", selectedVoice); // Debug log
+    console.log("Generating TTS with voice:", selectedVoice, "speed:", playbackSpeed);
     try {
       const res = await axios.post(`${API}/bible/tts/verse`, {
         book_name: selectedBook.name,
         chapter: selectedChapter,
         verse: verse.verse,
         language: language,
-        voice: selectedVoice
+        voice: selectedVoice,
+        speed: playbackSpeed
       });
       
       if (audioElement) audioElement.pause();
       const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      audio.playbackRate = playbackSpeed; // Apply speed to playback as well
       audio.onended = () => setPlayingAudio(null);
       audio.play();
       setAudioElement(audio);
