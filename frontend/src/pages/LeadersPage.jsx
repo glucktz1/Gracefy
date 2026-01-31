@@ -87,10 +87,10 @@ export default function LeadersPage() {
   }, []);
 
   const handleFileUpload = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", file);
     try {
-      const response = await axios.post(`${API}/upload`, formData, {
+      const response = await axios.post(`${API}/upload`, uploadFormData, {
         withCredentials: true,
         headers: { "Content-Type": "multipart/form-data" }
       });
