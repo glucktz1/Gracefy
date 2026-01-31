@@ -2240,7 +2240,7 @@ export default function UserStreamingApp() {
             setUser(res.data.user);
             localStorage.setItem('user_token', res.data.token);
             localStorage.setItem('user_id', res.data.user.user_id);
-            setShowAuthModal(false);
+            setShowAuth(false);
             toast.success(`Welcome, ${res.data.user.name}!`);
           })
           .catch(e => {
