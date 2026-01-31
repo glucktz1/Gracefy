@@ -154,6 +154,18 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-01-31)
 
+### Google Login & Admin Access Fix
+- Fixed: All Google login users were getting admin role
+- Now only `glucktz1904@gmail.com` gets admin role; others get "user" role
+- Updated ProtectedRoute in App.js to redirect non-admin users to /app
+- Updated AuthCallback to route based on user role
+- Fixed existing users in database - 4 users changed from admin to user role
+
+### User Library Fix
+- Fixed: "Cannot read properties of undefined (reading 'song_id')" error
+- Backend now enriches favorites with full item details
+- Frontend adds null checks for `fav.item` in library rendering
+
 ### Thumbnail Display Fix
 - Fixed truncated base64 thumbnails that caused display errors
 - Updated `optimize_thumbnails()` in both `music.py` and `home.py`
@@ -165,13 +177,14 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - Audio streaming now correctly routes to content endpoint
 
 ### Affected Files
+- `/app/backend/routes/auth.py` - Admin role assignment fix
+- `/app/backend/routes/user_library.py` - Enriched favorites in library
+- `/app/frontend/src/App.js` - Role-based routing
+- `/app/frontend/src/pages/LoginPage.jsx` - Admin redirect check
 - `/app/backend/routes/music.py` - optimize_thumbnails function
 - `/app/backend/routes/home.py` - optimize_thumbnails function  
 - `/app/backend/routes/uploads.py` - download endpoint handling
-- `/app/frontend/src/pages/UserStreamingApp.jsx` - getAudioUrl and getImageUrl
-- `/app/frontend/src/pages/AlbumsPage.jsx` - getImageUrl helper
-- `/app/frontend/src/pages/SpecialMixesPage.jsx` - getImageUrl helper
-- `/app/frontend/src/pages/LayoutManagementPage.jsx` - getImageUrl helper
+- `/app/frontend/src/pages/UserStreamingApp.jsx` - getAudioUrl, getImageUrl, library fixes
 
 ## Audio Content Status (Updated 2026-01-31)
 - Total songs: 31
