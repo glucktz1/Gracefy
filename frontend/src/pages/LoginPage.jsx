@@ -16,7 +16,13 @@ export default function LoginPage() {
       try {
         const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
         if (response.data) {
-          navigate("/dashboard", { replace: true });
+          // Check if user has admin role
+          if (response.data.role === 'admin') {
+            navigate("/dashboard", { replace: true });
+          } else {
+            // Non-admin users should be redirected to user app
+            navigate("/app", { replace: true });
+          }
         }
       } catch (error) {
         // Not authenticated, show login
