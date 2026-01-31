@@ -594,7 +594,7 @@ export default function SpecialMixesPage() {
                       >
                         <div className="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center overflow-hidden">
                           {album.album_thumbnail ? (
-                            <img src={album.album_thumbnail} alt="" className="w-full h-full object-cover" />
+                            <img src={getImageUrl(album.album_thumbnail)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <Music size={16} className="text-zinc-600" />
                           )}
