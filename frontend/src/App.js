@@ -58,7 +58,7 @@ const TransactionsPage = lazy(() => import("@/pages/TransactionsPage"));
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
-  UserCheck, Mic2, Video, Radio, Heart, MessageSquare,
+  Mic2, Video, Radio, Heart, MessageSquare,
   CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe,
   ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud, Tags
 } from "lucide-react";
