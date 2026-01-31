@@ -22,181 +22,191 @@ The user wants to build a Christian music streaming mobile app, Gracefy, with a 
     *   Optimize church navigation to open the specific church directly.
     *   Bible player should automatically pause other playing audio.
 
-**User's preferred language**: English (with Swahili terms for UI elements)
+**User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a monolithic FastAPI backend, a React admin panel, and a React Native (Expo) mobile app.
-
-In this session, the agent implemented several features:
-1.  **Bible Screen:** Added a feature to log user's Bible listening history to the database.
-2.  **Leader Content:** Fixed a critical bug where content (series, episodes) from different leaders/containers were getting mixed up. Also fixed the file upload functionality in the admin panel, which was a recurring issue. The backend APIs for  (leader content) were corrected to fetch and display data hierarchically (Container -> Series -> Episodes).
-3.  **Mobile App UX:**
-    *   Added an animated equalizer for playing audio.
-    *   Implemented a  to manage offline songs, highlight already downloaded content, and display downloads on the library screen.
-    *   Reworked the user profile screen to be functional.
-    *   Fixed various navigation issues, including See All buttons and direct navigation to a selected church.
-4.  **Build:** Successfully resolved a missing dependency () and triggered a new EAS build (v1.0.66).
+A full-stack application with a partially refactored FastAPI backend, a React admin panel, and a React Native (Expo) mobile app. A significant amount of work was done in the last session:
+1.  **Payment System**: A full payment flow with Azam Pay (in a test mode) was implemented, including backend endpoints, a mobile checkout screen, and an admin toggle to enable/disable billing.
+2.  **Backend Refactoring & Performance**: The backend refactoring was initiated by moving some endpoints (, , ) into modular routers. Redis was integrated for caching, and database indexes were created, significantly improving performance as verified by load tests.
+3.  **Admin Filter Toggle**: The admin panel was enhanced with a Home Filters tab in the Layout Manager, allowing admins to dynamically control which category filters appear on the mobile app's home screen.
+4.  **Special Mixes Bug Fix**: A bug preventing songs from loading in Special Mixes on the mobile app was fixed, and a new app build () was successfully triggered.
+5.  **Deployment Readiness Check**: The  was called and identified two critical blockers preventing the app from being production-ready.
 
 **Last working item**:
--   **Last item agent was working**: The user requested a comprehensive payment system and other features. The agent began exploration by viewing relevant files (, , backend payment models) and was preparing to integrate Azam Pay.
--   **Status**: NOT STARTED
+-   **Last item agent was working**: The agent was preparing to fix two critical deployment blockers identified by the  tool. The blockers are: 1) Incomplete backend refactoring, with most logic still in the monolithic , and 2) The presence of hardcoded values that should be environment variables.
+-   **Status**: IN PROGRESS
 -   **Agent Testing Done**: N
--   **Which testing method agent to use?**: both. The payment flow requires end-to-end verification. The backend will need testing for the Azam Pay callback and transaction logic. The frontend (web and mobile) will need testing to ensure the checkout UI works correctly.
+-   **Which testing method agent to use?**: backend testing agent. After the extensive refactoring is complete, a full regression test of all backend endpoints is mandatory to ensure no functionality has broken.
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1**: (P0) Continuous background playback fails when the screen is locked or the app is in the background.
+-   Issue 1: (P0) Fix Deployment Blocker: Incomplete Backend Refactoring
+-   Issue 2: (P0) Fix Deployment Blocker: Missing Environment Variables
+-   Issue 3: (P1) Continuous background playback fails
+-   Issue 4: (P2) ObjectId serialization error under load
 
 **Issues Detail:**
--   **Issue 1: Continuous background playback fails when the screen is locked**
-    -   **Attempted fixes**: Previous attempts with  failed.  integration has consistently failed due to complex EAS build errors.
+-   **Issue 1: Fix Deployment Blocker: Incomplete Backend Refactoring**
+    -   **Attempted fixes**: A partial refactor was started, creating , , and . However, the main  file still contains over 10,000 lines of code and the vast majority of endpoints.
     -   **Next debug checklist**:
-        1.  Re-attempt  integration.
-        2.  Systematically investigate build failures by checking version compatibility between , , and .
-        3.  Ensure  is correctly configured for a  build profile to handle native code.
-        4.  Create a minimal reproducible example project with only  to isolate environmental build issues.
-    -   **Why fix this issue and what will be achieved with the fix?**: This is the most critical feature for a music streaming app and the user's most persistent request.
+        1.  Systematically identify logical groups of endpoints remaining in  (e.g., auth, admin, user management, content management).
+        2.  For each group, create a new file in  (e.g., , ).
+        3.  Move the endpoint definitions, their dependencies, and any related helper functions from  to the new router files.
+        4.  Import and include the new routers in the main  file.
+        5.  The goal is to make  primarily an application factory that assembles the routers, middleware, and startup/shutdown events, with minimal business logic.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is a critical blocker for maintainability, scalability, and production readiness. A modular backend is easier to debug, test, and scale.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: backend
+    -   **Blocked on other issue**: NA
+
+-   **Issue 2: Fix Deployment Blocker: Missing Environment Variables**
+    -   **Attempted fixes**: None. This was just identified by the deployment agent.
+    -   **Next debug checklist**:
+        1.  Scan the codebase, particularly , for hardcoded values (e.g., secret keys, default settings, external URLs).
+        2.  Move these values to .
+        3.  Update the code to read these values using .
+        4.  Ensure there are no default values in the code; the app should fail fast if an environment variable is missing.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is a fundamental requirement for secure and flexible production deployments, allowing configuration without code changes.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: backend
+    -   **Blocked on other issue**: NA
+
+-   **Issue 3: Continuous background playback fails**
+    -   **Attempted fixes**: Previous attempts with  and  failed due to complex EAS build errors.
+    -   **Next debug checklist**:
+        1.  Once deployment blockers are resolved, re-attempt  integration.
+        2.  Isolate the problem by creating a minimal reproducible example project with only Expo and  to debug build issues.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is the user's most critical feature request for a music streaming app.
     -   **Status**: BLOCKED
     -   **Is recurring issue?**: Y
     -   **Should Test frontend/backend/both after fix?**: frontend
-    -   **Blocked on other issue**: Blocked on resolving EAS build issues with native modules.
+    -   **Blocked on other issue**: Blocked on completing P0 refactoring tasks and resolving native module build issues.
+
+-   **Issue 4: ObjectId serialization error under load**
+    -   **Attempted fixes**: The issue was observed during load testing but disappeared after a server restart. No specific fix was applied.
+    -   **Next debug checklist**:
+        1.  After refactoring is complete, review all endpoints that return data from MongoDB.
+        2.  Explicitly ensure  fields are either excluded from projections () or converted to strings () before being returned in a JSON response. The  from FastAPI helps but is not foolproof.
+        3.  Re-run load tests specifically designed to trigger this condition.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is a potential time bomb that can cause  responses under production load, leading to an unreliable user experience.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: Y
+    -   **Should Test frontend/backend/both after fix?**: backend
+    -   **Blocked on other issue**: NA
 
 **In progress Task List**:
--   **Task 1: Implement Payment System and Checkout Flow (P0)**
-    -   **Where to resume**: The agent was gathering context and received Azam Pay credentials. The next step is to call  for Azam Pay integration.
-    -   **What will be achieved with this?**: A full billing and subscription system, enabling monetization.
+-   **Task 1: Complete Backend Refactoring (P0)**
+    -   **Where to resume**: Continue moving endpoint logic from  into new, modular files within the  directory.
+    -   **What will be achieved with this?**: A clean, maintainable, and scalable backend architecture, resolving a critical deployment blocker.
     -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: both
+    -   **Should Test frontend/backend/both after fix?**: backend
     -   **Blocked on something**: NA
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
-*   **(P0) Admin Filter Toggle**: Implement functionality in the Layout Manager for admins to toggle homepage content filters (e.g., Christmas Songs, Mafundisho).
-*   **(P1) Animated Splash Screen**: Design and implement an animated splash screen for the mobile app.
-*   **(P1) Fix Nyimbo za Kwaresma Thumbnails**: Investigate and fix why thumbnails are not appearing for this section on the home screen. The agent made a fix, but it should be verified.
-*   **(P2) PWA Feature Parity**: Add a Play All button and review repeat logic for the web app (PWA).
+*   (P1) Animated Splash Screen: Design and implement an animated splash screen for the mobile app.
+*   (P1) Fix Nyimbo za Kwaresma Thumbnails: Verify if thumbnails for this section are now appearing correctly after recent changes.
+*   (P2) PWA Feature Parity: Add a Play All button and review repeat logic for the web app (PWA).
 
 **Future Tasks:**
-*   Backend Refactoring: Break down the monolithic  into smaller FastAPI routers.
 *   Admin Controls: Enforce daily song limits and device limits for free users.
 *   Live Audio/Video: Integrate a platform like Agora or 100ms for live rooms and classes.
 *   Remove unused Supabase integration code.
 
 **Completed work in this session**
--   **Bible Listening History**: Implemented a backend endpoint () and updated the mobile  to track what passages users listen to.
--   **Leader Content System Fixed**:
-    -   Resolved data integrity issue where episodes were incorrectly linked to the wrong content container. Wrote a script to fix existing data in the DB.
-    -   Fixed the frontend file upload UI in  by using  to handle click events, resolving a long-standing bug.
-    -   Verified all associated backend endpoints (, thumbnail/audio uploads) are working correctly via  and the .
--   **Mobile App UX Overhaul**:
-    -   **Downloads**: Created a  to manage downloads. The UI now indicates downloaded songs, prevents re-downloads, and lists them correctly in the Library.
-    -   **Audio Playback**: Added an animated equalizer component that appears on song cards and the mini-player when audio is playing.
-    -   **Profile Screen**: Rewrote  to be functional, pulling real user data.
-    -   **Navigation**:
-        - Created a generic  and linked all Ona Zote (See All) buttons on the  to it.
-        - Fixed  to navigate directly to a specific church when passed as a parameter.
--   **EAS Build Success**:
-    -   Identified and installed a missing dependency () that was causing build failures.
-    -   Successfully triggered and monitored an EAS build for , providing the user with the APK link.
+-   **Payment System Implemented**: Integrated Azam Pay with a test mode, created a mobile checkout flow, and added an admin toggle for billing.
+-   **Backend Performance Overhaul**: Initiated modular refactoring, integrated Redis for high-performance caching, and created database indexes to speed up queries.
+-   **Admin Home Filter Control**: Implemented a new UI in the admin panel to dynamically manage filters on the mobile home screen.
+-   **Special Mixes Bug Fixed**: Corrected an API call in the mobile app and triggered a new build () to resolve an issue where songs were not loading in mixes.
+-   **Load Testing Performed**: Conducted extensive load tests, identified and adjusted a restrictive rate limit, and benchmarked performance improvements from caching.
+-   **Auto-Scaling and Redis Integration**: Implemented a conceptual auto-scaling mechanism and fully integrated Redis as the primary caching service.
 
 **Earlier issues found/mentioned but not fixed**
--   PWA Play All Button not implemented.
--   PWA Repeat Logic has not been reviewed.
--   Supabase integration code has not been removed.
+-   **ObjectId serialization error**: An issue causing  was discovered during load tests. It was not definitively fixed and poses a risk for production stability.
 
 **Known issue recurrence from previous fork**
--   The critical background audio playback issue (Issue #1) remains unresolved and is the primary blocker for core functionality.
+-   The critical background audio playback issue remains unresolved and is the primary blocker for core functionality.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-*   **Expo FileSystem**: Used for downloading and storing audio files locally on the device.
-*   **React Context API**: Used to create  for global state management of downloaded tracks.
-*   **React **: Used to fix a tricky file input bug in the React admin panel by programmatically triggering the file input's click event.
-*   **EAS Build Debugging**: Diagnosed a build failure by inspecting dependencies and finding a missing package.
-*   **Backend Data Integrity**: Identified and fixed a logical flaw in the episode creation endpoint that was causing data corruption. Wrote a migration script to clean up existing incorrect data.
+*   **Backend Refactoring**: The process of breaking down a monolithic FastAPI application () into modular, self-contained  files for improved maintainability.
+*   **Redis Caching**: Replaced a basic in-memory dictionary cache with a robust  integration for a high-performance, shared cache that persists across worker restarts.
+*   **Load Testing**: Using tools like  and  to simulate high user traffic, identify performance bottlenecks (like rate limiting), and validate the impact of optimizations.
+*   **Asynchronous Tasks**: Using  to run background jobs (like traffic monitoring) without blocking the main application event loop.
+*   **Deployment Readiness**: Using automated checks () to identify critical issues (like incomplete refactoring and hardcoded secrets) that block a production deployment.
 
 **key DB schema**
--   **bible_listening_history**: New collection to track user's Bible listening activity.
--   **content_episodes**: Schema is unchanged, but the agent fixed a logical error where  was being saved incorrectly.
--   **transactions**: An existing model that will be used for the new payment system.
+-   No new collections were added. Work focused on optimizing existing data access patterns by creating comprehensive indexes across 68 collections via the  script.
 
 **All files of reference**
-*    (New)
-*    (New)
-*    (Updated)
-*    (Updated)
-*    (Updated)
-*    (Updated)
-*    (Updated)
-*    (Updated)
+*    (The main file being refactored)
+*    (The directory for new modular routers)
+*    (New Redis integration)
+*    (New auto-scaling logic)
+*    (Admin UI for home filters)
+*    (New mobile payment screen)
+*    (New deployment guide)
 
 **Areas that need refactoring**:
-*   ****: This monolithic file is over 13,000 lines long and urgently needs to be broken down into logical FastAPI routers to improve maintainability.
+*   ****: This is the highest priority. The file is over 13,000 lines and must be fully broken down into the modular structure started in . This is a deployment blocker.
 
 **key api endpoints**
-*    (POST): New endpoint to log bible listening events.
-*    (GET): Fixed to return correct hierarchical data.
-*    (GET): Fixed to return correct series and episodes for a given container.
-*    (POST): Verified working.
-*    (POST): Verified working.
-*    (POST): Fixed to prevent data corruption by deriving  from the .
+*   **/api/payment/azampay/initiate** (POST): Starts an Azam Pay transaction.
+*   **/api/layout/home-filters** (GET/PUT): Manages the visibility of category filters on the mobile home screen.
+*   **/api/admin/cache-stats** (GET): Provides real-time stats for the Redis cache.
+*   **/api/admin/autoscaling-status** (GET): Shows the status of the auto-scaling monitor.
 
 **Critical Info for New Agent**
-*   **Payment System is the Top Priority**: The user's latest request is a large one focusing on implementing a full payment system with Azam Pay. You have the credentials. Start by using the  for Azam Pay.
-*   **Background Audio is Still Broken**: This is the P0 bug. Do not attempt  workarounds. The only solution is , which requires careful debugging of the EAS build process.
-*   **A New APK is Available**: A build () containing all the latest UI/UX fixes was successfully completed. The user can test these features using the provided APK link: 
+*   **Fix Deployment Blockers First**: Your absolute top priority is to address the two blockers found by the deployment agent:
+    1.  **Complete the backend refactoring:** Systematically move all remaining endpoint logic from  into modular routers within the  directory. The goal is a clean, maintainable .
+    2.  **Externalize Configurations:** Hunt for any hardcoded values in the backend and move them to the  file. The app should not have secrets or environment-specific configs in the code.
+*   **Backend is in a Hybrid State**: Be aware that the backend is currently a mix of old monolithic code and new modular routers. All new work should follow the modular pattern, and the primary goal is to finish the migration.
+*   **Redis is the Source of Truth for Cache**: The backend now uses Redis for all caching. The previous in-memory cache solution is obsolete.
 
 **documents and test reports created in this job**
-*    (updated multiple times)
-*    (from testing leader content backend)
+*    (updated)
+*    (new)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **now lets build apk for testing**: User requested an APK build.
-2.  **I had already provided token before...**: User reminded agent about a previously provided Expo token.
-3.  **I have created new token...**: User provided a new Expo token.
-4.  **Lets fix few thing in the leaders content...**: User reported a critical data mixing issue where episodes from different series/leaders were being mixed up. (RESOLVED)
-5.  **The app is almost ready, in the native app...**: User provided a list of UI/UX improvements: bold download button, pause music when bible plays, fix church navigation, add See All pages, and enable shuffle/repeat. (RESOLVED, new build triggered)
-6.  **Lets develope the following and ensure they are functional...**: User initiated the next major task: implement a full payment system with Azam Pay, admin filter toggles, and an animated splash screen. (IN PROGRESS)
-7.  **Azam pay Call back URL...**: User provided credentials and details for the Azam Pay integration.
-8.  **Create annimated beautful splash screen**: User reiterated the request for a splash screen.
+1.  **how to add redis**: User requested Redis integration. (Completed)
+2.  **check and test redis if its correctly deployed for app and web**: User asked for verification of Redis setup. (Completed)
+3.  **Call Deployer Agent and Run Health Check to Check for Readiness for Deployment**: User initiated deployment readiness check. (Completed, 2 blockers found)
+4.  **Pending agent action**: The agent was about to begin fixing the two deployment blockers (incomplete refactoring, hardcoded values). No explicit response is pending from the user.
 
 **Project Health Check:**
-*   **Broken:** The core feature of continuous background audio playback remains non-functional and is a critical blocker.
-*   **Mocked:** No features are currently mocked.
-*   **At Risk:**
-    *   The mobile app build process is fragile, specifically when native modules like  are involved.
-    *   The monolithic  backend is a significant technical debt.
+*   **Broken:** Core background audio playback functionality.
+*   **At Risk:** The backend is in a fragile, partially refactored state. Completing the refactoring is critical to stabilize the system and unblock future development. This is a major technical debt.
 
 **3rd Party Integrations**
+*   **Redis**: Newly integrated for caching.
+*   **Azam Pay**: Integrated for payments (in test mode).
 *   **Bunny CDN**: Media storage.
 *   **FFmpeg**: Audio processing.
 *   **Google Cloud TTS**: Bible audio generation.
 *   **Expo Application Services (EAS)**: Mobile app cloud builds.
 *   **Emergent-managed Google Auth**: Used for Google login.
-*   **Azam Pay**: **Pending integration**. Required for the new payment system.
-*   ****: Not currently integrated, but it is the required solution for the main P0 bug.
 
 **Testing status**
--   Testing agent used after significant changes: YES. Used for backend leader content endpoints, results in .
+-   Testing agent used after significant changes: NO (Deployment agent was used instead, which is a form of check).
 -   Troubleshoot agent used after agent stuck in loop: NO
 -   Test files created: None
--   Known regressions: None.
+-   Known regressions: None identified, but the risk is high due to the partial refactoring.
 
 **Credentials to test flow:**
-*   **Choir Portal:**
+*   **Admin/Choir Portal:**
     *   URL: 
     *   Email: 
     *   Password: 
-*   **Expo Account:**
-    *   Account Name: 
-    *   Token: 
-*   **Azam Pay (for integration):**
-    *   Callback URL: 
-    *   Client ID: 
-    *   Client Secret Key: 
-    *   Token: 
+*   **Azam Pay (Test Credentials are in ):**
+    *   
+    *   
+    *   
+    *   
 
 **What agent forgot to execute**
-The agent has a new, large set of tasks from the user's last message. Nothing has been forgotten yet, as work on this new set has just commenced. The agent correctly identified the first step is to handle the Azam Pay integration.</analysis>
+-   The agent did not create a definitive fix for the  serialization error discovered during load testing. This remains a potential point of failure.
+-   The agent correctly identified the two deployment blockers but has not yet started implementing the fixes.</analysis>
