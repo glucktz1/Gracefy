@@ -155,12 +155,42 @@ async def get_user_library(request: Request):
     # Get downloads (from user record)
     downloads = user.get("downloads", [])
     
+    # Enrich favorites with item details
+    raw_favorites = user.get("favorites", [])
+    enriched_favorites = []
+    for fav in raw_favorites:
+        item_type = fav.get("type", "song")
+        item_id = fav.get("id")
+        
+        if item_type == "song":
+            item = await db.songs.find_one({"song_id": item_id}, {"_id": 0})
+            if item:
+                # Get album info for the song
+                album = await db.albums.find_one(
+                    {"album_id": item.get("album_id")}, 
+                    {"_id": 0, "thumbnail": 1, "title": 1, "artist_name": 1}
+                )
+                enriched_favorites.append({
+                    "type": item_type,
+                    "id": item_id,
+                    "item": item,
+                    "album": album
+                })
+        elif item_type == "album":
+            item = await db.albums.find_one({"album_id": item_id}, {"_id": 0})
+            if item:
+                enriched_favorites.append({
+                    "type": item_type,
+                    "id": item_id,
+                    "item": item
+                })
+    
     return {
         "playlists": playlists,
         "liked_songs": liked_songs,
         "recently_played": history,
         "downloads": downloads,
-        "favorites": user.get("favorites", [])
+        "favorites": enriched_favorites
     }
 
 
