@@ -3,7 +3,7 @@ import axios from "axios";
 import { 
   BookOpen, Plus, Trash2, Edit2, Play, Pause, Download, RefreshCw,
   Volume2, Settings, BarChart3, Clock, TrendingUp, Search, ChevronRight,
-  Mic2, BookMarked, Languages, AlertCircle, Check, X
+  Mic2, BookMarked, Languages, AlertCircle, Check, X, Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
 
 export default function BibleManagementPage() {
   const [activeTab, setActiveTab] = useState("snippets");
