@@ -230,13 +230,14 @@ function LeadersPageContent() {
   };
 
   const getTitleBadge = (title) => {
+    const safeTitle = String(title || 'unknown');
     const styles = {
       pastor: "badge-violet",
       priest: "badge-info",
       catechist: "badge-warning",
       bishop: "badge-success"
     };
-    return <span className={`badge ${styles[title] || "badge-info"}`}>{title}</span>;
+    return <span className={`badge ${styles[safeTitle] || "badge-info"}`}>{safeTitle}</span>;
   };
 
   return (
