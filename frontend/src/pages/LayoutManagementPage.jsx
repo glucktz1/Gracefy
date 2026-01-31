@@ -2735,7 +2735,7 @@ export default function LayoutManagementPage() {
                         data-type="special_mixes"
                       />
                       {mix.thumbnail ? (
-                        <img src={mix.thumbnail} alt="" className="w-10 h-10 rounded object-cover" />
+                        <img src={getImageUrl(mix.thumbnail)} alt="" className="w-10 h-10 rounded object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded bg-pink-600/20 flex items-center justify-center">
                           <Disc size={16} className="text-pink-400" />
