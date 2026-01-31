@@ -67,11 +67,16 @@ export default function LeadersPage() {
         axios.get(`${API}/leaders`, { withCredentials: true }),
         axios.get(`${API}/churches`, { withCredentials: true })
       ]);
-      setLeaders(leadersRes.data.leaders || []);
-      setChurches(churchesRes.data.churches || []);
+      // Ensure we always set arrays, never error objects
+      const leadersData = leadersRes.data?.leaders;
+      const churchesData = churchesRes.data?.churches;
+      setLeaders(Array.isArray(leadersData) ? leadersData : []);
+      setChurches(Array.isArray(churchesData) ? churchesData : []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load leaders");
+      setLeaders([]);
+      setChurches([]);
     } finally {
       setLoading(false);
     }
