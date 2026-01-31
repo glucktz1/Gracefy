@@ -388,9 +388,13 @@ export default function LeadersPage() {
               <div className="form-group">
                 <label className="form-label">Church/Parish</label>
                 <Select 
-                  value={formData.church_id} 
+                  value={formData.church_id || "none"} 
                   onValueChange={(value) => {
-                    const church = churches.find(c => c.church_id === value);
+                    if (value === "none") {
+                      setFormData({ ...formData, church_id: "", church_name: "" });
+                      return;
+                    }
+                    const church = churches.find(c => c && c.church_id === value);
                     setFormData({ 
                       ...formData, 
                       church_id: value,
@@ -403,11 +407,17 @@ export default function LeadersPage() {
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
                     <SelectItem value="none">No church</SelectItem>
-                    {churches && churches.map(church => (
-                      <SelectItem key={church.church_id} value={church.church_id || 'unknown'}>
-                        {church.name || 'Unnamed Church'}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(churches) && churches.map(church => {
+                      // Skip invalid church objects
+                      if (!church || typeof church !== 'object' || !church.church_id) {
+                        return null;
+                      }
+                      return (
+                        <SelectItem key={church.church_id} value={String(church.church_id)}>
+                          {String(church.name || 'Unnamed Church')}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
