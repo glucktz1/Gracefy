@@ -151,15 +151,20 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     async def health_check():
         """Health check endpoint for monitoring"""
-        redis_status = await redis_cache.ping()
-        traffic_stats = await traffic_monitor.get_stats() if traffic_monitor else {}
+        redis_status = redis_cache._connected
+        traffic_stats = {}
+        if traffic_monitor:
+            try:
+                traffic_stats = await traffic_monitor.get_stats()
+            except:
+                pass
         
         return {
             "status": "healthy",
             "redis_connected": redis_status,
             "cache_type": "redis" if redis_status else "memory",
-            "traffic_level": traffic_stats.get("traffic_level", "unknown"),
-            "requests_per_minute": traffic_stats.get("requests_per_minute", 0)
+            "traffic_level": traffic_stats.traffic_level if hasattr(traffic_stats, 'traffic_level') else "unknown",
+            "requests_per_minute": traffic_stats.requests_per_minute if hasattr(traffic_stats, 'requests_per_minute') else 0
         }
     
     return app
