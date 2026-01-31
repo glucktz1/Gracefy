@@ -70,7 +70,7 @@ const getImageUrl = (imageUrl) => {
   return imageUrl;
 };
 
-export default function LeadersPage() {
+function LeadersPageContent() {
   const [leaders, setLeaders] = useState([]);
   const [churches, setChurches] = useState([]);
   const [loading, setLoading] = useState(true);
