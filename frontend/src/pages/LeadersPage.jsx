@@ -279,6 +279,7 @@ function LeadersPageContent() {
               console.error('Invalid leader object:', leader);
               return null;
             }
+            const leaderName = String(leader.name || 'Unknown');
             return (
             <Card 
               key={leader.leader_id}
@@ -289,15 +290,15 @@ function LeadersPageContent() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     {leader.photo ? (
-                      <img src={getImageUrl(leader.photo)} alt="" className="w-14 h-14 rounded-full object-cover" />
+                      <img src={getImageUrl(leader.photo)} alt="" className="w-14 h-14 rounded-full object-cover" onError={(e) => e.target.style.display = 'none'} />
                     ) : (
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center text-white text-xl font-bold">
-                        {leader.name.charAt(0)}
+                        {leaderName.charAt(0)}
                       </div>
                     )}
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-white">{leader.name}</h3>
+                        <h3 className="font-semibold text-white">{leaderName}</h3>
                         {leader.is_verified && (
                           <CheckCircle size={16} className="text-emerald-400" />
                         )}
