@@ -427,82 +427,23 @@ function LeadersPageContent() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Photo</label>
-                <div className="flex gap-2">
-                  <label className="flex-1 cursor-pointer">
-                    <div className="border-2 border-dashed border-zinc-700 rounded-lg p-4 text-center hover:border-violet-500 transition-colors">
-                      {photoFile ? (
-                        <div className="flex items-center justify-center gap-2 text-zinc-300">
-                          <Image size={20} />
-                          <span className="text-sm truncate">{String(photoFile?.name || 'Selected file')}</span>
-                          <button 
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPhotoFile(null); }}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ) : formData.photo ? (
-                        <div className="flex items-center justify-center gap-2 text-zinc-300">
-                          <CheckCircle size={16} className="text-green-500" />
-                          <span className="text-sm">Photo set</span>
-                        </div>
-                      ) : (
-                        <div className="text-zinc-500">
-                          <Upload size={24} className="mx-auto mb-1" />
-                          <p className="text-xs">Click to upload photo</p>
-                        </div>
-                      )}
-                    </div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => {
-                        try {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            console.log("File selected:", file.name, file.type, file.size);
-                            setPhotoFile(file);
-                            setFormData(prev => ({ ...prev, photo: "" }));
-                          }
-                        } catch (err) {
-                          console.error("File selection error:", err);
-                        }
-                      }}
+                <label className="form-label">Photo URL</label>
+                <Input
+                  value={formData.photo}
+                  onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800 text-white"
+                  placeholder="https://example.com/photo.jpg"
+                />
+                {formData.photo && (
+                  <div className="mt-2 w-16 h-16 rounded-lg bg-zinc-800 overflow-hidden">
+                    <img 
+                      src={getImageUrl(formData.photo)} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
-                  </label>
-                  {photoFile && (
-                    <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
-                      {(() => {
-                        try {
-                          return (
-                            <img 
-                              src={URL.createObjectURL(photoFile)} 
-                              alt="Preview" 
-                              className="w-full h-full object-cover"
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          );
-                        } catch (err) {
-                          console.error("Image preview error:", err);
-                          return <div className="w-full h-full flex items-center justify-center text-xs text-zinc-500">Preview error</div>;
-                        }
-                      })()}
-                    </div>
-                  )}
-                  {!photoFile && formData.photo && (
-                    <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
-                      <img 
-                        src={getImageUrl(formData.photo)} 
-                        alt="Preview" 
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
