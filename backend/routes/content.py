@@ -569,9 +569,9 @@ async def get_special_mixes():
         elif not mix.get("name") and mix.get("title"):
             mix["name"] = mix["title"]
         
-        # Calculate total duration from songs
+        # Calculate total duration from songs (handle None values)
         songs = mix.get("songs", [])
-        total_duration = sum(s.get("duration", 0) for s in songs if s)
+        total_duration = sum((s.get("duration") or 0) for s in songs if s)
         mix["total_duration"] = total_duration
     
     return {"mixes": mixes}
