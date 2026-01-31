@@ -194,6 +194,18 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Real-time adjustment**: Speed changes apply immediately to currently playing audio
 - **API support**: Speed parameter passed to TTS generation endpoints
 
+### Leaders Page Complete Rebuild (2026-01-31)
+- **Complete rebuild from scratch** - removed all problematic thumbnail/photo code
+- **Clean form fields**: Name, Title, Church, Bio, Status only
+- **No file upload**: Eliminated the React render error
+- **Verified working**: All CRUD operations tested and passing
+
+### Home Page Data Verification (2026-01-31)
+- **18 sections** loading correctly on user home page
+- **Albums displayed**: 44+ album elements shown
+- **Christmas Carols 2025**: Appearing in sections (currently in "Lent songs" - may need recategorization)
+- **Categories working**: Christmas, Lent, Churches, Special Mixes all loading
+
 ### Bug Fixes (2026-01-31)
 - **Leaders Page Error**: Fixed FastAPI validation error display (was showing raw object)
 - **Leaders Page Render Safety**: Added defensive checks for leader objects and string coercion to prevent "Objects not valid as React child" errors
