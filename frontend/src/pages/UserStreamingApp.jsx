@@ -1180,10 +1180,36 @@ const BibleView = ({ language, t, onBack }) => {
   if (!selectedBook && !showRangeReader) {
     return (
       <div className="space-y-6 p-4">
-        <h1 className="text-2xl font-bold flex items-center gap-3">
-          <BookOpen className="text-amber-500" />
-          {t('bible.title', 'Biblia na Vitabu vya Dini')}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold flex items-center gap-3">
+            <BookOpen className="text-amber-500" />
+            {t('bible.title', 'Biblia na Vitabu vya Dini')}
+          </h1>
+          
+          {/* Voice Selector */}
+          {availableVoices.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Volume2 size={16} className="text-zinc-400" />
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                data-testid="voice-selector"
+              >
+                <optgroup label="Kike (Female)">
+                  {availableVoices.filter(v => v.gender === 'female').map(voice => (
+                    <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Kiume (Male)">
+                  {availableVoices.filter(v => v.gender === 'male').map(voice => (
+                    <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          )}
+        </div>
 
         {/* Quick Actions */}
         <div className="flex gap-3">
