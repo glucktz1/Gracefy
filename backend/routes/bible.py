@@ -8,12 +8,17 @@ from datetime import datetime, timezone
 from typing import Optional
 import uuid
 import logging
+import os
+import base64
 
 from core.database import get_db
 from core.cache import cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["bible"])
+
+# TTS Configuration
+TTS_API_KEY = os.environ.get("EMERGENT_LLM_KEY") or os.environ.get("OPENAI_API_KEY")
 
 
 # ============== BIBLE CONTENT ==============
