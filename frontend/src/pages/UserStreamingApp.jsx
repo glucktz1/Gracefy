@@ -3126,7 +3126,7 @@ export default function UserStreamingApp() {
               </div>
 
               {/* Liked Songs Section */}
-              {(libraryTab === 'all' || libraryTab === 'liked') && library.favorites?.filter(f => f.type === 'song').length > 0 && (
+              {(libraryTab === 'all' || libraryTab === 'liked') && library.favorites?.filter(f => f.type === 'song' && f.item).length > 0 && (
                 <section className="bg-gradient-to-br from-violet-900/30 to-fuchsia-900/20 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
