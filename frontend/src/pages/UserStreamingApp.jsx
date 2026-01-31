@@ -1114,6 +1114,7 @@ const BibleView = ({ language, t, onBack }) => {
   // Generate audio for a verse
   const handleReadVerse = async (verse) => {
     setGeneratingAudio(true);
+    console.log("Generating TTS with voice:", selectedVoice); // Debug log
     try {
       const res = await axios.post(`${API}/bible/tts/verse`, {
         book_name: selectedBook.name,
