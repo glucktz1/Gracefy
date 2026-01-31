@@ -280,6 +280,55 @@ async def get_tts_cache_stats():
     }
 
 
+@router.get("/admin/bible/tts-cache")
+async def get_admin_tts_cache():
+    """Get TTS cache entries for admin view"""
+    db = get_db()
+    
+    # Get cache entries (limit to 100, sorted by newest first)
+    cache_entries = await db.bible_tts_cache.find(
+        {},
+        {"_id": 0, "cache_key": 1, "text": 1, "voice": 1, "size_bytes": 1, "created_at": 1, "audio_base64": 1}
+    ).sort("created_at", -1).limit(100).to_list(100)
+    
+    # Calculate stats
+    total_cached = await db.bible_tts_cache.count_documents({})
+    total_size_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$size_bytes"}}}]
+    size_result = await db.bible_tts_cache.aggregate(total_size_pipeline).to_list(1)
+    total_size = size_result[0]["total"] if size_result else 0
+    
+    return {
+        "cache": cache_entries,
+        "stats": {
+            "total": total_cached,
+            "size_mb": round(total_size / (1024 * 1024), 2)
+        }
+    }
+
+
+@router.delete("/admin/bible/tts-cache/{cache_key:path}")
+async def delete_tts_cache_entry(cache_key: str):
+    """Delete a specific TTS cache entry"""
+    db = get_db()
+    
+    result = await db.bible_tts_cache.delete_one({"cache_key": cache_key})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cache entry not found")
+    
+    return {"message": "Cache entry deleted"}
+
+
+@router.delete("/admin/bible/tts-cache")
+async def clear_all_tts_cache():
+    """Clear all TTS cache entries"""
+    db = get_db()
+    
+    result = await db.bible_tts_cache.delete_many({})
+    
+    return {"message": f"Cleared {result.deleted_count} cache entries"}
+
+
 @router.post("/bible/tts/generate")
 async def generate_tts_endpoint(data: dict):
     """Generate TTS for text"""
