@@ -655,8 +655,42 @@ async def update_special_mix(mix_id: str, data: dict):
     data.pop("_id", None)
     data.pop("mix_id", None)
     
-    if "song_ids" in data:
+    # Handle songs array if provided
+    songs_data = data.get("songs", [])
+    if songs_data:
+        song_ids = []
+        songs_list = []
+        
+        for song in songs_data:
+            if isinstance(song, dict):
+                song_id = song.get("song_id")
+                if song_id:
+                    song_ids.append(song_id)
+                    songs_list.append({
+                        "song_id": song.get("song_id"),
+                        "title": song.get("title"),
+                        "album_id": song.get("album_id"),
+                        "album_title": song.get("album_title"),
+                        "artist_name": song.get("artist_name"),
+                        "duration": song.get("duration"),
+                        "duration_formatted": song.get("duration_formatted"),
+                        "audio_url": song.get("audio_url"),
+                        "order": song.get("order", 0)
+                    })
+            elif isinstance(song, str):
+                song_ids.append(song)
+        
+        data["song_ids"] = song_ids
+        data["songs"] = songs_list
+        data["songs_count"] = len(song_ids)
+    elif "song_ids" in data:
         data["songs_count"] = len(data["song_ids"])
+    
+    # Handle title/name field mapping
+    if data.get("title") and not data.get("name"):
+        data["name"] = data["title"]
+    elif data.get("name") and not data.get("title"):
+        data["title"] = data["name"]
     
     result = await db.special_mixes.update_one(
         {"mix_id": mix_id},
