@@ -514,7 +514,9 @@ async def get_bible_settings():
     if not settings:
         settings = {
             "settings_id": "main",
-            "default_voice": "sw-KE-Female",
+            "default_voice": "sw-KE-Zuri-Female",
+            "default_voice_male": "sw-KE-Rafiki-Male",
+            "default_voice_female": "sw-KE-Zuri-Female",
             "auto_play_enabled": True,
             "daily_prompt_enabled": True,
             "prompt_interval_hours": 24
