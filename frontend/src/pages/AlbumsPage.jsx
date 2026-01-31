@@ -60,7 +60,7 @@ export default function AlbumsPage() {
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
   const [isSongModalOpen, setIsSongModalOpen] = useState(false);
   const [isBulkSongModalOpen, setIsBulkSongModalOpen] = useState(false);
-  const [editingAlbum, setEditingAlbum] = useState(null);
+  const [editingAlbum, setEditingAlbum] = useState(false);
   const [editingSong, setEditingSong] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [audioFiles, setAudioFiles] = useState([]);
@@ -68,6 +68,11 @@ export default function AlbumsPage() {
   const [selectedSongIds, setSelectedSongIds] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   
   const [albumFormData, setAlbumFormData] = useState({
     title: "",
