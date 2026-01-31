@@ -160,6 +160,8 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - Updated ProtectedRoute in App.js to redirect non-admin users to /app
 - Updated AuthCallback to route based on user role
 - Fixed existing users in database - 4 users changed from admin to user role
+- **Fixed Google OAuth flow**: App.js now only intercepts OAuth for admin routes, not `/app`
+- Non-admin users logging in via admin page are redirected to `/app#session_id=...` for proper auth
 
 ### User Library Fix
 - Fixed: "Cannot read properties of undefined (reading 'song_id')" error
