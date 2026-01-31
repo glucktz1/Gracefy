@@ -245,7 +245,13 @@ export default function LeadersPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {leaders.map((leader) => (
+          {leaders.map((leader) => {
+            // Safety check - ensure leader is an object with expected properties
+            if (!leader || typeof leader !== 'object' || !leader.leader_id) {
+              console.error('Invalid leader object:', leader);
+              return null;
+            }
+            return (
             <Card 
               key={leader.leader_id}
               className="bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 transition-all duration-300"
