@@ -455,8 +455,8 @@ export default function LeadersPage() {
               <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="border-zinc-700 text-zinc-300">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-violet-600 hover:bg-violet-700" data-testid="save-leader-btn">
-                {editingLeader ? "Update" : "Create"}
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-700" disabled={isUploading} data-testid="save-leader-btn">
+                {isUploading ? "Saving..." : editingLeader ? "Update" : "Create"}
               </Button>
             </DialogFooter>
           </form>
