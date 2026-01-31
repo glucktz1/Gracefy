@@ -58,18 +58,6 @@ class ErrorBoundary extends Component {
   }
 }
 
-// Helper function to get proper image URL
-const getImageUrl = (imageUrl) => {
-  if (!imageUrl) return null;
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-  if (imageUrl.startsWith('data:')) return imageUrl;
-  if (imageUrl.startsWith('/api/files/') && !imageUrl.endsWith('/stream')) {
-    return `${BACKEND_URL}${imageUrl}/stream`;
-  }
-  if (imageUrl.startsWith('/')) return `${BACKEND_URL}${imageUrl}`;
-  return imageUrl;
-};
-
 function LeadersPageContent() {
   const [leaders, setLeaders] = useState([]);
   const [churches, setChurches] = useState([]);
