@@ -235,7 +235,17 @@ export default function BibleManagementPage() {
   useEffect(() => {
     if (snippetForm.book_name) {
       axios.get(`${API}/bible/books/${snippetForm.book_name}/chapters?language=${snippetForm.language}`)
-        .then(res => setChapters(res.data.chapters || []))
+        .then(res => {
+          // API returns chapter count as number, convert to array [1, 2, 3, ...]
+          const chaptersData = res.data.chapters;
+          if (typeof chaptersData === 'number') {
+            setChapters(Array.from({ length: chaptersData }, (_, i) => i + 1));
+          } else if (Array.isArray(chaptersData)) {
+            setChapters(chaptersData);
+          } else {
+            setChapters([]);
+          }
+        })
         .catch(() => setChapters([]));
     }
   }, [snippetForm.book_name, snippetForm.language]);
