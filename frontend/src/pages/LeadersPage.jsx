@@ -48,6 +48,8 @@ export default function LeadersPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLeader, setEditingLeader] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     title: "priest",
