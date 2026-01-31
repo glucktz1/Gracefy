@@ -554,3 +554,12 @@ export default function LeadersPage() {
     </div>
   );
 }
+
+// Wrap with ErrorBoundary for better error handling
+export default function LeadersPageWrapper() {
+  return (
+    <ErrorBoundary>
+      <LeadersPageContent />
+    </ErrorBoundary>
+  );
+}
