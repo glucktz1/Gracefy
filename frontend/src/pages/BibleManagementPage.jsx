@@ -147,6 +147,70 @@ export default function BibleManagementPage() {
     }
   };
 
+  // Preview a TTS voice
+  const handlePreviewVoice = async (voice) => {
+    // Stop any currently playing preview
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.currentTime = 0;
+    }
+    
+    if (previewingVoice === voice.id) {
+      setPreviewingVoice(null);
+      setPreviewAudio(null);
+      return;
+    }
+    
+    setPreviewingVoice(voice.id);
+    
+    try {
+      const res = await axios.post(`${API}/bible/tts/preview`, {
+        voice_id: voice.id,
+        text: voice.sample_text
+      });
+      
+      if (res.data.audio_base64) {
+        const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+        audio.onended = () => {
+          setPreviewingVoice(null);
+          setPreviewAudio(null);
+        };
+        audio.onerror = () => {
+          toast.error("Failed to play audio preview");
+          setPreviewingVoice(null);
+        };
+        await audio.play();
+        setPreviewAudio(audio);
+      } else {
+        toast.info(res.data.message || "TTS preview not available");
+        setPreviewingVoice(null);
+      }
+    } catch (e) {
+      console.error("Error previewing voice:", e);
+      toast.error("Failed to preview voice");
+      setPreviewingVoice(null);
+    }
+  };
+
+  // Save default voice settings
+  const saveVoiceSettings = async () => {
+    setSavingVoiceSettings(true);
+    try {
+      await axios.put(`${API}/admin/bible/settings`, {
+        ...listeningSettings,
+        default_voice_male: defaultVoiceMale,
+        default_voice_female: defaultVoiceFemale,
+        default_voice: defaultVoiceFemale || defaultVoiceMale // Primary default
+      });
+      toast.success("Voice settings saved successfully");
+    } catch (e) {
+      console.error("Error saving voice settings:", e);
+      toast.error("Failed to save voice settings");
+    } finally {
+      setSavingVoiceSettings(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchAnalytics();
