@@ -111,44 +111,15 @@ function LeadersPageContent() {
     fetchData();
   }, []);
 
-  const handleFileUpload = async (file) => {
-    const uploadFormData = new FormData();
-    uploadFormData.append("file", file);
-    try {
-      const response = await axios.post(`${API}/upload`, uploadFormData, {
-        withCredentials: true,
-        headers: { "Content-Type": "multipart/form-data" }
-      });
-      return response.data.url;
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload photo");
-      return null;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsUploading(true);
     
     try {
-      // Upload photo if file selected
-      let photoUrl = formData.photo;
-      if (photoFile) {
-        photoUrl = await handleFileUpload(photoFile);
-        if (!photoUrl) {
-          setIsUploading(false);
-          return;
-        }
-      }
-      
-      const payload = { ...formData, photo: photoUrl };
-
       if (editingLeader) {
-        await axios.put(`${API}/leaders/${editingLeader.leader_id}`, payload, { withCredentials: true });
+        await axios.put(`${API}/leaders/${editingLeader.leader_id}`, formData, { withCredentials: true });
         toast.success("Leader updated successfully");
       } else {
-        await axios.post(`${API}/leaders`, payload, { withCredentials: true });
+        await axios.post(`${API}/leaders`, formData, { withCredentials: true });
         toast.success("Leader created successfully");
       }
       setIsModalOpen(false);
@@ -156,13 +127,12 @@ function LeadersPageContent() {
       resetForm();
       fetchData();
     } catch (error) {
-      // Handle FastAPI validation errors which come as array of {type, loc, msg, input, url}
       const errorDetail = error.response?.data?.detail;
       let errorMessage = "Operation failed";
       if (typeof errorDetail === 'string') {
         errorMessage = errorDetail;
       } else if (Array.isArray(errorDetail)) {
-        errorMessage = errorDetail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+        errorMessage = errorDetail.map(e => String(e.msg || e.message || 'Error')).join(', ');
       } else if (errorDetail?.msg) {
         errorMessage = errorDetail.msg;
       }
