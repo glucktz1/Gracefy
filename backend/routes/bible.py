@@ -147,23 +147,66 @@ async def search_bible(
 
 # ============== TEXT-TO-SPEECH ==============
 
+# Map our voice names to OpenAI TTS voices
+# OpenAI voices: alloy, ash, coral, echo, fable, nova, onyx, sage, shimmer
+OPENAI_VOICE_MAP = {
+    # Female voices
+    "sw-KE-Zuri-Female": "nova",      # Energetic, upbeat - good for Swahili
+    "sw-TZ-Amani-Female": "shimmer",  # Bright, cheerful
+    "en-US-Aria-Female": "alloy",     # Neutral, balanced
+    # Male voices
+    "sw-KE-Rafiki-Male": "onyx",      # Deep, authoritative
+    "sw-TZ-Daudi-Male": "echo",       # Smooth, calm
+    "en-US-Journey-Male": "fable",    # Expressive, storytelling
+}
+
 # Available TTS voices with metadata for preview
 TTS_VOICES = {
     "male": [
-        {"id": "sw-KE-Rafiki-Male", "name": "Rafiki", "description": "Swahili (Kenya) - Deep male voice", "language": "sw-KE", "gender": "male", "sample_text": "Bwana ni mchungaji wangu, sitapungukiwa na kitu."},
-        {"id": "sw-TZ-Daudi-Male", "name": "Daudi", "description": "Swahili (Tanzania) - Warm male voice", "language": "sw-TZ", "gender": "male", "sample_text": "Mungu wetu ni kimbilio na nguvu."},
-        {"id": "en-US-Journey-Male", "name": "Journey", "description": "English (US) - Clear male voice", "language": "en-US", "gender": "male", "sample_text": "The Lord is my shepherd, I shall not want."},
+        {"id": "sw-KE-Rafiki-Male", "name": "Rafiki", "description": "Sauti ya kiume nzito - Deep male voice", "language": "sw-KE", "gender": "male", "openai_voice": "onyx", "sample_text": "Bwana ni mchungaji wangu, sitapungukiwa na kitu."},
+        {"id": "sw-TZ-Daudi-Male", "name": "Daudi", "description": "Sauti ya kiume laini - Warm male voice", "language": "sw-TZ", "gender": "male", "openai_voice": "echo", "sample_text": "Mungu wetu ni kimbilio na nguvu."},
+        {"id": "en-US-Journey-Male", "name": "Journey", "description": "Clear English male voice", "language": "en-US", "gender": "male", "openai_voice": "fable", "sample_text": "The Lord is my shepherd, I shall not want."},
     ],
     "female": [
-        {"id": "sw-KE-Zuri-Female", "name": "Zuri", "description": "Swahili (Kenya) - Gentle female voice", "language": "sw-KE", "gender": "female", "sample_text": "Bwana ni mchungaji wangu, sitapungukiwa na kitu."},
-        {"id": "sw-TZ-Amani-Female", "name": "Amani", "description": "Swahili (Tanzania) - Soft female voice", "language": "sw-TZ", "gender": "female", "sample_text": "Mungu wetu ni kimbilio na nguvu."},
-        {"id": "en-US-Aria-Female", "name": "Aria", "description": "English (US) - Warm female voice", "language": "en-US", "gender": "female", "sample_text": "The Lord is my shepherd, I shall not want."},
+        {"id": "sw-KE-Zuri-Female", "name": "Zuri", "description": "Sauti ya kike nyororo - Gentle female voice", "language": "sw-KE", "gender": "female", "openai_voice": "nova", "sample_text": "Bwana ni mchungaji wangu, sitapungukiwa na kitu."},
+        {"id": "sw-TZ-Amani-Female", "name": "Amani", "description": "Sauti ya kike laini - Soft female voice", "language": "sw-TZ", "gender": "female", "openai_voice": "shimmer", "sample_text": "Mungu wetu ni kimbilio na nguzu."},
+        {"id": "en-US-Aria-Female", "name": "Aria", "description": "Warm English female voice", "language": "en-US", "gender": "female", "openai_voice": "alloy", "sample_text": "The Lord is my shepherd, I shall not want."},
     ]
 }
 
 # Flatten for easy lookup
 ALL_VOICES = TTS_VOICES["male"] + TTS_VOICES["female"]
 VOICE_BY_ID = {v["id"]: v for v in ALL_VOICES}
+
+
+async def generate_tts_audio(text: str, voice_id: str = None, speed: float = 1.0) -> str:
+    """Generate TTS audio using OpenAI and return base64 encoded audio"""
+    from emergentintegrations.llm.openai import OpenAITextToSpeech
+    
+    if not TTS_API_KEY:
+        raise Exception("TTS API key not configured")
+    
+    # Get OpenAI voice name from our voice ID
+    openai_voice = "nova"  # default
+    if voice_id and voice_id in OPENAI_VOICE_MAP:
+        openai_voice = OPENAI_VOICE_MAP[voice_id]
+    elif voice_id and voice_id in VOICE_BY_ID:
+        openai_voice = VOICE_BY_ID[voice_id].get("openai_voice", "nova")
+    elif voice_id in ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"]:
+        openai_voice = voice_id
+    
+    tts = OpenAITextToSpeech(api_key=TTS_API_KEY)
+    
+    # Generate speech and get base64
+    audio_base64 = await tts.generate_speech_base64(
+        text=text,
+        model="tts-1",  # Use standard model for faster response
+        voice=openai_voice,
+        speed=speed,
+        response_format="mp3"
+    )
+    
+    return audio_base64
 
 
 @router.get("/bible/tts/voices")
@@ -174,12 +217,17 @@ async def get_tts_voices():
     # Get current default from settings
     settings = await db.bible_settings.find_one({"settings_id": "main"}, {"_id": 0})
     default_voice = settings.get("default_voice", "sw-KE-Zuri-Female") if settings else "sw-KE-Zuri-Female"
+    default_voice_male = settings.get("default_voice_male", "sw-KE-Rafiki-Male") if settings else "sw-KE-Rafiki-Male"
+    default_voice_female = settings.get("default_voice_female", "sw-KE-Zuri-Female") if settings else "sw-KE-Zuri-Female"
     
     return {
         "voices": ALL_VOICES,
         "male_voices": TTS_VOICES["male"],
         "female_voices": TTS_VOICES["female"],
-        "default": default_voice
+        "default": default_voice,
+        "default_voice_male": default_voice_male,
+        "default_voice_female": default_voice_female,
+        "tts_available": bool(TTS_API_KEY)
     }
 
 
@@ -199,36 +247,8 @@ async def preview_tts_voice(data: dict):
     # Use custom text or default sample text
     text = custom_text or voice.get("sample_text", "Bwana ni mchungaji wangu.")
     
-    # Try to generate actual TTS audio using Google Cloud TTS
     try:
-        from google.cloud import texttospeech
-        import base64
-        
-        client = texttospeech.TextToSpeechClient()
-        
-        # Map our voice IDs to Google Cloud TTS voice names
-        language_code = voice.get("language", "sw-KE")
-        ssml_gender = texttospeech.SsmlVoiceGender.FEMALE if voice.get("gender") == "female" else texttospeech.SsmlVoiceGender.MALE
-        
-        synthesis_input = texttospeech.SynthesisInput(text=text)
-        
-        voice_params = texttospeech.VoiceSelectionParams(
-            language_code=language_code,
-            ssml_gender=ssml_gender
-        )
-        
-        audio_config = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3,
-            speaking_rate=1.0
-        )
-        
-        response = client.synthesize_speech(
-            input=synthesis_input,
-            voice=voice_params,
-            audio_config=audio_config
-        )
-        
-        audio_base64 = base64.b64encode(response.audio_content).decode('utf-8')
+        audio_base64 = await generate_tts_audio(text, voice_id)
         
         return {
             "voice_id": voice_id,
@@ -240,14 +260,8 @@ async def preview_tts_voice(data: dict):
         }
         
     except Exception as e:
-        logger.warning(f"TTS generation failed, returning mock: {e}")
-        # Return mock response if TTS service is not available
-        return {
-            "voice_id": voice_id,
-            "voice_name": voice.get("name"),
-            "text": text,
-            "audio_base64": None,
-            "audio_format": "mp3",
+        logger.error(f"TTS preview failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
             "generated": False,
             "message": "TTS service not configured. Voice will work when Google Cloud TTS is set up."
         }
