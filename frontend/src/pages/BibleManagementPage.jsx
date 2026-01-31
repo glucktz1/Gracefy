@@ -613,7 +613,17 @@ export default function BibleManagementPage() {
                       size="sm" 
                       variant="outline" 
                       className="border-zinc-700"
+                      onClick={() => handleEditSnippet(snippet)}
+                      title="Edit snippet"
+                    >
+                      <Edit2 size={14} />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className={snippet.is_active ? "border-amber-700 text-amber-400" : "border-green-700 text-green-400"}
                       onClick={() => handleToggleSnippet(snippet)}
+                      title={snippet.is_active ? "Disable" : "Enable"}
                     >
                       {snippet.is_active ? <X size={14} /> : <Check size={14} />}
                     </Button>
@@ -622,6 +632,7 @@ export default function BibleManagementPage() {
                       variant="outline" 
                       className="border-red-800 text-red-400 hover:bg-red-900/30"
                       onClick={() => handleDeleteSnippet(snippet.snippet_id)}
+                      title="Delete"
                     >
                       <Trash2 size={14} />
                     </Button>
@@ -638,6 +649,85 @@ export default function BibleManagementPage() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* TTS Cache Tab */}
+        <TabsContent value="cache" className="space-y-4">
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Database size={18} className="text-cyan-400" />
+                    Cached TTS Audio
+                  </CardTitle>
+                  <CardDescription>
+                    {cacheStats.total} cached recordings • {cacheStats.size_mb?.toFixed(2) || 0} MB total
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="border-red-700 text-red-400 hover:bg-red-900/30"
+                  onClick={handleClearAllCache}
+                  disabled={ttsCache.length === 0}
+                >
+                  <Trash2 size={14} className="mr-2" />
+                  Clear All Cache
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingCache ? (
+                <div className="text-center py-8 text-zinc-500">
+                  <RefreshCw size={24} className="mx-auto mb-2 animate-spin" />
+                  <p>Loading cache...</p>
+                </div>
+              ) : ttsCache.length === 0 ? (
+                <div className="text-center py-8 text-zinc-500">
+                  <Database size={32} className="mx-auto mb-2 opacity-50" />
+                  <p>No cached audio yet</p>
+                  <p className="text-sm">Audio will be cached when users listen to Bible verses</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {ttsCache.map((entry, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{entry.text?.substring(0, 60)}...</p>
+                        <div className="flex items-center gap-3 text-xs text-zinc-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Volume2 size={12} />
+                            {entry.voice || "default"}
+                          </span>
+                          <span>{((entry.size_bytes || 0) / 1024).toFixed(1)} KB</span>
+                          <span>{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : "N/A"}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="border-zinc-700"
+                          onClick={() => handlePlayCacheEntry(entry)}
+                          disabled={!entry.audio_base64}
+                        >
+                          <Play size={12} />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="border-red-700 text-red-400"
+                          onClick={() => handleDeleteCacheEntry(entry.cache_key)}
+                        >
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Analytics Tab */}
