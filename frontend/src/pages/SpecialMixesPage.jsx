@@ -167,7 +167,14 @@ export default function SpecialMixesPage() {
         thumbnail: thumbnailUrl,
         songs: selectedSongs.map((song, index) => ({
           song_id: song.song_id,
+          title: song.title,
           album_id: song.album_id,
+          album_title: song.album_title,
+          artist_name: song.artist_name,
+          duration: song.duration,
+          duration_formatted: song.duration_formatted,
+          audio_url: song.audio_url,
+          file_id: song.file_id,
           order: index + 1
         }))
       };
