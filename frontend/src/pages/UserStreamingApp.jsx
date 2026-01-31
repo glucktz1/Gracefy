@@ -1110,7 +1110,7 @@ const BibleView = ({ language, t, onBack }) => {
         chapter: selectedChapter,
         verse: verse.verse,
         language: language,
-        voice: "nova"
+        voice: selectedVoice
       });
       
       if (audioElement) audioElement.pause();
@@ -1120,7 +1120,7 @@ const BibleView = ({ language, t, onBack }) => {
       setAudioElement(audio);
       setPlayingAudio(`verse_${verse.verse}`);
     } catch (e) {
-      toast.error("Failed to generate audio");
+      toast.error(e.response?.data?.detail || "Failed to generate audio");
     } finally {
       setGeneratingAudio(false);
     }
@@ -1149,7 +1149,8 @@ const BibleView = ({ language, t, onBack }) => {
         chapter: rangeChapter,
         start_verse: rangeStart,
         end_verse: rangeEnd,
-        language: language
+        language: language,
+        voice: selectedVoice
       });
       
       setRangeResult(res.data);
