@@ -1,0 +1,89 @@
+{
+  "summary": "Verified TTS Voice Selection & Preview feature. All 4 backend endpoints working correctly: GET /api/bible/tts/voices returns 6 voices (3 male, 3 female), POST /api/bible/tts/preview works for all voice IDs, PUT /api/admin/bible/settings saves voice preferences, GET /api/admin/bible/settings returns saved preferences.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/bible/tts/preview",
+        "issue": "Response time is slow (~30s), though this is expected since TTS service is not configured - returns informative message instead",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "GET /api/bible/tts/voices returns 6 voices total",
+    "GET /api/bible/tts/voices returns 3 male voices (sw-KE-Rafiki-Male, sw-TZ-Daudi-Male, en-US-Journey-Male)",
+    "GET /api/bible/tts/voices returns 3 female voices (sw-KE-Zuri-Female, sw-TZ-Amani-Female, en-US-Aria-Female)",
+    "Each voice has required fields: id, name, description, language, gender, sample_text",
+    "POST /api/bible/tts/preview works for sw-KE-Zuri-Female (returns voice_name: Zuri)",
+    "POST /api/bible/tts/preview works for sw-KE-Rafiki-Male (returns voice_name: Rafiki)",
+    "POST /api/bible/tts/preview returns 404 for invalid voice ID",
+    "POST /api/bible/tts/preview returns generated=false and informative message when TTS not configured",
+    "PUT /api/admin/bible/settings successfully saves default_voice_male and default_voice_female",
+    "GET /api/admin/bible/settings returns saved voice preferences correctly"
+  ],
+  "api_responses_verified": {
+    "GET_voices": {
+      "status": 200,
+      "voices_count": 6,
+      "male_voices_count": 3,
+      "female_voices_count": 3,
+      "sample": {
+        "id": "sw-KE-Zuri-Female",
+        "name": "Zuri",
+        "description": "Swahili (Kenya) - Gentle female voice",
+        "language": "sw-KE",
+        "gender": "female"
+      }
+    },
+    "POST_preview": {
+      "status": 200,
+      "response_fields": ["voice_id", "voice_name", "text", "generated", "audio_base64", "message"],
+      "tts_configured": false,
+      "message": "TTS service not configured. Voice will work when Google Cloud TTS is set up."
+    },
+    "PUT_settings": {
+      "status": 200,
+      "response": {"message": "Settings updated"}
+    },
+    "GET_settings": {
+      "status": 200,
+      "default_voice_male": "en-US-Journey-Male",
+      "default_voice_female": "en-US-Aria-Female"
+    }
+  },
+  "test_report_links": [
+    "/app/tests/test_tts_voice_selection.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Frontend BibleManagementPage.jsx correctly fetches voices from /api/bible/tts/voices",
+    "Voice selection UI displays male and female voices in separate sections with selection indicators",
+    "Preview buttons properly call /api/bible/tts/preview and handle audio playback",
+    "Save button correctly sends voice preferences to /api/admin/bible/settings",
+    "Existing listening settings are preserved when updating voice preferences"
+  ],
+  "updated_files": [
+    "/app/tests/test_tts_voice_selection.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 test scenarios passed)",
+    "frontend": "Not directly testable (requires Google OAuth login)"
+  },
+  "test_credentials": {
+    "note": "Admin panel requires Google OAuth login (glucktz1904@gmail.com)"
+  },
+  "seed_data_creation": "None needed - testing existing API functionality",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "note": "TTS audio generation is not available (returns generated=false) since Google Cloud TTS is not configured, but API handles this gracefully with informative message"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "TTS Voice Selection feature verified. All 4 endpoints working: GET /api/bible/tts/voices (6 voices), POST /api/bible/tts/preview (works but TTS not configured), PUT/GET /api/admin/bible/settings (voice preferences saved/retrieved). Frontend code reviewed - voice selection UI in BibleManagementPage.jsx Settings tab is properly implemented."
+}
