@@ -141,13 +141,48 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Background audio** - App doesn't play next song when screen locked
   - Cause: expo-av JavaScript suspended on mobile
   - Solution: `react-native-track-player` (blocked by EAS build issues)
+- **Audio Storage Issue** - 10 songs have audio files > 5MB that weren't stored
+  - Cause: CDN upload may have failed when files were uploaded
+  - Files have `storage_error: "File too large for local storage without CDN"`
+  - Solution: Re-upload the audio files for affected songs
+
+### P1 - High  
+- ~90 endpoints still in `server_old.py` need migration to modular routers
 
 ### P2 - Medium
 - Animated splash screen needed
 
+## Recent Fixes (2026-01-31)
+
+### Thumbnail Display Fix
+- Fixed truncated base64 thumbnails that caused display errors
+- Updated `optimize_thumbnails()` in both `music.py` and `home.py`
+- Base64 thumbnails now use `/api/thumbnails/{item_id}` streaming endpoint
+- All frontend files updated with `getImageUrl()` helper for proper URL handling
+
+### Audio URL Fix
+- Fixed `getAudioUrl()` to add `/stream` suffix for `/api/files/{file_id}` URLs
+- Audio streaming now correctly routes to content endpoint
+
+### Affected Files
+- `/app/backend/routes/music.py` - optimize_thumbnails function
+- `/app/backend/routes/home.py` - optimize_thumbnails function  
+- `/app/backend/routes/uploads.py` - download endpoint handling
+- `/app/frontend/src/pages/UserStreamingApp.jsx` - getAudioUrl and getImageUrl
+- `/app/frontend/src/pages/AlbumsPage.jsx` - getImageUrl helper
+- `/app/frontend/src/pages/SpecialMixesPage.jsx` - getImageUrl helper
+- `/app/frontend/src/pages/LayoutManagementPage.jsx` - getImageUrl helper
+
+## Audio Content Status
+- Total songs: 31
+- Songs with working audio: 17 ✅
+- Songs with broken audio (file too large): 10 ❌
+- Songs with no audio URL: 4 ⚠️
+
 ## Upcoming Tasks
-1. Fix background audio advancement (P0 - blocked)
-2. Animated splash screen (P2)
+1. Re-upload audio for 10 affected songs (P0)
+2. Complete endpoint migration from server_old.py (P1)
+3. Animated splash screen (P2)
 3. Production Azam Pay credentials
 
 ## Future/Backlog
