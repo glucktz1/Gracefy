@@ -422,26 +422,6 @@ function LeadersPageContent() {
                   placeholder="Brief biography..."
                 />
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Photo URL</label>
-                <Input
-                  value={formData.photo}
-                  onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
-                  className="bg-zinc-950 border-zinc-800 text-white"
-                  placeholder="https://example.com/photo.jpg"
-                />
-                {formData.photo && (
-                  <div className="mt-2 w-16 h-16 rounded-lg bg-zinc-800 overflow-hidden">
-                    <img 
-                      src={getImageUrl(formData.photo)} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="border-zinc-700 text-zinc-300">
