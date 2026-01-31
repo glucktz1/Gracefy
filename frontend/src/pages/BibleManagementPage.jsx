@@ -1182,12 +1182,18 @@ export default function BibleManagementPage() {
       </Tabs>
 
       {/* Create Snippet Modal */}
-      <Dialog open={isSnippetModalOpen} onOpenChange={setIsSnippetModalOpen}>
+      <Dialog open={isSnippetModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setEditingSnippet(null);
+          resetSnippetForm();
+        }
+        setIsSnippetModalOpen(open);
+      }}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Bible Devotional Card</DialogTitle>
+            <DialogTitle>{editingSnippet ? "Edit Bible Snippet" : "Create Bible Devotional Card"}</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Select a Bible passage and create a beautiful card for the home page
+              {editingSnippet ? "Update this Bible snippet" : "Select a Bible passage and create a beautiful card for the home page"}
             </DialogDescription>
           </DialogHeader>
 
