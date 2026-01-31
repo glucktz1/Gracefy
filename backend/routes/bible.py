@@ -262,9 +262,6 @@ async def preview_tts_voice(data: dict):
     except Exception as e:
         logger.error(f"TTS preview failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
-            "generated": False,
-            "message": "TTS service not configured. Voice will work when Google Cloud TTS is set up."
-        }
 
 
 @router.get("/bible/tts/cache-stats")
