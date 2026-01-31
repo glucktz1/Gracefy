@@ -240,7 +240,7 @@ export default function LeadersPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     {leader.photo ? (
-                      <img src={leader.photo} alt="" className="w-14 h-14 rounded-full object-cover" />
+                      <img src={getImageUrl(leader.photo)} alt="" className="w-14 h-14 rounded-full object-cover" />
                     ) : (
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center text-white text-xl font-bold">
                         {leader.name.charAt(0)}
