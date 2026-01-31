@@ -154,6 +154,12 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-01-31)
 
+### Bug Fixes (2026-01-31 - Session 2)
+- **Bible Section Bug FIXED**: Backend `/api/bible/stats` now returns `book_count`, `verse_count`, AND `has_data` fields for frontend compatibility. Also returns backwards-compatible `books_count`/`verses_count`.
+- **Special Mixes Creation Bug FIXED**: Backend now properly handles `title` field (frontend sends `title`, backend expected `name`) and `songs` array with full song objects. Stores both `song_ids` and full `songs` array.
+- **Special Mixes 500 Error FIXED**: Fixed TypeError in GET `/api/special-mixes` when songs have None duration values.
+- **Leaders Photo Upload Bug FIXED**: Added proper file upload UI with preview to LeadersPage.jsx. Photos are uploaded via `/api/upload` endpoint before saving leader.
+
 ### Content Section Fixes
 - Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
 - Endpoint now returns albums with their songs (was returning 404 before)
