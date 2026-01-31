@@ -153,77 +153,42 @@ async def get_album(album_id: str):
 
 
 @router.get("/albums/all-songs")
-async def get_all_songs_flat(
+async def get_albums_with_songs(
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
-    category: Optional[str] = None
+    limit: int = Query(100, ge=1, le=500)
 ):
     """
-    Get all songs with album info flattened.
-    Optimized for initial app load - returns songs with album details merged.
+    Get all albums with their songs.
+    Used by Special Mixes page to select songs.
     """
     db = get_db()
     
-    # Cache key includes all params
-    cache_key = f"songs:all_flat:{skip}:{limit}:{category}"
+    # Cache key
+    cache_key = f"albums:with_songs:{skip}:{limit}"
     cached_result = await cache.get(cache_key)
     if cached_result:
         return cached_result
     
-    # Build aggregation pipeline for efficient join
-    pipeline = [
-        {"$match": {"status": "active"}},
-        {"$sort": {"created_at": -1}},
-        {"$skip": skip},
-        {"$limit": limit},
-        # Lookup album info
-        {
-            "$lookup": {
-                "from": "albums",
-                "localField": "album_id",
-                "foreignField": "album_id",
-                "as": "album_info",
-                "pipeline": [
-                    {"$project": {
-                        "_id": 0,
-                        "title": 1,
-                        "thumbnail": 1,
-                        "artist_name": 1,
-                        "category_name": 1
-                    }}
-                ]
-            }
-        },
-        # Flatten album info
-        {
-            "$addFields": {
-                "album_title": {"$arrayElemAt": ["$album_info.title", 0]},
-                "album_thumbnail": {"$arrayElemAt": ["$album_info.thumbnail", 0]},
-                "artist_name": {"$arrayElemAt": ["$album_info.artist_name", 0]},
-                "category_name": {"$arrayElemAt": ["$album_info.category_name", 0]},
-            }
-        },
-        # Remove temporary fields
-        {"$project": {"album_info": 0, "_id": 0}}
-    ]
+    # Get albums with status active or not specified
+    albums = await db.albums.find(
+        {"$or": [{"status": "active"}, {"status": {"$exists": False}}]},
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     
-    # Add category filter if provided
-    if category:
-        pipeline[0]["$match"]["song_categories"] = category
+    # Get songs for each album
+    for album in albums:
+        songs = await db.songs.find(
+            {"album_id": album["album_id"], "$or": [{"status": "active"}, {"status": {"$exists": False}}]},
+            {"_id": 0}
+        ).to_list(100)
+        album["songs"] = songs
     
-    songs = await db.songs.aggregate(pipeline).to_list(limit)
-    
-    # Get total count
-    count_query = {"status": "active"}
-    if category:
-        count_query["song_categories"] = category
-    total = await db.songs.count_documents(count_query)
+    # Optimize thumbnails
+    albums = optimize_thumbnails(albums)
     
     result = {
-        "songs": songs,
-        "total": total,
-        "skip": skip,
-        "limit": limit
+        "albums": albums,
+        "total": len(albums)
     }
     
     # Cache for 2 minutes
