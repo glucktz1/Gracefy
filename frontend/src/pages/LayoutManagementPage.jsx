@@ -2669,7 +2669,7 @@ export default function LayoutManagementPage() {
                         data-type="leader_content"
                       />
                       {content.thumbnail ? (
-                        <img src={content.thumbnail} alt="" className="w-10 h-10 rounded object-cover" />
+                        <img src={getImageUrl(content.thumbnail)} alt="" className="w-10 h-10 rounded object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded bg-orange-600/20 flex items-center justify-center">
                           <BookOpen size={16} className="text-orange-400" />
