@@ -266,7 +266,7 @@ export default function LeadersPage() {
           <div className="col-span-full text-center py-12 text-zinc-500">
             <UserCheck size={48} className="mx-auto mb-4 opacity-50" />
             <p>No leaders found</p>
-            <p className="text-sm">Click "Add Leader" to create one</p>
+            <p className="text-sm">Click Add Leader to create one</p>
           </div>
         )}
       </div>
