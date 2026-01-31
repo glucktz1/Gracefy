@@ -166,6 +166,13 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Special Mixes 500 Error FIXED**: Fixed TypeError in GET `/api/special-mixes` when songs have None duration values.
 - **Leaders Photo Upload Bug FIXED**: Added proper file upload UI with preview to LeadersPage.jsx. Photos are uploaded via `/api/upload` endpoint before saving leader.
 
+### New Feature: TTS Voice Selection & Preview (2026-01-31)
+- **6 AI Voices Available**: 3 male (Rafiki, Daudi, Journey) + 3 female (Zuri, Amani, Aria) voices
+- **Voice Preview**: Admin can click "Preview" button to hear sample text in selected voice
+- **Default Voice Selection**: Admin can set default male/female voices for Bible reading
+- **Swahili + English**: Voices available in sw-KE, sw-TZ, and en-US languages
+- **Graceful TTS Fallback**: When Google Cloud TTS not configured, shows informative message
+
 ### Content Section Fixes
 - Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
 - Endpoint now returns albums with their songs (was returning 404 before)
