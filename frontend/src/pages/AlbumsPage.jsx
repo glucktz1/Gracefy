@@ -36,6 +36,19 @@ import { toast } from "sonner";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Helper function to get proper image/thumbnail URL - handles CDN URLs, local files
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
+  if (imageUrl.startsWith('data:')) return imageUrl;
+  // Handle /api/files/{file_id} format - add /stream suffix for proper streaming
+  if (imageUrl.startsWith('/api/files/') && !imageUrl.endsWith('/stream')) {
+    return `${BACKEND_URL}${imageUrl}/stream`;
+  }
+  if (imageUrl.startsWith('/')) return `${BACKEND_URL}${imageUrl}`;
+  return imageUrl;
+};
+
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState([]);
   const [categories, setCategories] = useState([]);
