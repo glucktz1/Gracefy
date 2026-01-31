@@ -303,7 +303,7 @@ async def end_listening(request: Request, data: dict = None):
             body = await request.body()
             import json
             data = json.loads(body.decode('utf-8'))
-        except:
+        except Exception:
             return {"tracked": False}
     
     session_id = data.get("session_id")
@@ -312,7 +312,7 @@ async def end_listening(request: Request, data: dict = None):
     if not session_id:
         return {"tracked": False}
     
-    result = await db.listening_sessions.update_one(
+    await db.listening_sessions.update_one(
         {"session_id": session_id},
         {"$set": {
             "end_time": datetime.now(timezone.utc).isoformat(),
