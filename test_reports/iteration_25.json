@@ -1,0 +1,78 @@
+{
+  "summary": "Verified three fixes: Bible TTS Speed Control (working), Leaders Page Error Handling (code verified), Special Mixes Song Data (backend working, data issue with one song). All 11 backend API tests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/special-mixes",
+        "issue": "One song 'Pawa' in special mixes has no audio_url - this is a data issue, not a code issue. The song was likely added without uploading audio.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "POST /api/bible/tts/verse - accepts speed parameter (0.5x to 2.0x)",
+    "POST /api/bible/tts/verse - slow speed 0.5x generates audio",
+    "POST /api/bible/tts/verse - fast speed 2.0x generates audio",
+    "POST /api/bible/tts/passage-range - accepts speed parameter",
+    "GET /api/leaders - returns valid JSON with leaders list",
+    "POST /api/leaders - validation errors return proper format (not raw objects)",
+    "GET /api/leaders/nonexistent - returns 404 with string error detail",
+    "GET /api/special-mixes - returns mixes list",
+    "GET /api/special-mixes - songs have expected fields (song_id, title, audio_url)",
+    "POST /api/special-mixes - preserves audio_url in song data",
+    "GET /api/bible/tts/voices - returns available voices",
+    "Frontend: Bible view shows voice selector dropdown",
+    "Frontend: Bible view shows speed selector with options 0.5x to 2x",
+    "Frontend: Speed change triggers toast notification"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_three_fixes.py",
+    "/app/test_reports/pytest/three_fixes_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Bible TTS Speed Control: Speed parameter properly passed through generate_tts_audio() function and OpenAI API",
+    "Leaders Page Error Handling: Code correctly handles FastAPI validation error arrays by extracting msg field",
+    "Special Mixes: SpecialMixesPage.jsx correctly includes audio_url, duration, artist_name in song payload when creating mixes"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_three_fixes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% for public Bible view (Admin pages require Google OAuth)"
+  },
+  "test_credentials": "N/A - public endpoints tested, Admin requires Google OAuth",
+  "seed_data_creation": "None",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "note": "All TTS endpoints return REAL audio generated via OpenAI TTS API"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Three fixes verified: 1) Bible TTS Speed Control - speed selector visible in Bible view with options 0.5x-2x, backend accepts speed parameter; 2) Leaders Page Error Handling - code review confirmed fix converts FastAPI error arrays to string messages; 3) Special Mixes Audio - backend correctly stores audio_url in songs, one existing song 'Pawa' has no audio_url (data issue).",
+  "features_verified": {
+    "bible_tts_speed_control": {
+      "status": "WORKING",
+      "frontend_ui": "Speed selector visible in Bible view with options: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x",
+      "backend_api": "Speed parameter accepted by /api/bible/tts/verse and /api/bible/tts/passage-range",
+      "data_testid": "speed-selector"
+    },
+    "leaders_page_error_handling": {
+      "status": "CODE VERIFIED - Cannot test UI (requires Google OAuth)",
+      "fix_description": "LeadersPage.jsx lines 128-139 properly extract msg from FastAPI validation error arrays",
+      "error_handling": "errorDetail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ')"
+    },
+    "special_mixes_audio_url": {
+      "status": "BACKEND WORKING - Partial data issue",
+      "fix_description": "SpecialMixesPage.jsx includes audio_url in song payload, content.py enriches songs from DB",
+      "data_note": "4 out of 5 songs in 'Best of Christmas' mix have audio_url; 1 song 'Pawa' missing (data issue, not code)"
+    }
+  }
+}
