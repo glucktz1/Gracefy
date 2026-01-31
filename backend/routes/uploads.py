@@ -223,10 +223,16 @@ async def stream_file(file_id: str):
     if file_doc.get("cdn_url"):
         return RedirectResponse(url=file_doc["cdn_url"])
     
-    # Otherwise stream from base64
-    if file_doc.get("data_base64"):
+    # Check for data in different field names (data_base64 or data)
+    file_data = file_doc.get("data_base64") or file_doc.get("data")
+    
+    if file_data:
         import base64
-        content = base64.b64decode(file_doc["data_base64"])
+        # Handle both base64 string and already decoded data
+        if isinstance(file_data, str):
+            content = base64.b64decode(file_data)
+        else:
+            content = file_data
         return StreamingResponse(
             io.BytesIO(content),
             media_type=file_doc.get("content_type", "application/octet-stream"),
