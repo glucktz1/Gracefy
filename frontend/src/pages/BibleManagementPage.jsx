@@ -303,8 +303,8 @@ export default function BibleManagementPage() {
     }
   }, [snippetForm.book_name, snippetForm.language]);
 
-  // Create snippet
-  const handleCreateSnippet = async () => {
+  // Create or update snippet
+  const handleSaveSnippet = async () => {
     if (!snippetForm.title || !snippetForm.book_name) {
       toast.error("Title and book are required");
       return;
@@ -312,16 +312,48 @@ export default function BibleManagementPage() {
     
     setCreatingSnippet(true);
     try {
-      await axios.post(`${API}/admin/bible/snippets`, snippetForm, { withCredentials: true });
-      toast.success("Bible snippet created with audio!");
+      if (editingSnippet) {
+        // Update existing snippet
+        await axios.put(`${API}/admin/bible/snippets/${editingSnippet.snippet_id}`, snippetForm, { withCredentials: true });
+        toast.success("Snippet updated successfully!");
+      } else {
+        // Create new snippet
+        await axios.post(`${API}/admin/bible/snippets`, snippetForm, { withCredentials: true });
+        toast.success("Bible snippet created with audio!");
+      }
       setIsSnippetModalOpen(false);
+      setEditingSnippet(null);
       resetSnippetForm();
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Failed to create snippet");
+      toast.error(e.response?.data?.detail || "Failed to save snippet");
     } finally {
       setCreatingSnippet(false);
     }
+  };
+
+  // Open edit modal
+  const handleEditSnippet = (snippet) => {
+    setEditingSnippet(snippet);
+    setSnippetForm({
+      title: snippet.title || "",
+      description: snippet.description || "",
+      book_name: snippet.book_name || "",
+      chapter: snippet.chapter || 1,
+      start_verse: snippet.start_verse || 1,
+      end_verse: snippet.end_verse || 1,
+      language: snippet.language || "sw",
+      voice: snippet.voice || "",
+      speed: snippet.speed || 1.0,
+      gender: snippet.voice_gender || "female",
+      heading: snippet.heading || "",
+      subtitle: snippet.subtitle || "",
+      card_type: snippet.card_type || "snippet",
+      thumbnail_url: snippet.thumbnail_url || "",
+      is_featured: snippet.is_featured || false,
+      display_order: snippet.display_order || 0
+    });
+    setIsSnippetModalOpen(true);
   };
 
   const resetSnippetForm = () => {
@@ -331,6 +363,7 @@ export default function BibleManagementPage() {
       gender: "female",
       heading: "", subtitle: "", card_type: "snippet", thumbnail_url: "", is_featured: false, display_order: 0
     });
+    setEditingSnippet(null);
   };
 
   // Toggle snippet active status
