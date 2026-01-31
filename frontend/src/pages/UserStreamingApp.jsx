@@ -1164,13 +1164,15 @@ const BibleView = ({ language, t, onBack }) => {
         start_verse: rangeStart,
         end_verse: rangeEnd,
         language: language,
-        voice: selectedVoice
+        voice: selectedVoice,
+        speed: playbackSpeed
       });
       
       setRangeResult(res.data);
       
       if (audioElement) audioElement.pause();
       const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      audio.playbackRate = playbackSpeed;
       audio.onended = () => setPlayingAudio(null);
       audio.play();
       setAudioElement(audio);
@@ -1181,6 +1183,13 @@ const BibleView = ({ language, t, onBack }) => {
       setRangeLoading(false);
     }
   };
+
+  // Update playback speed of currently playing audio
+  useEffect(() => {
+    if (audioElement) {
+      audioElement.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, audioElement]);
 
   if (loading) {
     return (
