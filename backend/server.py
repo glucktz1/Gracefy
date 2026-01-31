@@ -160,7 +160,7 @@ def create_app() -> FastAPI:
         if traffic_monitor:
             try:
                 traffic_stats = await traffic_monitor.get_stats()
-            except:
+            except Exception:
                 pass
         
         return {
