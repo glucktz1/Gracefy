@@ -441,7 +441,7 @@ export default function LeadersPage() {
                       {photoFile ? (
                         <div className="flex items-center justify-center gap-2 text-zinc-300">
                           <Image size={20} />
-                          <span className="text-sm truncate">{photoFile.name}</span>
+                          <span className="text-sm truncate">{String(photoFile?.name || 'Selected file')}</span>
                           <button 
                             type="button"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPhotoFile(null); }}
@@ -480,10 +480,20 @@ export default function LeadersPage() {
                       }}
                     />
                   </label>
-                  {(photoFile || formData.photo) && (
+                  {photoFile && (
                     <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
                       <img 
-                        src={photoFile ? URL.createObjectURL(photoFile) : getImageUrl(formData.photo)} 
+                        src={URL.createObjectURL(photoFile)} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+                  {!photoFile && formData.photo && (
+                    <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
+                      <img 
+                        src={getImageUrl(formData.photo)} 
                         alt="Preview" 
                         className="w-full h-full object-cover"
                         onError={(e) => { e.target.style.display = 'none'; }}
