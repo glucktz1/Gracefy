@@ -188,6 +188,16 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
   - Delete with confirmation
 - **Voice Selection Fixed**: Different voices now correctly generate different audio
 
+### Bible TTS Speed Control (2026-01-31)
+- **Speed selector**: Users can choose playback speed from 0.5x to 2x
+- **Options**: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x
+- **Real-time adjustment**: Speed changes apply immediately to currently playing audio
+- **API support**: Speed parameter passed to TTS generation endpoints
+
+### Bug Fixes (2026-01-31)
+- **Leaders Page Error**: Fixed FastAPI validation error display (was showing raw object)
+- **Special Mixes Audio**: Fixed to include full song data (audio_url, duration, etc.) when creating mixes
+
 ### Content Section Fixes
 - Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
 - Endpoint now returns albums with their songs (was returning 404 before)
