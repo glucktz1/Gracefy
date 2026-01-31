@@ -142,17 +142,110 @@ async def search_bible(
 
 # ============== TEXT-TO-SPEECH ==============
 
+# Available TTS voices with metadata for preview
+TTS_VOICES = {
+    "male": [
+        {"id": "sw-KE-Rafiki-Male", "name": "Rafiki", "description": "Swahili (Kenya) - Deep male voice", "language": "sw-KE", "gender": "male", "sample_text": "Bwana ni mchungaji wangu, sitapungukiwa na kitu."},
+        {"id": "sw-TZ-Daudi-Male", "name": "Daudi", "description": "Swahili (Tanzania) - Warm male voice", "language": "sw-TZ", "gender": "male", "sample_text": "Mungu wetu ni kimbilio na nguvu."},
+        {"id": "en-US-Journey-Male", "name": "Journey", "description": "English (US) - Clear male voice", "language": "en-US", "gender": "male", "sample_text": "The Lord is my shepherd, I shall not want."},
+    ],
+    "female": [
+        {"id": "sw-KE-Zuri-Female", "name": "Zuri", "description": "Swahili (Kenya) - Gentle female voice", "language": "sw-KE", "gender": "female", "sample_text": "Bwana ni mchungaji wangu, sitapungukiwa na kitu."},
+        {"id": "sw-TZ-Amani-Female", "name": "Amani", "description": "Swahili (Tanzania) - Soft female voice", "language": "sw-TZ", "gender": "female", "sample_text": "Mungu wetu ni kimbilio na nguvu."},
+        {"id": "en-US-Aria-Female", "name": "Aria", "description": "English (US) - Warm female voice", "language": "en-US", "gender": "female", "sample_text": "The Lord is my shepherd, I shall not want."},
+    ]
+}
+
+# Flatten for easy lookup
+ALL_VOICES = TTS_VOICES["male"] + TTS_VOICES["female"]
+VOICE_BY_ID = {v["id"]: v for v in ALL_VOICES}
+
+
 @router.get("/bible/tts/voices")
 async def get_tts_voices():
-    """Get available TTS voices"""
+    """Get available TTS voices with metadata"""
+    db = get_db()
+    
+    # Get current default from settings
+    settings = await db.bible_settings.find_one({"settings_id": "main"}, {"_id": 0})
+    default_voice = settings.get("default_voice", "sw-KE-Zuri-Female") if settings else "sw-KE-Zuri-Female"
+    
     return {
-        "voices": [
-            {"id": "sw-KE-Female", "name": "Swahili (Kenya) - Female", "language": "sw-KE"},
-            {"id": "sw-TZ-Female", "name": "Swahili (Tanzania) - Female", "language": "sw-TZ"},
-            {"id": "en-US-Female", "name": "English (US) - Female", "language": "en-US"},
-        ],
-        "default": "sw-KE-Female"
+        "voices": ALL_VOICES,
+        "male_voices": TTS_VOICES["male"],
+        "female_voices": TTS_VOICES["female"],
+        "default": default_voice
     }
+
+
+@router.post("/bible/tts/preview")
+async def preview_tts_voice(data: dict):
+    """Generate a preview audio sample for a TTS voice"""
+    voice_id = data.get("voice_id")
+    custom_text = data.get("text")
+    
+    if not voice_id:
+        raise HTTPException(status_code=400, detail="Voice ID required")
+    
+    voice = VOICE_BY_ID.get(voice_id)
+    if not voice:
+        raise HTTPException(status_code=404, detail="Voice not found")
+    
+    # Use custom text or default sample text
+    text = custom_text or voice.get("sample_text", "Bwana ni mchungaji wangu.")
+    
+    # Try to generate actual TTS audio using Google Cloud TTS
+    try:
+        from google.cloud import texttospeech
+        import base64
+        
+        client = texttospeech.TextToSpeechClient()
+        
+        # Map our voice IDs to Google Cloud TTS voice names
+        language_code = voice.get("language", "sw-KE")
+        ssml_gender = texttospeech.SsmlVoiceGender.FEMALE if voice.get("gender") == "female" else texttospeech.SsmlVoiceGender.MALE
+        
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+        
+        voice_params = texttospeech.VoiceSelectionParams(
+            language_code=language_code,
+            ssml_gender=ssml_gender
+        )
+        
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3,
+            speaking_rate=1.0
+        )
+        
+        response = client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice_params,
+            audio_config=audio_config
+        )
+        
+        audio_base64 = base64.b64encode(response.audio_content).decode('utf-8')
+        
+        return {
+            "voice_id": voice_id,
+            "voice_name": voice.get("name"),
+            "text": text,
+            "audio_base64": audio_base64,
+            "audio_format": "mp3",
+            "generated": True
+        }
+        
+    except Exception as e:
+        logger.warning(f"TTS generation failed, returning mock: {e}")
+        # Return mock response if TTS service is not available
+        return {
+            "voice_id": voice_id,
+            "voice_name": voice.get("name"),
+            "text": text,
+            "audio_base64": None,
+            "audio_format": "mp3",
+            "generated": False,
+            "message": "TTS service not configured. Voice will work when Google Cloud TTS is set up."
+        }
 
 
 @router.get("/bible/tts/cache-stats")
