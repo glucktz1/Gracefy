@@ -740,3 +740,191 @@ async def mark_all_notifications_read():
     await db.admin_notifications.update_many({}, {"$set": {"read": True}})
     
     return {"message": "All marked as read"}
+
+
+
+# ============== APPROVALS ==============
+
+@router.get("/approvals")
+async def get_pending_approvals():
+    """Get all pending approvals"""
+    db = get_db()
+    
+    # Get pending churches
+    churches = await db.churches.find(
+        {"status": "pending"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Get pending choir registrations
+    choirs = await db.singers.find(
+        {"approval_status": "pending"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Get pending leader registrations
+    leaders = await db.church_leader_accounts.find(
+        {"status": "pending"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Get pending posts
+    posts = await db.posts.find(
+        {"status": "pending"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    total = len(churches) + len(choirs) + len(leaders) + len(posts)
+    
+    return {
+        "churches": churches,
+        "choirs": choirs,
+        "leaders": leaders,
+        "posts": posts,
+        "total": total
+    }
+
+
+@router.post("/approvals/approve")
+async def approve_item(data: dict):
+    """Approve an item"""
+    db = get_db()
+    
+    item_type = data.get("type")
+    item_id = data.get("id")
+    
+    if item_type == "church":
+        await db.churches.update_one(
+            {"church_id": item_id},
+            {"$set": {"status": "active", "approved_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    elif item_type == "choir":
+        await db.singers.update_one(
+            {"singer_id": item_id},
+            {"$set": {"approval_status": "approved", "status": "active", "approved_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        await db.choir_accounts.update_one(
+            {"choir_id": item_id},
+            {"$set": {"status": "approved", "approved_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    elif item_type == "leader":
+        await db.church_leader_accounts.update_one(
+            {"account_id": item_id},
+            {"$set": {"status": "approved", "approved_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    elif item_type == "post":
+        await db.posts.update_one(
+            {"post_id": item_id},
+            {"$set": {"status": "published", "approved_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Invalid type")
+    
+    return {"message": "Approved successfully"}
+
+
+@router.post("/approvals/reject")
+async def reject_item(data: dict):
+    """Reject an item"""
+    db = get_db()
+    
+    item_type = data.get("type")
+    item_id = data.get("id")
+    reason = data.get("reason", "")
+    
+    if item_type == "church":
+        await db.churches.update_one(
+            {"church_id": item_id},
+            {"$set": {"status": "rejected", "rejection_reason": reason}}
+        )
+    elif item_type == "choir":
+        await db.singers.update_one(
+            {"singer_id": item_id},
+            {"$set": {"approval_status": "rejected", "status": "rejected", "rejection_reason": reason}}
+        )
+        await db.choir_accounts.update_one(
+            {"choir_id": item_id},
+            {"$set": {"status": "rejected", "rejection_reason": reason}}
+        )
+    elif item_type == "leader":
+        await db.church_leader_accounts.update_one(
+            {"account_id": item_id},
+            {"$set": {"status": "rejected", "rejection_reason": reason}}
+        )
+    elif item_type == "post":
+        await db.posts.update_one(
+            {"post_id": item_id},
+            {"$set": {"status": "rejected", "rejection_reason": reason}}
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Invalid type")
+    
+    return {"message": "Rejected"}
+
+
+# ============== CHOIR REGISTRATIONS ==============
+
+@router.get("/admin/choir-registrations")
+async def get_choir_registrations(status: Optional[str] = None):
+    """Get choir registrations"""
+    db = get_db()
+    
+    query = {}
+    if status:
+        query["approval_status"] = status
+    else:
+        query["approval_status"] = "pending"
+    
+    registrations = await db.singers.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    # Get accounts too
+    for reg in registrations:
+        account = await db.choir_accounts.find_one({"choir_id": reg["singer_id"]}, {"_id": 0, "password_hash": 0})
+        if account:
+            reg["account"] = account
+    
+    return {"registrations": registrations}
+
+
+# ============== PAYMENT REQUESTS ==============
+
+@router.get("/admin/payment-requests")
+async def get_payment_requests(status: Optional[str] = None):
+    """Get payment requests"""
+    db = get_db()
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    requests = await db.payment_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    return {"requests": requests}
+
+
+# ============== CONTENT EDIT REQUESTS ==============
+
+@router.get("/admin/content-edit-requests")
+async def get_content_edit_requests(status: Optional[str] = None):
+    """Get content edit requests"""
+    db = get_db()
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    requests = await db.content_edit_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    return {"requests": requests}
+
+
+# ============== CHURCH LEADER ACCOUNTS ==============
+
+@router.get("/church-leader/accounts")
+async def get_church_leader_accounts():
+    """Get church leader accounts"""
+    db = get_db()
+    
+    accounts = await db.church_leader_accounts.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(100)
+    
+    return {"accounts": accounts}
