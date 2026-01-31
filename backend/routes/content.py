@@ -562,6 +562,18 @@ async def get_special_mixes():
         {"_id": 0}
     ).sort("sort_order", 1).to_list(50)
     
+    # Ensure title is set from name if missing and calculate total duration
+    for mix in mixes:
+        if not mix.get("title") and mix.get("name"):
+            mix["title"] = mix["name"]
+        elif not mix.get("name") and mix.get("title"):
+            mix["name"] = mix["title"]
+        
+        # Calculate total duration from songs
+        songs = mix.get("songs", [])
+        total_duration = sum(s.get("duration", 0) for s in songs if s)
+        mix["total_duration"] = total_duration
+    
     return {"mixes": mixes}
 
 
