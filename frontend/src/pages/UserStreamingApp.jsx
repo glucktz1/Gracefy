@@ -3135,7 +3135,7 @@ export default function UserStreamingApp() {
                       </div>
                       <div>
                         <h2 className="font-bold text-lg">{t('library.likedSongs', 'Liked Songs')}</h2>
-                        <p className="text-sm text-zinc-400">{library.favorites.filter(f => f.type === 'song').length} {t('library.songs', 'songs')}</p>
+                        <p className="text-sm text-zinc-400">{library.favorites?.filter(f => f.type === 'song' && f.item).length || 0} {t('library.songs', 'songs')}</p>
                       </div>
                     </div>
                     <button
