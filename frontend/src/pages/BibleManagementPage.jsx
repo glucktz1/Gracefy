@@ -552,6 +552,9 @@ export default function BibleManagementPage() {
           <TabsTrigger value="snippets" className="data-[state=active]:bg-amber-600">
             <Mic2 size={14} className="mr-2" /> Audio Snippets ({snippets.length})
           </TabsTrigger>
+          <TabsTrigger value="cache" className="data-[state=active]:bg-cyan-600">
+            <Database size={14} className="mr-2" /> TTS Cache
+          </TabsTrigger>
           <TabsTrigger value="analytics" className="data-[state=active]:bg-amber-600">
             <BarChart3 size={14} className="mr-2" /> Analytics
           </TabsTrigger>
