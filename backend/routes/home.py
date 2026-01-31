@@ -51,12 +51,20 @@ CHURCH_LIST_PROJECTION = {
 
 
 def optimize_thumbnails(items: list) -> list:
-    """Optimize thumbnails by truncating base64 data."""
+    """
+    Optimize thumbnails by converting large base64 data to streaming URLs.
+    CDN URLs are kept as-is, base64 thumbnails are converted to streaming endpoint.
+    """
     for item in items:
         thumb = item.get("thumbnail", "")
         if isinstance(thumb, str) and thumb.startswith("data:image"):
-            item["thumbnail"] = thumb[:100] + "..."
-            item["thumbnail_type"] = "base64_truncated"
+            # For base64 thumbnails, use the thumbnail streaming endpoint instead
+            item_id = item.get("album_id") or item.get("song_id") or item.get("mix_id") or item.get("container_id")
+            if item_id:
+                item["thumbnail"] = f"/api/thumbnails/{item_id}"
+                item["thumbnail_type"] = "streaming"
+            else:
+                item["thumbnail_type"] = "base64"
         elif isinstance(thumb, str) and (thumb.startswith("http") or thumb.startswith("/")):
             item["thumbnail_type"] = "url"
     return items
