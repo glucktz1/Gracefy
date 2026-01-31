@@ -467,9 +467,15 @@ export default function LeadersPage() {
                       accept="image/*" 
                       className="hidden" 
                       onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          setPhotoFile(e.target.files[0]);
-                          setFormData({ ...formData, photo: "" }); // Clear URL if uploading file
+                        try {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            console.log("File selected:", file.name, file.type, file.size);
+                            setPhotoFile(file);
+                            setFormData(prev => ({ ...prev, photo: "" }));
+                          }
+                        } catch (err) {
+                          console.error("File selection error:", err);
                         }
                       }}
                     />
