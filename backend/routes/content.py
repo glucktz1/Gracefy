@@ -54,6 +54,12 @@ async def get_religious_leaders(
     return {"leaders": leaders, "total": total}
 
 
+@router.get("/leaders/{leader_id}")
+async def get_leader(leader_id: str):
+    """Get single religious leader (alias)"""
+    return await get_religious_leader(leader_id)
+
+
 @router.get("/religious-leaders/{leader_id}")
 async def get_religious_leader(leader_id: str):
     """Get single religious leader"""
@@ -64,6 +70,12 @@ async def get_religious_leader(leader_id: str):
         raise HTTPException(status_code=404, detail="Leader not found")
     
     return leader
+
+
+@router.post("/leaders")
+async def create_leader(data: dict):
+    """Create a new religious leader (alias)"""
+    return await create_religious_leader(data)
 
 
 @router.post("/religious-leaders")
@@ -94,6 +106,12 @@ async def create_religious_leader(data: dict):
     return leader
 
 
+@router.put("/leaders/{leader_id}")
+async def update_leader(leader_id: str, data: dict):
+    """Update a religious leader (alias)"""
+    return await update_religious_leader(leader_id, data)
+
+
 @router.put("/religious-leaders/{leader_id}")
 async def update_religious_leader(leader_id: str, data: dict):
     """Update a religious leader"""
@@ -111,6 +129,12 @@ async def update_religious_leader(leader_id: str, data: dict):
         raise HTTPException(status_code=404, detail="Leader not found")
     
     return {"message": "Leader updated"}
+
+
+@router.delete("/leaders/{leader_id}")
+async def delete_leader(leader_id: str):
+    """Delete a religious leader (alias)"""
+    return await delete_religious_leader(leader_id)
 
 
 @router.delete("/religious-leaders/{leader_id}")
