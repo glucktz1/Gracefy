@@ -1865,7 +1865,7 @@ export default function LayoutManagementPage() {
                         <div key={album?.album_id || i} className="flex-shrink-0 w-32">
                           <div className="w-32 h-32 rounded-lg bg-zinc-800 mb-2 flex items-center justify-center">
                             {album?.thumbnail ? (
-                              <img src={album.thumbnail} alt="" className="w-full h-full object-cover rounded-lg" />
+                              <img src={getImageUrl(album.thumbnail)} alt="" className="w-full h-full object-cover rounded-lg" />
                             ) : (
                               <Music2 size={32} className="text-zinc-600" />
                             )}
