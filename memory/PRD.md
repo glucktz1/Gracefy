@@ -154,6 +154,23 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-01-31)
 
+### Choir Registration Form (Enhanced)
+- Default language is now Kiswahili with English toggle option
+- 4-step registration process for church choirs:
+  1. Basic Info (Name, Email, Phone, Type)
+  2. Choir Details (Denomination, Church Name, Location, Description)
+  3. Leadership (Chairperson, Treasurer, Parish Leader - with name, phone, email, title)
+  4. Payment & Account (Mobile Money or Bank Account + Password)
+- Payment details: Mobile network selection, registered name, OR bank account info
+- Success message indicates pending admin approval
+
+### Play Tracking & Analytics
+- Fixed: Frontend now sends `duration_seconds` to `/listening/end` endpoint
+- Plays are counted when song is played for 30+ seconds (industry standard)
+- Added page unload tracking via `navigator.sendBeacon`
+- Choir/artist total_plays also updated when songs are played
+- Analytics properly aggregates plays by album and song
+
 ### Google Login & Admin Access Fix
 - Fixed: All Google login users were getting admin role
 - Now only `glucktz1904@gmail.com` gets admin role; others get "user" role
