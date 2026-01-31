@@ -328,7 +328,7 @@ export default function SpecialMixesPage() {
           <Card key={mix.mix_id} className="bg-zinc-900/50 border-zinc-800 overflow-hidden">
             <div className="aspect-video relative bg-zinc-800">
               {mix.thumbnail ? (
-                <img src={mix.thumbnail} alt={mix.title} className="w-full h-full object-cover" />
+                <img src={getImageUrl(mix.thumbnail)} alt={mix.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Disc size={48} className="text-zinc-600" />
