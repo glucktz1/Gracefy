@@ -961,7 +961,7 @@ export default function AlbumsPage() {
                 <div className="flex items-center gap-4">
                   {(albumFormData.thumbnail || thumbnailFile) && (
                     <img 
-                      src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : albumFormData.thumbnail} 
+                      src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : getImageUrl(albumFormData.thumbnail)} 
                       alt="" 
                       className="w-24 h-24 rounded-xl object-cover border border-zinc-700"
                     />
