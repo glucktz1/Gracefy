@@ -1267,7 +1267,7 @@ export default function LayoutManagementPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes, leadersRes, snippetsRes, mixesRes, leaderContentRes] = await Promise.all([
+      const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes, leadersRes, snippetsRes, mixesRes, leaderContentRes, teachingsRes] = await Promise.all([
         axios.get(`${API}/layout/sections`, { withCredentials: true }),
         axios.get(`${API}/layout/burners`, { withCredentials: true }),
         axios.get(`${API}/categories`, { withCredentials: true }),
@@ -1277,7 +1277,8 @@ export default function LayoutManagementPage() {
         axios.get(`${API}/leaders`, { withCredentials: true }).catch(() => ({ data: { leaders: [] } })),
         axios.get(`${API}/bible/featured-snippets`, { withCredentials: true }).catch(() => ({ data: { snippets: [] } })),
         axios.get(`${API}/special-mixes`, { withCredentials: true }).catch(() => ({ data: { mixes: [] } })),
-        axios.get(`${API}/layout/leader-content`, { withCredentials: true }).catch(() => ({ data: { content: [], containers: [] } }))
+        axios.get(`${API}/layout/leader-content`, { withCredentials: true }).catch(() => ({ data: { content: [], containers: [] } })),
+        axios.get(`${API}/teachings`, { withCredentials: true }).catch(() => ({ data: { teachings: [] } }))
       ]);
       setSections(sectionsRes.data.sections || []);
       setBurners(burnersRes.data.burners || []);
@@ -1288,6 +1289,7 @@ export default function LayoutManagementPage() {
       setReligiousLeaders(leadersRes.data.leaders || []);
       setBibleSnippets(snippetsRes.data.snippets || snippetsRes.data || []);
       setSpecialMixes(mixesRes.data.mixes || []);
+      setTeachings(teachingsRes.data.teachings || []);
       // Combine leader content items and containers
       const allLeaderContent = [
         ...(leaderContentRes.data.content || []),
