@@ -1,0 +1,736 @@
+"""
+Authentication routes for Gracefy.
+Handles admin panel auth, mobile app auth, OTP, and password reset.
+"""
+
+from fastapi import APIRouter, HTTPException, Request, Response
+from datetime import datetime, timezone, timedelta
+import uuid
+import hashlib
+import random
+import logging
+import httpx
+
+from core.database import get_db
+from core.cache import cache
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api", tags=["auth"])
+
+# Session configuration
+SESSION_EXPIRY_DAYS = 7
+TOKEN_EXPIRY_DAYS = 30
+
+
+# ============== ADMIN PANEL AUTH ==============
+
+@router.post("/auth/session")
+async def process_session(request: Request, response: Response):
+    """Process session_id from Emergent OAuth and create user session"""
+    db = get_db()
+    data = await request.json()
+    session_id = data.get("session_id")
+    
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID required")
+    
+    # Get user data from Emergent auth
+    async with httpx.AsyncClient() as client_http:
+        auth_response = await client_http.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id}
+        )
+        
+        if auth_response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        user_data = auth_response.json()
+    
+    # Check if user exists
+    existing_user = await db.users.find_one({"email": user_data["email"]}, {"_id": 0})
+    
+    if existing_user:
+        user_id = existing_user["user_id"]
+        # Update user data
+        await db.users.update_one(
+            {"email": user_data["email"]},
+            {"$set": {
+                "name": user_data["name"],
+                "picture": user_data.get("picture")
+            }}
+        )
+    else:
+        # Create new user (first user is admin for testing)
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        new_user = {
+            "user_id": user_id,
+            "email": user_data["email"],
+            "name": user_data["name"],
+            "picture": user_data.get("picture"),
+            "role": "admin",
+            "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(new_user)
+    
+    # Create session
+    session_token = user_data.get("session_token", f"token_{uuid.uuid4().hex}")
+    expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
+    
+    session_doc = {
+        "session_id": f"sess_{uuid.uuid4().hex}",
+        "user_id": user_id,
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.user_sessions.insert_one(session_doc)
+    
+    # Set cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60
+    )
+    
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    return {"user": user, "session_token": session_token}
+
+
+@router.get("/auth/me")
+async def get_current_user(request: Request):
+    """Get current authenticated admin user"""
+    db = get_db()
+    session_token = request.cookies.get("session_token")
+    
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    expires_at = session["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Session expired")
+    
+    user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return user
+
+
+@router.post("/auth/logout")
+async def logout(request: Request, response: Response):
+    """Logout admin user"""
+    db = get_db()
+    session_token = request.cookies.get("session_token")
+    
+    if session_token:
+        await db.user_sessions.delete_one({"session_token": session_token})
+    
+    response.delete_cookie(key="session_token", path="/")
+    return {"message": "Logged out successfully"}
+
+
+# ============== MOBILE APP AUTH ==============
+
+@router.post("/user/register")
+async def register_user(data: dict):
+    """Register a new user with email/password or phone"""
+    db = get_db()
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    password = data.get("password")
+    name = data.get("name", "")
+    
+    if not password or (not email and not phone):
+        raise HTTPException(status_code=400, detail="Email or phone and password required")
+    
+    # Check if user exists
+    if email:
+        existing = await db.app_users.find_one({"email": email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+    if phone:
+        existing = await db.app_users.find_one({"phone": phone})
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone already registered")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    # Check if free trial is enabled
+    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    trial_enabled = settings.get("free_trial_enabled", True) if settings else True
+    trial_days = settings.get("free_trial_days", 7) if settings else 7
+    
+    # Calculate trial expiry
+    trial_expires_at = None
+    trial_status = None
+    if trial_enabled and trial_days > 0:
+        trial_expires_at = (datetime.now(timezone.utc) + timedelta(days=trial_days)).isoformat()
+        trial_status = "active"
+    
+    user = {
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": email,
+        "phone": phone,
+        "name": name,
+        "password_hash": password_hash,
+        "picture": None,
+        "subscription_type": "free",
+        "subscription_expires": None,
+        "trial": {
+            "status": trial_status,
+            "started_at": datetime.now(timezone.utc).isoformat() if trial_enabled else None,
+            "expires_at": trial_expires_at,
+            "days_granted": trial_days if trial_enabled else 0,
+        } if trial_enabled else None,
+        "favorites": [],
+        "playlists": [],
+        "recently_played": [],
+        "downloads": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "active"
+    }
+    
+    await db.app_users.insert_one(user)
+    del user["password_hash"]
+    user.pop("_id", None)
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
+    })
+    
+    return {
+        "user": user, 
+        "token": token,
+        "trial_started": trial_enabled,
+        "trial_days": trial_days if trial_enabled else 0,
+        "trial_expires_at": trial_expires_at
+    }
+
+
+@router.post("/user/login")
+async def login_user(data: dict):
+    """Login user with email/phone and password"""
+    db = get_db()
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    password = data.get("password")
+    
+    if not password or (not email and not phone):
+        raise HTTPException(status_code=400, detail="Credentials required")
+    
+    query = {"email": email} if email else {"phone": phone}
+    user = await db.app_users.find_one(query)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user["password_hash"] != password_hash:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
+    })
+    
+    del user["password_hash"]
+    user.pop("_id", None)
+    
+    return {"user": user, "token": token}
+
+
+@router.get("/user/me")
+async def get_user_profile(request: Request):
+    """Get current user profile"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_doc = await db.user_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = await db.app_users.find_one({"user_id": token_doc["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return user
+
+
+@router.post("/user/logout")
+async def user_logout(request: Request):
+    """Logout mobile app user"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        await db.user_tokens.delete_one({"token": token})
+    
+    return {"message": "Logged out successfully"}
+
+
+# ============== OTP AUTHENTICATION ==============
+
+@router.post("/auth/send-otp")
+async def send_otp(data: dict):
+    """Send OTP to phone number for authentication"""
+    db = get_db()
+    
+    phone = data.get("phone")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number required")
+    
+    # Normalize phone
+    phone = phone.replace(" ", "").replace("-", "")
+    if not phone.startswith("+"):
+        if phone.startswith("0"):
+            phone = "+255" + phone[1:]
+        else:
+            phone = "+255" + phone
+    
+    # Generate OTP
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Store OTP
+    await db.otp_codes.update_one(
+        {"phone": phone},
+        {"$set": {
+            "otp": otp,
+            "expires_at": expires_at.isoformat(),
+            "verified": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    # In production, send SMS here
+    logger.info(f"[OTP] Phone: {phone}, Code: {otp}")
+    
+    return {
+        "message": "OTP sent successfully",
+        "phone": phone,
+        "expires_in": 600,
+        "demo_otp": otp  # Remove in production
+    }
+
+
+@router.post("/auth/verify-otp")
+async def verify_otp(data: dict):
+    """Verify OTP and authenticate user"""
+    db = get_db()
+    
+    phone = data.get("phone")
+    otp = data.get("otp")
+    
+    if not phone or not otp:
+        raise HTTPException(status_code=400, detail="Phone and OTP required")
+    
+    # Normalize phone
+    phone = phone.replace(" ", "").replace("-", "")
+    if not phone.startswith("+"):
+        if phone.startswith("0"):
+            phone = "+255" + phone[1:]
+        else:
+            phone = "+255" + phone
+    
+    # Find OTP
+    otp_doc = await db.otp_codes.find_one({"phone": phone})
+    if not otp_doc:
+        raise HTTPException(status_code=400, detail="No OTP sent to this number")
+    
+    # Check if expired
+    expires_at = datetime.fromisoformat(otp_doc["expires_at"])
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="OTP expired")
+    
+    # Verify OTP
+    if otp_doc["otp"] != otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    # Mark as verified
+    await db.otp_codes.update_one(
+        {"phone": phone},
+        {"$set": {"verified": True}}
+    )
+    
+    # Find or create user
+    user = await db.app_users.find_one({"phone": phone})
+    
+    if not user:
+        user = {
+            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "phone": phone,
+            "email": None,
+            "name": "",
+            "subscription_type": "free",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "status": "active"
+        }
+        await db.app_users.insert_one(user)
+    
+    user.pop("_id", None)
+    user.pop("password_hash", None)
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
+    })
+    
+    return {"user": user, "token": token, "message": "OTP verified successfully"}
+
+
+# ============== PASSWORD RESET ==============
+
+@router.post("/auth/forgot-password/send")
+async def forgot_password_send(data: dict):
+    """Send password reset OTP"""
+    db = get_db()
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    
+    if not email and not phone:
+        raise HTTPException(status_code=400, detail="Email or phone required")
+    
+    # Find user
+    query = {"email": email} if email else {"phone": phone}
+    user = await db.app_users.find_one(query)
+    
+    if not user:
+        # Don't reveal if user exists
+        return {"message": "If account exists, reset code has been sent"}
+    
+    # Generate reset code
+    reset_code = str(random.randint(100000, 999999))
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    
+    await db.password_resets.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {
+            "reset_code": reset_code,
+            "expires_at": expires_at.isoformat(),
+            "used": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    # In production, send email/SMS
+    logger.info(f"[PASSWORD RESET] User: {user['user_id']}, Code: {reset_code}")
+    
+    return {
+        "message": "Reset code sent successfully",
+        "expires_in": 900,
+        "demo_code": reset_code  # Remove in production
+    }
+
+
+@router.post("/auth/forgot-password/verify")
+async def forgot_password_verify(data: dict):
+    """Verify password reset code"""
+    db = get_db()
+    
+    email = data.get("email")
+    phone = data.get("phone")
+    code = data.get("code")
+    
+    if not code or (not email and not phone):
+        raise HTTPException(status_code=400, detail="Email/phone and code required")
+    
+    # Find user
+    query = {"email": email} if email else {"phone": phone}
+    user = await db.app_users.find_one(query)
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+    
+    # Find reset code
+    reset_doc = await db.password_resets.find_one({"user_id": user["user_id"]})
+    
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="No reset code found")
+    
+    if reset_doc.get("used"):
+        raise HTTPException(status_code=400, detail="Reset code already used")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(reset_doc["expires_at"])
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset code expired")
+    
+    if reset_doc["reset_code"] != code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+    
+    # Generate reset token
+    reset_token = f"reset_{uuid.uuid4().hex}"
+    
+    await db.password_resets.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"reset_token": reset_token}}
+    )
+    
+    return {"message": "Code verified", "reset_token": reset_token}
+
+
+@router.post("/auth/forgot-password/reset")
+async def forgot_password_reset(data: dict):
+    """Reset password with verified token"""
+    db = get_db()
+    
+    reset_token = data.get("reset_token")
+    new_password = data.get("new_password")
+    
+    if not reset_token or not new_password:
+        raise HTTPException(status_code=400, detail="Reset token and new password required")
+    
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    # Find reset doc
+    reset_doc = await db.password_resets.find_one({"reset_token": reset_token})
+    
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+    
+    if reset_doc.get("used"):
+        raise HTTPException(status_code=400, detail="Reset token already used")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(reset_doc["expires_at"])
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset token expired")
+    
+    # Update password
+    password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+    
+    await db.app_users.update_one(
+        {"user_id": reset_doc["user_id"]},
+        {"$set": {"password_hash": password_hash}}
+    )
+    
+    # Mark reset as used
+    await db.password_resets.update_one(
+        {"user_id": reset_doc["user_id"]},
+        {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Invalidate all existing tokens
+    await db.user_tokens.delete_many({"user_id": reset_doc["user_id"]})
+    
+    return {"message": "Password reset successfully. Please login with your new password."}
+
+
+# ============== GOOGLE AUTH (Mobile App) ==============
+
+@router.get("/user/auth/google-callback")
+async def google_auth_callback(request: Request):
+    """Handle Google OAuth callback for mobile app"""
+    db = get_db()
+    
+    session_id = request.query_params.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID required")
+    
+    # Get user data from Emergent auth
+    async with httpx.AsyncClient() as client_http:
+        auth_response = await client_http.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id}
+        )
+        
+        if auth_response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        user_data = auth_response.json()
+    
+    email = user_data.get("email")
+    name = user_data.get("name", "")
+    picture = user_data.get("picture")
+    
+    # Find or create user
+    existing_user = await db.app_users.find_one({"email": email})
+    
+    if existing_user:
+        user_id = existing_user["user_id"]
+        await db.app_users.update_one(
+            {"email": email},
+            {"$set": {"name": name, "picture": picture, "google_connected": True}}
+        )
+        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    else:
+        user = {
+            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "phone": None,
+            "subscription_type": "free",
+            "google_connected": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "status": "active"
+        }
+        await db.app_users.insert_one(user)
+        user_id = user["user_id"]
+        user.pop("_id", None)
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
+    })
+    
+    return {"user": user, "token": token}
+
+
+@router.post("/user/auth/google-callback")
+async def google_auth_callback_post(request: Request):
+    """Handle Google OAuth callback (POST version)"""
+    db = get_db()
+    data = await request.json()
+    
+    session_id = data.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID required")
+    
+    # Get user data from Emergent auth
+    async with httpx.AsyncClient() as client_http:
+        auth_response = await client_http.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id}
+        )
+        
+        if auth_response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        user_data = auth_response.json()
+    
+    email = user_data.get("email")
+    name = user_data.get("name", "")
+    picture = user_data.get("picture")
+    
+    # Find or create user
+    existing_user = await db.app_users.find_one({"email": email})
+    
+    if existing_user:
+        user_id = existing_user["user_id"]
+        await db.app_users.update_one(
+            {"email": email},
+            {"$set": {"name": name, "picture": picture, "google_connected": True}}
+        )
+        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    else:
+        user = {
+            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "phone": None,
+            "subscription_type": "free",
+            "google_connected": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "status": "active"
+        }
+        await db.app_users.insert_one(user)
+        user_id = user["user_id"]
+        user.pop("_id", None)
+    
+    # Generate token
+    token = f"tok_{uuid.uuid4().hex}"
+    await db.user_tokens.insert_one({
+        "token": token,
+        "user_id": user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
+    })
+    
+    return {"user": user, "token": token}
+
+
+@router.get("/user/auth/me")
+async def get_app_user_auth(request: Request):
+    """Get current authenticated app user"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Check token expiry
+    expires_at = token_doc.get("expires_at")
+    if expires_at:
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=401, detail="Token expired")
+    
+    user = await db.app_users.find_one(
+        {"user_id": token_doc["user_id"]}, 
+        {"_id": 0, "password_hash": 0}
+    )
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return user
