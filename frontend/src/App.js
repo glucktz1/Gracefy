@@ -32,6 +32,7 @@ const DonationsPage = lazy(() => import("@/pages/DonationsPage"));
 const CommunityPage = lazy(() => import("@/pages/CommunityPage"));
 const BookingsPage = lazy(() => import("@/pages/BookingsPage"));
 const ApprovalsPage = lazy(() => import("@/pages/ApprovalsPage"));
+const TeachingsPage = lazy(() => import("@/pages/TeachingsPage"));
 const RevenueAnalyticsPage = lazy(() => import("@/pages/RevenueAnalyticsPage"));
 const ChoirAccountsPage = lazy(() => import("@/pages/ChoirAccountsPage"));
 const WithdrawalsPage = lazy(() => import("@/pages/WithdrawalsPage"));
