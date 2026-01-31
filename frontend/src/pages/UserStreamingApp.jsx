@@ -3153,16 +3153,16 @@ export default function UserStreamingApp() {
                     </button>
                   </div>
                   <div className="space-y-1 max-h-80 overflow-y-auto">
-                    {library.favorites.filter(f => f.type === 'song').slice(0, libraryTab === 'liked' ? 50 : 5).map((fav, i) => (
+                    {library.favorites.filter(f => f.type === 'song' && f.item).slice(0, libraryTab === 'liked' ? 50 : 5).map((fav, i) => (
                       <ListItem 
-                        key={fav.item.song_id}
+                        key={fav.item.song_id || `fav-${i}`}
                         item={{...fav.item, album: fav.album}}
                         index={i}
                         onPlay={() => {
-                          const songs = library.favorites.filter(f => f.type === 'song').map(f => f.item);
+                          const songs = library.favorites.filter(f => f.type === 'song' && f.item).map(f => f.item);
                           handlePlaySong(fav.item, fav.album, songs, i);
                         }}
-                        isActive={player.currentSong?.song_id === fav.item.song_id}
+                        isActive={player.currentSong?.song_id === fav.item?.song_id}
                         isPlaying={player.isPlaying}
                         onLike={handleLikeSong}
                         onAddToPlaylist={handleAddToPlaylist}
