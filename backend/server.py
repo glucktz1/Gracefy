@@ -295,14 +295,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 # These are kept for backward compatibility with existing code
 # New code should import from core.database instead
 
-from motor.motor_asyncio import AsyncIOMotorClient
-
 # Legacy MongoDB client (deprecated - use get_db() instead)
 mongo_url = os.environ.get('MONGO_URL')
 db_name = os.environ.get('DB_NAME')
 
 if mongo_url and db_name:
-    client = AsyncIOMotorClient(
+    from motor.motor_asyncio import AsyncIOMotorClient as LegacyClient
+    client = LegacyClient(
         mongo_url,
         maxPoolSize=100,
         minPoolSize=10,
