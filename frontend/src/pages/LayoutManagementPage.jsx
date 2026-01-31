@@ -2284,7 +2284,7 @@ export default function LayoutManagementPage() {
                     
                     {(!sectionForm.quick_access_items || sectionForm.quick_access_items.length === 0) && (
                       <div className="text-center py-6 text-zinc-500 text-sm">
-                        No quick access items. Click "Add Item" to create one.
+                        No quick access items. Click &quot;Add Item&quot; to create one.
                       </div>
                     )}
                   </div>
