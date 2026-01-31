@@ -344,15 +344,16 @@ export default function LeadersPage() {
                   leader.status === "pending" ? "bg-amber-500/20 text-amber-400" :
                   "bg-red-500/20 text-red-400"
                 }`}>
-                  {leader.status || "pending"}
+                  {String(leader.status || "pending")}
                 </span>
                 <span className="text-xs text-zinc-500">{leader.followers || 0} followers</span>
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
 
-        {leaders.length === 0 && (
+        {(!Array.isArray(leaders) || leaders.length === 0) && (
           <div className="col-span-full text-center py-12 text-zinc-500">
             <UserCheck size={48} className="mx-auto mb-4 opacity-50" />
             <p>No leaders found</p>
