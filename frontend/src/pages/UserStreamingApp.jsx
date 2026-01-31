@@ -3171,7 +3171,7 @@ export default function UserStreamingApp() {
                       />
                     ))}
                   </div>
-                  {libraryTab === 'all' && library.favorites.filter(f => f.type === 'song').length > 5 && (
+                  {libraryTab === 'all' && library.favorites.filter(f => f.type === 'song' && f.item).length > 5 && (
                     <button 
                       onClick={() => setLibraryTab('liked')}
                       className="mt-3 text-sm text-zinc-400 hover:text-white transition-colors"
