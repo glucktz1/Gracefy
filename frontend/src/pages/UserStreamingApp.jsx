@@ -2222,23 +2222,29 @@ export default function UserStreamingApp() {
   // Handle Google OAuth callback
   useEffect(() => {
     const hash = window.location.hash;
+    console.log('Checking OAuth hash:', hash);
+    
     if (hash && hash.includes('session_id=')) {
       const sessionId = hash.split('session_id=')[1]?.split('&')[0];
+      console.log('Found session_id:', sessionId);
+      
       if (sessionId) {
-        // Clear the hash from URL
+        // Clear the hash from URL first
         window.history.replaceState(null, '', window.location.pathname);
         
         // Process the session
-        axios.post(`${API}/user/auth/google-callback`, { session_id: sessionId })
+        axios.post(`${API}/user/auth/google-callback`, { session_id: sessionId }, { withCredentials: true })
           .then(res => {
+            console.log('Google auth success:', res.data);
             setToken(res.data.token);
             setUser(res.data.user);
             localStorage.setItem('user_token', res.data.token);
             localStorage.setItem('user_id', res.data.user.user_id);
+            setShowAuthModal(false);
             toast.success(`Welcome, ${res.data.user.name}!`);
           })
           .catch(e => {
-            console.error("Google auth error:", e);
+            console.error("Google auth error:", e.response?.data || e.message);
             toast.error("Google sign-in failed. Please try again.");
           });
       }
