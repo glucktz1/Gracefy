@@ -1397,19 +1397,19 @@ export default function BibleManagementPage() {
               Cancel
             </Button>
             <Button 
-              onClick={handleCreateSnippet} 
+              onClick={handleSaveSnippet} 
               disabled={creatingSnippet || !snippetForm.title || !snippetForm.book_name}
               className="bg-amber-600 hover:bg-amber-700"
             >
               {creatingSnippet ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Generating Audio...
+                  {editingSnippet ? "Saving..." : "Generating Audio..."}
                 </>
               ) : (
                 <>
                   <Mic2 size={16} className="mr-2" />
-                  Create Snippet
+                  {editingSnippet ? "Save Changes" : "Create Snippet"}
                 </>
               )}
             </Button>
