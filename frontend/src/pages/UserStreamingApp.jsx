@@ -3140,7 +3140,7 @@ export default function UserStreamingApp() {
                     </div>
                     <button
                       onClick={() => {
-                        const likedSongs = library.favorites.filter(f => f.type === 'song');
+                        const likedSongs = library.favorites?.filter(f => f.type === 'song' && f.item) || [];
                         if (likedSongs.length > 0) {
                           const songs = likedSongs.map(f => f.item);
                           handlePlaySong(songs[0], likedSongs[0].album, songs, 0);
