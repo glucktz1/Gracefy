@@ -173,8 +173,20 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Swahili + English**: Voices available in sw-KE, sw-TZ, and en-US languages
 - **Full OpenAI TTS Integration**: Real audio generation using Emergent LLM Key
 - **Caching**: TTS audio cached in `bible_tts_cache` collection for performance
-- **User Voice Selector**: Users can choose voice when reading Bible on web/app
+- **User Voice Selector**: Users can choose voice when reading Bible on web/app (with toast notification)
 - **Bug Fix**: Fixed `chapters.map is not a function` error in Bible view
+
+### Admin Bible Management Features (2026-01-31)
+- **TTS Cache Tab**: View and manage cached Bible audio recordings
+  - Shows total cached entries and size in MB
+  - Play cached audio directly
+  - Delete individual cache entries
+  - Clear all cache option
+- **Snippet Management**: Full CRUD for Bible snippets
+  - Edit button to modify existing snippets
+  - Enable/Disable toggle for each snippet
+  - Delete with confirmation
+- **Voice Selection Fixed**: Different voices now correctly generate different audio
 
 ### Content Section Fixes
 - Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
