@@ -633,8 +633,17 @@ export default function AlbumsPage() {
               <p className="empty-state-text">Create your first album</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
-              {albums.map((album) => (
+            <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
+              {albums
+                .filter(album => {
+                  const matchesSearch = !searchQuery || 
+                    album.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    album.artist_name?.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesCategory = filterCategory === "all" || album.category_id === filterCategory;
+                  const matchesStatus = filterStatus === "all" || album.status === filterStatus;
+                  return matchesSearch && matchesCategory && matchesStatus;
+                })
+                .map((album) => (
                 <Card 
                   key={album.album_id}
                   className={`bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 cursor-pointer transition-all ${
