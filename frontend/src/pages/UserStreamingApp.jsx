@@ -1019,6 +1019,7 @@ const BibleView = ({ language, t, onBack }) => {
   // Voice settings
   const [selectedVoice, setSelectedVoice] = useState("sw-KE-Zuri-Female");
   const [availableVoices, setAvailableVoices] = useState([]);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Speed control: 0.5x to 2x
   
   // Custom verse range reader
   const [showRangeReader, setShowRangeReader] = useState(false);
