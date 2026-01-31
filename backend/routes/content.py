@@ -18,6 +18,16 @@ router = APIRouter(prefix="/api", tags=["content"])
 
 # ============== RELIGIOUS LEADERS ==============
 
+@router.get("/leaders")
+async def get_leaders(
+    status: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get list of religious leaders (alias)"""
+    return await get_religious_leaders(status, skip, limit)
+
+
 @router.get("/religious-leaders")
 async def get_religious_leaders(
     status: Optional[str] = None,
