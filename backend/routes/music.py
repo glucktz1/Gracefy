@@ -52,15 +52,21 @@ SONG_LIST_PROJECTION = {
 
 def optimize_thumbnails(items: list) -> list:
     """
-    Optimize thumbnails by truncating base64 data.
-    CDN URLs are kept, but large embedded base64 is trimmed.
+    Optimize thumbnails by converting large base64 data to streaming URLs.
+    CDN URLs are kept as-is, base64 thumbnails are converted to streaming endpoint.
     """
     for item in items:
         thumb = item.get("thumbnail", "")
         if isinstance(thumb, str) and thumb.startswith("data:image"):
-            # Truncate base64 - return placeholder or first 100 chars
-            item["thumbnail"] = thumb[:100] + "..." if len(thumb) > 100 else thumb
-            item["thumbnail_type"] = "base64_truncated"
+            # For base64 thumbnails, use the thumbnail streaming endpoint instead
+            # This avoids sending large base64 data in list responses
+            item_id = item.get("album_id") or item.get("song_id") or item.get("mix_id") or item.get("container_id")
+            if item_id:
+                item["thumbnail"] = f"/api/thumbnails/{item_id}"
+                item["thumbnail_type"] = "streaming"
+            else:
+                # Keep full base64 if no ID to create streaming URL
+                item["thumbnail_type"] = "base64"
         elif isinstance(thumb, str) and (thumb.startswith("http") or thumb.startswith("/")):
             item["thumbnail_type"] = "url"
     return items
