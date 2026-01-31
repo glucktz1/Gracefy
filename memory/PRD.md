@@ -135,6 +135,12 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **MNO Support**: M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa
 - **Phone Auto-Detection**: Detects MNO from prefix
 
+## Upcoming Tasks
+1. Re-upload audio for 10 affected songs (P0)
+2. Complete endpoint migration from server_old.py (~90 endpoints) (P1)
+3. Animated splash screen (P2)
+4. Production Azam Pay credentials
+
 ## Known Issues
 
 ### P0 - Critical
