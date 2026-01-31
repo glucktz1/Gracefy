@@ -1016,6 +1016,10 @@ const BibleView = ({ language, t, onBack }) => {
   const [audioElement, setAudioElement] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   
+  // Voice settings
+  const [selectedVoice, setSelectedVoice] = useState("sw-KE-Zuri-Female");
+  const [availableVoices, setAvailableVoices] = useState([]);
+  
   // Custom verse range reader
   const [showRangeReader, setShowRangeReader] = useState(false);
   const [rangeBook, setRangeBook] = useState('');
@@ -1026,16 +1030,25 @@ const BibleView = ({ language, t, onBack }) => {
   const [rangeLoading, setRangeLoading] = useState(false);
   const [rangeResult, setRangeResult] = useState(null);
 
-  // Fetch books and snippets on mount
+  // Fetch books, snippets, and voice settings on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [booksRes, snippetsRes] = await Promise.all([
+        const [booksRes, snippetsRes, voicesRes] = await Promise.all([
           axios.get(`${API}/bible/books?language=${language}`),
-          axios.get(`${API}/bible/snippets?language=${language}`)
+          axios.get(`${API}/bible/snippets?language=${language}`),
+          axios.get(`${API}/bible/tts/voices`)
         ]);
         setBooks(booksRes.data.books || []);
         setSnippets(snippetsRes.data.snippets || []);
+        
+        // Set voice options and default
+        const voices = voicesRes.data.voices || [];
+        setAvailableVoices(voices);
+        
+        // Use admin-configured default voice
+        const defaultVoice = voicesRes.data.default_voice_female || voicesRes.data.default || "sw-KE-Zuri-Female";
+        setSelectedVoice(defaultVoice);
       } catch (e) {
         console.error("Error fetching Bible data:", e);
       } finally {
