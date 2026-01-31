@@ -9,173 +9,174 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - Admin panel for content management
 - Choir portal for artists
 - **Payment system with Azam Pay mobile money**
+- **Redis caching for horizontal scaling**
 
-## Architecture
-- **Backend**: FastAPI (Python) - Modular architecture with routers
-  - Main: `/app/backend/server.py` (legacy endpoints)
-  - Core: `/app/backend/core/` (database, caching)
-  - Routes: `/app/backend/routes/` (music, home, payment)
-  - Models: `/app/backend/models/` (Pydantic schemas)
-  - Services: `/app/backend/services/` (CDN, encoding, TTS)
+## Architecture (Updated 2026-01-31)
+
+### Backend - Fully Modular Router Architecture
+- **Main**: `/app/backend/server.py` (312 lines - clean application factory)
+- **Core**: `/app/backend/core/` (database, caching, config, dependencies)
+- **Routes**: `/app/backend/routes/` (16 modular router files)
+- **Models**: `/app/backend/models/` (Pydantic schemas)
+- **Services**: `/app/backend/services/` (CDN, encoding, TTS)
+
+### New Modular Routers (16 total)
+```
+/app/backend/routes/
+├── auth.py           # Authentication (admin, app, OTP, password reset)
+├── music.py          # Albums, songs endpoints
+├── home.py           # Home screen data
+├── payment.py        # Azam Pay integration
+├── layout.py         # Sections, burners, hero, home filters
+├── churches.py       # Churches, announcements, church leaders
+├── choirs.py         # Choirs, accounts, content, revenue
+├── bible.py          # Bible reading, TTS, listening tracking
+├── analytics.py      # Dashboard stats, trends, demographics
+├── admin.py          # Admin operations, cache, settings
+├── uploads.py        # File uploads, CDN management
+├── user_library.py   # Favorites, playlists, history, likes
+├── content.py        # Religious leaders, containers, episodes
+├── monetization.py   # Subscriptions, plans, transactions
+├── categories.py     # Content and song categories
+└── browse.py         # Search, browse, user content
+```
+
+### Infrastructure
 - **Frontend/Admin Panel**: React - `/app/frontend/`
 - **Mobile App**: React Native (Expo) - `/app/mobile/SpiritSongs/`
-- **Database**: MongoDB with indexes for optimal performance
+- **Database**: MongoDB with 175+ indexes
 - **CDN**: Bunny CDN for media storage
 - **TTS**: Google Cloud TTS for Bible audio
-- **Payments**: Azam Pay (Mobile Money - M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa)
-- **Caching**: In-memory LRU cache with TTL
+- **Payments**: Azam Pay (Mobile Money)
+- **Caching**: Redis primary + in-memory fallback
+- **Auto-Scaling**: Traffic-based cache TTL adjustment
 
-## Performance Optimizations (2026-01-28)
+## Backend Refactoring (Completed 2026-01-31)
 
-### Database Indexes Created
+### Before
+- `server.py`: 13,988 lines (monolithic)
+- All 387 endpoints in single file
+- Hard to maintain and scale
+
+### After  
+- `server.py`: 312 lines (application factory)
+- 294 endpoints in 16 modular routers
+- 97.8% reduction in main file size
+- Clean separation of concerns
+- Better testability and maintainability
+
+### Test Results
+- 27/27 API tests passed (100% success rate)
+- All core endpoints verified working
+- Redis fallback to in-memory working correctly
+
+## Performance Optimizations
+
+### Database Indexes
 - 175 total indexes across 68 collections
 - Compound indexes for common query patterns
 - TTL indexes for session/analytics auto-cleanup
-- Sparse indexes for optional fields
 
 ### Caching Strategy
-- Home screen: 60 second cache
-- Albums list: 120 second cache
-- Album detail: 300 second cache
-- Categories: 600 second cache
-- LRU eviction when max entries (10,000) reached
-- Background cleanup every 5 minutes
+- Redis primary cache (when available)
+- In-memory LRU fallback
+- Auto-scaling TTL based on traffic level:
+  - Low traffic (<50 req/s): 1x TTL
+  - Medium (50-100): 2x TTL
+  - High (100-200): 3x TTL
+  - Critical (>200): 4x TTL
 
 ### Query Optimizations
-- Minimal projections (exclude large fields)
-- Parallel async queries where possible
-- Connection pooling (100 max connections)
+- Minimal projections (exclude _id, large fields)
+- Parallel async queries
+- Connection pooling (100 max)
 - GZIP compression for responses > 500 bytes
-- Rate limiting (100 requests/minute per IP)
-
-### Performance Results
-- Home endpoint: ~170ms first call → ~70ms cached
-- Albums endpoint: ~80ms first call → ~45ms cached
 
 ## Completed Features
 
 ### Mobile App
 - [x] Music player with expo-av
 - [x] Albums and songs browsing
-- [x] Bible reader with book/chapter/verse navigation
-- [x] Bible TTS with verse range selection
-- [x] Voice selection (Kike/Kiume - Female/Male)
-- [x] Quick select buttons (1-5, 1-10, Sura Nzima)
-- [x] User listening history tracking to database
-- [x] Churches screen with announcements, choirs, leaders
-- [x] Church follow/unfollow feature
-- [x] User authentication (Google OAuth)
-- [x] Billing plans UI
-- [x] Mafundisho screen with series/episodes
-- [x] Animated Equalizer Bars
-- [x] Download Status Indicators
-- [x] Fixed Downloads Persistence
-- [x] Profile Functions Working
-- [x] **Checkout Screen with Phone Input** (Added 2026-01-28)
-- [x] **MNO Auto-Detection** (Vodacom, Tigo, Airtel, Halotel)
-- [x] **Transaction History in Profile**
-- [x] **Conditional Payment UI** (hidden when billing disabled)
+- [x] Bible reader with TTS
+- [x] Churches with announcements
+- [x] User authentication
+- [x] Checkout Screen with Phone Input
+- [x] MNO Auto-Detection
+- [x] Transaction History in Profile
+- [x] Download functionality
 
 ### Admin Panel
 - [x] Dashboard with analytics
 - [x] Album and song management
-- [x] Church management and approval
-- [x] Choir/Singer management
-- [x] Layout management for app sections
+- [x] Church and choir management
+- [x] Layout management
 - [x] Revenue settings
 - [x] User management with RBAC
-- [x] Leader Content Management
-- [x] **Billing Toggle** - Enable/disable billing system globally
-- [x] **Transaction Tracking** - View all payment transactions with filters
-- [x] **Cache Monitoring** - View cache stats at `/api/admin/cache/stats`
+- [x] Billing Toggle
+- [x] Transaction Tracking
+- [x] Cache Monitoring
+- [x] Home Filter Controls
 
-### Backend APIs
+### Backend APIs (All Working)
 - [x] Authentication endpoints
 - [x] Music streaming endpoints
-- [x] Bible content and TTS endpoints
+- [x] Bible content and TTS
 - [x] Church and choir endpoints
-- [x] Layout configuration endpoints
-- [x] Revenue and analytics endpoints
-- [x] Bible listening history endpoints
-- [x] Mafundisho endpoints
-- [x] Content upload endpoints verified
-- [x] **Azam Pay Payment Endpoints** (Added 2026-01-28)
-- [x] **Cache Stats Endpoint** (Added 2026-01-28)
+- [x] Layout configuration
+- [x] Revenue and analytics
+- [x] Azam Pay payments
+- [x] Cache stats endpoint
+- [x] Auto-scaling status
 
-## Payment System (2026-01-28)
+## Payment System
 
 ### Azam Pay Integration
-- **Test Mode**: Currently running in test mode (AZAMPAY_TEST_MODE=true)
-- **MNO Support**: M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa, Ezy Pesa
-- **Phone Auto-Detection**: Detects MNO from phone prefix
-- **Demo Checkout**: Users can test the flow with manual confirmation button
+- **Test Mode**: AZAMPAY_TEST_MODE=true
+- **MNO Support**: M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa
+- **Phone Auto-Detection**: Detects MNO from prefix
 
 ## Known Issues
 
 ### P0 - Critical
-- **Background audio advancement** - App doesn't play next song when screen is locked
-  - Cause: expo-av JavaScript gets suspended on mobile OS
-  - Required Solution: `react-native-track-player` integration
-  - Status: BLOCKED - EAS build failures with native modules
+- **Background audio** - App doesn't play next song when screen locked
+  - Cause: expo-av JavaScript suspended on mobile
+  - Solution: `react-native-track-player` (blocked by EAS build issues)
 
-### P1 - High Priority
-- **Azam Pay Credentials** - Current credentials may need verification with Azam Pay support
-
-### P2 - Medium Priority
+### P2 - Medium
 - Animated splash screen needed
-- Admin filter toggles for homepage
 
 ## Upcoming Tasks
-1. Fix background audio advancement (P0)
+1. Fix background audio advancement (P0 - blocked)
 2. Animated splash screen (P2)
-3. Admin filter toggles for homepage categories
+3. Production Azam Pay credentials
 
 ## Future/Backlog
-- Continue backend modularization (more routes to extract)
 - PWA "Play All" button
 - Live audio/video rooms (Agora/100ms)
 - Remove unused Supabase code
-- Production Azam Pay credentials setup
+- Production deployment
 
-## Technical Notes
+## Configuration
 
-### New Backend Structure
+### Environment Variables (backend/.env)
 ```
-/app/backend/
-├── server.py              # Main app + legacy routes
-├── core/
-│   ├── __init__.py
-│   ├── database.py        # MongoDB connection with pooling
-│   └── cache.py           # In-memory LRU cache
-├── models/
-│   ├── __init__.py
-│   └── schemas.py         # Pydantic models
-├── routes/
-│   ├── __init__.py
-│   ├── music.py           # Albums, songs endpoints
-│   ├── home.py            # Home screen data
-│   └── payment.py         # Azam Pay integration
-├── services/
-│   ├── bunny_cdn_service.py
-│   ├── encoding_service.py
-│   └── tts_service.py
-└── create_indexes.py      # Database index creation
-```
-
-### Cache Configuration
-```python
-CACHE_TTL = {
-    'home': 60,           # 1 minute
-    'albums': 120,        # 2 minutes
-    'album_detail': 300,  # 5 minutes
-    'songs': 120,         # 2 minutes
-    'categories': 600,    # 10 minutes
-    'churches': 300,      # 5 minutes
-    'settings': 300,      # 5 minutes
-    'bible': 3600,        # 1 hour
-}
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=test_database
+REDIS_URL=redis://localhost:6379
+BUNNY_STORAGE_ZONE=...
+BUNNY_API_KEY=...
+BUNNY_CDN_URL=...
+AZAMPAY_CLIENT_ID=...
+AZAMPAY_CLIENT_SECRET=...
+AZAMPAY_TEST_MODE=true
 ```
 
 ### Test Credentials
-- Choir Portal: demo@gracefy.com / demo123456
-- Expo Token: Ocf09mEKf7N8E9Pjwyf5-hQYLOevZO3OYEsrr9Bq
+- **Admin Panel**: Google OAuth
+- **Choir Portal**: demo@gracefy.com / demo123456
+- **Expo Token**: Ocf09mEKf7N8E9Pjwyf5-hQYLOevZO3OYEsrr9Bq
+
+## API Documentation
+- Swagger UI: `/api/docs`
+- ReDoc: `/api/redoc`
+- OpenAPI: `/api/openapi.json`
