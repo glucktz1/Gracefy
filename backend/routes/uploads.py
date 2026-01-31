@@ -175,7 +175,8 @@ async def upload_multiple_files(
             if is_cdn_enabled():
                 try:
                     import httpx
-                    storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
+                    # Use main storage URL (region prefix may not resolve in all environments)
+                    storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
                     
                     async with httpx.AsyncClient() as client:
                         response = await client.put(
