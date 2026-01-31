@@ -476,7 +476,8 @@ function AppRouter() {
 
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
   // Check URL fragment for session_id synchronously during render
-  if (location.hash?.includes('session_id=')) {
+  // Only intercept OAuth callback for admin routes, not for /app which handles its own OAuth
+  if (location.hash?.includes('session_id=') && !location.pathname.startsWith('/app')) {
     return <AuthCallback />;
   }
 
