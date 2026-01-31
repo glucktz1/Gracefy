@@ -196,7 +196,9 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ### Bug Fixes (2026-01-31)
 - **Leaders Page Error**: Fixed FastAPI validation error display (was showing raw object)
+- **Leaders Page Render Safety**: Added defensive checks for leader objects and string coercion to prevent "Objects not valid as React child" errors
 - **Special Mixes Audio**: Fixed to include full song data (audio_url, duration, etc.) when creating mixes
+- **Church Select**: Fixed empty value issue in church selection dropdown
 
 ### Content Section Fixes
 - Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
