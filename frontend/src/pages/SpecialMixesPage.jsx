@@ -481,7 +481,7 @@ export default function SpecialMixesPage() {
                   {(thumbnailFile || mixForm.thumbnail) && (
                     <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
                       <img 
-                        src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : mixForm.thumbnail} 
+                        src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : getImageUrl(mixForm.thumbnail)} 
                         alt="Preview" 
                         className="w-full h-full object-cover"
                       />
