@@ -345,10 +345,14 @@ const useAudioPlayer = () => {
   }, []);
 
   const playSong = useCallback(async (song, album, songQueue = [], index = 0) => {
-    // End previous session
-    if (sessionIdRef.current) {
+    // End previous session with duration
+    if (sessionIdRef.current && audioRef.current) {
       try {
-        await axios.post(`${API}/listening/end`, { session_id: sessionIdRef.current });
+        const duration = Math.floor(audioRef.current.currentTime);
+        await axios.post(`${API}/listening/end`, { 
+          session_id: sessionIdRef.current,
+          duration_seconds: duration
+        });
       } catch (e) {
         console.log("Error ending session");
       }
@@ -372,6 +376,7 @@ const useAudioPlayer = () => {
       await audioRef.current.play();
       const res = await axios.post(`${API}/listening/start`, { 
         song_id: song.song_id,
+        album_id: album?.album_id,
         user_id: localStorage.getItem('user_id') || 'anonymous'
       });
       sessionIdRef.current = res.data.session_id;
