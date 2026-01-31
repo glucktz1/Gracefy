@@ -3176,7 +3176,7 @@ export default function UserStreamingApp() {
                       onClick={() => setLibraryTab('liked')}
                       className="mt-3 text-sm text-zinc-400 hover:text-white transition-colors"
                     >
-                      View all {library.favorites.filter(f => f.type === 'song').length} songs →
+                      View all {library.favorites?.filter(f => f.type === 'song' && f.item).length || 0} songs →
                     </button>
                   )}
                 </section>
