@@ -25,7 +25,6 @@ const UsersPage = lazy(() => import("@/pages/UsersPage"));
 const CategoriesPage = lazy(() => import("@/pages/CategoriesPage"));
 const AlbumsPage = lazy(() => import("@/pages/AlbumsPage"));
 const ChurchesPage = lazy(() => import("@/pages/ChurchesPage"));
-const LeadersPage = lazy(() => import("@/pages/LeadersPage"));
 const SingersPage = lazy(() => import("@/pages/SingersPage"));
 const SeminarsPage = lazy(() => import("@/pages/SeminarsPage"));
 const AudioRoomsPage = lazy(() => import("@/pages/AudioRoomsPage"));
