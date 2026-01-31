@@ -121,6 +121,26 @@ const useAudioPlayer = () => {
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
 
+  // Track plays when leaving page
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (sessionIdRef.current && audioRef.current) {
+        const duration = Math.floor(audioRef.current.currentTime);
+        // Use sendBeacon for reliability on page unload
+        navigator.sendBeacon(
+          `${API}/listening/end`,
+          JSON.stringify({ 
+            session_id: sessionIdRef.current,
+            duration_seconds: duration 
+          })
+        );
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // Save playback state to localStorage
   const savePlaybackState = useCallback((song, album, time) => {
     if (song && album) {
