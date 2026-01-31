@@ -138,8 +138,9 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 ## Upcoming Tasks
 1. Re-upload audio for 10 affected songs (P0)
 2. Complete endpoint migration from server_old.py (~90 endpoints) (P1)
-3. Animated splash screen (P2)
-4. Production Azam Pay credentials
+3. Add Teachings section to user-facing app (P1)
+4. Animated splash screen (P2)
+5. Production Azam Pay credentials
 
 ## Known Issues
 
