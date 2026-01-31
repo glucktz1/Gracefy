@@ -33,6 +33,14 @@ MONETIZATION_TYPES = [
 ]
 
 
+def get_category_name(category_id: str) -> str:
+    """Get category name by ID"""
+    for cat in TEACHING_CATEGORIES:
+        if cat["id"] == category_id:
+            return cat["name"]
+    return category_id
+
+
 @router.get("/teachings/categories")
 async def get_teaching_categories():
     """Get available teaching categories"""
