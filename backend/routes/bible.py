@@ -59,7 +59,9 @@ async def get_book_chapters(book_name: str):
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
     
-    return {"book": book, "chapters": book.get("chapters", 0)}
+    # Support both chapter_count and chapters field names
+    chapters = book.get("chapter_count") or book.get("chapters", 0)
+    return {"book": book, "chapters": chapters}
 
 
 @router.get("/bible/books/{book_name}/chapters/{chapter}")
@@ -72,8 +74,9 @@ async def get_chapter_verses(book_name: str, chapter: int):
     if cached:
         return cached
     
+    # Use book_name field (actual DB field)
     verses = await db.bible_verses.find(
-        {"book": book_name, "chapter": chapter},
+        {"book_name": book_name, "chapter": chapter},
         {"_id": 0}
     ).sort("verse", 1).to_list(200)
     
