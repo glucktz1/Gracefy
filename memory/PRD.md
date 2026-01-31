@@ -154,6 +154,15 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-01-31)
 
+### Admin Panel Fixes
+- Fixed CDN Management page: `toUpperCase()` error on undefined value
+- Added missing `/approvals` endpoint with pending churches, choirs, leaders, posts
+- Added `/admin/choir-registrations` endpoint
+- Added `/admin/payment-requests` endpoint
+- Added `/admin/content-edit-requests` endpoint
+- Added `/church-leader/accounts` endpoint
+- Albums page now has search and filter controls (category, status)
+
 ### Choir Registration Form (Enhanced)
 - Default language is now Kiswahili with English toggle option
 - 4-step registration process for church choirs:
