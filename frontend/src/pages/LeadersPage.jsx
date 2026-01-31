@@ -143,6 +143,7 @@ export default function LeadersPage() {
       is_verified: false,
       status: "pending"
     });
+    setPhotoFile(null);
   };
 
   const handleEdit = (leader) => {
@@ -157,6 +158,7 @@ export default function LeadersPage() {
       is_verified: leader.is_verified,
       status: leader.status
     });
+    setPhotoFile(null);
     setIsModalOpen(true);
   };
 
