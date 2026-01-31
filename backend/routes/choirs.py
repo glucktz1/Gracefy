@@ -492,7 +492,7 @@ async def register_choir(data: dict):
     # Check if email exists
     existing = await db.choir_accounts.find_one({"email": email})
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email already registered / Barua pepe tayari imesajiliwa")
     
     # Create choir/singer record
     choir = {
@@ -506,13 +506,17 @@ async def register_choir(data: dict):
         "country": data.get("country", "Tanzania"),
         "email": email,
         "phone": data.get("phone"),
-        "bio": data.get("bio"),
+        "bio": data.get("description") or data.get("bio"),
+        # Leadership
         "treasurer_name": data.get("treasurer_name"),
         "treasurer_phone": data.get("treasurer_phone"),
         "chairman_name": data.get("chairman_name"),
         "chairman_phone": data.get("chairman_phone"),
+        "chairman_email": data.get("chairman_email"),
         "parish_priest_name": data.get("parish_priest_name"),
+        "parish_priest_title": data.get("parish_priest_title"),
         "parish_priest_phone": data.get("parish_priest_phone"),
+        # Stats
         "followers_count": 0,
         "total_plays": 0,
         "albums_count": 0,
