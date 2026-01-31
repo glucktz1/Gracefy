@@ -117,6 +117,8 @@ def create_app() -> FastAPI:
     app.include_router(user_library_router)   # /api/library/*, /api/user/*
     app.include_router(content_router)        # /api/content-*, /api/religious-leaders/*
     app.include_router(monetization_router)   # /api/subscription-*, /api/monetization-*
+    app.include_router(categories_router)     # /api/categories/*, /api/song-categories/*
+    app.include_router(browse_router)         # /api/user/browse/*, /api/user/search
     
     # ============== ROOT ENDPOINTS ==============
     
