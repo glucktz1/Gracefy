@@ -458,11 +458,14 @@ export default function LeadersPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
                   <SelectItem value="none">No church</SelectItem>
-                  {churches.map((church) => (
-                    <SelectItem key={church.church_id} value={church.church_id}>
-                      {church.name}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(churches) && churches.map((church) => {
+                    if (!church || !church.church_id) return null;
+                    return (
+                      <SelectItem key={church.church_id} value={church.church_id}>
+                        {String(church.name || 'Unknown')}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
