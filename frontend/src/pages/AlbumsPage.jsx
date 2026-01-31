@@ -612,7 +612,7 @@ export default function AlbumsPage() {
                       
                       <div className="flex-1 flex items-start gap-3" onClick={() => setSelectedAlbum(album)}>
                         {album.thumbnail ? (
-                          <img src={album.thumbnail} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                          <img src={getImageUrl(album.thumbnail)} alt="" className="w-14 h-14 rounded-lg object-cover" />
                         ) : (
                           <div className="w-14 h-14 rounded-lg bg-zinc-800 flex items-center justify-center">
                             <Music2 size={24} className="text-zinc-600" />
