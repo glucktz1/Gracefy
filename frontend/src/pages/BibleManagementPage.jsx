@@ -77,6 +77,13 @@ export default function BibleManagementPage() {
   const [listeningStats, setListeningStats] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Voice preview state
+  const [previewingVoice, setPreviewingVoice] = useState(null);
+  const [previewAudio, setPreviewAudio] = useState(null);
+  const [defaultVoiceMale, setDefaultVoiceMale] = useState("");
+  const [defaultVoiceFemale, setDefaultVoiceFemale] = useState("");
+  const [savingVoiceSettings, setSavingVoiceSettings] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       const [statsRes, snippetsRes, voicesRes] = await Promise.all([
