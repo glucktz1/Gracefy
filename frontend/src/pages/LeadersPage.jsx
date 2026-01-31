@@ -134,11 +134,9 @@ function LeadersPageContent() {
       } else if (Array.isArray(errorDetail)) {
         errorMessage = errorDetail.map(e => String(e.msg || e.message || 'Error')).join(', ');
       } else if (errorDetail?.msg) {
-        errorMessage = errorDetail.msg;
+        errorMessage = String(errorDetail.msg);
       }
       toast.error(errorMessage);
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -153,16 +151,15 @@ function LeadersPageContent() {
       is_verified: false,
       status: "pending"
     });
-    setPhotoFile(null);
   };
 
   const handleEdit = (leader) => {
     setEditingLeader(leader);
     setFormData({
-      name: leader.name,
-      title: leader.title,
-      church_id: leader.church_id || "",
-      church_name: leader.church_name || "",
+      name: String(leader.name || ''),
+      title: String(leader.title || 'priest'),
+      church_id: String(leader.church_id || ''),
+      church_name: String(leader.church_name || ''),
       bio: leader.bio || "",
       photo: leader.photo || "",
       is_verified: leader.is_verified,
