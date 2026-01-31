@@ -11,7 +11,11 @@ import logging
 
 from core.database import get_db
 from core.cache import cache
-from core.redis_cache import invalidate_home_cache
+try:
+    from core.redis_cache import invalidate_home_cache
+except ImportError:
+    async def invalidate_home_cache():
+        pass
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["layout"])
