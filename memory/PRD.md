@@ -173,11 +173,12 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - `/app/frontend/src/pages/SpecialMixesPage.jsx` - getImageUrl helper
 - `/app/frontend/src/pages/LayoutManagementPage.jsx` - getImageUrl helper
 
-## Audio Content Status
+## Audio Content Status (Updated 2026-01-31)
 - Total songs: 31
-- Songs with working audio: 17 ✅
-- Songs with broken audio (file too large): 10 ❌
-- Songs with no audio URL: 4 ⚠️
+- Albums with working songs: 6 ✅ (Huyu ni nani, Christmas Carols 2025, nguvu ya Msalaba, Umenilisha kwa unono, Uzishibishe Nyoyo zetu, Moyo wako bwana)
+- Albums with some broken songs: 3 ⚠️ (Ulizibeba Dhambi Zetu, Natubu bwana, Moyo wa shukrani)
+- Albums with no songs: 4 ❌ (Utukufu Kwako Bwana, Nguvu ya Msalaba wako, Baraka zako bwana, Neema Kuu)
+- Issue: Some audio files > 5MB weren't stored due to CDN upload failure at upload time
 
 ## Upcoming Tasks
 1. Re-upload audio for 10 affected songs (P0)
