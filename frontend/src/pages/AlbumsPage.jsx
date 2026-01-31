@@ -552,8 +552,48 @@ export default function AlbumsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Albums List */}
         <div className="lg:col-span-1">
+          {/* Search and Filter Controls */}
+          <div className="mb-4 space-y-3">
+            <Input
+              placeholder="Search albums..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-zinc-900 border-zinc-700"
+            />
+            <div className="flex gap-2">
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 flex-1">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.category_id} value={cat.category_id}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-zinc-400">Albums ({albums.length})</h3>
+            <h3 className="text-sm font-medium text-zinc-400">
+              Albums ({albums.filter(a => {
+                const matchesSearch = !searchQuery || a.title?.toLowerCase().includes(searchQuery.toLowerCase()) || a.artist_name?.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchesCategory = filterCategory === "all" || a.category_id === filterCategory;
+                const matchesStatus = filterStatus === "all" || a.status === filterStatus;
+                return matchesSearch && matchesCategory && matchesStatus;
+              }).length})
+            </h3>
             {albums.length > 0 && (
               <button 
                 onClick={selectAllAlbums}
