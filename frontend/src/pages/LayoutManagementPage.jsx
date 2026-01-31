@@ -2544,7 +2544,7 @@ export default function LayoutManagementPage() {
                     data-type="albums"
                   />
                   {album.thumbnail ? (
-                    <img src={album.thumbnail} alt="" className="w-10 h-10 rounded object-cover" />
+                    <img src={getImageUrl(album.thumbnail)} alt="" className="w-10 h-10 rounded object-cover" />
                   ) : (
                     <div className="w-10 h-10 rounded bg-violet-600/20 flex items-center justify-center">
                       <Music2 size={16} className="text-violet-400" />
