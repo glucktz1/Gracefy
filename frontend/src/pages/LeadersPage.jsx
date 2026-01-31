@@ -146,7 +146,6 @@ function LeadersPageContent() {
       church_id: "",
       church_name: "",
       bio: "",
-      photo: "",
       is_verified: false,
       status: "pending"
     });
@@ -160,7 +159,6 @@ function LeadersPageContent() {
       church_id: String(leader.church_id || ''),
       church_name: String(leader.church_name || ''),
       bio: String(leader.bio || ''),
-      photo: String(leader.photo || ''),
       is_verified: Boolean(leader.is_verified),
       status: String(leader.status || 'pending')
     });
