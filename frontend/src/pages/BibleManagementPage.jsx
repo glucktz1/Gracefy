@@ -44,6 +44,7 @@ export default function BibleManagementPage() {
   
   // Snippet form
   const [isSnippetModalOpen, setIsSnippetModalOpen] = useState(false);
+  const [editingSnippet, setEditingSnippet] = useState(null);
   const [snippetForm, setSnippetForm] = useState({
     title: "", description: "", book_name: "", chapter: 1,
     start_verse: 1, end_verse: 1, language: "sw", voice: "", speed: 1.0,
@@ -62,6 +63,11 @@ export default function BibleManagementPage() {
   
   // Bible initialization
   const [initializing, setInitializing] = useState(false);
+
+  // TTS Cache state
+  const [ttsCache, setTtsCache] = useState([]);
+  const [loadingCache, setLoadingCache] = useState(false);
+  const [cacheStats, setCacheStats] = useState({ total: 0, size_mb: 0 });
 
   // Listening limit settings
   const [listeningSettings, setListeningSettings] = useState({
