@@ -63,6 +63,7 @@ from routes import (
     categories_router,
     browse_router,
 )
+from routes.teachings import router as teachings_router
 
 # Legacy cache service for backward compatibility
 from cache_service import cache as legacy_cache
