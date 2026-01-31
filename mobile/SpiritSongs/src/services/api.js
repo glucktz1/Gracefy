@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // API Base URL - connects to existing backend
-export const API_BASE_URL = 'https://worship-stream-7.preview.emergentagent.com/api';
+export const API_BASE_URL = 'https://faith-music-6.preview.emergentagent.com/api';
 
 // Create axios instance
 const api = axios.create({

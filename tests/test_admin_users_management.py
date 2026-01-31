@@ -22,7 +22,7 @@ from datetime import datetime
 # Get backend URL from environment
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://worship-stream-7.preview.emergentagent.com"
+    BASE_URL = "https://faith-music-6.preview.emergentagent.com"
 
 # Test data prefix for cleanup
 TEST_PREFIX = "TEST_admin_user_"
