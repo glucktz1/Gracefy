@@ -171,7 +171,10 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Voice Preview**: Admin can click "Preview" button to hear sample text in selected voice
 - **Default Voice Selection**: Admin can set default male/female voices for Bible reading
 - **Swahili + English**: Voices available in sw-KE, sw-TZ, and en-US languages
-- **Graceful TTS Fallback**: When Google Cloud TTS not configured, shows informative message
+- **Full OpenAI TTS Integration**: Real audio generation using Emergent LLM Key
+- **Caching**: TTS audio cached in `bible_tts_cache` collection for performance
+- **User Voice Selector**: Users can choose voice when reading Bible on web/app
+- **Bug Fix**: Fixed `chapters.map is not a function` error in Bible view
 
 ### Content Section Fixes
 - Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
