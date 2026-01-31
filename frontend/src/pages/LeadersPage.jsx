@@ -274,7 +274,9 @@ export default function LeadersPage() {
 
       {/* Leaders Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {leaders.map((leader) => (
+        {Array.isArray(leaders) && leaders.map((leader) => {
+          if (!leader || !leader.leader_id) return null;
+          return (
           <Card 
             key={leader.leader_id}
             className="bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 transition-colors"
