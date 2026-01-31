@@ -1209,34 +1209,60 @@ const BibleView = ({ language, t, onBack }) => {
             {t('bible.title', 'Biblia na Vitabu vya Dini')}
           </h1>
           
-          {/* Voice Selector */}
-          {availableVoices.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Volume2 size={16} className="text-zinc-400" />
+          {/* Voice and Speed Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Voice Selector */}
+            {availableVoices.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Volume2 size={16} className="text-zinc-400" />
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => {
+                    const newVoice = e.target.value;
+                    setSelectedVoice(newVoice);
+                    const voiceName = availableVoices.find(v => v.id === newVoice)?.name || newVoice;
+                    toast.success(`Voice changed to ${voiceName}`);
+                  }}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  data-testid="voice-selector"
+                >
+                  <optgroup label="Kike (Female)">
+                    {availableVoices.filter(v => v.gender === 'female').map(voice => (
+                      <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Kiume (Male)">
+                    {availableVoices.filter(v => v.gender === 'male').map(voice => (
+                      <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+            )}
+            
+            {/* Speed Control */}
+            <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5">
+              <span className="text-xs text-zinc-400">Kasi:</span>
               <select
-                value={selectedVoice}
+                value={playbackSpeed}
                 onChange={(e) => {
-                  const newVoice = e.target.value;
-                  setSelectedVoice(newVoice);
-                  const voiceName = availableVoices.find(v => v.id === newVoice)?.name || newVoice;
-                  toast.success(`Voice changed to ${voiceName}`);
+                  const newSpeed = parseFloat(e.target.value);
+                  setPlaybackSpeed(newSpeed);
+                  toast.success(`Speed: ${newSpeed}x`);
                 }}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                data-testid="voice-selector"
+                className="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+                data-testid="speed-selector"
               >
-                <optgroup label="Kike (Female)">
-                  {availableVoices.filter(v => v.gender === 'female').map(voice => (
-                    <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Kiume (Male)">
-                  {availableVoices.filter(v => v.gender === 'male').map(voice => (
-                    <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
-                  ))}
-                </optgroup>
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1">1x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="1.75">1.75x</option>
+                <option value="2">2x</option>
               </select>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Quick Actions */}
