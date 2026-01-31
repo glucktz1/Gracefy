@@ -569,3 +569,53 @@ async def get_layout_choirs():
     ).sort("followers_count", -1).limit(100).to_list(100)
     
     return {"choirs": choirs}
+
+
+# ============== ADMIN CHOIR ACCOUNT ENDPOINTS ==============
+
+@router.get("/choir/accounts")
+async def get_all_choir_accounts():
+    """Get all choir accounts (admin view)"""
+    db = get_db()
+    
+    accounts = await db.choir_accounts.find(
+        {},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(500)
+    
+    return {"accounts": accounts}
+
+
+@router.put("/choir/account/{account_id}")
+async def update_choir_account(account_id: str, updates: dict):
+    """Update choir account status (admin)"""
+    db = get_db()
+    
+    updates.pop("_id", None)
+    updates.pop("account_id", None)
+    updates.pop("password_hash", None)
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.choir_accounts.update_one(
+        {"account_id": account_id},
+        {"$set": updates}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    return {"message": "Account updated"}
+
+
+@router.delete("/choir/account/{account_id}")
+async def delete_choir_account(account_id: str):
+    """Delete a choir account (admin)"""
+    db = get_db()
+    
+    result = await db.choir_accounts.delete_one({"account_id": account_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    return {"message": "Account deleted"}
+
