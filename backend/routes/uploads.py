@@ -57,7 +57,8 @@ async def upload_file(
         try:
             import httpx
             
-            storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
+            # Use main storage URL (region prefix may not resolve in all environments)
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
             
             async with httpx.AsyncClient() as client:
                 response = await client.put(
@@ -73,6 +74,8 @@ async def upload_file(
                 if response.status_code in [200, 201]:
                     cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
                     logger.info(f"File uploaded to CDN: {cdn_url}")
+                else:
+                    logger.warning(f"CDN upload failed with status {response.status_code}")
         except Exception as e:
             logger.error(f"CDN upload failed: {e}")
     
