@@ -140,6 +140,20 @@ export default function BibleManagementPage() {
     }
   }, []);
 
+  // Fetch TTS cache
+  const fetchTtsCache = useCallback(async () => {
+    setLoadingCache(true);
+    try {
+      const res = await axios.get(`${API}/admin/bible/tts-cache`);
+      setTtsCache(res.data.cache || []);
+      setCacheStats(res.data.stats || { total: 0, size_mb: 0 });
+    } catch (e) {
+      console.error("Error fetching TTS cache:", e);
+    } finally {
+      setLoadingCache(false);
+    }
+  }, []);
+
   const saveListeningSettings = async () => {
     setSavingSettings(true);
     try {
@@ -150,6 +164,39 @@ export default function BibleManagementPage() {
       toast.error("Failed to save settings");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  // Delete TTS cache entry
+  const handleDeleteCacheEntry = async (cacheKey) => {
+    try {
+      await axios.delete(`${API}/admin/bible/tts-cache/${encodeURIComponent(cacheKey)}`);
+      toast.success("Cache entry deleted");
+      fetchTtsCache();
+    } catch (e) {
+      toast.error("Failed to delete cache entry");
+    }
+  };
+
+  // Clear all TTS cache
+  const handleClearAllCache = async () => {
+    if (!window.confirm("Clear ALL cached TTS audio? This cannot be undone.")) return;
+    try {
+      await axios.delete(`${API}/admin/bible/tts-cache`);
+      toast.success("All TTS cache cleared");
+      fetchTtsCache();
+    } catch (e) {
+      toast.error("Failed to clear cache");
+    }
+  };
+
+  // Play cached audio
+  const handlePlayCacheEntry = (entry) => {
+    if (audioElement) audioElement.pause();
+    if (entry.audio_base64) {
+      const audio = new Audio(`data:audio/mp3;base64,${entry.audio_base64}`);
+      audio.play();
+      setAudioElement(audio);
     }
   };
 
