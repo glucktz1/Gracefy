@@ -194,6 +194,23 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **Real-time adjustment**: Speed changes apply immediately to currently playing audio
 - **API support**: Speed parameter passed to TTS generation endpoints
 
+### Teachings and Reflections Feature (2026-01-31) - NEW
+- **Complete Feature**: "Mafundisho na Tafakari" (Teachings and Reflections) module
+- **Hierarchical Structure**: Teaching → Topics (Mada) → Lessons (Sehemu)
+- **Admin Features**:
+  - Create/Edit/Delete teachings with thumbnail, leader, category, monetization
+  - Add multiple topics per teaching
+  - Add multiple lessons per topic with audio upload
+  - Audio playback preview in admin panel
+  - Bulk lesson creation support
+  - Cascading deletes (delete teaching removes all topics/lessons)
+- **8 Categories**: Mafundisho ya Ndoa, Katekesi, Tafakari ya Neno, Maisha ya Kiroho, Familia ya Kikristo, Mafundisho kwa Vijana, Maisha ya Sala, Mengineyo
+- **3 Monetization Types**: Free, Premium, Donation-based
+- **API Endpoints**: 16 endpoints for full CRUD operations
+- **Backend**: `/app/backend/routes/teachings.py` (464 lines)
+- **Frontend**: `/app/frontend/src/pages/TeachingsPage.jsx` (1010 lines)
+- **Testing**: 27/27 backend tests passed (100%)
+
 ### Leaders Page Complete Rebuild (2026-01-31)
 - **Complete rebuild from scratch** - removed all problematic thumbnail/photo code
 - **Clean form fields**: Name, Title, Church, Bio, Status only
