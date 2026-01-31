@@ -60,6 +60,11 @@ const getImageUrl = (imageUrl) => {
     return imageUrl;
   }
   
+  // Handle /api/files/{file_id} format - add /stream suffix for proper streaming
+  if (imageUrl.startsWith('/api/files/') && !imageUrl.endsWith('/stream')) {
+    return `${BACKEND_URL}${imageUrl}/stream`;
+  }
+  
   // Handle relative paths
   if (imageUrl.startsWith('/')) {
     return `${BACKEND_URL}${imageUrl}`;
