@@ -528,7 +528,7 @@ async def register_choir(data: dict):
     
     await db.singers.insert_one(choir)
     
-    # Create account
+    # Create account with payment details
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     
     account = {
@@ -538,12 +538,24 @@ async def register_choir(data: dict):
         "email": email,
         "password_hash": password_hash,
         "denomination": data.get("denomination"),
+        # Leadership
         "treasurer_name": data.get("treasurer_name"),
         "treasurer_phone": data.get("treasurer_phone"),
         "chairman_name": data.get("chairman_name"),
         "chairman_phone": data.get("chairman_phone"),
+        "chairman_email": data.get("chairman_email"),
         "parish_priest_name": data.get("parish_priest_name"),
+        "parish_priest_title": data.get("parish_priest_title"),
         "parish_priest_phone": data.get("parish_priest_phone"),
+        # Payment details
+        "payment_method": data.get("payment_method", "mobile"),
+        "mobile_network": data.get("mobile_network"),
+        "mobile_number": data.get("mobile_number"),
+        "mobile_registered_name": data.get("mobile_registered_name"),
+        "bank_name": data.get("bank_name"),
+        "bank_account_number": data.get("bank_account_number"),
+        "bank_account_name": data.get("bank_account_name"),
+        # Financial
         "current_balance": 0.0,
         "total_earned": 0.0,
         "total_withdrawn": 0.0,
