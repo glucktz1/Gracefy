@@ -154,6 +154,13 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-01-31)
 
+### Content Section Fixes
+- Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
+- Endpoint now returns albums with their songs (was returning 404 before)
+- Added `/leaders` endpoint aliases for `/religious-leaders`
+- Added POST/PUT/DELETE aliases for leaders management
+- Fixed route order in music.py to prevent path parameter matching issues
+
 ### Admin Panel Fixes
 - Fixed CDN Management page: `toUpperCase()` error on undefined value
 - Added missing `/approvals` endpoint with pending churches, choirs, leaders, posts
