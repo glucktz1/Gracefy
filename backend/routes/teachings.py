@@ -393,7 +393,7 @@ async def upload_teaching_audio(
     topic_id: str = Form(None),
     teaching_id: str = Form(None)
 ):
-    """Upload audio file for a lesson"""
+    """Upload audio file for a lesson - uses chunked storage for large files"""
     db = get_db()
     
     # Read file content
@@ -406,18 +406,58 @@ async def upload_teaching_audio(
     
     # Create file record
     file_id = f"file_{uuid.uuid4().hex[:12]}"
-    file_doc = {
-        "file_id": file_id,
-        "filename": file.filename,
-        "content_type": file.content_type or "audio/mpeg",
-        "size_bytes": file_size,
-        "data": base64.b64encode(content).decode('utf-8'),
-        "upload_type": "teaching_audio",
-        "teaching_id": teaching_id,
-        "topic_id": topic_id,
-        "lesson_id": lesson_id,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
+    
+    # For files larger than 12MB (which would exceed 16MB after base64),
+    # use chunked storage instead of single document
+    CHUNK_SIZE = 10 * 1024 * 1024  # 10MB chunks (safe under 16MB limit after base64)
+    
+    if file_size > 12 * 1024 * 1024:
+        # Store in chunks
+        total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        for i in range(total_chunks):
+            start = i * CHUNK_SIZE
+            end = min(start + CHUNK_SIZE, file_size)
+            chunk_data = content[start:end]
+            
+            chunk_doc = {
+                "file_id": file_id,
+                "chunk_index": i,
+                "total_chunks": total_chunks,
+                "data": base64.b64encode(chunk_data).decode('utf-8'),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.file_chunks.insert_one(chunk_doc)
+        
+        # Store file metadata (without data)
+        file_doc = {
+            "file_id": file_id,
+            "filename": file.filename,
+            "content_type": file.content_type or "audio/mpeg",
+            "size_bytes": file_size,
+            "storage_type": "chunked",
+            "total_chunks": total_chunks,
+            "upload_type": "teaching_audio",
+            "teaching_id": teaching_id,
+            "topic_id": topic_id,
+            "lesson_id": lesson_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    else:
+        # Store directly for smaller files
+        file_doc = {
+            "file_id": file_id,
+            "filename": file.filename,
+            "content_type": file.content_type or "audio/mpeg",
+            "size_bytes": file_size,
+            "data": base64.b64encode(content).decode('utf-8'),
+            "storage_type": "direct",
+            "upload_type": "teaching_audio",
+            "teaching_id": teaching_id,
+            "topic_id": topic_id,
+            "lesson_id": lesson_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
     
     await db.files.insert_one(file_doc)
     
