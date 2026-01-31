@@ -76,6 +76,7 @@ const CONTENT_TYPES = [
   { value: "bible_content", label: "Bible Content (Snippets)" },
   { value: "special_mixes", label: "Special Mixes" },
   { value: "leader_content", label: "Leader Content (Teachings, Sermons)" },
+  { value: "teachings", label: "Mafundisho na Tafakari (Teachings)" },
 ];
 
 const LAYOUT_STYLES = [
