@@ -554,7 +554,7 @@ async def track_episode_play(episode_id: str):
 
 @router.get("/special-mixes")
 async def get_special_mixes():
-    """Get all special mixes"""
+    """Get all special mixes with full song data"""
     db = get_db()
     
     mixes = await db.special_mixes.find(
@@ -562,12 +562,48 @@ async def get_special_mixes():
         {"_id": 0}
     ).sort("sort_order", 1).to_list(50)
     
-    # Ensure title is set from name if missing and calculate total duration
+    # Ensure title is set and enrich songs with audio URLs
     for mix in mixes:
         if not mix.get("title") and mix.get("name"):
             mix["title"] = mix["name"]
         elif not mix.get("name") and mix.get("title"):
             mix["name"] = mix["title"]
+        
+        # If we have song_ids but songs don't have audio_url, fetch from database
+        song_ids = mix.get("song_ids", [])
+        songs = mix.get("songs", [])
+        
+        # Check if songs need enrichment (missing audio_url)
+        needs_enrichment = song_ids and (not songs or (songs and not songs[0].get("audio_url")))
+        
+        if needs_enrichment and song_ids:
+            # Fetch full song data from database
+            db_songs = await db.songs.find(
+                {"song_id": {"$in": song_ids}},
+                {"_id": 0}
+            ).to_list(100)
+            
+            # Create a lookup map
+            songs_map = {s["song_id"]: s for s in db_songs}
+            
+            # Build enriched songs list
+            enriched_songs = []
+            for sid in song_ids:
+                if sid in songs_map:
+                    song = songs_map[sid]
+                    enriched_songs.append({
+                        "song_id": song.get("song_id"),
+                        "title": song.get("title"),
+                        "album_id": song.get("album_id"),
+                        "album_title": song.get("album_title"),
+                        "artist_name": song.get("artist_name"),
+                        "duration": song.get("duration"),
+                        "duration_formatted": song.get("duration_formatted"),
+                        "audio_url": song.get("audio_url"),
+                        "file_id": song.get("file_id")
+                    })
+            mix["songs"] = enriched_songs
+            mix["songs_count"] = len(enriched_songs)
         
         # Calculate total duration from songs (handle None values)
         songs = mix.get("songs", [])
