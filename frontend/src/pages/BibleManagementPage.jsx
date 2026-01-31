@@ -270,6 +270,13 @@ export default function BibleManagementPage() {
     fetchListeningSettings();
   }, [fetchData, fetchAnalytics, fetchListeningSettings]);
 
+  // Fetch TTS cache when switching to cache tab
+  useEffect(() => {
+    if (activeTab === "cache") {
+      fetchTtsCache();
+    }
+  }, [activeTab, fetchTtsCache]);
+
   // Initialize Bible data
   const handleInitializeBible = async (language = "sw") => {
     setInitializing(true);
