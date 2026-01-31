@@ -60,6 +60,8 @@ from routes import (
     user_library_router,
     content_router,
     monetization_router,
+    categories_router,
+    browse_router,
 )
 
 # Legacy cache service for backward compatibility
