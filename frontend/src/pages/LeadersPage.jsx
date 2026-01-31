@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { UserCheck, Plus, Edit2, Trash2, MoreVertical, CheckCircle, XCircle } from "lucide-react";
+import { UserCheck, Plus, Edit2, Trash2, MoreVertical, CheckCircle, XCircle, Image, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,18 @@ import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Helper function to get proper image URL
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
+  if (imageUrl.startsWith('data:')) return imageUrl;
+  if (imageUrl.startsWith('/api/files/') && !imageUrl.endsWith('/stream')) {
+    return `${BACKEND_URL}${imageUrl}/stream`;
+  }
+  if (imageUrl.startsWith('/')) return `${BACKEND_URL}${imageUrl}`;
+  return imageUrl;
+};
 
 export default function LeadersPage() {
   const [leaders, setLeaders] = useState([]);
