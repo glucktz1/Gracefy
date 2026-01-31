@@ -155,7 +155,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/users", icon: Users, label: "Users", permissions: ["user_management"] },
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
-    { path: "/leaders", icon: UserCheck, label: "Religious Leaders", permissions: ["user_management"] },
     { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
     { path: "/audiorooms", icon: Radio, label: "Audio Rooms", permissions: ["platform_settings"] },
     { path: "/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
