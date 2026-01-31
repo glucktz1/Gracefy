@@ -1232,6 +1232,7 @@ export default function LayoutManagementPage() {
   const [leaderContent, setLeaderContent] = useState([]);
   const [bibleSnippets, setBibleSnippets] = useState([]);
   const [specialMixes, setSpecialMixes] = useState([]);
+  const [teachings, setTeachings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("sections");
   const [previewPlatform, setPreviewPlatform] = useState("app");
