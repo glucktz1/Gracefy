@@ -293,9 +293,18 @@ async def start_listening(request: Request, data: dict):
 
 
 @router.post("/listening/end")
-async def end_listening(request: Request, data: dict):
+async def end_listening(request: Request, data: dict = None):
     """Track end of listening session"""
     db = get_db()
+    
+    # Handle beacon requests which send as text/plain
+    if data is None:
+        try:
+            body = await request.body()
+            import json
+            data = json.loads(body.decode('utf-8'))
+        except:
+            return {"tracked": False}
     
     session_id = data.get("session_id")
     duration = data.get("duration_seconds", 0)
@@ -311,8 +320,8 @@ async def end_listening(request: Request, data: dict):
         }}
     )
     
-    # If duration >= 45 seconds, count as play
-    if duration >= 45:
+    # If duration >= 30 seconds, count as play (industry standard is 30s)
+    if duration >= 30:
         session = await db.listening_sessions.find_one({"session_id": session_id})
         if session:
             song_id = session.get("song_id")
@@ -320,6 +329,17 @@ async def end_listening(request: Request, data: dict):
             
             if song_id:
                 await db.songs.update_one({"song_id": song_id}, {"$inc": {"plays": 1}})
+                
+                # Also update choir/artist play count
+                song = await db.songs.find_one({"song_id": song_id})
+                if song and song.get("album_id"):
+                    album = await db.albums.find_one({"album_id": song.get("album_id")})
+                    if album and album.get("artist_id"):
+                        await db.singers.update_one(
+                            {"singer_id": album.get("artist_id")},
+                            {"$inc": {"total_plays": 1}}
+                        )
+                        
             if album_id:
                 await db.albums.update_one({"album_id": album_id}, {"$inc": {"total_plays": 1}})
     
