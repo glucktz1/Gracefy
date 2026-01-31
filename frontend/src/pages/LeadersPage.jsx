@@ -482,12 +482,21 @@ export default function LeadersPage() {
                   </label>
                   {photoFile && (
                     <div className="w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden">
-                      <img 
-                        src={URL.createObjectURL(photoFile)} 
-                        alt="Preview" 
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
+                      {(() => {
+                        try {
+                          return (
+                            <img 
+                              src={URL.createObjectURL(photoFile)} 
+                              alt="Preview" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          );
+                        } catch (err) {
+                          console.error("Image preview error:", err);
+                          return <div className="w-full h-full flex items-center justify-center text-xs text-zinc-500">Preview error</div>;
+                        }
+                      })()}
                     </div>
                   )}
                   {!photoFile && formData.photo && (
