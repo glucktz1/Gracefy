@@ -123,6 +123,104 @@ async def get_albums(
     return result
 
 
+@router.get("/albums/all-songs")
+async def get_albums_with_songs(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500)
+):
+    """
+    Get all albums with their songs.
+    Used by Special Mixes page to select songs.
+    """
+    db = get_db()
+    
+    # Cache key
+    cache_key = f"albums:with_songs:{skip}:{limit}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    # Get albums with status active or not specified
+    albums = await db.albums.find(
+        {"$or": [{"status": "active"}, {"status": {"$exists": False}}]},
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Get songs for each album
+    for album in albums:
+        songs = await db.songs.find(
+            {"album_id": album["album_id"], "$or": [{"status": "active"}, {"status": {"$exists": False}}]},
+            {"_id": 0}
+        ).to_list(100)
+        album["songs"] = songs
+    
+    # Optimize thumbnails
+    albums = optimize_thumbnails(albums)
+    
+    result = {
+        "albums": albums,
+        "total": len(albums)
+    }
+    
+    # Cache for 2 minutes
+    await cache.set(cache_key, result, 120)
+    
+    return result
+
+
+@router.get("/albums/songs-by-category")
+async def get_albums_with_songs_by_category(
+    song_category_id: str = Query(..., description="Song category ID to filter by"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500)
+):
+    """Get albums with songs filtered by song category (Christmas, Easter, etc.)"""
+    db = get_db()
+    
+    cache_key = f"albums:by_song_category:{song_category_id}:{skip}:{limit}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    # Get all songs in this category
+    songs_in_category = await db.songs.find(
+        {"song_categories": song_category_id, "$or": [{"status": "active"}, {"status": {"$exists": False}}]},
+        {"_id": 0}
+    ).to_list(500)
+    
+    # Get unique album IDs
+    album_ids = list(set(s.get("album_id") for s in songs_in_category if s.get("album_id")))
+    
+    # Get albums
+    albums = await db.albums.find(
+        {"album_id": {"$in": album_ids}},
+        {"_id": 0}
+    ).to_list(limit)
+    
+    # Add songs to each album
+    for album in albums:
+        album["songs"] = [s for s in songs_in_category if s.get("album_id") == album.get("album_id")]
+    
+    # Optimize thumbnails
+    albums = optimize_thumbnails(albums)
+    
+    # Get category info
+    category = await db.song_categories.find_one(
+        {"song_category_id": song_category_id},
+        {"_id": 0}
+    )
+    
+    result = {
+        "category": category,
+        "albums": albums,
+        "total": len(albums)
+    }
+    
+    await cache.set(cache_key, result, 120)
+    
+    return result
+
+
 @router.get("/albums/{album_id}")
 async def get_album(album_id: str):
     """Get single album with songs. Cached for 5 minutes."""
