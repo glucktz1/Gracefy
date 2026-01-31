@@ -67,8 +67,8 @@ export default function LeadersPage() {
         axios.get(`${API}/leaders`, { withCredentials: true }),
         axios.get(`${API}/churches`, { withCredentials: true })
       ]);
-      setLeaders(leadersRes.data.leaders);
-      setChurches(churchesRes.data.churches);
+      setLeaders(leadersRes.data.leaders || []);
+      setChurches(churchesRes.data.churches || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load leaders");
@@ -81,14 +81,44 @@ export default function LeadersPage() {
     fetchData();
   }, []);
 
+  const handleFileUpload = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await axios.post(`${API}/upload`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return response.data.url;
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload photo");
+      return null;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsUploading(true);
+    
     try {
+      // Upload photo if file selected
+      let photoUrl = formData.photo;
+      if (photoFile) {
+        photoUrl = await handleFileUpload(photoFile);
+        if (!photoUrl) {
+          setIsUploading(false);
+          return;
+        }
+      }
+      
+      const payload = { ...formData, photo: photoUrl };
+
       if (editingLeader) {
-        await axios.put(`${API}/leaders/${editingLeader.leader_id}`, formData, { withCredentials: true });
+        await axios.put(`${API}/leaders/${editingLeader.leader_id}`, payload, { withCredentials: true });
         toast.success("Leader updated successfully");
       } else {
-        await axios.post(`${API}/leaders`, formData, { withCredentials: true });
+        await axios.post(`${API}/leaders`, payload, { withCredentials: true });
         toast.success("Leader created successfully");
       }
       setIsModalOpen(false);
@@ -97,6 +127,8 @@ export default function LeadersPage() {
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "Operation failed");
+    } finally {
+      setIsUploading(false);
     }
   };
 
