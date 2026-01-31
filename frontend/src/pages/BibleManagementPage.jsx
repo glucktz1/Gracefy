@@ -126,6 +126,9 @@ export default function BibleManagementPage() {
       ]);
       setListeningSettings(settingsRes.data);
       setListeningStats(statsRes.data);
+      // Set default voices from settings
+      setDefaultVoiceMale(settingsRes.data.default_voice_male || "");
+      setDefaultVoiceFemale(settingsRes.data.default_voice_female || "");
     } catch (e) {
       console.error("Error fetching listening settings:", e);
     }
