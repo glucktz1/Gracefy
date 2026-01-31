@@ -332,7 +332,13 @@ const AuthCallback = () => {
         try {
           const response = await axios.post(`${API}/auth/session`, { session_id: sessionId }, { withCredentials: true });
           if (response.data.user) {
-            navigate("/dashboard", { state: { user: response.data.user }, replace: true });
+            // Check if user has admin role
+            if (response.data.user.role === 'admin') {
+              navigate("/dashboard", { state: { user: response.data.user }, replace: true });
+            } else {
+              // Non-admin users should be redirected to user app
+              navigate("/app", { replace: true });
+            }
           }
         } catch (error) {
           console.error("Auth error:", error);
