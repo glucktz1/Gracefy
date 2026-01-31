@@ -17,6 +17,8 @@ from .uploads import router as uploads_router
 from .user_library import router as user_library_router
 from .content import router as content_router
 from .monetization import router as monetization_router
+from .categories import router as categories_router
+from .browse import router as browse_router
 
 __all__ = [
     'auth_router',
@@ -33,4 +35,6 @@ __all__ = [
     'user_library_router',
     'content_router',
     'monetization_router',
+    'categories_router',
+    'browse_router',
 ]
