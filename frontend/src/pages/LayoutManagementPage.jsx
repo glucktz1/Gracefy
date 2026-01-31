@@ -1086,7 +1086,7 @@ const HeroConfigTab = ({ albums }) => {
                       </span>
                       <div className="w-12 h-12 bg-zinc-700 rounded-lg overflow-hidden flex-shrink-0">
                         {album.thumbnail ? (
-                          <img src={album.thumbnail?.startsWith('data:') ? album.thumbnail : `${BACKEND_URL}${album.thumbnail_url || `/api/thumbnails/${album.album_id}`}`} alt="" className="w-full h-full object-cover" />
+                          <img src={getImageUrl(album.thumbnail)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Music2 size={16} className="text-zinc-500" />
