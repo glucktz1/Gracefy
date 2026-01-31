@@ -386,6 +386,23 @@ async def delete_lesson(teaching_id: str, topic_id: str, lesson_id: str):
 
 # ============== AUDIO UPLOAD ==============
 
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Bunny CDN configuration
+BUNNY_STORAGE_ZONE = os.environ.get("BUNNY_STORAGE_ZONE", "")
+BUNNY_API_KEY = os.environ.get("BUNNY_API_KEY", "")
+BUNNY_CDN_URL = os.environ.get("BUNNY_CDN_URL", "")
+BUNNY_STORAGE_REGION = os.environ.get("BUNNY_STORAGE_REGION", "de")
+
+
+def is_cdn_enabled():
+    """Check if CDN is properly configured"""
+    return bool(BUNNY_STORAGE_ZONE and BUNNY_API_KEY and BUNNY_CDN_URL)
+
+
 @router.post("/teachings/upload-audio")
 async def upload_teaching_audio(
     file: UploadFile = File(...),
@@ -393,7 +410,7 @@ async def upload_teaching_audio(
     topic_id: str = Form(None),
     teaching_id: str = Form(None)
 ):
-    """Upload audio file for a lesson - uses chunked storage for large files"""
+    """Upload audio file for a lesson - prioritizes CDN, falls back to chunked storage"""
     db = get_db()
     
     # Read file content
@@ -404,15 +421,45 @@ async def upload_teaching_audio(
     if file_size > 50 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large. Maximum 50MB")
     
-    # Create file record
+    # Generate unique file ID and filename
     file_id = f"file_{uuid.uuid4().hex[:12]}"
+    ext = os.path.splitext(file.filename)[1].lower() or ".mp3"
+    cdn_filename = f"{file_id}{ext}"
+    content_type = file.content_type or "audio/mpeg"
     
-    # For files larger than 12MB (which would exceed 16MB after base64),
-    # use chunked storage instead of single document
-    CHUNK_SIZE = 10 * 1024 * 1024  # 10MB chunks (safe under 16MB limit after base64)
+    cdn_url = None
+    storage_type = "direct"
     
-    if file_size > 12 * 1024 * 1024:
-        # Store in chunks
+    # Try CDN upload first (best for large files)
+    if is_cdn_enabled():
+        try:
+            import httpx
+            
+            storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/teachings/{cdn_filename}"
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    storage_url,
+                    content=content,
+                    headers={
+                        "AccessKey": BUNNY_API_KEY,
+                        "Content-Type": content_type
+                    },
+                    timeout=120.0  # 2 minutes for large files
+                )
+                
+                if response.status_code in [200, 201]:
+                    cdn_url = f"{BUNNY_CDN_URL}/teachings/{cdn_filename}"
+                    storage_type = "cdn"
+                    logger.info(f"Teaching audio uploaded to CDN: {cdn_url}")
+                else:
+                    logger.warning(f"CDN upload failed with status {response.status_code}")
+        except Exception as e:
+            logger.error(f"CDN upload failed: {e}")
+    
+    # If CDN failed and file is large, use chunked storage
+    if not cdn_url and file_size > 12 * 1024 * 1024:
+        CHUNK_SIZE = 10 * 1024 * 1024  # 10MB chunks
         total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
         
         for i in range(total_chunks):
@@ -429,39 +476,37 @@ async def upload_teaching_audio(
             }
             await db.file_chunks.insert_one(chunk_doc)
         
-        # Store file metadata (without data)
-        file_doc = {
-            "file_id": file_id,
-            "filename": file.filename,
-            "content_type": file.content_type or "audio/mpeg",
-            "size_bytes": file_size,
-            "storage_type": "chunked",
-            "total_chunks": total_chunks,
-            "upload_type": "teaching_audio",
-            "teaching_id": teaching_id,
-            "topic_id": topic_id,
-            "lesson_id": lesson_id,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-    else:
-        # Store directly for smaller files
-        file_doc = {
-            "file_id": file_id,
-            "filename": file.filename,
-            "content_type": file.content_type or "audio/mpeg",
-            "size_bytes": file_size,
-            "data": base64.b64encode(content).decode('utf-8'),
-            "storage_type": "direct",
-            "upload_type": "teaching_audio",
-            "teaching_id": teaching_id,
-            "topic_id": topic_id,
-            "lesson_id": lesson_id,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
+        storage_type = "chunked"
+        logger.info(f"Teaching audio stored in {total_chunks} chunks: {file_id}")
+    
+    # Create file metadata document
+    file_doc = {
+        "file_id": file_id,
+        "filename": file.filename,
+        "cdn_filename": cdn_filename,
+        "content_type": content_type,
+        "size_bytes": file_size,
+        "cdn_url": cdn_url,
+        "storage_type": storage_type,
+        "upload_type": "teaching_audio",
+        "teaching_id": teaching_id,
+        "topic_id": topic_id,
+        "lesson_id": lesson_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # For small files without CDN, store data directly
+    if not cdn_url and storage_type == "direct":
+        file_doc["data"] = base64.b64encode(content).decode('utf-8')
+    
+    # For chunked storage, add chunk count
+    if storage_type == "chunked":
+        file_doc["total_chunks"] = total_chunks
     
     await db.files.insert_one(file_doc)
     
-    audio_url = f"/api/files/{file_id}/stream"
+    # Determine the URL to return
+    audio_url = cdn_url if cdn_url else f"/api/files/{file_id}/stream"
     
     # If lesson_id provided, update the lesson
     if lesson_id:
