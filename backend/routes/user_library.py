@@ -140,7 +140,7 @@ async def get_user_library(request: Request):
         {"_id": 0}
     ).sort("created_at", -1).limit(50).to_list(50)
     
-    liked_song_ids = [l["item_id"] for l in likes]
+    liked_song_ids = [like["item_id"] for like in likes]
     liked_songs = await db.songs.find(
         {"song_id": {"$in": liked_song_ids}},
         {"_id": 0}
