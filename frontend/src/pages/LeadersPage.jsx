@@ -126,7 +126,17 @@ export default function LeadersPage() {
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Operation failed");
+      // Handle FastAPI validation errors which come as array of {type, loc, msg, input, url}
+      const errorDetail = error.response?.data?.detail;
+      let errorMessage = "Operation failed";
+      if (typeof errorDetail === 'string') {
+        errorMessage = errorDetail;
+      } else if (Array.isArray(errorDetail)) {
+        errorMessage = errorDetail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (errorDetail?.msg) {
+        errorMessage = errorDetail.msg;
+      }
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
     }
