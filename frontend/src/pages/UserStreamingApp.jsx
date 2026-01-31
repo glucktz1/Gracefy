@@ -28,9 +28,9 @@ const getAudioUrl = (audioUrl) => {
     return audioUrl;
   }
   
-  // If it's a relative streaming URL (/api/files/...), prepend backend URL
-  if (audioUrl.startsWith('/api/files/')) {
-    return `${BACKEND_URL}${audioUrl}`;
+  // If it's a relative file URL (/api/files/{file_id}), add /stream for actual content
+  if (audioUrl.startsWith('/api/files/') && !audioUrl.endsWith('/stream')) {
+    return `${BACKEND_URL}${audioUrl}/stream`;
   }
   
   // If it's just a file ID, construct the streaming URL
