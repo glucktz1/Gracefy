@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Component } from "react";
 import axios from "axios";
 import { UserCheck, Plus, Edit2, Trash2, MoreVertical, CheckCircle, XCircle, Image, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,34 @@ import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Error Boundary to catch render errors
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("LeadersPage Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center">
+          <h2 className="text-red-500 text-lg mb-2">Something went wrong</h2>
+          <p className="text-zinc-400 text-sm mb-4">{String(this.state.error?.message || 'Unknown error')}</p>
+          <Button onClick={() => this.setState({ hasError: false, error: null })}>
+            Try Again
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Helper function to get proper image URL
 const getImageUrl = (imageUrl) => {
