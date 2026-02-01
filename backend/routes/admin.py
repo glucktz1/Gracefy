@@ -420,6 +420,54 @@ async def reject_choir(choir_id: str, data: dict = None):
     return {"message": "Choir rejected"}
 
 
+# ============== CATEGORY PERMISSIONS ==============
+
+@router.get("/admin/category-permissions")
+async def get_category_permissions():
+    """Get category-based permissions for content management"""
+    db = get_db()
+    
+    # Get permission configurations from DB or use defaults
+    configs = await db.category_permissions.find({}, {"_id": 0}).to_list(20)
+    
+    if not configs:
+        # Return default categories
+        configs = [
+            {"category_id": "gospel", "name": "Gospel Music", "role_id": "role_admin", "permissions": ["create", "edit", "delete", "approve"]},
+            {"category_id": "worship", "name": "Worship Music", "role_id": "role_moderator", "permissions": ["create", "edit", "approve"]},
+            {"category_id": "hymns", "name": "Traditional Hymns", "role_id": "role_choir_admin", "permissions": ["create", "edit"]},
+            {"category_id": "christmas", "name": "Christmas Songs", "role_id": "role_admin", "permissions": ["create", "edit", "delete", "approve"]},
+            {"category_id": "lent", "name": "Lent & Easter", "role_id": "role_admin", "permissions": ["create", "edit", "delete", "approve"]},
+        ]
+    
+    return {"categories": configs}
+
+
+@router.post("/admin/category-permissions")
+async def update_category_permissions(data: dict):
+    """Update category-based permissions"""
+    db = get_db()
+    
+    category_id = data.get("category_id")
+    permissions = data.get("permissions", [])
+    role_id = data.get("role_id")
+    
+    if not category_id:
+        raise HTTPException(status_code=400, detail="category_id required")
+    
+    await db.category_permissions.update_one(
+        {"category_id": category_id},
+        {"$set": {
+            "permissions": permissions,
+            "role_id": role_id,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {"message": "Category permissions updated"}
+
+
 # ============== ALBUM ADMIN ==============
 
 @router.get("/admin/albums")
