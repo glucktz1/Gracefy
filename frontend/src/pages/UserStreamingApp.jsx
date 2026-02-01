@@ -3706,32 +3706,57 @@ export default function UserStreamingApp() {
                           return (
                           <div
                             key={lesson.lesson_id}
-                            className="flex items-center gap-4 px-4 py-3 hover:bg-zinc-800/50 transition-colors cursor-pointer group"
+                            className={`flex items-center gap-4 px-4 py-3 transition-colors cursor-pointer group ${
+                              isCurrentLesson 
+                                ? 'bg-amber-500/10 border-l-2 border-amber-500' 
+                                : 'hover:bg-zinc-800/50'
+                            }`}
                             onClick={() => playTeachingLesson(lesson, selectedTeaching)}
                           >
-                            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                              {lesson.audio_url ? (
+                            {/* Number/Play icon or Dancing bars */}
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                              isCurrentLesson 
+                                ? 'bg-amber-600 text-white' 
+                                : 'bg-zinc-800 text-zinc-400 group-hover:bg-amber-600 group-hover:text-white'
+                            }`}>
+                              {isCurrentlyPlaying ? (
+                                /* Dancing bars animation */
+                                <div className="flex items-end gap-0.5 h-4">
+                                  <span className="w-1 bg-white animate-pulse" style={{ height: '60%', animationDelay: '0ms', animationDuration: '400ms' }}></span>
+                                  <span className="w-1 bg-white animate-pulse" style={{ height: '100%', animationDelay: '150ms', animationDuration: '400ms' }}></span>
+                                  <span className="w-1 bg-white animate-pulse" style={{ height: '40%', animationDelay: '300ms', animationDuration: '400ms' }}></span>
+                                </div>
+                              ) : isCurrentLesson ? (
+                                <Pause size={14} />
+                              ) : lesson.audio_url ? (
                                 <Play size={14} className="ml-0.5" />
                               ) : (
                                 <span className="text-sm">{lessonIndex + 1}</span>
                               )}
                             </div>
+                            
                             <div className="flex-1 min-w-0">
-                              <p className="text-white font-medium truncate">
+                              <p className={`font-medium truncate ${isCurrentLesson ? 'text-amber-400' : 'text-white'}`}>
                                 {lesson.title_sw || lesson.title || `Sehemu ya ${lessonIndex + 1}`}
                               </p>
                               {lesson.description && (
                                 <p className="text-zinc-400 text-sm truncate">{lesson.description}</p>
                               )}
                             </div>
-                            {lesson.duration && (
+                            
+                            {/* Playing indicator text */}
+                            {isCurrentlyPlaying && (
+                              <span className="text-amber-400 text-xs font-medium">Inacheza</span>
+                            )}
+                            
+                            {lesson.duration && !isCurrentlyPlaying && (
                               <span className="text-zinc-500 text-sm">{formatTime(lesson.duration)}</span>
                             )}
                             {!lesson.audio_url && (
                               <span className="text-zinc-600 text-xs">Hakuna sauti</span>
                             )}
                           </div>
-                        ))}
+                        )})}
                         {(!topic.lessons || topic.lessons.length === 0) && (
                           <p className="text-zinc-500 text-sm px-4 py-3">Hakuna sehemu bado</p>
                         )}
