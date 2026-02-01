@@ -17,7 +17,7 @@ import { Audio } from 'expo-av';
 const { width } = Dimensions.get('window');
 
 // ============ CONFIG ============
-const API_URL = 'https://audio-teachings.preview.emergentagent.com/api';
+const API_URL = 'https://cdn-control.preview.emergentagent.com/api';
 const COLORS = {
   primary: '#1DB954',
   background: '#121212',
