@@ -1,41 +1,45 @@
-// Spotify-inspired dark theme for Gracefy
+// Gracefy Blue Theme - Inspired by the app logo
 export const COLORS = {
-  // Primary colors
-  primary: '#1DB954',      // Spotify green
-  primaryDark: '#1aa34a',
-  primaryLight: '#1ed760',
+  // Primary colors - Blue theme from logo
+  primary: '#00A8E8',        // Vibrant cyan blue
+  primaryDark: '#0077B6',    // Darker blue
+  primaryLight: '#48CAE4',   // Lighter blue
   
   // Background colors
-  background: '#121212',
-  surface: '#181818',
-  card: '#282828',
-  cardHover: '#333333',
+  background: '#0A1628',     // Dark navy blue
+  surface: '#122135',        // Slightly lighter navy
+  card: '#1A2D47',           // Card background
+  cardHover: '#243B5C',      // Card hover state
   
   // Text colors
   text: '#FFFFFF',
   textPrimary: '#FFFFFF',
-  textSecondary: '#B3B3B3',
-  textMuted: '#727272',
+  textSecondary: '#A0C4E8',  // Light blue tinted
+  textMuted: '#6B8CAE',      // Muted blue
   
   // Accent colors
-  accent: '#1DB954',
-  error: '#E91429',
-  warning: '#F59B23',
-  success: '#1DB954',
+  accent: '#00A8E8',
+  error: '#FF4757',
+  warning: '#FFA502',
+  success: '#2ED573',
   
   // UI elements
-  border: '#333333',
-  divider: '#282828',
-  overlay: 'rgba(0, 0, 0, 0.7)',
+  border: '#2A4060',
+  divider: '#1A2D47',
+  overlay: 'rgba(10, 22, 40, 0.85)',
   
   // Gradients
-  gradientStart: '#1DB954',
-  gradientEnd: '#191414',
+  gradientStart: '#00A8E8',
+  gradientMiddle: '#0077B6',
+  gradientEnd: '#0A1628',
   
   // Player
-  playerBackground: '#181818',
-  progressBar: '#535353',
-  progressFill: '#1DB954',
+  playerBackground: '#122135',
+  progressBar: '#2A4060',
+  progressFill: '#00A8E8',
+  
+  // Onboarding specific
+  onboardingOverlay: 'rgba(10, 22, 40, 0.7)',
 };
 
 export const SPACING = {
