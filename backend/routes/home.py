@@ -318,6 +318,15 @@ async def get_user_home():
     return response_data
 
 
+@router.get("/home/app")
+async def get_home_app():
+    """
+    Alias for /user/home - Mobile app home endpoint.
+    Returns home screen data for the mobile app.
+    """
+    return await get_user_home()
+
+
 @router.get("/user/home/quick")
 async def get_user_home_quick():
     """
