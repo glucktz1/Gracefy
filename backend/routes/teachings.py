@@ -158,6 +158,13 @@ async def get_teaching(teaching_id: str):
     return teaching
 
 
+# Alias for mobile app compatibility
+@router.get("/mafundisho/{teaching_id}")
+async def get_mafundisho_detail(teaching_id: str):
+    """Alias for /teachings/{id} - Mobile app compatibility"""
+    return await get_teaching(teaching_id)
+
+
 @router.post("/teachings")
 async def create_teaching(data: dict):
     """Create a new teaching"""
