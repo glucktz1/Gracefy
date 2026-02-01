@@ -2444,57 +2444,6 @@ export default function UserStreamingApp() {
     }
   };
 
-  // Open teaching detail view
-  const openTeachingDetail = async (teaching) => {
-    try {
-      setTeachingLoading(true);
-      setSelectedTeaching(teaching);
-      setView('teaching');
-      
-      // Fetch teaching details with topics and lessons
-      const res = await axios.get(`${API}/teachings/${teaching.teaching_id}`);
-      setSelectedTeaching(res.data);
-      setTeachingTopics(res.data.topics || []);
-    } catch (e) {
-      console.error('Failed to load teaching:', e);
-      toast.error("Imeshindikana kupakia mafundisho");
-    } finally {
-      setTeachingLoading(false);
-    }
-  };
-
-  // Play teaching lesson audio
-  const playTeachingLesson = async (lesson, teaching) => {
-    if (!lesson.audio_url) {
-      toast.error("Hakuna sauti kwa somo hili");
-      return;
-    }
-    
-    // Create a virtual song from the lesson
-    const audioUrl = lesson.audio_url.startsWith('http') 
-      ? lesson.audio_url 
-      : `${BACKEND_URL}${lesson.audio_url}${lesson.audio_url.includes('/stream') ? '' : '/stream'}`;
-    
-    const virtualSong = {
-      song_id: lesson.lesson_id,
-      title: lesson.title_sw || lesson.title,
-      artist: teaching.leader_name || 'Kiongozi',
-      audio_url: audioUrl,
-      thumbnail: teaching.thumbnail,
-      duration: lesson.duration || 0,
-      is_teaching: true
-    };
-    
-    setCurrentSong(virtualSong);
-    setCurrentAlbum({
-      title: teaching.name || teaching.title_sw,
-      thumbnail: teaching.thumbnail
-    });
-    setQueue([virtualSong]);
-    setQueueIndex(0);
-    setIsPlaying(true);
-  };
-
   const fetchLibrary = async () => {
     if (!token) {
       setShowAuth(true);
