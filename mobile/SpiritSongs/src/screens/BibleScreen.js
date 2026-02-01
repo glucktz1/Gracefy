@@ -542,6 +542,35 @@ const BibleScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          {/* Featured Bible Snippets */}
+          {featuredSnippets.length > 0 && (
+            <View style={styles.snippetsSection}>
+              <Text style={styles.snippetsSectionTitle}>Masomo Maarufu</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.snippetsContainer}
+              >
+                {featuredSnippets.map((snippet) => (
+                  <TouchableOpacity
+                    key={snippet.snippet_id}
+                    style={styles.snippetCard}
+                    onPress={() => handleSnippetPress(snippet)}
+                  >
+                    <View style={styles.snippetGradient}>
+                      <Ionicons name="book" size={24} color={COLORS.primary} />
+                    </View>
+                    <Text style={styles.snippetTitle} numberOfLines={2}>{snippet.title}</Text>
+                    <Text style={styles.snippetReference}>{snippet.reference}</Text>
+                    <Text style={styles.snippetDescription} numberOfLines={2}>
+                      {snippet.description}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Search */}
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color={COLORS.textMuted} />
