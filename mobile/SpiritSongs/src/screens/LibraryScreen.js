@@ -24,8 +24,10 @@ import AddToPlaylistModal, {
   SubscriptionRequiredModal 
 } from '../components/AddToPlaylistModal';
 
-const LibraryScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('playlists');
+const LibraryScreen = ({ navigation, route }) => {
+  // Get initial tab from route params (e.g., from Profile screen)
+  const initialTab = route?.params?.tab || 'playlists';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [playlists, setPlaylists] = useState([]);
   const [likedSongs, setLikedSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,13 @@ const LibraryScreen = ({ navigation }) => {
   const { playTrack, currentTrack, isPlaying } = usePlayer();
   const { billingEnabled, isPremium } = useBilling();
   const { downloads, isDownloaded, refreshDownloads } = useDownloads();
+
+  // Update activeTab when route params change
+  useEffect(() => {
+    if (route?.params?.tab) {
+      setActiveTab(route.params.tab);
+    }
+  }, [route?.params?.tab]);
 
   useEffect(() => {
     if (isAuthenticated) {
