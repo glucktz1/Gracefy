@@ -3579,6 +3579,122 @@ export default function UserStreamingApp() {
               onBack={() => setView('home')}
             />
           )}
+
+          {/* TEACHING DETAIL VIEW */}
+          {view === 'teaching' && selectedTeaching && (
+            <div className="pb-32">
+              {/* Header with back button */}
+              <div className="flex items-center gap-4 mb-6">
+                <button 
+                  onClick={() => { setView('home'); setSelectedTeaching(null); }}
+                  className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <h1 className="text-xl font-bold">{selectedTeaching.name || selectedTeaching.title_sw}</h1>
+              </div>
+
+              {/* Teaching info card */}
+              <div className="bg-gradient-to-b from-amber-900/30 to-zinc-900 rounded-xl p-6 mb-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Thumbnail */}
+                  <div className="w-48 h-48 md:w-56 md:h-56 flex-shrink-0 rounded-xl overflow-hidden shadow-2xl mx-auto md:mx-0">
+                    {selectedTeaching.thumbnail ? (
+                      <img 
+                        src={getImageUrl(selectedTeaching.thumbnail)}
+                        alt={selectedTeaching.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center">
+                        <BookOpen className="w-20 h-20 text-white/60" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Info */}
+                  <div className="flex-1 flex flex-col justify-end text-center md:text-left">
+                    <p className="text-amber-400 text-sm font-medium mb-2">MAFUNDISHO</p>
+                    <h2 className="text-2xl md:text-4xl font-bold mb-3">{selectedTeaching.name || selectedTeaching.title_sw}</h2>
+                    <p className="text-zinc-300 mb-2">Na {selectedTeaching.leader_name || 'Kiongozi'}</p>
+                    <div className="flex items-center justify-center md:justify-start gap-4 text-zinc-400 text-sm">
+                      <span>{selectedTeaching.topic_count || teachingTopics.length} mada</span>
+                      <span>•</span>
+                      <span>{selectedTeaching.lesson_count || 0} sehemu</span>
+                    </div>
+                    {selectedTeaching.description && (
+                      <p className="text-zinc-400 mt-4 text-sm">{selectedTeaching.description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Topics and Lessons */}
+              {teachingLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {teachingTopics.map((topic, topicIndex) => (
+                    <div key={topic.topic_id} className="bg-zinc-900/50 rounded-xl overflow-hidden">
+                      {/* Topic header */}
+                      <div className="px-4 py-3 bg-zinc-800/50 border-b border-zinc-700">
+                        <h3 className="font-semibold text-amber-400">
+                          Mada {topicIndex + 1}: {topic.title_sw || topic.title}
+                        </h3>
+                        {topic.description && (
+                          <p className="text-zinc-400 text-sm mt-1">{topic.description}</p>
+                        )}
+                      </div>
+                      
+                      {/* Lessons */}
+                      <div className="divide-y divide-zinc-800">
+                        {(topic.lessons || []).map((lesson, lessonIndex) => (
+                          <div
+                            key={lesson.lesson_id}
+                            className="flex items-center gap-4 px-4 py-3 hover:bg-zinc-800/50 transition-colors cursor-pointer group"
+                            onClick={() => playTeachingLesson(lesson, selectedTeaching)}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                              {lesson.audio_url ? (
+                                <Play size={14} className="ml-0.5" />
+                              ) : (
+                                <span className="text-sm">{lessonIndex + 1}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-medium truncate">
+                                {lesson.title_sw || lesson.title || `Sehemu ya ${lessonIndex + 1}`}
+                              </p>
+                              {lesson.description && (
+                                <p className="text-zinc-400 text-sm truncate">{lesson.description}</p>
+                              )}
+                            </div>
+                            {lesson.duration && (
+                              <span className="text-zinc-500 text-sm">{formatTime(lesson.duration)}</span>
+                            )}
+                            {!lesson.audio_url && (
+                              <span className="text-zinc-600 text-xs">Hakuna sauti</span>
+                            )}
+                          </div>
+                        ))}
+                        {(!topic.lessons || topic.lessons.length === 0) && (
+                          <p className="text-zinc-500 text-sm px-4 py-3">Hakuna sehemu bado</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {teachingTopics.length === 0 && (
+                    <div className="text-center py-12">
+                      <BookOpen className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                      <p className="text-zinc-400">Hakuna mada bado kwa mafundisho haya</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
