@@ -179,13 +179,24 @@ async def fetch_section_content(db, section: dict) -> dict:
         section_data["content_type"] = "special_mixes"
         
     elif section_type in ["sermons", "teachings", "mafundisho"]:
-        # Fetch leader content containers
-        items = await db.content_containers.find(
-            {"status": "active"},
-            {"_id": 0, "container_id": 1, "name": 1, "thumbnail": 1, "author_name": 1, "episodes_count": 1}
+        # Fetch teachings with topics and lesson counts
+        teachings = await db.teachings.find(
+            {"status": "published"},
+            {"_id": 0, "teaching_id": 1, "title": 1, "title_sw": 1, "thumbnail": 1, 
+             "leader_name": 1, "leader_id": 1, "category_id": 1, "description": 1}
         ).sort("created_at", -1).limit(content_count).to_list(content_count)
-        section_data["items"] = optimize_thumbnails(items)
-        section_data["content_type"] = "leader_content"
+        
+        # Enrich with topic and lesson counts
+        for teaching in teachings:
+            topic_count = await db.teaching_topics.count_documents({"teaching_id": teaching["teaching_id"]})
+            lesson_count = await db.teaching_lessons.count_documents({"teaching_id": teaching["teaching_id"]})
+            teaching["topic_count"] = topic_count
+            teaching["lesson_count"] = lesson_count
+            # Use title_sw as primary title for display
+            teaching["name"] = teaching.get("title_sw") or teaching.get("title", "")
+        
+        section_data["items"] = optimize_thumbnails(teachings)
+        section_data["content_type"] = "teachings"
         
     elif section_type == "hero":
         section_data["background"] = section.get("background_gradient") or section.get("background_color")
