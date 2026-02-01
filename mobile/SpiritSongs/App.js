@@ -153,6 +153,50 @@ const AppContent = () => {
 
 // Root App Component
 export default function App() {
+  const [showOnboarding, setShowOnboarding] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    checkOnboardingStatus();
+  }, []);
+
+  const checkOnboardingStatus = async () => {
+    try {
+      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+      setShowOnboarding(hasSeenOnboarding !== 'true');
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      setShowOnboarding(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
+  // Show nothing while loading
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
+      </View>
+    );
+  }
+
+  // Show onboarding if first launch
+  if (showOnboarding) {
+    return (
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+          <OnboardingScreen onComplete={handleOnboardingComplete} />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
