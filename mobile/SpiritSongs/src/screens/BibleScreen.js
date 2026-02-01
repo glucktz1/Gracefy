@@ -57,6 +57,7 @@ const BibleScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadBooks();
+    loadFeaturedSnippets();
     
     setStopExternalAudioCallback(async () => {
       await cleanupAudio();
@@ -68,6 +69,15 @@ const BibleScreen = ({ navigation }) => {
       clearStopExternalAudioCallback();
     };
   }, []);
+
+  const loadFeaturedSnippets = async () => {
+    try {
+      const response = await bibleAPI.getFeaturedSnippets();
+      setFeaturedSnippets(response.data?.snippets || []);
+    } catch (error) {
+      console.log('Error loading snippets:', error);
+    }
+  };
 
   const cleanupAudio = async () => {
     if (soundRef.current) {
