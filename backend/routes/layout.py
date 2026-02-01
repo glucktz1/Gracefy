@@ -37,18 +37,22 @@ DEFAULT_SECTIONS = [
 @router.get("/layout/sections")
 async def get_layout_sections(
     platform: str = Query("app", description="Platform: app or web"),
-    type: Optional[str] = None
+    type: Optional[str] = None,
+    include_inactive: bool = Query(False, description="Include inactive sections (for admin)")
 ):
     """Get layout sections for a platform"""
     db = get_db()
     
-    query = {"platforms": platform, "is_active": True}
+    query = {"platforms": platform}
+    # Only filter by is_active if not including inactive (for admin panel)
+    if not include_inactive:
+        query["is_active"] = True
     if type:
         query["section_type"] = type
     
     sections = await db.layout_sections.find(query, {"_id": 0})\
         .sort("sort_order", 1)\
-        .to_list(30)
+        .to_list(50)
     
     return {"sections": sections}
 
