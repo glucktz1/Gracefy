@@ -163,6 +163,20 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-02-01)
 
+### Web App Enhancements (2026-02-01)
+1. **Mafundisho na Katekesi** - Now visible on web with teaching cards
+2. **Makanisa (Churches)** - Added detailed church modal with:
+   - Prayer schedule (Ratiba ya Ibada)
+   - Announcements (Matangazo)
+   - Direction/map link
+   - Contact info & bio
+   - Associated choirs
+3. **Download App Popup** - When user clicks download on web:
+   - Shows popup with message in Swahili
+   - Links to app download (APK/Play Store)
+   - Backend endpoint: `/api/app/download-info`
+4. **Bible Snippets** - Added to home with featured passages
+
 ### Mobile App v1.0.69 Fixes (2026-02-01)
 **NOTE:** Build failed - Free plan has exhausted monthly Android builds. Resets March 1st. Upgrade at https://expo.dev/accounts/gracefy18/settings/billing
 
