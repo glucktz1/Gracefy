@@ -202,15 +202,25 @@ async def get_users_with_roles(
         ]
     
     users = await db.users.find(query, {
-        "_id": 0, "user_id": 1, "name": 1, "email": 1, "role": 1,
+        "_id": 0, "user_id": 1, "name": 1, "email": 1, "role": 1, "phone": 1,
         "permissions": 1, "status": 1, "created_at": 1, "last_login": 1
     }).skip(skip).limit(limit).to_list(limit)
     
     total = await db.users.count_documents(query)
     
-    # Enrich with role details
+    # Enrich with role details and add frontend-expected fields
     for user in users:
         role_key = user.get("role", "user")
+        # Add assigned_role field that frontend expects
+        user["assigned_role"] = role_key
+        # Determine user type (admin, choir, regular user)
+        if role_key in ["admin", "super_admin"]:
+            user["user_type"] = "Admin"
+        elif role_key == "choir_admin":
+            user["user_type"] = "Choir"
+        else:
+            user["user_type"] = "User"
+        
         if role_key in SYSTEM_ROLES:
             user["role_name"] = SYSTEM_ROLES[role_key]["name"]
             user["role_color"] = SYSTEM_ROLES[role_key]["color"]
