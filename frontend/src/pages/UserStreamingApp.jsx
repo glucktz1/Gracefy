@@ -217,6 +217,18 @@ const useAudioPlayer = () => {
     const audio = audioRef.current;
     
     const handleSongEnd = async () => {
+      // Track the ended session with duration (for play count)
+      if (sessionIdRef.current) {
+        try {
+          await axios.post(`${API}/listening/end`, {
+            session_id: sessionIdRef.current,
+            duration_seconds: Math.floor(audio.duration || 0)
+          });
+        } catch (e) {
+          console.log("Failed to track play end");
+        }
+      }
+      
       if (repeat === 'one') {
         audio.currentTime = 0;
         audio.play();
