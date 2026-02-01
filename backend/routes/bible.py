@@ -403,7 +403,12 @@ async def generate_tts_endpoint(data: dict):
     
     text = data.get("text")
     voice = data.get("voice", "sw-KE-Zuri-Female")
-    speed = data.get("speed", 1.0)
+    speed = data.get("speed")
+    
+    # Get default speed from settings if not provided
+    if speed is None:
+        settings = await db.bible_settings.find_one({"settings_id": "main"}, {"_id": 0})
+        speed = settings.get("default_speed", 1.0) if settings else 1.0
     
     if not text:
         raise HTTPException(status_code=400, detail="Text required")
