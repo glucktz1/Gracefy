@@ -496,6 +496,50 @@ async def delete_hero_banner(banner_id: str):
     return {"message": "Banner deleted"}
 
 
+@router.get("/layout/hero-content")
+async def get_hero_content():
+    """
+    Get hero content for the mobile app carousel.
+    Returns featured albums or custom banners based on hero config.
+    """
+    db = get_db()
+    
+    # Get hero config
+    config = await db.hero_config.find_one({"config_id": "main"}, {"_id": 0})
+    hero_type = config.get("hero_type", "album_carousel") if config else "album_carousel"
+    
+    response = {
+        "hero_type": hero_type,
+        "auto_rotate": config.get("auto_rotate", True) if config else True,
+        "rotation_interval": config.get("rotation_interval", 5000) if config else 5000,
+        "show_navigation": config.get("show_navigation", True) if config else True,
+        "items": []
+    }
+    
+    if hero_type == "album_carousel" or hero_type == "static_banner":
+        # Get featured albums
+        albums = await db.albums.find(
+            {"status": "active"},
+            {"_id": 0, "album_id": 1, "title": 1, "thumbnail": 1, "thumbnail_url": 1, 
+             "artist_name": 1, "choir_name": 1, "description": 1, "release_date": 1}
+        ).sort("created_at", -1).limit(6).to_list(6)
+        
+        for album in albums:
+            album["thumbnail"] = album.get("thumbnail") or album.get("thumbnail_url")
+            album["artist_name"] = album.get("artist_name") or album.get("choir_name") or "Unknown"
+        
+        response["items"] = albums
+    else:
+        # Get custom banners
+        banners = await db.hero_banners.find(
+            {"is_active": True},
+            {"_id": 0}
+        ).sort("order", 1).to_list(10)
+        response["items"] = banners
+    
+    return response
+
+
 # ============== HOME FILTERS ==============
 
 @router.get("/layout/home-filters")
