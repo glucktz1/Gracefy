@@ -137,6 +137,7 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
         )}
 
         {billingEnabled && (
+        <>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Hero Section */}
           <View style={styles.heroSection}>
