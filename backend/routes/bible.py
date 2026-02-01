@@ -888,7 +888,7 @@ async def track_bible_listening(request: Request, data: dict):
     seconds = data.get("seconds", 0)
     today = datetime.utcnow().date().isoformat()
     
-    result = await db.bible_listening.update_one(
+    await db.bible_listening.update_one(
         {"user_id": user_id, "daily_date": today},
         {
             "$inc": {
