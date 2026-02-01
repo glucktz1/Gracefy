@@ -210,9 +210,17 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **API Endpoints**: 16 endpoints for full CRUD operations
 - **Backend**: `/app/backend/routes/teachings.py` (464 lines)
 - **Frontend Admin**: `/app/frontend/src/pages/TeachingsPage.jsx` (1010 lines)
-- **User App Integration**: Spotify-style card display in UserStreamingApp.jsx
-  - Shows: Leader name, Topic count, Lesson count, Thumbnail
-  - Add (+) and Play buttons
+- **User App Integration** (2026-02-01):
+  - Spotify-style card display in home sections
+  - Detail view with thumbnail, title, leader, topic/lesson counts
+  - **Play All button** - queues all lessons
+  - **Shuffle button** - random playback
+  - **Dancing bars animation** on playing lesson
+  - **Highlighted playing lesson** with amber border
+  - **"Inacheza" indicator** for currently playing
+  - **Share button** - native share or clipboard
+  - **Add to playlist button**
+  - Mini player integration at bottom
 - **Testing**: 27/27 backend tests passed (100%)
 
 ### Leaders Page Complete Rebuild (2026-01-31)
