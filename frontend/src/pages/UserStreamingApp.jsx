@@ -2996,7 +2996,7 @@ export default function UserStreamingApp() {
                                     <p className="text-zinc-400 text-xs mb-1">Mafundisho</p>
                                     <h3 className="font-semibold text-white text-sm md:text-base truncate">{teaching.name}</h3>
                                     <p className="text-zinc-400 text-xs mt-1 line-clamp-2">
-                                      {teaching.description || `Na ${teaching.leader_name || 'Kiongozi'}`}
+                                      Na {teaching.leader_name || 'Kiongozi'}
                                     </p>
                                   </div>
                                   
