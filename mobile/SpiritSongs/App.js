@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Context Providers
 import { AuthProvider } from './src/context/AuthContext';
@@ -28,6 +29,7 @@ import SubscriptionPlansScreen from './src/screens/SubscriptionPlansScreen';
 import MafundishoDetailScreen from './src/screens/MafundishoDetailScreen';
 import SeeAllScreen from './src/screens/SeeAllScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
