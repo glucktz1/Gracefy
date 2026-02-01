@@ -2487,6 +2487,95 @@ export default function UserStreamingApp() {
     }, [{ song: virtualSong, album: teaching }], 0);
   };
 
+  // Play all lessons in a teaching
+  const playAllTeachingLessons = (teaching, topics) => {
+    const allLessons = [];
+    
+    // Collect all lessons from all topics
+    topics.forEach(topic => {
+      (topic.lessons || []).forEach(lesson => {
+        if (lesson.audio_url) {
+          const audioUrl = lesson.audio_url.startsWith('http') 
+            ? lesson.audio_url 
+            : `${BACKEND_URL}${lesson.audio_url}${lesson.audio_url.includes('/stream') ? '' : '/stream'}`;
+          
+          allLessons.push({
+            song: {
+              song_id: lesson.lesson_id,
+              title: lesson.title_sw || lesson.title,
+              artist: teaching.leader_name || 'Kiongozi',
+              audio_url: audioUrl,
+              thumbnail: teaching.thumbnail,
+              duration: lesson.duration || 0,
+              is_teaching: true
+            },
+            album: teaching
+          });
+        }
+      });
+    });
+    
+    if (allLessons.length === 0) {
+      toast.error("Hakuna masomo yenye sauti");
+      return;
+    }
+    
+    // Play the first lesson and queue the rest
+    player.playSong(
+      allLessons[0].song,
+      { title: teaching.name || teaching.title_sw, thumbnail: teaching.thumbnail },
+      allLessons,
+      0
+    );
+    toast.success(`Inacheza masomo ${allLessons.length}`);
+  };
+
+  // Shuffle and play all lessons
+  const shuffleTeachingLessons = (teaching, topics) => {
+    const allLessons = [];
+    
+    // Collect all lessons from all topics
+    topics.forEach(topic => {
+      (topic.lessons || []).forEach(lesson => {
+        if (lesson.audio_url) {
+          const audioUrl = lesson.audio_url.startsWith('http') 
+            ? lesson.audio_url 
+            : `${BACKEND_URL}${lesson.audio_url}${lesson.audio_url.includes('/stream') ? '' : '/stream'}`;
+          
+          allLessons.push({
+            song: {
+              song_id: lesson.lesson_id,
+              title: lesson.title_sw || lesson.title,
+              artist: teaching.leader_name || 'Kiongozi',
+              audio_url: audioUrl,
+              thumbnail: teaching.thumbnail,
+              duration: lesson.duration || 0,
+              is_teaching: true
+            },
+            album: teaching
+          });
+        }
+      });
+    });
+    
+    if (allLessons.length === 0) {
+      toast.error("Hakuna masomo yenye sauti");
+      return;
+    }
+    
+    // Shuffle the lessons
+    const shuffled = [...allLessons].sort(() => Math.random() - 0.5);
+    
+    // Play the first shuffled lesson
+    player.playSong(
+      shuffled[0].song,
+      { title: teaching.name || teaching.title_sw, thumbnail: teaching.thumbnail },
+      shuffled,
+      0
+    );
+    toast.success(`Inacheza masomo ${shuffled.length} kwa nasibu`);
+  };
+
   const fetchLibrary = async () => {
     if (!token) {
       setShowAuth(true);
