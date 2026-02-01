@@ -365,6 +365,62 @@ async def get_user_home_quick():
     return result
 
 
+@router.get("/app/download-info")
+async def get_app_download_info():
+    """Get app download information for web popup"""
+    db = get_db()
+    
+    # Get app download settings from database
+    settings = await db.app_settings.find_one({"settings_id": "app_download"}, {"_id": 0})
+    
+    if not settings:
+        # Default settings
+        settings = {
+            "settings_id": "app_download",
+            "android_url": "https://play.google.com/store/apps/details?id=com.spiritsongs.app",
+            "ios_url": "https://apps.apple.com/app/gracefy",
+            "direct_apk_url": "https://expo.dev/artifacts/eas/nLuShV8eraRvjp1zmFyEbf.apk",
+            "message_sw": "Kupakua nyimbo unazotaka na kuzifurahia bila mtandao, pakua app ya Gracefy!",
+            "message_en": "Download songs you want and enjoy them offline, download the Gracefy app!",
+            "button_text_sw": "Bonyeza hapa kupakua",
+            "button_text_en": "Click here to download",
+            "enabled": True
+        }
+        # Save default settings
+        await db.app_settings.insert_one(settings)
+    
+    return settings
+
+
+@router.put("/admin/app/download-settings")
+async def update_app_download_settings(data: dict):
+    """Update app download settings (admin only)"""
+    db = get_db()
+    from datetime import datetime, timezone
+    
+    update_fields = {}
+    allowed_fields = [
+        "android_url", "ios_url", "direct_apk_url", 
+        "message_sw", "message_en", 
+        "button_text_sw", "button_text_en", "enabled"
+    ]
+    
+    for field in allowed_fields:
+        if field in data:
+            update_fields[field] = data[field]
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.app_settings.update_one(
+            {"settings_id": "app_download"},
+            {"$set": update_fields},
+            upsert=True
+        )
+    
+    settings = await db.app_settings.find_one({"settings_id": "app_download"}, {"_id": 0})
+    return settings
+
+
 @router.get("/layout/sections")
 async def get_layout_sections(
     platform: str = Query("app", description="Platform: app or web"),
