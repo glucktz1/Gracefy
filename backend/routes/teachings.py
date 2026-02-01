@@ -113,6 +113,19 @@ async def get_teachings(
     return {"teachings": teachings, "total": total}
 
 
+# Alias for mobile app compatibility
+@router.get("/mafundisho")
+async def get_mafundisho(
+    category: Optional[str] = None,
+    leader_id: Optional[str] = None,
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50
+):
+    """Alias for /teachings - Mobile app compatibility"""
+    return await get_teachings(category, leader_id, status, skip, limit)
+
+
 @router.get("/teachings/{teaching_id}")
 async def get_teaching(teaching_id: str):
     """Get a single teaching with its topics and lessons"""
