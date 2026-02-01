@@ -97,20 +97,34 @@ const LibraryScreen = ({ navigation, route }) => {
   };
 
   const handlePlaySong = (song, songList) => {
-    const index = songList.findIndex(s => s.song_id === song.song_id);
-    playTrack(song, songList, index >= 0 ? index : 0);
+    try {
+      if (!song || !songList || songList.length === 0) return;
+      const index = songList.findIndex(s => s.song_id === song.song_id);
+      playTrack(song, songList, index >= 0 ? index : 0);
+    } catch (error) {
+      console.error('Error playing song:', error);
+      showToast('Imeshindwa kucheza wimbo', 'error');
+    }
   };
 
   const handlePlayAll = (songList) => {
-    if (songList.length > 0) {
+    try {
+      if (!songList || songList.length === 0) return;
       playTrack(songList[0], songList, 0);
+    } catch (error) {
+      console.error('Error playing all:', error);
+      showToast('Imeshindwa kucheza', 'error');
     }
   };
 
   const handleShuffle = (songList) => {
-    if (songList.length > 0) {
+    try {
+      if (!songList || songList.length === 0) return;
       const shuffled = [...songList].sort(() => Math.random() - 0.5);
       playTrack(shuffled[0], shuffled, 0);
+    } catch (error) {
+      console.error('Error shuffling:', error);
+      showToast('Imeshindwa kucheza', 'error');
     }
   };
 
