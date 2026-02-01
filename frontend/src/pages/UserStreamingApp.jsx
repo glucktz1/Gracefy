@@ -2492,6 +2492,13 @@ export default function UserStreamingApp() {
   const [teachingTopics, setTeachingTopics] = useState([]);
   const [teachingLoading, setTeachingLoading] = useState(false);
 
+  // Church detail modal
+  const [selectedChurch, setSelectedChurch] = useState(null);
+  const [churchChoirs, setChurchChoirs] = useState([]);
+  
+  // Download app popup
+  const [showDownloadPopup, setShowDownloadPopup] = useState(false);
+
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
   
