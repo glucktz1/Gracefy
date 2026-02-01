@@ -209,7 +209,10 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - **3 Monetization Types**: Free, Premium, Donation-based
 - **API Endpoints**: 16 endpoints for full CRUD operations
 - **Backend**: `/app/backend/routes/teachings.py` (464 lines)
-- **Frontend**: `/app/frontend/src/pages/TeachingsPage.jsx` (1010 lines)
+- **Frontend Admin**: `/app/frontend/src/pages/TeachingsPage.jsx` (1010 lines)
+- **User App Integration**: Spotify-style card display in UserStreamingApp.jsx
+  - Shows: Leader name, Topic count, Lesson count, Thumbnail
+  - Add (+) and Play buttons
 - **Testing**: 27/27 backend tests passed (100%)
 
 ### Leaders Page Complete Rebuild (2026-01-31)
