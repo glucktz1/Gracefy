@@ -28,6 +28,9 @@ const BibleScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [testamentFilter, setTestamentFilter] = useState('all');
   
+  // Featured snippets
+  const [featuredSnippets, setFeaturedSnippets] = useState([]);
+  
   // Verse range selection - shown immediately after selecting chapter
   const [startVerse, setStartVerse] = useState('1');
   const [endVerse, setEndVerse] = useState('');
