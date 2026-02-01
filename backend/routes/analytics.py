@@ -304,3 +304,219 @@ async def get_streaming_analytics():
         "active_listeners": active_listeners,
         "per_minute": [{"time": m["_id"], "streams": m["count"]} for m in per_minute]
     }
+
+
+# ============== PLAY COUNTING ==============
+# Rule: A play counts only if played for 45 seconds or more
+
+MINIMUM_PLAY_SECONDS = 45  # Minimum seconds to count as a play
+
+@router.post("/analytics/record-play")
+async def record_play(data: dict):
+    """
+    Record a play event after user has listened for 45+ seconds.
+    Updates play_count on the content and creates a listening session.
+    
+    Body:
+    - content_type: "song" | "teaching_lesson" | "bible_tts" | "album"
+    - content_id: ID of the content
+    - user_id: Optional user ID (anonymous if not provided)
+    - duration_played: Seconds played (must be >= 45 to count)
+    - platform: "web" | "app" | "pwa"
+    """
+    db = get_db()
+    
+    content_type = data.get("content_type")
+    content_id = data.get("content_id")
+    duration_played = data.get("duration_played", 0)
+    user_id = data.get("user_id")
+    platform = data.get("platform", "web")
+    
+    if not content_type or not content_id:
+        return {"error": "content_type and content_id required", "counted": False}
+    
+    # Only count if played for minimum duration
+    if duration_played < MINIMUM_PLAY_SECONDS:
+        return {
+            "counted": False,
+            "reason": f"Played {duration_played}s, minimum is {MINIMUM_PLAY_SECONDS}s"
+        }
+    
+    # Create listening session record
+    session_id = f"session_{__import__('uuid').uuid4().hex[:12]}"
+    session = {
+        "session_id": session_id,
+        "content_type": content_type,
+        "content_id": content_id,
+        "user_id": user_id,
+        "duration_seconds": duration_played,
+        "platform": platform,
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "end_time": datetime.now(timezone.utc).isoformat(),
+        "counted_as_play": True
+    }
+    await db.listening_sessions.insert_one(session)
+    
+    # Update play count on the content
+    play_count_updated = False
+    
+    if content_type == "song":
+        result = await db.songs.update_one(
+            {"song_id": content_id},
+            {"$inc": {"play_count": 1}}
+        )
+        play_count_updated = result.modified_count > 0
+        
+    elif content_type == "teaching_lesson":
+        result = await db.teaching_lessons.update_one(
+            {"lesson_id": content_id},
+            {"$inc": {"play_count": 1}}
+        )
+        play_count_updated = result.modified_count > 0
+        # Also update the teaching's total play count
+        lesson = await db.teaching_lessons.find_one({"lesson_id": content_id})
+        if lesson:
+            await db.teachings.update_one(
+                {"teaching_id": lesson.get("teaching_id")},
+                {"$inc": {"play_count": 1}}
+            )
+            
+    elif content_type == "album":
+        result = await db.albums.update_one(
+            {"album_id": content_id},
+            {"$inc": {"play_count": 1}}
+        )
+        play_count_updated = result.modified_count > 0
+        
+    elif content_type == "bible_tts":
+        result = await db.bible_snippets.update_one(
+            {"snippet_id": content_id},
+            {"$inc": {"play_count": 1}}
+        )
+        play_count_updated = result.modified_count > 0
+    
+    # Invalidate relevant caches
+    await cache.delete("analytics:overview")
+    await cache.delete("home:*")
+    
+    logger.info(f"Play recorded: {content_type}/{content_id} - {duration_played}s by {user_id or 'anonymous'}")
+    
+    return {
+        "counted": True,
+        "session_id": session_id,
+        "play_count_updated": play_count_updated,
+        "duration_played": duration_played
+    }
+
+
+@router.post("/analytics/start-session")
+async def start_listening_session(data: dict):
+    """
+    Start a listening session (called when playback begins).
+    Used to track active listeners.
+    """
+    db = get_db()
+    
+    session_id = f"session_{__import__('uuid').uuid4().hex[:12]}"
+    session = {
+        "session_id": session_id,
+        "content_type": data.get("content_type"),
+        "content_id": data.get("content_id"),
+        "user_id": data.get("user_id"),
+        "platform": data.get("platform", "web"),
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "end_time": None,  # Will be set when session ends
+        "counted_as_play": False  # Will be updated if 45+ seconds played
+    }
+    
+    await db.listening_sessions.insert_one(session)
+    
+    return {"session_id": session_id}
+
+
+@router.post("/analytics/end-session")
+async def end_listening_session(data: dict):
+    """
+    End a listening session and record the play if 45+ seconds.
+    """
+    db = get_db()
+    
+    session_id = data.get("session_id")
+    duration_played = data.get("duration_played", 0)
+    
+    if not session_id:
+        return {"error": "session_id required"}
+    
+    # Update session
+    counted = duration_played >= MINIMUM_PLAY_SECONDS
+    await db.listening_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "end_time": datetime.now(timezone.utc).isoformat(),
+            "duration_seconds": duration_played,
+            "counted_as_play": counted
+        }}
+    )
+    
+    # If played long enough, update play count
+    if counted:
+        session = await db.listening_sessions.find_one({"session_id": session_id})
+        if session:
+            content_type = session.get("content_type")
+            content_id = session.get("content_id")
+            
+            if content_type == "song":
+                await db.songs.update_one(
+                    {"song_id": content_id},
+                    {"$inc": {"play_count": 1}}
+                )
+            elif content_type == "teaching_lesson":
+                await db.teaching_lessons.update_one(
+                    {"lesson_id": content_id},
+                    {"$inc": {"play_count": 1}}
+                )
+                lesson = await db.teaching_lessons.find_one({"lesson_id": content_id})
+                if lesson:
+                    await db.teachings.update_one(
+                        {"teaching_id": lesson.get("teaching_id")},
+                        {"$inc": {"play_count": 1}}
+                    )
+    
+    return {
+        "session_id": session_id,
+        "duration_played": duration_played,
+        "counted_as_play": counted
+    }
+
+
+@router.get("/analytics/content/{content_type}/{content_id}")
+async def get_content_analytics(content_type: str, content_id: str):
+    """Get analytics for a specific piece of content"""
+    db = get_db()
+    
+    # Get play sessions for this content
+    sessions = await db.listening_sessions.find({
+        "content_type": content_type,
+        "content_id": content_id,
+        "counted_as_play": True
+    }).to_list(1000)
+    
+    total_plays = len(sessions)
+    total_duration = sum(s.get("duration_seconds", 0) for s in sessions)
+    unique_listeners = len(set(s.get("user_id") for s in sessions if s.get("user_id")))
+    
+    # Platform breakdown
+    platforms = {}
+    for s in sessions:
+        p = s.get("platform", "unknown")
+        platforms[p] = platforms.get(p, 0) + 1
+    
+    return {
+        "content_type": content_type,
+        "content_id": content_id,
+        "total_plays": total_plays,
+        "total_duration_minutes": round(total_duration / 60, 2),
+        "unique_listeners": unique_listeners,
+        "platforms": platforms,
+        "minimum_play_seconds": MINIMUM_PLAY_SECONDS
+    }
