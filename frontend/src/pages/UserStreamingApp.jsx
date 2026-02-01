@@ -3115,6 +3115,7 @@ export default function UserStreamingApp() {
                             return (
                               <div
                                 key={teaching.teaching_id}
+                                data-testid={`teaching-card-${teaching.teaching_id}`}
                                 className="flex-shrink-0 w-72 md:w-80 bg-zinc-900/80 rounded-xl overflow-hidden cursor-pointer group hover:bg-zinc-800/80 transition-colors"
                                 onClick={() => openTeachingDetail(teaching)}
                               >
@@ -3718,6 +3719,7 @@ export default function UserStreamingApp() {
                       <button 
                         onClick={() => playAllTeachingLessons(selectedTeaching, teachingTopics)}
                         className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-full transition-colors"
+                        data-testid="teaching-play-all-btn"
                       >
                         <Play size={20} className="fill-black" />
                         Cheza Zote
@@ -3728,6 +3730,7 @@ export default function UserStreamingApp() {
                         onClick={() => shuffleTeachingLessons(selectedTeaching, teachingTopics)}
                         className="w-12 h-12 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
                         title="Shuffle"
+                        data-testid="teaching-shuffle-btn"
                       >
                         <Shuffle size={20} className="text-zinc-400" />
                       </button>
@@ -3739,6 +3742,7 @@ export default function UserStreamingApp() {
                         }}
                         className="w-12 h-12 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
                         title="Ongeza kwenye playlist"
+                        data-testid="teaching-add-playlist-btn"
                       >
                         <Plus size={20} className="text-zinc-400" />
                       </button>
@@ -3759,6 +3763,7 @@ export default function UserStreamingApp() {
                         }}
                         className="w-12 h-12 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
                         title="Shiriki"
+                        data-testid="teaching-share-btn"
                       >
                         <Share2 size={20} className="text-zinc-400" />
                       </button>
