@@ -349,12 +349,31 @@ async def end_listening(request: Request, data: dict = None):
                             await db.singers.update_one(
                                 {"singer_id": album.get("artist_id")},
                                 {"$inc": {"total_plays": 1}}
-                        )
+                            )
                         
             if album_id:
                 await db.albums.update_one({"album_id": album_id}, {"$inc": {"total_plays": 1}})
+            
+            # Handle teaching lesson plays
+            if content_type == "teaching_lesson" and content_id:
+                await db.teaching_lessons.update_one(
+                    {"lesson_id": content_id},
+                    {"$inc": {"play_count": 1}}
+                )
+                # Also update the parent teaching's play count
+                lesson = await db.teaching_lessons.find_one({"lesson_id": content_id})
+                if lesson:
+                    await db.teachings.update_one(
+                        {"teaching_id": lesson.get("teaching_id")},
+                        {"$inc": {"play_count": 1}}
+                    )
     
-    return {"tracked": True}
+    return {
+        "tracked": True,
+        "counted_as_play": counted_as_play,
+        "duration_seconds": duration,
+        "minimum_required": MINIMUM_PLAY_SECONDS
+    }
 
 
 # ============== TRANSLATIONS ==============
