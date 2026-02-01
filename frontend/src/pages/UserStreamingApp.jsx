@@ -2244,6 +2244,11 @@ export default function UserStreamingApp() {
   const [bibleAudioPlaying, setBibleAudioPlaying] = useState(null);
   const [bibleAudioElement, setBibleAudioElement] = useState(null);
 
+  // Teaching state
+  const [selectedTeaching, setSelectedTeaching] = useState(null);
+  const [teachingTopics, setTeachingTopics] = useState([]);
+  const [teachingLoading, setTeachingLoading] = useState(false);
+
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
   
