@@ -119,6 +119,24 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
           <View style={{ width: 40 }} />
         </View>
 
+        {/* Billing Disabled Message */}
+        {!billingEnabled && (
+          <View style={styles.billingDisabledContainer}>
+            <Ionicons name="gift-outline" size={80} color={COLORS.primary} />
+            <Text style={styles.billingDisabledTitle}>Gracefy Premium Bure!</Text>
+            <Text style={styles.billingDisabledText}>
+              Kwa sasa vipengele vyote vya premium vinapatikana bure. Furahia muziki wako!
+            </Text>
+            <TouchableOpacity 
+              style={styles.goBackButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.goBackButtonText}>Rudi Nyumbani</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {billingEnabled && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Hero Section */}
           <View style={styles.heroSection}>
