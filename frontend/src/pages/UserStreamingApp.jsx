@@ -192,9 +192,17 @@ const useAudioPlayer = () => {
     
     try {
       await audioRef.current.play();
+      
+      // Determine content type for analytics
+      const isTeaching = song.is_teaching || song.song_id?.startsWith('lesson_');
+      
       const res = await axios.post(`${API}/listening/start`, { 
-        song_id: song.song_id,
-        user_id: localStorage.getItem('user_id') || 'anonymous'
+        song_id: isTeaching ? null : song.song_id,
+        content_type: isTeaching ? 'teaching_lesson' : 'song',
+        content_id: song.song_id,
+        album_id: album?.album_id,
+        user_id: localStorage.getItem('user_id') || 'anonymous',
+        platform: /Mobi|Android/i.test(navigator.userAgent) ? 'app' : 'web'
       });
       sessionIdRef.current = res.data.session_id;
     } catch (e) {
