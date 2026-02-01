@@ -368,11 +368,39 @@ async def get_rbac_stats():
         "timestamp": {"$gte": (datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)).isoformat()}
     })
     
+    # Build role_stats in the format the frontend expects
+    role_stats = {}
+    for item in role_distribution:
+        role_key = item["_id"] or "user"
+        if role_key in SYSTEM_ROLES:
+            role_data = SYSTEM_ROLES[role_key]
+            role_stats[role_key] = {
+                "name": role_data["name"],
+                "color": role_data["color"],
+                "count": item["count"]
+            }
+        else:
+            # Custom role - try to find it in DB
+            custom_role = await db.roles.find_one({"role_id": role_key})
+            if custom_role:
+                role_stats[role_key] = {
+                    "name": custom_role.get("name", role_key),
+                    "color": custom_role.get("color", "#607D8B"),
+                    "count": item["count"]
+                }
+            else:
+                role_stats[role_key] = {
+                    "name": role_key.replace("_", " ").title(),
+                    "color": "#607D8B",
+                    "count": item["count"]
+                }
+    
     return {
         "total_users": total_users,
         "total_system_roles": len(SYSTEM_ROLES),
         "total_custom_roles": total_custom_roles,
         "role_distribution": {item["_id"] or "user": item["count"] for item in role_distribution},
+        "role_stats": role_stats,
         "recent_changes_today": recent_changes
     }
 
