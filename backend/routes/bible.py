@@ -656,10 +656,11 @@ async def get_featured_snippets():
     """Get featured/daily Bible snippets"""
     db = get_db()
     
+    # Query for featured snippets (don't require status=active for flexibility)
     snippets = await db.bible_snippets.find(
-        {"is_featured": True, "status": "active"},
+        {"is_featured": True},
         {"_id": 0}
-    ).sort("featured_order", 1).limit(5).to_list(5)
+    ).sort("sort_order", 1).limit(10).to_list(10)
     
     return {"snippets": snippets}
 
