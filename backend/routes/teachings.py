@@ -105,7 +105,9 @@ async def get_teachings(
     # Enrich with topic and lesson counts
     for teaching in teachings:
         topic_count = await db.teaching_topics.count_documents({"teaching_id": teaching["teaching_id"]})
+        lesson_count = await db.teaching_lessons.count_documents({"teaching_id": teaching["teaching_id"]})
         teaching["topic_count"] = topic_count
+        teaching["lesson_count"] = lesson_count
         teaching["category_name"] = get_category_name(teaching.get("category_id", ""))
     
     return {"teachings": teachings, "total": total}
