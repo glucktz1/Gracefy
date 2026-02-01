@@ -2961,70 +2961,82 @@ export default function UserStreamingApp() {
                       {/* Teachings / Mafundisho Section */}
                       {(section.content_type === 'teachings' || section.section_type === 'teachings') && (
                         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-                          {items.slice(0, 10).map(teaching => (
-                            <div
-                              key={teaching.teaching_id}
-                              className="flex-shrink-0 w-72 md:w-80 bg-zinc-900/80 rounded-xl overflow-hidden cursor-pointer group hover:bg-zinc-800/80 transition-colors"
-                              onClick={() => {
-                                // Navigate to teaching detail
-                                console.log('Teaching clicked:', teaching.teaching_id);
-                              }}
-                            >
-                              <div className="flex">
-                                {/* Thumbnail with title overlay */}
-                                <div className="relative w-28 h-28 md:w-32 md:h-32 flex-shrink-0">
-                                  {teaching.thumbnail ? (
-                                    <img 
-                                      src={teaching.thumbnail.startsWith('http') ? teaching.thumbnail : `${process.env.REACT_APP_BACKEND_URL}${teaching.thumbnail}`}
-                                      alt={teaching.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center">
+                          {items.slice(0, 10).map(teaching => {
+                            // Fix thumbnail URL - append /stream for file endpoints
+                            const thumbnailUrl = teaching.thumbnail 
+                              ? (teaching.thumbnail.startsWith('http') 
+                                ? teaching.thumbnail 
+                                : `${process.env.REACT_APP_BACKEND_URL}${teaching.thumbnail}${teaching.thumbnail.includes('/stream') ? '' : '/stream'}`)
+                              : null;
+                            
+                            return (
+                              <div
+                                key={teaching.teaching_id}
+                                className="flex-shrink-0 w-72 md:w-80 bg-zinc-900/80 rounded-xl overflow-hidden cursor-pointer group hover:bg-zinc-800/80 transition-colors"
+                                onClick={() => openTeachingDetail(teaching)}
+                              >
+                                <div className="flex">
+                                  {/* Thumbnail with title overlay */}
+                                  <div className="relative w-28 h-28 md:w-32 md:h-32 flex-shrink-0">
+                                    {thumbnailUrl ? (
+                                      <img 
+                                        src={thumbnailUrl}
+                                        alt={teaching.name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div className={`w-full h-full bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center ${thumbnailUrl ? 'hidden' : ''}`}>
                                       <BookOpen className="w-10 h-10 text-white/60" />
                                     </div>
-                                  )}
-                                  {/* Title overlay at bottom of image */}
-                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                    <p className="text-white text-xs font-medium truncate">{teaching.name}</p>
-                                  </div>
-                                </div>
-                                
-                                {/* Content side */}
-                                <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
-                                  <div>
-                                    <p className="text-zinc-400 text-xs mb-1">Mafundisho</p>
-                                    <h3 className="font-semibold text-white text-sm md:text-base truncate">{teaching.name}</h3>
-                                    <p className="text-zinc-400 text-xs mt-1 line-clamp-2">
-                                      Na {teaching.leader_name || 'Kiongozi'}
-                                    </p>
+                                    {/* Title overlay at bottom of image */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                                      <p className="text-white text-xs font-medium truncate">{teaching.name}</p>
+                                    </div>
                                   </div>
                                   
-                                  <div className="flex items-center justify-between mt-2">
-                                    <div className="flex items-center gap-2 text-zinc-500">
-                                      <span className="text-xs">{teaching.topic_count || 0} mada</span>
-                                      <span className="text-xs">•</span>
-                                      <span className="text-xs">{teaching.lesson_count || 0} sehemu</span>
+                                  {/* Content side */}
+                                  <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
+                                    <div>
+                                      <p className="text-zinc-400 text-xs mb-1">Mafundisho</p>
+                                      <h3 className="font-semibold text-white text-sm md:text-base truncate">{teaching.name}</h3>
+                                      <p className="text-zinc-400 text-xs mt-1 line-clamp-2">
+                                        Na {teaching.leader_name || 'Kiongozi'}
+                                      </p>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <button 
-                                        className="w-8 h-8 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
-                                        onClick={(e) => { e.stopPropagation(); }}
-                                      >
-                                        <Plus className="w-4 h-4 text-zinc-400" />
-                                      </button>
-                                      <button 
-                                        className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform"
-                                        onClick={(e) => { e.stopPropagation(); }}
-                                      >
-                                        <Play className="w-4 h-4 text-black fill-black ml-0.5" />
-                                      </button>
+                                    
+                                    <div className="flex items-center justify-between mt-2">
+                                      <div className="flex items-center gap-2 text-zinc-500">
+                                        <span className="text-xs">{teaching.topic_count || 0} mada</span>
+                                        <span className="text-xs">•</span>
+                                        <span className="text-xs">{teaching.lesson_count || 0} sehemu</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          className="w-8 h-8 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
+                                          onClick={(e) => { e.stopPropagation(); }}
+                                        >
+                                          <Plus className="w-4 h-4 text-zinc-400" />
+                                        </button>
+                                        <button 
+                                          className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform"
+                                          onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            openTeachingDetail(teaching);
+                                          }}
+                                        >
+                                          <Play className="w-4 h-4 text-black fill-black ml-0.5" />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
