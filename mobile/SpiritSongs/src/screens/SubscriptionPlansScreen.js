@@ -36,6 +36,7 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [billingEnabled, setBillingEnabled] = useState(true);
   
   const featurePrompt = route.params?.featurePrompt || 'Fungua vipengele vyote vya Gracefy';
 
@@ -47,8 +48,17 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
       const response = await billingAPI.getPlans();
+      
+      // Check if billing is enabled
+      if (response.data?.billing_enabled === false) {
+        setBillingEnabled(false);
+        setPlans([]);
+        return;
+      }
+      
       if (response.data?.plans) {
         setPlans(response.data.plans.filter(p => p.is_active));
+        setBillingEnabled(true);
       }
     } catch (error) {
       console.error('Error loading plans:', error);
