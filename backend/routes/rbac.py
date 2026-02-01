@@ -159,9 +159,22 @@ async def get_roles():
 
 @router.get("/rbac/permissions")
 async def get_permissions():
-    """Get all available permissions grouped by category"""
+    """Get all available permissions as flat array with category"""
+    # Flatten the permissions for frontend consumption
+    flat_permissions = []
+    for category in PERMISSION_CATEGORIES:
+        cat_name = category["category"]
+        for perm in category["permissions"]:
+            flat_permissions.append({
+                "permission_id": perm["id"],
+                "name": perm["name"],
+                "description": perm["description"],
+                "category": cat_name
+            })
+    
     return {
-        "permissions": PERMISSION_CATEGORIES
+        "permissions": flat_permissions,
+        "categories": PERMISSION_CATEGORIES  # Also return original structure for backwards compatibility
     }
 
 
