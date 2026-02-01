@@ -163,6 +163,11 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-02-01)
 
+### Mobile App API Fix (2026-02-01)
+- Added `/api/home/app` endpoint (was returning 404)
+- Mobile app now has all required endpoints working
+- New build v1.0.68 in progress with the fix
+
 ### Control and Management Section Fixes (2026-02-01)
 All 5 issues in the admin panel "Control and Management" section have been resolved:
 
