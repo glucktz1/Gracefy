@@ -2899,6 +2899,9 @@ export default function UserStreamingApp() {
                   if (items.length === 0) return null;
                   
                   // Determine content type from items
+                  const isTeachingsSection = section.content_type === 'teachings' || 
+                    section.section_type === 'teachings' ||
+                    (items[0] && items[0].teaching_id);
                   const isChurchSection = section.content_type === 'churches' || 
                     section.section_type === 'churches' ||
                     (items[0] && items[0].church_id);
@@ -2909,7 +2912,7 @@ export default function UserStreamingApp() {
                     section.section_type === 'special_mixes' ||
                     (items[0] && items[0].mix_id);
                   const isAlbumSection = section.content_type === 'albums' || 
-                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection && !isSpecialMixSection);
+                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection && !isSpecialMixSection && !isTeachingsSection);
 
                   // Alternate layouts for variety
                   const layoutType = idx % 4;
