@@ -399,12 +399,27 @@ async def get_user_transactions(request: Request):
 
 @router.get("/monetization/plans")
 async def get_subscription_plans():
-    """Get available subscription plans."""
+    """
+    Get available subscription plans.
+    Returns empty plans if billing is disabled.
+    """
     db = get_db()
+    
+    # Check if billing is enabled first
+    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    billing_enabled = settings.get("billing_enabled", True) if settings else True
+    
+    # If billing is disabled, return empty plans
+    if not billing_enabled:
+        return {
+            "plans": [],
+            "billing_enabled": False,
+            "message": "Billing is currently disabled"
+        }
     
     # Check cache
     cached = await cache.get("subscription_plans")
-    if cached:
+    if cached and cached.get("billing_enabled", True):
         return cached
     
     plans = await db.subscription_plans.find(
@@ -416,7 +431,12 @@ async def get_subscription_plans():
     if not plans:
         plans = list(DEFAULT_PLANS.values())
     
-    result = {"plans": plans}
+    result = {
+        "plans": plans,
+        "billing_enabled": True,
+        "free_trial_enabled": settings.get("free_trial_enabled", True) if settings else True,
+        "free_trial_days": settings.get("free_trial_days", 7) if settings else 7
+    }
     await cache.set("subscription_plans", result, 300)
     
     return result
