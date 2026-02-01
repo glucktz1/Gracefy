@@ -1063,6 +1063,53 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.textMuted,
   },
+  // Featured Snippets Styles
+  snippetsSection: {
+    marginBottom: SPACING.md,
+  },
+  snippetsSectionTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    color: COLORS.text,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  snippetsContainer: {
+    paddingHorizontal: SPACING.md,
+  },
+  snippetCard: {
+    width: 160,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginRight: SPACING.sm,
+  },
+  snippetGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${COLORS.primary}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  snippetTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  snippetReference: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
+    fontWeight: '500',
+    marginBottom: SPACING.xs,
+  },
+  snippetDescription: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    lineHeight: 16,
+  },
 });
 
 export default BibleScreen;
