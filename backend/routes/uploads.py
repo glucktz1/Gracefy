@@ -342,21 +342,49 @@ async def get_cdn_stats():
     """Get CDN usage statistics"""
     db = get_db()
     
-    total_files = await db.files.count_documents({"storage_type": "cdn"})
+    # Count files by storage type
+    cdn_files = await db.files.count_documents({"cdn_url": {"$ne": None}})
+    mongodb_files = await db.files.count_documents({"$and": [
+        {"data": {"$exists": True}},
+        {"$or": [{"cdn_url": None}, {"cdn_url": {"$exists": False}}]}
+    ]})
     local_files = await db.files.count_documents({"storage_type": "local"})
+    chunked_files = await db.files.count_documents({"storage_type": "chunked"})
+    total_tracked = await db.files.count_documents({})
     
-    # Total size
-    size_pipeline = [
-        {"$match": {"storage_type": "cdn"}},
+    # Total CDN size
+    cdn_size_pipeline = [
+        {"$match": {"cdn_url": {"$ne": None}}},
         {"$group": {"_id": None, "total": {"$sum": "$size_bytes"}}}
     ]
-    size_result = await db.files.aggregate(size_pipeline).to_list(1)
-    total_size = size_result[0]["total"] if size_result else 0
+    cdn_size_result = await db.files.aggregate(cdn_size_pipeline).to_list(1)
+    cdn_size = cdn_size_result[0]["total"] if cdn_size_result else 0
+    
+    # Total local size
+    local_size_pipeline = [
+        {"$match": {"$or": [{"cdn_url": None}, {"cdn_url": {"$exists": False}}]}},
+        {"$group": {"_id": None, "total": {"$sum": "$size_bytes"}}}
+    ]
+    local_size_result = await db.files.aggregate(local_size_pipeline).to_list(1)
+    local_size = local_size_result[0]["total"] if local_size_result else 0
+    
+    # Files by folder/type
+    folder_pipeline = [
+        {"$group": {"_id": "$folder", "count": {"$sum": 1}, "size": {"$sum": "$size_bytes"}}}
+    ]
+    folder_stats = await db.files.aggregate(folder_pipeline).to_list(20)
     
     return {
-        "cdn_files": total_files,
-        "local_files": local_files,
-        "total_cdn_size_mb": round(total_size / (1024 * 1024), 2)
+        "cdn_files": cdn_files,
+        "local_files": local_files + chunked_files,
+        "total_cdn_size_mb": round(cdn_size / (1024 * 1024), 2),
+        "total_local_size_mb": round(local_size / (1024 * 1024), 2),
+        "database_stats": {
+            "mongodb_files": mongodb_files + chunked_files,
+            "cdn_files": cdn_files,
+            "total_tracked": total_tracked
+        },
+        "by_folder": {(item["_id"] or "general"): {"count": item["count"], "size_mb": round(item["size"] / (1024 * 1024), 2)} for item in folder_stats}
     }
 
 
