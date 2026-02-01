@@ -128,6 +128,7 @@ const useAudioPlayer = () => {
       if (sessionIdRef.current && audioRef.current) {
         const duration = Math.floor(audioRef.current.currentTime);
         // Use sendBeacon for reliability on page unload
+        // Play counts only if duration >= 45 seconds
         navigator.sendBeacon(
           `${API}/listening/end`,
           JSON.stringify({ 
