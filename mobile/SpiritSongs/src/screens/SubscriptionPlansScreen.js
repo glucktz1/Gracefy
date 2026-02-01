@@ -276,6 +276,7 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
         </View>
+        )}
       </SafeAreaView>
     </View>
   );
