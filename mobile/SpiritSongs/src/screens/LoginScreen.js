@@ -88,22 +88,44 @@ const LoginScreen = ({ navigation }) => {
   const handleGoogleLogin = async () => {
     try {
       setGoogleLoading(true);
-      // Open Google OAuth in browser - same flow as admin panel
-      const callbackUrl = `${API_BASE_URL}/user/auth/google-callback`;
-      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(callbackUrl)}`;
       
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'gracefy://auth');
+      // Get the redirect URL for mobile
+      const redirectUrl = Linking.createURL('auth');
+      
+      // Build the OAuth URL with proper redirect
+      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUrl)}&platform=mobile`;
+      
+      console.log('Opening Google Auth:', authUrl);
+      console.log('Redirect URL:', redirectUrl);
+      
+      // Open auth in browser
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+      
+      console.log('Auth result:', result);
       
       if (result.type === 'success' && result.url) {
         // Extract session_id from callback URL
-        const sessionId = result.url.split('session_id=')[1]?.split('&')[0];
+        const url = result.url;
+        let sessionId = null;
+        
+        // Try to extract session_id from various URL formats
+        if (url.includes('session_id=')) {
+          sessionId = url.split('session_id=')[1]?.split('&')[0]?.split('#')[0];
+        }
+        
+        console.log('Session ID:', sessionId);
+        
         if (sessionId) {
           await handleGoogleCallback(sessionId);
+        } else {
+          Alert.alert('Kosa', 'Hakuna session ID. Jaribu tena.');
         }
+      } else if (result.type === 'cancel') {
+        console.log('User cancelled auth');
       }
     } catch (error) {
       console.error('Google login error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kufungua Google login');
+      Alert.alert('Kosa', 'Imeshindikana kufungua Google login. ' + error.message);
     } finally {
       setGoogleLoading(false);
     }
