@@ -294,8 +294,10 @@ async def start_listening(request: Request, data: dict):
 
 @router.post("/listening/end")
 async def end_listening(request: Request, data: dict = None):
-    """Track end of listening session"""
+    """Track end of listening session - counts as play if 45+ seconds"""
     db = get_db()
+    
+    MINIMUM_PLAY_SECONDS = 45  # Play counts only if played 45+ seconds
     
     # Handle beacon requests which send as text/plain
     if data is None:
@@ -312,32 +314,41 @@ async def end_listening(request: Request, data: dict = None):
     if not session_id:
         return {"tracked": False}
     
+    # Update session with end time and duration
+    counted_as_play = duration >= MINIMUM_PLAY_SECONDS
+    
     await db.listening_sessions.update_one(
         {"session_id": session_id},
         {"$set": {
             "end_time": datetime.now(timezone.utc).isoformat(),
-            "duration_seconds": duration
+            "duration_seconds": duration,
+            "counted_as_play": counted_as_play
         }}
     )
     
-    # If duration >= 30 seconds, count as play (industry standard is 30s)
-    if duration >= 30:
+    # If duration >= 45 seconds, count as play
+    if counted_as_play:
         session = await db.listening_sessions.find_one({"session_id": session_id})
         if session:
             song_id = session.get("song_id")
             album_id = session.get("album_id")
+            content_type = session.get("content_type")
+            content_id = session.get("content_id")
             
+            # Handle song plays
             if song_id:
-                await db.songs.update_one({"song_id": song_id}, {"$inc": {"plays": 1}})
+                await db.songs.update_one({"song_id": song_id}, {"$inc": {"plays": 1, "play_count": 1}})
                 
                 # Also update choir/artist play count
                 song = await db.songs.find_one({"song_id": song_id})
                 if song and song.get("album_id"):
                     album = await db.albums.find_one({"album_id": song.get("album_id")})
-                    if album and album.get("artist_id"):
-                        await db.singers.update_one(
-                            {"singer_id": album.get("artist_id")},
-                            {"$inc": {"total_plays": 1}}
+                    if album:
+                        await db.albums.update_one({"album_id": album["album_id"]}, {"$inc": {"play_count": 1}})
+                        if album.get("artist_id"):
+                            await db.singers.update_one(
+                                {"singer_id": album.get("artist_id")},
+                                {"$inc": {"total_plays": 1}}
                         )
                         
             if album_id:
