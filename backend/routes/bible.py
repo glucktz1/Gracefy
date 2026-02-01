@@ -329,6 +329,73 @@ async def clear_all_tts_cache():
     return {"message": f"Cleared {result.deleted_count} cache entries"}
 
 
+@router.get("/admin/bible/tts-settings")
+async def get_bible_tts_settings():
+    """Get Bible TTS settings"""
+    db = get_db()
+    
+    settings = await db.bible_settings.find_one({"settings_id": "main"}, {"_id": 0})
+    
+    if not settings:
+        settings = {
+            "settings_id": "main",
+            "default_voice": "sw-KE-Zuri-Female",
+            "default_voice_male": "sw-KE-Rafiki-Male",
+            "default_voice_female": "sw-KE-Zuri-Female",
+            "default_speed": 1.0,
+            "auto_play": True,
+            "verse_pause_ms": 500,
+            "enabled": True
+        }
+    
+    # Ensure default_speed is present
+    if "default_speed" not in settings:
+        settings["default_speed"] = 1.0
+    
+    return settings
+
+
+@router.put("/admin/bible/tts-settings")
+async def update_bible_tts_settings(data: dict):
+    """Update Bible TTS settings including reading speed"""
+    db = get_db()
+    
+    # Validate speed if provided
+    default_speed = data.get("default_speed")
+    if default_speed is not None:
+        try:
+            speed = float(default_speed)
+            if not 0.5 <= speed <= 2.0:
+                raise HTTPException(status_code=400, detail="Speed must be between 0.5 and 2.0")
+            data["default_speed"] = speed
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid speed value")
+    
+    # Update settings
+    update_fields = {}
+    allowed_fields = [
+        "default_voice", "default_voice_male", "default_voice_female",
+        "default_speed", "auto_play", "verse_pause_ms", "enabled"
+    ]
+    
+    for field in allowed_fields:
+        if field in data:
+            update_fields[field] = data[field]
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        await db.bible_settings.update_one(
+            {"settings_id": "main"},
+            {"$set": update_fields},
+            upsert=True
+        )
+    
+    # Return updated settings
+    settings = await db.bible_settings.find_one({"settings_id": "main"}, {"_id": 0})
+    return settings
+
+
 @router.post("/bible/tts/generate")
 async def generate_tts_endpoint(data: dict):
     """Generate TTS for text"""
