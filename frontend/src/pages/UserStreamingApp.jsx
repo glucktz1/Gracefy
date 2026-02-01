@@ -3014,20 +3014,9 @@ export default function UserStreamingApp() {
       return;
     }
     
-    // For web, we'll open the audio URL in a new tab or trigger download
-    if (song.audio_url) {
-      const link = document.createElement('a');
-      // Use helper to get proper URL (handles CDN URLs)
-      link.href = getAudioUrl(song.audio_url);
-      link.download = `${song.title}.mp3`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("Download started!");
-    } else {
-      toast.error("This song is not available for download");
-    }
+    // On web, show download app popup instead of direct download
+    // Direct download only works on the mobile app for offline playback
+    setShowDownloadPopup(true);
   };
 
   // Handler for Share
