@@ -122,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(categories_router)     # /api/categories/*, /api/song-categories/*
     app.include_router(browse_router)         # /api/user/browse/*, /api/user/search
     app.include_router(teachings_router)      # /api/teachings/*
+    app.include_router(rbac_router)           # /api/rbac/*
     
     # ============== ROOT ENDPOINTS ==============
     
