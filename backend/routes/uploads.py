@@ -368,15 +368,43 @@ async def get_cdn_stats():
     local_size_result = await db.files.aggregate(local_size_pipeline).to_list(1)
     local_size = local_size_result[0]["total"] if local_size_result else 0
     
-    # Files by folder/type
+    # Files by folder/type (for backend compatibility)
     folder_pipeline = [
         {"$group": {"_id": "$folder", "count": {"$sum": 1}, "size": {"$sum": "$size_bytes"}}}
     ]
     folder_stats = await db.files.aggregate(folder_pipeline).to_list(20)
     
+    # Build folders dict in the structure the frontend expects
+    folders = {
+        "audio": {"count": 0, "size_mb": 0},
+        "images": {"count": 0, "size_mb": 0},
+        "thumbnails": {"count": 0, "size_mb": 0}
+    }
+    by_folder = {}
+    for item in folder_stats:
+        folder_name = item["_id"] or "general"
+        folder_data = {
+            "count": item["count"],
+            "size_mb": round((item["size"] or 0) / (1024 * 1024), 2)
+        }
+        by_folder[folder_name] = folder_data
+        # Map to known folder types
+        if folder_name in ["audio", "teachings"]:
+            folders["audio"]["count"] += item["count"]
+            folders["audio"]["size_mb"] += folder_data["size_mb"]
+        elif folder_name in ["images", "covers", "banners"]:
+            folders["images"]["count"] += item["count"]
+            folders["images"]["size_mb"] += folder_data["size_mb"]
+        elif folder_name in ["thumbnails"]:
+            folders["thumbnails"]["count"] += item["count"]
+            folders["thumbnails"]["size_mb"] += folder_data["size_mb"]
+    
+    total_size_mb = round((cdn_size + local_size) / (1024 * 1024), 2)
+    
     return {
         "cdn_files": cdn_files,
         "local_files": local_files + chunked_files,
+        "total_size_mb": total_size_mb,
         "total_cdn_size_mb": round(cdn_size / (1024 * 1024), 2),
         "total_local_size_mb": round(local_size / (1024 * 1024), 2),
         "database_stats": {
@@ -384,7 +412,8 @@ async def get_cdn_stats():
             "cdn_files": cdn_files,
             "total_tracked": total_tracked
         },
-        "by_folder": {(item["_id"] or "general"): {"count": item["count"], "size_mb": round(item["size"] / (1024 * 1024), 2)} for item in folder_stats}
+        "folders": folders,
+        "by_folder": by_folder
     }
 
 
