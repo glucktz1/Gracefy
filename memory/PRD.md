@@ -159,6 +159,33 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 ### P2 - Medium
 - Animated splash screen needed
 
+## Recent Fixes (2026-02-01)
+
+### Control and Management Section Fixes (2026-02-01)
+All 5 issues in the admin panel "Control and Management" section have been resolved:
+
+1. **CDN Management Dashboard FIXED**: Backend `/api/admin/cdn/stats` now returns `folders` object with `audio`, `images`, `thumbnails` sub-objects for frontend display. Also includes `total_size_mb`, `cdn_files`, `local_files`.
+
+2. **Role Management Page FIXED**: 
+   - `/api/rbac/roles` now returns `all_roles` array for dropdown filter
+   - `/api/rbac/stats` returns `role_stats` with `name`, `color`, `count` per role
+   - `/api/rbac/permissions` returns flat array with `permission_id`, `name`, `description`, `category`
+   - `/api/rbac/users` returns `assigned_role` and `user_type` fields
+   - Added `POST /api/rbac/users/{user_id}/assign-role` endpoint for role assignment
+
+3. **Approvals Workflow FIXED**: Fixed frontend bug where it passed `choir_id` (undefined) instead of `singer_id` to the approve endpoint. Choir registrations now correctly approve.
+
+4. **Layout Manager Deactivation**: Verified working - `?include_inactive=true` returns all sections including inactive ones.
+
+5. **Bible TTS Speed Setting ADDED**:
+   - `GET /api/admin/bible/tts-settings` returns settings including `default_speed`
+   - `PUT /api/admin/bible/tts-settings` allows updating speed (validated 0.5-2.0)
+   - TTS generation now fetches default speed from settings if not provided in request
+
+### Testing
+- 24/24 API tests passed (100% success rate)
+- Test file: `/app/test_reports/pytest/admin_control_management_results.xml`
+
 ## Recent Fixes (2026-01-31)
 
 ### Bug Fixes (2026-01-31 - Session 2)
