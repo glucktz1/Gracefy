@@ -3622,6 +3622,58 @@ export default function UserStreamingApp() {
                     {selectedTeaching.description && (
                       <p className="text-zinc-400 mt-4 text-sm">{selectedTeaching.description}</p>
                     )}
+                    
+                    {/* Action buttons */}
+                    <div className="flex items-center justify-center md:justify-start gap-3 mt-6">
+                      {/* Play All button */}
+                      <button 
+                        onClick={() => playAllTeachingLessons(selectedTeaching, teachingTopics)}
+                        className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-full transition-colors"
+                      >
+                        <Play size={20} className="fill-black" />
+                        Cheza Zote
+                      </button>
+                      
+                      {/* Shuffle button */}
+                      <button 
+                        onClick={() => shuffleTeachingLessons(selectedTeaching, teachingTopics)}
+                        className="w-12 h-12 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
+                        title="Shuffle"
+                      >
+                        <Shuffle size={20} className="text-zinc-400" />
+                      </button>
+                      
+                      {/* Add to playlist */}
+                      <button 
+                        onClick={() => {
+                          toast.success("Imeongezwa kwenye orodha");
+                        }}
+                        className="w-12 h-12 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
+                        title="Ongeza kwenye playlist"
+                      >
+                        <Plus size={20} className="text-zinc-400" />
+                      </button>
+                      
+                      {/* Share button */}
+                      <button 
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: selectedTeaching.name || selectedTeaching.title_sw,
+                              text: `Sikiliza mafundisho: ${selectedTeaching.name} na ${selectedTeaching.leader_name}`,
+                              url: window.location.href
+                            });
+                          } else {
+                            navigator.clipboard.writeText(window.location.href);
+                            toast.success("Link imenakiliwa!");
+                          }
+                        }}
+                        className="w-12 h-12 rounded-full border border-zinc-600 flex items-center justify-center hover:border-white transition-colors"
+                        title="Shiriki"
+                      >
+                        <Share2 size={20} className="text-zinc-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3647,7 +3699,11 @@ export default function UserStreamingApp() {
                       
                       {/* Lessons */}
                       <div className="divide-y divide-zinc-800">
-                        {(topic.lessons || []).map((lesson, lessonIndex) => (
+                        {(topic.lessons || []).map((lesson, lessonIndex) => {
+                          const isCurrentlyPlaying = player.currentSong?.song_id === lesson.lesson_id && player.isPlaying;
+                          const isCurrentLesson = player.currentSong?.song_id === lesson.lesson_id;
+                          
+                          return (
                           <div
                             key={lesson.lesson_id}
                             className="flex items-center gap-4 px-4 py-3 hover:bg-zinc-800/50 transition-colors cursor-pointer group"
