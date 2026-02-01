@@ -2824,6 +2824,24 @@ export default function UserStreamingApp() {
     toast.success(`Inacheza masomo ${shuffled.length} kwa nasibu`);
   };
 
+  // Open church detail modal
+  const openChurchDetail = async (church) => {
+    setSelectedChurch(church);
+    
+    // Try to fetch choirs associated with this church
+    try {
+      const res = await axios.get(`${API}/choirs?church_id=${church.church_id}`);
+      setChurchChoirs(res.data?.choirs || []);
+    } catch (e) {
+      setChurchChoirs([]);
+    }
+  };
+  
+  // Handle download button click - show popup
+  const handleDownloadClick = () => {
+    setShowDownloadPopup(true);
+  };
+
   const fetchLibrary = async () => {
     if (!token) {
       setShowAuth(true);
