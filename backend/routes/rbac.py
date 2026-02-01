@@ -151,9 +151,13 @@ async def get_roles():
         user_count = await db.users.count_documents({"role": role.get("role_id")})
         role["user_count"] = user_count
     
+    # Combine all roles for frontend filter dropdown
+    all_roles = system_roles + custom_roles
+    
     return {
         "system_roles": system_roles,
-        "custom_roles": custom_roles
+        "custom_roles": custom_roles,
+        "all_roles": all_roles
     }
 
 
