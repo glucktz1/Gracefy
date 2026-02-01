@@ -138,6 +138,46 @@ const BibleScreen = ({ navigation }) => {
     }
   };
 
+  // Handle featured snippet press - navigate to that passage
+  const handleSnippetPress = async (snippet) => {
+    try {
+      // Find the book in our books list
+      const book = books.find(b => 
+        b.name === snippet.book || 
+        b.name_localized === snippet.book ||
+        b.name.toLowerCase() === snippet.book.toLowerCase()
+      );
+      
+      if (book) {
+        // Set the book
+        setSelectedBook(book);
+        
+        // Load chapters for this book
+        const chaptersResponse = await bibleAPI.getChapters(book.name);
+        setChapters(chaptersResponse.data?.chapters || []);
+        
+        // If the snippet has specific chapter/verse info, load those verses
+        if (snippet.chapter_start) {
+          setSelectedChapter(snippet.chapter_start);
+          const versesResponse = await bibleAPI.getVerses(book.name, snippet.chapter_start);
+          const versesData = versesResponse.data?.verses || [];
+          setVerses(versesData);
+          
+          // Set verse range from snippet
+          setStartVerse(snippet.verse_start?.toString() || '1');
+          setEndVerse(snippet.verse_end?.toString() || versesData.length.toString());
+        }
+        
+        showToast(`${snippet.title} imepakiwa`, 'success');
+      } else {
+        showToast('Kitabu hakijapatikana', 'error');
+      }
+    } catch (error) {
+      console.error('Error loading snippet:', error);
+      showToast('Imeshindwa kupakia somo', 'error');
+    }
+  };
+
   const goBack = () => {
     cleanupAudio();
     setPlayingAudio(null);
