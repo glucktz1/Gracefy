@@ -158,8 +158,8 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 - Create Playlist Feature - UI buttons exist but backend/full UX not implemented
 
 ### P2 - Medium
-- Animated splash screen needed
-- Mobile app EAS build has environment issues
+- ~~Animated splash screen needed~~ ✅ COMPLETED
+- ~~Mobile app EAS build~~ ✅ BUILD SUCCESSFUL
 
 ## Recent Fixes (2026-02-01)
 
