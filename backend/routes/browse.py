@@ -276,13 +276,16 @@ async def start_listening(request: Request, data: dict):
     
     session = {
         "session_id": f"ls_{uuid.uuid4().hex[:12]}",
-        "user_id": user["user_id"] if user else "anonymous",
+        "user_id": user["user_id"] if user else data.get("user_id", "anonymous"),
         "song_id": data.get("song_id"),
         "album_id": data.get("album_id"),
+        "content_type": data.get("content_type"),  # "song", "teaching_lesson", "bible_tts"
+        "content_id": data.get("content_id"),
         "start_time": datetime.now(timezone.utc).isoformat(),
         "end_time": None,
         "duration_seconds": 0,
-        "platform": data.get("platform", "mobile"),
+        "counted_as_play": False,
+        "platform": data.get("platform", "web"),
         "device_info": data.get("device_info")
     }
     
