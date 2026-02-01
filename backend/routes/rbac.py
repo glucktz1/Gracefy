@@ -356,6 +356,44 @@ async def assign_role_to_user(data: dict):
     return {"message": "Role assigned successfully", "user_id": user_id, "role": role_id}
 
 
+@router.post("/rbac/users/{user_id}/assign-role")
+async def assign_role_to_user_by_id(user_id: str, data: dict):
+    """Assign a role to a specific user (by path parameter)"""
+    db = get_db()
+    
+    role_id = data.get("role_id")
+    assigned_by = data.get("assigned_by", "admin")
+    notes = data.get("notes", "")
+    
+    if not role_id:
+        raise HTTPException(status_code=400, detail="role_id required")
+    
+    # Get previous role
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    previous_role = user.get("role", "user")
+    
+    # Update user role
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "role": role_id,
+            "role_updated_at": datetime.now(timezone.utc).isoformat(),
+            "role_updated_by": assigned_by
+        }}
+    )
+    
+    await log_rbac_action(db, "role_assigned", user_id, assigned_by, {
+        "previous_role": previous_role,
+        "new_role": role_id,
+        "notes": notes
+    })
+    
+    return {"message": "Role assigned successfully", "user_id": user_id, "role": role_id}
+
+
 @router.get("/rbac/audit-log")
 async def get_audit_log(
     action: Optional[str] = None,
