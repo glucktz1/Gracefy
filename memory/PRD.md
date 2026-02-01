@@ -163,6 +163,17 @@ A Christian music streaming mobile app with a Spotify-like interface, featuring:
 
 ## Recent Fixes (2026-02-01)
 
+### Mobile App v1.0.69 Fixes (2026-02-01)
+**NOTE:** Build failed - Free plan has exhausted monthly Android builds. Resets March 1st. Upgrade at https://expo.dev/accounts/gracefy18/settings/billing
+
+Fixes implemented (awaiting next build):
+1. **Library Screen Crash Fix** - Added `route` params support for tab navigation from Profile
+2. **Bible Featured Snippets** - Added snippets section with 8 featured passages (Mahubiri ya Mlimani, Zaburi 23, etc.)
+3. **DownloadContext** - Fixed expo-file-system import (removed `/legacy` suffix)
+4. **Mafundisho Section** - Added to layout_sections for app visibility
+5. **Hero Content** - Added `/api/layout/hero-content` endpoint
+6. **Churches Data** - Created sample churches with prayer schedules, announcements
+
 ### Mobile App API Fix (2026-02-01)
 - Added `/api/home/app` endpoint (was returning 404)
 - Mobile app now has all required endpoints working
