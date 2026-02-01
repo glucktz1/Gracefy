@@ -118,11 +118,6 @@ const useAudioPlayer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   
-  // Teaching state
-  const [selectedTeaching, setSelectedTeaching] = useState(null);
-  const [teachingTopics, setTeachingTopics] = useState([]);
-  const [teachingLoading, setTeachingLoading] = useState(false);
-  
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
