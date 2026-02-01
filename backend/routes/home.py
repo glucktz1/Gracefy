@@ -122,6 +122,20 @@ async def fetch_section_content(db, section: dict) -> dict:
             for item in items:
                 item["album_id"] = item["mix_id"]
                 item["is_special_mix"] = True
+        elif content_type == "teachings":
+            # Fetch specific teachings by ID
+            items = await db.teachings.find(
+                {"teaching_id": {"$in": section["content_ids"]}},
+                {"_id": 0, "teaching_id": 1, "title": 1, "title_sw": 1, "thumbnail": 1, 
+                 "leader_name": 1, "leader_id": 1, "category_id": 1, "description": 1}
+            ).to_list(50)
+            # Enrich with topic and lesson counts
+            for item in items:
+                topic_count = await db.teaching_topics.count_documents({"teaching_id": item["teaching_id"]})
+                lesson_count = await db.teaching_lessons.count_documents({"teaching_id": item["teaching_id"]})
+                item["topic_count"] = topic_count
+                item["lesson_count"] = lesson_count
+                item["name"] = item.get("title_sw") or item.get("title", "")
         else:
             items = []
         
