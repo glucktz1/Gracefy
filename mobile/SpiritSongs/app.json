@@ -86,6 +86,10 @@
       ]
     ],
     "owner": "gracefy18",
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "new"
+      }
+    }
   }
 }
