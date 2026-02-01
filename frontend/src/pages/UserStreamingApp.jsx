@@ -3457,10 +3457,7 @@ export default function UserStreamingApp() {
                             <ChurchCard 
                               key={church.church_id} 
                               church={church} 
-                              onClick={() => {
-                                // Navigate to church detail if available
-                                console.log('Church clicked:', church.church_id);
-                              }}
+                              onClick={() => openChurchDetail(church)}
                             />
                           ))}
                         </div>
