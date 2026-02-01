@@ -89,6 +89,7 @@ export default function BibleManagementPage() {
   const [previewAudio, setPreviewAudio] = useState(null);
   const [defaultVoiceMale, setDefaultVoiceMale] = useState("");
   const [defaultVoiceFemale, setDefaultVoiceFemale] = useState("");
+  const [defaultSpeed, setDefaultSpeed] = useState(1.0);
   const [savingVoiceSettings, setSavingVoiceSettings] = useState(false);
 
   const fetchData = useCallback(async () => {
