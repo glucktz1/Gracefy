@@ -118,13 +118,6 @@ const useAudioPlayer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   
-  // Church detail modal
-  const [selectedChurch, setSelectedChurch] = useState(null);
-  const [churchChoirs, setChurchChoirs] = useState([]);
-  
-  // Download app popup
-  const [showDownloadPopup, setShowDownloadPopup] = useState(false);
-  
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
