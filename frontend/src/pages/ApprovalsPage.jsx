@@ -292,10 +292,10 @@ export default function ApprovalsPage() {
                           <p className="text-sm text-zinc-400">{reg.email} • {reg.type}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleChoirRegistrationAction(reg.choir_id, "approved")} className="bg-emerald-600 hover:bg-emerald-700">
+                          <Button size="sm" onClick={() => handleChoirRegistrationAction(reg.singer_id, "approved")} className="bg-emerald-600 hover:bg-emerald-700">
                             <Check size={14} />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleChoirRegistrationAction(reg.choir_id, "rejected")} className="border-red-800 text-red-400">
+                          <Button size="sm" variant="outline" onClick={() => handleChoirRegistrationAction(reg.singer_id, "rejected")} className="border-red-800 text-red-400">
                             <X size={14} />
                           </Button>
                         </div>
