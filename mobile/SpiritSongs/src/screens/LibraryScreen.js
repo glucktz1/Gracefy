@@ -43,7 +43,12 @@ const LibraryScreen = ({ navigation, route }) => {
   const { isAuthenticated, user } = useAuth();
   const { playTrack, currentTrack, isPlaying } = usePlayer();
   const { billingEnabled, isPremium } = useBilling();
-  const { downloads, isDownloaded, refreshDownloads } = useDownloads();
+  const downloadContext = useDownloads();
+  
+  // Safe access to download context with fallbacks
+  const downloads = downloadContext?.downloads || [];
+  const isDownloaded = downloadContext?.isDownloaded || (() => false);
+  const refreshDownloads = downloadContext?.refreshDownloads || (async () => {});
 
   // Update activeTab when route params change
   useEffect(() => {
