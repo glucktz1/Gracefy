@@ -678,10 +678,18 @@ async def get_bible_settings():
             "default_voice": "sw-KE-Zuri-Female",
             "default_voice_male": "sw-KE-Rafiki-Male",
             "default_voice_female": "sw-KE-Zuri-Female",
+            "default_speed": 1.0,
+            "available_speeds": [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
             "auto_play_enabled": True,
             "daily_prompt_enabled": True,
             "prompt_interval_hours": 24
         }
+    else:
+        # Ensure speed fields exist
+        if "default_speed" not in settings:
+            settings["default_speed"] = 1.0
+        if "available_speeds" not in settings:
+            settings["available_speeds"] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
     
     return settings
 
