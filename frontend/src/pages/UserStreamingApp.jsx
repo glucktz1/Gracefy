@@ -691,17 +691,237 @@ const ChurchCard = ({ church, onClick }) => (
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2">
         <span className="text-xs bg-emerald-500/80 text-white px-2 py-0.5 rounded-full">
-          {church.denomination || 'Church'}
+          {church.denomination || 'Kanisa'}
         </span>
       </div>
     </div>
     <h3 className="font-semibold text-sm truncate text-white">{church.name}</h3>
     <p className="text-xs text-zinc-400 truncate mt-0.5">{church.location}</p>
     {church.priest_name && (
-      <p className="text-xs text-zinc-500 truncate mt-0.5">Fr. {church.priest_name}</p>
+      <p className="text-xs text-zinc-500 truncate mt-0.5">{church.leader_title || 'Fr.'} {church.priest_name}</p>
     )}
   </button>
 );
+
+// Church Detail Modal
+const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
+  if (!church) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/90 z-50 overflow-y-auto" data-testid="church-detail-modal">
+      <div className="min-h-screen p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={onClose} className="p-2 rounded-full bg-zinc-800/50 hover:bg-zinc-700">
+            <X size={24} />
+          </button>
+          <h2 className="text-lg font-bold">Kanisa</h2>
+          <div className="w-10" />
+        </div>
+        
+        {/* Church Image */}
+        <div className="relative h-48 rounded-xl overflow-hidden mb-6">
+          {church.thumbnail ? (
+            <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-emerald-800 to-teal-900 flex items-center justify-center">
+              <Church size={64} className="text-emerald-400/60" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4">
+            <h1 className="text-2xl font-bold text-white">{church.name}</h1>
+            <p className="text-emerald-400">{church.denomination || 'Kanisa'}</p>
+          </div>
+        </div>
+        
+        {/* Church Info */}
+        <div className="space-y-4 mb-6">
+          {/* Location & Direction */}
+          <div className="bg-zinc-900/60 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <MapPin className="text-emerald-400 mt-1" size={20} />
+              <div className="flex-1">
+                <p className="text-white font-medium">{church.location}</p>
+                {church.address && <p className="text-zinc-400 text-sm">{church.address}</p>}
+              </div>
+            </div>
+            {church.direction && (
+              <a 
+                href={church.direction} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg w-full justify-center transition-colors"
+              >
+                <Navigation size={18} />
+                <span>Pata Njia (Directions)</span>
+              </a>
+            )}
+          </div>
+          
+          {/* Leader Info */}
+          {church.priest_name && (
+            <div className="bg-zinc-900/60 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-600/20 flex items-center justify-center">
+                <User size={24} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-zinc-400 text-sm">{church.leader_title || 'Kiongozi'}</p>
+                <p className="text-white font-medium">{church.priest_name}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Contact */}
+          {church.phone && (
+            <a href={`tel:${church.phone}`} className="bg-zinc-900/60 rounded-xl p-4 flex items-center gap-3 hover:bg-zinc-800/60">
+              <Phone size={20} className="text-emerald-400" />
+              <span className="text-white">{church.phone}</span>
+            </a>
+          )}
+          
+          {/* Bio */}
+          {church.bio && (
+            <div className="bg-zinc-900/60 rounded-xl p-4">
+              <h3 className="text-emerald-400 font-medium mb-2">Kuhusu</h3>
+              <p className="text-zinc-300 text-sm leading-relaxed">{church.bio}</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Prayer Schedule */}
+        {church.prayer_schedule && church.prayer_schedule.length > 0 && (
+          <div className="bg-zinc-900/60 rounded-xl p-4 mb-6">
+            <h3 className="text-emerald-400 font-medium mb-3 flex items-center gap-2">
+              <Clock size={18} />
+              Ratiba ya Ibada
+            </h3>
+            <div className="space-y-2">
+              {church.prayer_schedule.map((schedule, idx) => (
+                <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
+                  <div>
+                    <p className="text-white font-medium">{schedule.day}</p>
+                    <p className="text-zinc-400 text-sm">{schedule.service}</p>
+                  </div>
+                  <span className="text-emerald-400 text-sm">{schedule.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Announcements */}
+        {church.announcements && church.announcements.length > 0 && (
+          <div className="bg-zinc-900/60 rounded-xl p-4 mb-6">
+            <h3 className="text-amber-400 font-medium mb-3 flex items-center gap-2">
+              <Bell size={18} />
+              Matangazo
+            </h3>
+            <div className="space-y-3">
+              {church.announcements.map((ann, idx) => (
+                <div key={idx} className="p-3 bg-zinc-800/50 rounded-lg">
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="text-white font-medium">{ann.title}</h4>
+                    <span className="text-xs text-zinc-500">{ann.date}</span>
+                  </div>
+                  <p className="text-zinc-400 text-sm">{ann.message}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Choirs */}
+        {choirs && choirs.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-violet-400 font-medium mb-3 flex items-center gap-2">
+              <Users size={18} />
+              Kwaya za Kanisa Hili
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {choirs.map(choir => (
+                <div key={choir.choir_id} className="flex-shrink-0 w-32 text-center">
+                  <div className="w-20 h-20 rounded-full bg-violet-600/20 mx-auto mb-2 overflow-hidden">
+                    {choir.profile_image ? (
+                      <img src={choir.profile_image} alt={choir.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Users size={32} className="text-violet-400/60" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-white text-sm font-medium truncate">{choir.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Download App Popup
+const DownloadAppPopup = ({ show, onClose, language = 'sw' }) => {
+  const [downloadInfo, setDownloadInfo] = useState(null);
+  
+  useEffect(() => {
+    if (show) {
+      axios.get(`${API}/app/download-info`)
+        .then(res => setDownloadInfo(res.data))
+        .catch(() => setDownloadInfo({
+          message_sw: "Kupakua nyimbo unazotaka na kuzifurahia bila mtandao, pakua app ya Gracefy!",
+          message_en: "Download songs you want and enjoy them offline, download the Gracefy app!",
+          button_text_sw: "Bonyeza hapa kupakua",
+          button_text_en: "Click here to download",
+          direct_apk_url: "https://expo.dev/artifacts/eas/nLuShV8eraRvjp1zmFyEbf.apk"
+        }));
+    }
+  }, [show]);
+  
+  if (!show || !downloadInfo) return null;
+  
+  const message = language === 'sw' ? downloadInfo.message_sw : downloadInfo.message_en;
+  const buttonText = language === 'sw' ? downloadInfo.button_text_sw : downloadInfo.button_text_en;
+  
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="download-popup">
+      <div className="bg-zinc-900 rounded-2xl p-6 max-w-sm w-full relative animate-in fade-in zoom-in duration-300">
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 p-1 rounded-full hover:bg-zinc-800"
+        >
+          <X size={20} />
+        </button>
+        
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+            <Download size={32} className="text-white" />
+          </div>
+          
+          <h3 className="text-xl font-bold text-white mb-2">Gracefy App</h3>
+          <p className="text-zinc-400 mb-6">{message}</p>
+          
+          <a 
+            href={downloadInfo.direct_apk_url || downloadInfo.android_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-amber-600 hover:to-orange-700 transition-all"
+          >
+            {buttonText}
+          </a>
+          
+          <button 
+            onClick={onClose}
+            className="mt-3 text-zinc-500 hover:text-zinc-300 text-sm"
+          >
+            Baadaye
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Choir/Artist Card
 const ChoirCard = ({ choir, onClick }) => (
