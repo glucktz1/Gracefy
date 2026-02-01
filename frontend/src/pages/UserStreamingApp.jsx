@@ -4265,6 +4265,22 @@ export default function UserStreamingApp() {
         </div>
       )}
 
+      {/* Church Detail Modal */}
+      {selectedChurch && (
+        <ChurchDetailModal 
+          church={selectedChurch} 
+          onClose={() => setSelectedChurch(null)}
+          choirs={churchChoirs}
+        />
+      )}
+      
+      {/* Download App Popup */}
+      <DownloadAppPopup 
+        show={showDownloadPopup} 
+        onClose={() => setShowDownloadPopup(false)} 
+        language={language}
+      />
+
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
