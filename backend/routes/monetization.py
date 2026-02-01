@@ -22,8 +22,20 @@ router = APIRouter(prefix="/api", tags=["monetization"])
 async def get_subscription_plans(
     active_only: bool = Query(True)
 ):
-    """Get all subscription plans"""
+    """Get all subscription plans (returns empty if billing is disabled)"""
     db = get_db()
+    
+    # Check if billing is enabled
+    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    billing_enabled = settings.get("billing_enabled", True) if settings else True
+    
+    # If billing is disabled, return empty plans
+    if not billing_enabled:
+        return {
+            "plans": [],
+            "billing_enabled": False,
+            "message": "Billing is currently disabled"
+        }
     
     query = {}
     if active_only:
@@ -33,7 +45,10 @@ async def get_subscription_plans(
         .sort("sort_order", 1)\
         .to_list(20)
     
-    return {"plans": plans}
+    return {
+        "plans": plans,
+        "billing_enabled": True
+    }
 
 
 @router.get("/subscription-plans/{plan_id}")
