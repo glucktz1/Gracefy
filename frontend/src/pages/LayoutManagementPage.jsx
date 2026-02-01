@@ -1268,7 +1268,7 @@ export default function LayoutManagementPage() {
   const fetchData = useCallback(async () => {
     try {
       const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes, leadersRes, snippetsRes, mixesRes, leaderContentRes, teachingsRes] = await Promise.all([
-        axios.get(`${API}/layout/sections`, { withCredentials: true }),
+        axios.get(`${API}/layout/sections?include_inactive=true`, { withCredentials: true }),
         axios.get(`${API}/layout/burners`, { withCredentials: true }),
         axios.get(`${API}/categories`, { withCredentials: true }),
         axios.get(`${API}/albums`, { withCredentials: true }),
