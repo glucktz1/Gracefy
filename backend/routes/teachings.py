@@ -126,14 +126,20 @@ async def get_teaching(teaching_id: str):
         {"_id": 0}
     ).sort("order", 1).to_list(100)
     
+    total_lessons = 0
     for topic in topics:
         lessons = await db.teaching_lessons.find(
             {"topic_id": topic["topic_id"]},
             {"_id": 0}
         ).sort("order", 1).to_list(100)
         topic["lessons"] = lessons
+        total_lessons += len(lessons)
     
     teaching["topics"] = topics
+    teaching["topic_count"] = len(topics)
+    teaching["lesson_count"] = total_lessons
+    teaching["category_name"] = get_category_name(teaching.get("category_id", ""))
+    
     return teaching
 
 
