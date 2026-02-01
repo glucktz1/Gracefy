@@ -75,10 +75,12 @@ async def fetch_section_content(db, section: dict) -> dict:
     Fetch content for a single section.
     Optimized with minimal projections and parallel queries.
     """
+    section_name = section.get("display_name") or section.get("title") or section.get("name", "")
     section_data = {
         "section_id": section["section_id"],
         "type": section["section_type"],
-        "title": section.get("display_name") or section.get("title", ""),
+        "name": section_name,
+        "title": section_name,
         "description": section.get("description", ""),
         "section_type": section["section_type"]
     }
