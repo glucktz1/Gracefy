@@ -213,7 +213,7 @@ const HomeScreen = ({ navigation }) => {
       setChurches(Array.isArray(churchesData) ? churchesData : []);
 
       // Mafundisho na Katekesi content
-      const mafundisho = mafundishoRes.data?.mafundisho || [];
+      const mafundisho = mafundishoRes.data?.teachings || mafundishoRes.data?.mafundisho || [];
       stats.mafundisho = Array.isArray(mafundisho) ? mafundisho.length : 0;
       setMafundishoContent(Array.isArray(mafundisho) ? mafundisho : []);
 
