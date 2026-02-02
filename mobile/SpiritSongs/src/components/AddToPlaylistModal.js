@@ -591,9 +591,21 @@ const AddToPlaylistModal = ({
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <TouchableOpacity style={styles.overlayTouchable} activeOpacity={1} onPress={onClose}>
-          <TouchableOpacity style={styles.container} activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+        <TouchableOpacity 
+          style={styles.overlayTouchable} 
+          activeOpacity={1} 
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        >
+          <TouchableOpacity 
+            style={[styles.container, showCreateNew && { paddingBottom: Platform.OS === 'android' ? 20 : 0 }]} 
+            activeOpacity={1} 
+            onPress={(e) => e.stopPropagation()}
+          >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.handle} />
