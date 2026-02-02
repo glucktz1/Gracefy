@@ -520,3 +520,278 @@ async def get_content_analytics(content_type: str, content_id: str):
         "platforms": platforms,
         "minimum_play_seconds": MINIMUM_PLAY_SECONDS
     }
+
+
+
+@router.get("/analytics/enhanced")
+async def get_enhanced_analytics(
+    period: str = Query("30d", description="Time period: 7d, 30d, 90d, 365d")
+):
+    """Get comprehensive enhanced analytics for the dashboard"""
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # Overview stats
+    total_users = await db.app_users.count_documents({})
+    new_users = await db.app_users.count_documents({"created_at": {"$gte": start_date.isoformat()}})
+    total_songs = await db.songs.count_documents({})
+    total_albums = await db.albums.count_documents({})
+    total_plays = await db.listening_sessions.count_documents({"counted_as_play": True})
+    
+    # Listening sessions in period
+    period_plays = await db.listening_sessions.count_documents({
+        "counted_as_play": True,
+        "start_time": {"$gte": start_date.isoformat()}
+    })
+    
+    # Total listening time in period
+    listen_time_pipeline = [
+        {"$match": {"start_time": {"$gte": start_date.isoformat()}}},
+        {"$group": {"_id": None, "total": {"$sum": "$duration_seconds"}}}
+    ]
+    listen_time_result = await db.listening_sessions.aggregate(listen_time_pipeline).to_list(1)
+    total_listen_hours = round((listen_time_result[0]["total"] if listen_time_result else 0) / 3600, 1)
+    
+    # Top songs
+    top_songs = await db.songs.find(
+        {"status": "active"},
+        {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "play_count": 1}
+    ).sort("play_count", -1).limit(10).to_list(10)
+    
+    # Top albums
+    top_albums = await db.albums.find(
+        {"status": "active"},
+        {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "play_count": 1, "total_plays": 1}
+    ).sort("total_plays", -1).limit(10).to_list(10)
+    
+    # Platform distribution
+    platform_pipeline = [
+        {"$match": {"start_time": {"$gte": start_date.isoformat()}}},
+        {"$group": {"_id": "$platform", "count": {"$sum": 1}}}
+    ]
+    platforms = await db.listening_sessions.aggregate(platform_pipeline).to_list(10)
+    
+    # Daily plays trend
+    daily_pipeline = [
+        {"$match": {"counted_as_play": True, "start_time": {"$gte": start_date.isoformat()}}},
+        {"$addFields": {"date": {"$substr": ["$start_time", 0, 10]}}},
+        {"$group": {"_id": "$date", "plays": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+        {"$limit": days}
+    ]
+    daily_plays = await db.listening_sessions.aggregate(daily_pipeline).to_list(days)
+    
+    # Revenue summary
+    revenue_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": start_date.isoformat()}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    revenue_result = await db.transactions.aggregate(revenue_pipeline).to_list(1)
+    total_revenue = revenue_result[0]["total"] if revenue_result else 0
+    transaction_count = revenue_result[0]["count"] if revenue_result else 0
+    
+    # Content type breakdown
+    content_type_pipeline = [
+        {"$match": {"counted_as_play": True, "start_time": {"$gte": start_date.isoformat()}}},
+        {"$group": {"_id": "$content_type", "plays": {"$sum": 1}}}
+    ]
+    content_types = await db.listening_sessions.aggregate(content_type_pipeline).to_list(10)
+    
+    return {
+        "period": period,
+        "overview": {
+            "total_users": total_users,
+            "new_users": new_users,
+            "total_songs": total_songs,
+            "total_albums": total_albums,
+            "total_plays": total_plays,
+            "period_plays": period_plays,
+            "total_listen_hours": total_listen_hours,
+            "total_revenue": total_revenue,
+            "transaction_count": transaction_count
+        },
+        "top_songs": top_songs,
+        "top_albums": top_albums,
+        "platforms": [{"platform": p["_id"] or "unknown", "plays": p["count"]} for p in platforms],
+        "daily_plays": [{"date": d["_id"], "plays": d["plays"]} for d in daily_plays],
+        "content_types": [{"type": c["_id"] or "unknown", "plays": c["plays"]} for c in content_types]
+    }
+
+
+@router.get("/analytics/realtime")
+async def get_realtime_analytics():
+    """Get real-time analytics for live dashboard"""
+    db = get_db()
+    from datetime import timedelta
+    
+    now = datetime.now(timezone.utc)
+    five_min_ago = (now - timedelta(minutes=5)).isoformat()
+    one_hour_ago = (now - timedelta(hours=1)).isoformat()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    
+    # Active streams (sessions without end_time in last 5 minutes)
+    active_streams = await db.listening_sessions.count_documents({
+        "start_time": {"$gte": five_min_ago}
+    })
+    
+    # Unique active listeners
+    active_pipeline = [
+        {"$match": {"start_time": {"$gte": five_min_ago}}},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "count"}
+    ]
+    active_result = await db.listening_sessions.aggregate(active_pipeline).to_list(1)
+    active_listeners = active_result[0]["count"] if active_result else 0
+    
+    # Plays today
+    plays_today = await db.listening_sessions.count_documents({
+        "counted_as_play": True,
+        "start_time": {"$gte": today_start}
+    })
+    
+    # New users today
+    new_users_today = await db.app_users.count_documents({
+        "created_at": {"$gte": today_start}
+    })
+    
+    # Hourly plays trend
+    hourly_pipeline = [
+        {"$match": {"counted_as_play": True, "start_time": {"$gte": one_hour_ago}}},
+        {"$addFields": {"minute": {"$substr": ["$start_time", 11, 5]}}},
+        {"$group": {"_id": "$minute", "plays": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    hourly_plays = await db.listening_sessions.aggregate(hourly_pipeline).to_list(60)
+    
+    # Currently playing (most recent plays)
+    recent_plays = await db.listening_sessions.find(
+        {"start_time": {"$gte": five_min_ago}},
+        {"_id": 0, "content_type": 1, "content_id": 1, "platform": 1}
+    ).sort("start_time", -1).limit(10).to_list(10)
+    
+    return {
+        "timestamp": now.isoformat(),
+        "active_streams": active_streams,
+        "active_listeners": active_listeners,
+        "plays_today": plays_today,
+        "new_users_today": new_users_today,
+        "hourly_trend": [{"time": h["_id"], "plays": h["plays"]} for h in hourly_plays],
+        "recent_plays": recent_plays
+    }
+
+
+@router.get("/analytics/revenue-breakdown")
+async def get_revenue_breakdown(
+    period: str = Query("30d", description="Time period")
+):
+    """Get detailed revenue breakdown by content, plans, etc."""
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # Revenue by subscription plan
+    plan_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": start_date.isoformat()}}},
+        {"$group": {
+            "_id": "$plan_name",
+            "total": {"$sum": "$amount"},
+            "count": {"$sum": 1}
+        }},
+        {"$sort": {"total": -1}}
+    ]
+    by_plan = await db.transactions.aggregate(plan_pipeline).to_list(10)
+    
+    # Revenue by payment method
+    method_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": start_date.isoformat()}}},
+        {"$group": {
+            "_id": "$payment_method",
+            "total": {"$sum": "$amount"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    by_method = await db.transactions.aggregate(method_pipeline).to_list(10)
+    
+    # Daily revenue trend
+    daily_revenue_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": start_date.isoformat()}}},
+        {"$addFields": {"date": {"$substr": ["$created_at", 0, 10]}}},
+        {"$group": {"_id": "$date", "revenue": {"$sum": "$amount"}, "transactions": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    daily_revenue = await db.transactions.aggregate(daily_revenue_pipeline).to_list(days)
+    
+    # Total stats
+    total_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": start_date.isoformat()}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    total_result = await db.transactions.aggregate(total_pipeline).to_list(1)
+    total_revenue = total_result[0]["total"] if total_result else 0
+    total_transactions = total_result[0]["count"] if total_result else 0
+    
+    # Calculate average transaction value
+    avg_transaction = round(total_revenue / total_transactions, 2) if total_transactions > 0 else 0
+    
+    return {
+        "period": period,
+        "total_revenue": total_revenue,
+        "total_transactions": total_transactions,
+        "average_transaction": avg_transaction,
+        "by_plan": [{"plan": p["_id"] or "Unknown", "total": p["total"], "count": p["count"]} for p in by_plan],
+        "by_method": [{"method": m["_id"] or "Unknown", "total": m["total"], "count": m["count"]} for m in by_method],
+        "daily_trend": [{"date": d["_id"], "revenue": d["revenue"], "transactions": d["transactions"]} for d in daily_revenue]
+    }
+
+
+@router.get("/analytics/content-revenue/{content_type}")
+async def get_content_revenue_analytics(
+    content_type: str,
+    period: str = Query("30d")
+):
+    """Get revenue analytics per content type (songs, albums, teachings)"""
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period, 30)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # Get play counts by content
+    if content_type == "songs":
+        top_content = await db.songs.find(
+            {"status": "active"},
+            {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "play_count": 1, "album_id": 1}
+        ).sort("play_count", -1).limit(20).to_list(20)
+        
+    elif content_type == "albums":
+        top_content = await db.albums.find(
+            {"status": "active"},
+            {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "play_count": 1, "total_plays": 1}
+        ).sort("total_plays", -1).limit(20).to_list(20)
+        
+    elif content_type == "teachings":
+        top_content = await db.teachings.find(
+            {"status": "published"},
+            {"_id": 0, "teaching_id": 1, "title": 1, "play_count": 1}
+        ).sort("play_count", -1).limit(20).to_list(20)
+    else:
+        top_content = []
+    
+    # Calculate estimated revenue per content (based on plays and subscription model)
+    # This is a simplified calculation - in reality, you'd track actual revenue attribution
+    for item in top_content:
+        plays = item.get("play_count") or item.get("total_plays") or 0
+        # Estimate: TZS 50 per play (based on subscription revenue / total plays)
+        item["estimated_revenue"] = plays * 50
+    
+    return {
+        "content_type": content_type,
+        "period": period,
+        "top_content": top_content,
+        "note": "Revenue is estimated based on play counts"
+    }
