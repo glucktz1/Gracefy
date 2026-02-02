@@ -1770,6 +1770,35 @@ const styles = StyleSheet.create({
   songAddButton: {
     padding: SPACING.sm,
   },
+
+  // Grid Layout Styles
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: SPACING.md,
+    justifyContent: 'space-between',
+  },
+  gridItem: {
+    width: (width - SPACING.md * 3) / 2,
+    marginBottom: SPACING.md,
+  },
+  gridImage: {
+    width: '100%',
+    height: (width - SPACING.md * 3) / 2,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.card,
+  },
+  gridTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: SPACING.sm,
+  },
+  gridArtist: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
   
   // No Content Fallback
   noContentContainer: {
