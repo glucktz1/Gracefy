@@ -502,6 +502,7 @@ async def get_hero_content():
     """
     Get hero content for the mobile app carousel.
     Returns featured albums or custom banners based on hero config.
+    Each item includes link_type and link_target for navigation.
     """
     db = get_db()
     
@@ -528,14 +529,22 @@ async def get_hero_content():
         for album in albums:
             album["thumbnail"] = album.get("thumbnail") or album.get("thumbnail_url")
             album["artist_name"] = album.get("artist_name") or album.get("choir_name") or "Unknown"
+            # Add navigation metadata for album items
+            album["link_type"] = "album"
+            album["link_target"] = album.get("album_id")
         
         response["items"] = albums
     else:
-        # Get custom banners
+        # Get custom banners - they already have link_type and link_target
         banners = await db.hero_banners.find(
             {"is_active": True},
             {"_id": 0}
         ).sort("order", 1).to_list(10)
+        
+        # Ensure thumbnail field is set from image_url for banners
+        for banner in banners:
+            banner["thumbnail"] = banner.get("thumbnail") or banner.get("image_url")
+        
         response["items"] = banners
     
     return response
