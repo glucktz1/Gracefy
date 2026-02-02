@@ -214,7 +214,12 @@ const LibraryScreen = ({ navigation, route }) => {
     { id: 'downloads', label: 'Zilizopakuwa' },
   ];
 
-  const likedSongsSet = new Set(likedSongs.map(s => s.song_id));
+  // Safely create Set - filter out undefined song_ids
+  const likedSongsSet = new Set(
+    (likedSongs || [])
+      .filter(s => s && s.song_id)
+      .map(s => s.song_id)
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
