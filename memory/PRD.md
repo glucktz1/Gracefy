@@ -1,412 +1,98 @@
-# Gracefy - Christian Music Streaming App
+# SpiritSongs Mobile App - Product Requirements Document
 
-## Overview
-A Christian music streaming mobile app with a Spotify-like interface, featuring:
-- Music streaming with choirs and albums
-- Bible reader with TTS (Text-to-Speech)
-- Church discovery and follow features
-- Mafundisho (Teachings) with series and episodes
-- Admin panel for content management
-- Choir portal for artists
-- **Payment system with Azam Pay mobile money**
-- **Redis caching for horizontal scaling**
+## Original Problem Statement
+Build and maintain a React Native mobile application (SpiritSongs/Gracefy) with a Python/Flask backend and MongoDB database. The app is a religious music streaming platform with features including:
+- Music streaming and downloads
+- Bible reading with TTS (Text-to-Speech)
+- Religious teachings (Mafundisho na Katekesi)
+- Church management
+- User subscriptions and monetization
 
-## Architecture (Updated 2026-01-31)
+## What's Been Implemented
 
-### Backend - Fully Modular Router Architecture
-- **Main**: `/app/backend/server.py` (312 lines - clean application factory)
-- **Core**: `/app/backend/core/` (database, caching, config, dependencies)
-- **Routes**: `/app/backend/routes/` (16 modular router files)
-- **Models**: `/app/backend/models/` (Pydantic schemas)
-- **Services**: `/app/backend/services/` (CDN, encoding, TTS)
+### December 2025 - February 2026
 
-### New Modular Routers (16 total)
-```
-/app/backend/routes/
-├── auth.py           # Authentication (admin, app, OTP, password reset)
-├── music.py          # Albums, songs endpoints
-├── home.py           # Home screen data
-├── payment.py        # Azam Pay integration
-├── layout.py         # Sections, burners, hero, home filters
-├── churches.py       # Churches, announcements, church leaders
-├── choirs.py         # Choirs, accounts, content, revenue
-├── bible.py          # Bible reading, TTS, listening tracking
-├── analytics.py      # Dashboard stats, trends, demographics
-├── admin.py          # Admin operations, cache, settings
-├── uploads.py        # File uploads, CDN management
-├── user_library.py   # Favorites, playlists, history, likes
-├── content.py        # Religious leaders, containers, episodes
-├── monetization.py   # Subscriptions, plans, transactions
-├── categories.py     # Content and song categories
-└── browse.py         # Search, browse, user content
-```
+#### Core Features
+- ✅ Music streaming with player controls
+- ✅ Album and playlist management
+- ✅ Search functionality
+- ✅ User authentication (email/phone, Google OAuth)
+- ✅ Library management (likes, playlists, downloads)
+- ✅ Bible reading with Swahili translation
+- ✅ Bible TTS (Text-to-Speech) generation and caching
+- ✅ Religious teachings (Mafundisho) with audio lessons
+- ✅ Church directory
+- ✅ Subscription/billing system with AzamPay
+- ✅ Error Boundaries for crash prevention
 
-### Infrastructure
-- **Frontend/Admin Panel**: React - `/app/frontend/`
-- **Mobile App**: React Native (Expo) - `/app/mobile/SpiritSongs/`
-- **Database**: MongoDB with 175+ indexes
-- **CDN**: Bunny CDN for media storage
-- **TTS**: Google Cloud TTS for Bible audio
-- **Payments**: Azam Pay (Mobile Money)
-- **Caching**: Redis primary + in-memory fallback
-- **Auto-Scaling**: Traffic-based cache TTL adjustment
+#### Recent Fixes (February 2, 2026)
 
-## Backend Refactoring (Completed 2026-01-31)
+**Bible Section Fix**
+- Issue: Bible chapters API returned a number instead of array
+- Fix: Modified `/api/bible/books/{book_name}/chapters` to return chapters as array `[1, 2, 3, ...]`
+- File: `/app/backend/routes/bible.py`
 
-### Before
-- `server.py`: 13,988 lines (monolithic)
-- All 387 endpoints in single file
-- Hard to maintain and scale
+**Mafundisho na Katekesi Fix**
+- Issue: Frontend expected `series/episodes` but backend returns `topics/lessons`
+- Fix: Added data structure conversion in `MafundishoDetailScreen.js`
+- File: `/app/mobile/SpiritSongs/src/screens/MafundishoDetailScreen.js`
 
-### After  
-- `server.py`: 312 lines (application factory)
-- 294 endpoints in 16 modular routers
-- 97.8% reduction in main file size
-- Clean separation of concerns
-- Better testability and maintainability
+#### Optimizations Applied
+- Removed base64 images from hero content API (reduced 84MB to ~2KB response)
+- Added layout_style support for dynamic home sections
+- Implemented thumbnail streaming endpoints
 
-### Test Results
-- 27/27 API tests passed (100% success rate)
-- All core endpoints verified working
-- Redis fallback to in-memory working correctly
+## Known Issues / Blockers
 
-## Performance Optimizations
+### P1 - In Progress
+1. **App crashes on some screens** - Error Boundaries added but root cause unknown
+2. **Slow app loading** - API optimized but may have other causes
 
-### Database Indexes
-- 175 total indexes across 68 collections
-- Compound indexes for common query patterns
-- TTL indexes for session/analytics auto-cleanup
+### P2 - Blocked
+3. **Hero section images** - Placeholder gradient shown (blocked until proper image URL system implemented)
 
-### Caching Strategy
-- Redis primary cache (when available)
-- In-memory LRU fallback
-- Auto-scaling TTL based on traffic level:
-  - Low traffic (<50 req/s): 1x TTL
-  - Medium (50-100): 2x TTL
-  - High (100-200): 3x TTL
-  - Critical (>200): 4x TTL
-
-### Query Optimizations
-- Minimal projections (exclude _id, large fields)
-- Parallel async queries
-- Connection pooling (100 max)
-- GZIP compression for responses > 500 bytes
-
-## Completed Features
-
-### Mobile App
-- [x] Music player with expo-av
-- [x] Albums and songs browsing
-- [x] Bible reader with TTS
-- [x] Churches with announcements
-- [x] User authentication
-- [x] Checkout Screen with Phone Input
-- [x] MNO Auto-Detection
-- [x] Transaction History in Profile
-- [x] Download functionality
-
-### Admin Panel
-- [x] Dashboard with analytics
-- [x] Album and song management
-- [x] Church and choir management
-- [x] Layout management
-- [x] Revenue settings
-- [x] User management with RBAC
-- [x] Billing Toggle
-- [x] Transaction Tracking
-- [x] Cache Monitoring
-- [x] Home Filter Controls
-
-### Backend APIs (All Working)
-- [x] Authentication endpoints
-- [x] Music streaming endpoints
-- [x] Bible content and TTS
-- [x] Church and choir endpoints
-- [x] Layout configuration
-- [x] Revenue and analytics
-- [x] Azam Pay payments
-- [x] Cache stats endpoint
-- [x] Auto-scaling status
-
-## Payment System
-
-### Azam Pay Integration
-- **Test Mode**: AZAMPAY_TEST_MODE=true
-- **MNO Support**: M-Pesa, Tigo Pesa, Airtel Money, Halo Pesa
-- **Phone Auto-Detection**: Detects MNO from prefix
-
-## Upcoming Tasks
-1. Re-upload audio for 10 affected songs (P0)
-2. Complete endpoint migration from server_old.py (~90 endpoints) (P1)
-3. Add Teachings section to user-facing app (P1)
-4. Animated splash screen (P2)
-5. Production Azam Pay credentials
-
-## Known Issues
+## Prioritized Backlog
 
 ### P0 - Critical
-- **Background audio** - App doesn't play next song when screen locked
-  - Cause: expo-av JavaScript suspended on mobile
-  - Solution: `react-native-track-player` (blocked by EAS build issues)
-- **Audio Storage Issue** - 10 songs have audio files > 5MB that weren't stored
-  - Cause: CDN upload may have failed when files were uploaded
-  - Files have `storage_error: "File too large for local storage without CDN"`
-  - Solution: Re-upload the audio files for affected songs
+- None currently
 
-### P1 - High  
-- ~90 endpoints still in `server_old.py` need migration to modular routers
-- Create Playlist Feature - UI buttons exist but backend/full UX not implemented
+### P1 - High Priority
+- Investigate and fix root cause of app crashes on navigation
+- Further optimize app load time
 
-### P2 - Medium
-- ~~Animated splash screen needed~~ ✅ COMPLETED
-- ~~Mobile app EAS build~~ ✅ BUILD SUCCESSFUL
+### P2 - Medium Priority
+- Implement proper image upload/CDN pipeline for hero images
+- Add offline mode for Bible reading
 
-## Recent Fixes (2026-02-01)
+### P3 - Future
+- Push notifications
+- Social features (sharing, comments)
+- Audio quality settings
 
-### Web App Enhancements (2026-02-01)
-1. **Mafundisho na Katekesi** - Now visible on web with teaching cards
-2. **Makanisa (Churches)** - Added detailed church modal with:
-   - Prayer schedule (Ratiba ya Ibada)
-   - Announcements (Matangazo)
-   - Direction/map link
-   - Contact info & bio
-   - Associated choirs
-3. **Download App Popup** - When user clicks download on web:
-   - Shows popup with message in Swahili
-   - Links to app download (APK/Play Store)
-   - Backend endpoint: `/api/app/download-info`
-4. **Bible Snippets** - Added to home with featured passages
+## Architecture
 
-### Mobile App v1.0.69 Fixes (2026-02-01)
-**NOTE:** Build failed - Free plan has exhausted monthly Android builds. Resets March 1st. Upgrade at https://expo.dev/accounts/gracefy18/settings/billing
+### Frontend (Mobile)
+- React Native with Expo
+- State management: React Context
+- Navigation: React Navigation
+- UI: Custom components with theme system
 
-Fixes implemented (awaiting next build):
-1. **Library Screen Crash Fix** - Added `route` params support for tab navigation from Profile
-2. **Bible Featured Snippets** - Added snippets section with 8 featured passages (Mahubiri ya Mlimani, Zaburi 23, etc.)
-3. **DownloadContext** - Fixed expo-file-system import (removed `/legacy` suffix)
-4. **Mafundisho Section** - Added to layout_sections for app visibility
-5. **Hero Content** - Added `/api/layout/hero-content` endpoint
-6. **Churches Data** - Created sample churches with prayer schedules, announcements
+### Backend
+- Python FastAPI
+- MongoDB database
+- Redis caching
+- Bunny CDN for media files
 
-### Mobile App API Fix (2026-02-01)
-- Added `/api/home/app` endpoint (was returning 404)
-- Mobile app now has all required endpoints working
-- New build v1.0.68 in progress with the fix
+### Key Files
+- `/app/backend/routes/bible.py` - Bible API endpoints
+- `/app/backend/routes/teachings.py` - Teachings/Mafundisho API
+- `/app/backend/routes/home.py` - Home screen data API
+- `/app/mobile/SpiritSongs/src/screens/BibleScreen.js` - Bible UI
+- `/app/mobile/SpiritSongs/src/screens/MafundishoDetailScreen.js` - Teachings UI
 
-### Control and Management Section Fixes (2026-02-01)
-All 5 issues in the admin panel "Control and Management" section have been resolved:
-
-1. **CDN Management Dashboard FIXED**: Backend `/api/admin/cdn/stats` now returns `folders` object with `audio`, `images`, `thumbnails` sub-objects for frontend display. Also includes `total_size_mb`, `cdn_files`, `local_files`.
-
-2. **Role Management Page FIXED**: 
-   - `/api/rbac/roles` now returns `all_roles` array for dropdown filter
-   - `/api/rbac/stats` returns `role_stats` with `name`, `color`, `count` per role
-   - `/api/rbac/permissions` returns flat array with `permission_id`, `name`, `description`, `category`
-   - `/api/rbac/users` returns `assigned_role` and `user_type` fields
-   - Added `POST /api/rbac/users/{user_id}/assign-role` endpoint for role assignment
-
-3. **Approvals Workflow FIXED**: Fixed frontend bug where it passed `choir_id` (undefined) instead of `singer_id` to the approve endpoint. Choir registrations now correctly approve.
-
-4. **Layout Manager Deactivation**: Verified working - `?include_inactive=true` returns all sections including inactive ones.
-
-5. **Bible TTS Speed Setting ADDED**:
-   - `GET /api/admin/bible/tts-settings` returns settings including `default_speed`
-   - `PUT /api/admin/bible/tts-settings` allows updating speed (validated 0.5-2.0)
-   - TTS generation now fetches default speed from settings if not provided in request
-
-### Testing
-- 24/24 API tests passed (100% success rate)
-- Test file: `/app/test_reports/pytest/admin_control_management_results.xml`
-
-## Recent Fixes (2026-01-31)
-
-### Bug Fixes (2026-01-31 - Session 2)
-- **Bible Section Bug FIXED**: Backend `/api/bible/stats` now returns `book_count`, `verse_count`, AND `has_data` fields for frontend compatibility. Also returns backwards-compatible `books_count`/`verses_count`.
-- **Special Mixes Creation Bug FIXED**: Backend now properly handles `title` field (frontend sends `title`, backend expected `name`) and `songs` array with full song objects. Stores both `song_ids` and full `songs` array.
-- **Special Mixes 500 Error FIXED**: Fixed TypeError in GET `/api/special-mixes` when songs have None duration values.
-- **Leaders Photo Upload Bug FIXED**: Added proper file upload UI with preview to LeadersPage.jsx. Photos are uploaded via `/api/upload` endpoint before saving leader.
-
-### New Feature: TTS Voice Selection & Preview (2026-01-31)
-- **6 AI Voices Available**: 3 male (Rafiki, Daudi, Journey) + 3 female (Zuri, Amani, Aria) voices
-- **Voice Preview**: Admin can click "Preview" button to hear sample text in selected voice
-- **Default Voice Selection**: Admin can set default male/female voices for Bible reading
-- **Swahili + English**: Voices available in sw-KE, sw-TZ, and en-US languages
-- **Full OpenAI TTS Integration**: Real audio generation using Emergent LLM Key
-- **Caching**: TTS audio cached in `bible_tts_cache` collection for performance
-- **User Voice Selector**: Users can choose voice when reading Bible on web/app (with toast notification)
-- **Bug Fix**: Fixed `chapters.map is not a function` error in Bible view
-
-### Admin Bible Management Features (2026-01-31)
-- **TTS Cache Tab**: View and manage cached Bible audio recordings
-  - Shows total cached entries and size in MB
-  - Play cached audio directly
-  - Delete individual cache entries
-  - Clear all cache option
-- **Snippet Management**: Full CRUD for Bible snippets
-  - Edit button to modify existing snippets
-  - Enable/Disable toggle for each snippet
-  - Delete with confirmation
-- **Voice Selection Fixed**: Different voices now correctly generate different audio
-
-### Bible TTS Speed Control (2026-01-31)
-- **Speed selector**: Users can choose playback speed from 0.5x to 2x
-- **Options**: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x
-- **Real-time adjustment**: Speed changes apply immediately to currently playing audio
-- **API support**: Speed parameter passed to TTS generation endpoints
-
-### Teachings and Reflections Feature (2026-01-31) - NEW
-- **Complete Feature**: "Mafundisho na Tafakari" (Teachings and Reflections) module
-- **Hierarchical Structure**: Teaching → Topics (Mada) → Lessons (Sehemu)
-- **Admin Features**:
-  - Create/Edit/Delete teachings with thumbnail, leader, category, monetization
-  - Add multiple topics per teaching
-  - Add multiple lessons per topic with audio upload
-  - Audio playback preview in admin panel
-  - Bulk lesson creation support
-  - Cascading deletes (delete teaching removes all topics/lessons)
-- **8 Categories**: Mafundisho ya Ndoa, Katekesi, Tafakari ya Neno, Maisha ya Kiroho, Familia ya Kikristo, Mafundisho kwa Vijana, Maisha ya Sala, Mengineyo
-- **3 Monetization Types**: Free, Premium, Donation-based
-- **API Endpoints**: 16 endpoints for full CRUD operations
-- **Backend**: `/app/backend/routes/teachings.py` (464 lines)
-- **Frontend Admin**: `/app/frontend/src/pages/TeachingsPage.jsx` (1010 lines)
-- **User App Integration** (2026-02-01):
-  - Spotify-style card display in home sections
-  - Detail view with thumbnail, title, leader, topic/lesson counts
-  - **Play All button** - queues all lessons
-  - **Shuffle button** - random playback
-  - **Dancing bars animation** on playing lesson
-  - **Highlighted playing lesson** with amber border
-  - **"Inacheza" indicator** for currently playing
-  - **Share button** - native share or clipboard
-  - **Add to playlist button**
-  - Mini player integration at bottom
-- **Testing**: 27/27 backend tests passed (100%)
-
-### Leaders Page Complete Rebuild (2026-01-31)
-- **Complete rebuild from scratch** - removed all problematic thumbnail/photo code
-- **Clean form fields**: Name, Title, Church, Bio, Status only
-- **No file upload**: Eliminated the React render error
-- **Verified working**: All CRUD operations tested and passing
-
-### Home Page Data Verification (2026-01-31)
-- **18 sections** loading correctly on user home page
-- **Albums displayed**: 44+ album elements shown
-- **Christmas Carols 2025**: Appearing in sections (currently in "Lent songs" - may need recategorization)
-- **Categories working**: Christmas, Lent, Churches, Special Mixes all loading
-
-### Bug Fixes (2026-01-31)
-- **Leaders Page Error**: Fixed FastAPI validation error display (was showing raw object)
-- **Leaders Page Render Safety**: Added defensive checks for leader objects and string coercion to prevent "Objects not valid as React child" errors
-- **Special Mixes Audio**: Fixed to include full song data (audio_url, duration, etc.) when creating mixes
-- **Church Select**: Fixed empty value issue in church selection dropdown
-
-### Content Section Fixes
-- Fixed `/albums/all-songs` endpoint - moved before `/albums/{album_id}` to fix route matching
-- Endpoint now returns albums with their songs (was returning 404 before)
-- Added `/leaders` endpoint aliases for `/religious-leaders`
-- Added POST/PUT/DELETE aliases for leaders management
-- Fixed route order in music.py to prevent path parameter matching issues
-
-### Admin Panel Fixes
-- Fixed CDN Management page: `toUpperCase()` error on undefined value
-- Added missing `/approvals` endpoint with pending churches, choirs, leaders, posts
-- Added `/admin/choir-registrations` endpoint
-- Added `/admin/payment-requests` endpoint
-- Added `/admin/content-edit-requests` endpoint
-- Added `/church-leader/accounts` endpoint
-- Albums page now has search and filter controls (category, status)
-
-### Choir Registration Form (Enhanced)
-- Default language is now Kiswahili with English toggle option
-- 4-step registration process for church choirs:
-  1. Basic Info (Name, Email, Phone, Type)
-  2. Choir Details (Denomination, Church Name, Location, Description)
-  3. Leadership (Chairperson, Treasurer, Parish Leader - with name, phone, email, title)
-  4. Payment & Account (Mobile Money or Bank Account + Password)
-- Payment details: Mobile network selection, registered name, OR bank account info
-- Success message indicates pending admin approval
-
-### Play Tracking & Analytics
-- Fixed: Frontend now sends `duration_seconds` to `/listening/end` endpoint
-- Plays are counted when song is played for 30+ seconds (industry standard)
-- Added page unload tracking via `navigator.sendBeacon`
-- Choir/artist total_plays also updated when songs are played
-- Analytics properly aggregates plays by album and song
-
-### Google Login & Admin Access Fix
-- Fixed: All Google login users were getting admin role
-- Now only `glucktz1904@gmail.com` gets admin role; others get "user" role
-- Updated ProtectedRoute in App.js to redirect non-admin users to /app
-- Updated AuthCallback to route based on user role
-- Fixed existing users in database - 4 users changed from admin to user role
-- **Fixed Google OAuth flow**: App.js now only intercepts OAuth for admin routes, not `/app`
-- Non-admin users logging in via admin page are redirected to `/app#session_id=...` for proper auth
-
-### User Library Fix
-- Fixed: "Cannot read properties of undefined (reading 'song_id')" error
-- Backend now enriches favorites with full item details
-- Frontend adds null checks for `fav.item` in library rendering
-
-### Thumbnail Display Fix
-- Fixed truncated base64 thumbnails that caused display errors
-- Updated `optimize_thumbnails()` in both `music.py` and `home.py`
-- Base64 thumbnails now use `/api/thumbnails/{item_id}` streaming endpoint
-- All frontend files updated with `getImageUrl()` helper for proper URL handling
-
-### Audio URL Fix
-- Fixed `getAudioUrl()` to add `/stream` suffix for `/api/files/{file_id}` URLs
-- Audio streaming now correctly routes to content endpoint
-
-### Affected Files
-- `/app/backend/routes/auth.py` - Admin role assignment fix
-- `/app/backend/routes/user_library.py` - Enriched favorites in library
-- `/app/frontend/src/App.js` - Role-based routing
-- `/app/frontend/src/pages/LoginPage.jsx` - Admin redirect check
-- `/app/backend/routes/music.py` - optimize_thumbnails function
-- `/app/backend/routes/home.py` - optimize_thumbnails function  
-- `/app/backend/routes/uploads.py` - download endpoint handling
-- `/app/frontend/src/pages/UserStreamingApp.jsx` - getAudioUrl, getImageUrl, library fixes
-
-## Audio Content Status (Updated 2026-01-31)
-- Total songs: 31
-- Albums with working songs: 6 ✅ (Huyu ni nani, Christmas Carols 2025, nguvu ya Msalaba, Umenilisha kwa unono, Uzishibishe Nyoyo zetu, Moyo wako bwana)
-- Albums with some broken songs: 3 ⚠️ (Ulizibeba Dhambi Zetu, Natubu bwana, Moyo wa shukrani)
-- Albums with no songs: 4 ❌ (Utukufu Kwako Bwana, Nguvu ya Msalaba wako, Baraka zako bwana, Neema Kuu)
-- Issue: Some audio files > 5MB weren't stored due to CDN upload failure at upload time
-
-## Upcoming Tasks
-1. Re-upload audio for 10 affected songs (P0)
-2. Complete endpoint migration from server_old.py (P1)
-3. Animated splash screen (P2)
-3. Production Azam Pay credentials
-
-## Future/Backlog
-- PWA "Play All" button
-- Live audio/video rooms (Agora/100ms)
-- Remove unused Supabase code
-- Production deployment
-
-## Configuration
-
-### Environment Variables (backend/.env)
-```
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=test_database
-REDIS_URL=redis://localhost:6379
-BUNNY_STORAGE_ZONE=...
-BUNNY_API_KEY=...
-BUNNY_CDN_URL=...
-AZAMPAY_CLIENT_ID=...
-AZAMPAY_CLIENT_SECRET=...
-AZAMPAY_TEST_MODE=true
-```
-
-### Test Credentials
-- **Admin Panel**: Google OAuth
-- **Choir Portal**: demo@gracefy.com / demo123456
-- **Expo Token**: Ocf09mEKf7N8E9Pjwyf5-hQYLOevZO3OYEsrr9Bq
-
-## API Documentation
-- Swagger UI: `/api/docs`
-- ReDoc: `/api/redoc`
-- OpenAPI: `/api/openapi.json`
+## 3rd Party Integrations
+- Expo (EAS Build) - App building and distribution
+- MongoDB - Primary database
+- Bunny CDN - Media file storage
+- OpenAI TTS - Bible text-to-speech
+- AzamPay - Payment processing (Tanzania)
