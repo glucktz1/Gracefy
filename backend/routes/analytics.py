@@ -5,6 +5,7 @@ Dashboard statistics, trends, and user demographics.
 
 from fastapi import APIRouter, Query
 from datetime import datetime, timezone
+from typing import Optional
 import logging
 
 from core.database import get_db
