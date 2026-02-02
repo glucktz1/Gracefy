@@ -524,6 +524,39 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.md,
   },
+  // Error state styles
+  header: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  backButton: {
+    padding: SPACING.xs,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  errorText: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    textAlign: 'center',
+  },
+  errorButton: {
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  errorButtonText: {
+    color: COLORS.text,
+    fontWeight: '600',
+    fontSize: FONT_SIZES.md,
+  },
 });
 
 export default AlbumScreen;
