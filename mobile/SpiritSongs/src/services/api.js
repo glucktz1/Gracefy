@@ -102,6 +102,14 @@ export const homeAPI = {
   getLeaderContent: () => api.get('/layout/religious-leaders'),
   getQuickAccess: () => api.get('/layout/sections?type=quick_access'),
   getHomeFilters: () => api.get('/layout/home-filters'),
+  // Album methods
+  getAlbums: () => api.get('/albums'),
+  getAlbum: (id) => api.get(`/albums/${id}`),
+  getAlbumSongs: (id) => api.get(`/albums/${id}/songs`),
+  // Category methods
+  getCategories: () => api.get('/categories'),
+  // Mix methods
+  getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
 };
 
 // ============ LEADER CONTENT API ============
