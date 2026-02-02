@@ -410,6 +410,154 @@ const HomeScreen = ({ navigation }) => {
     setDebugInfo(prev => ({ ...prev, show: !prev.show }));
   };
 
+  // Render section items based on layout_style
+  const renderSectionContent = (section, items) => {
+    if (!items || items.length === 0) return null;
+    
+    const layoutStyle = section.layout_style || 'horizontal_small';
+    const sectionType = section.section_type;
+    
+    // Handle item press based on content type
+    const handleItemPress = (item) => {
+      if (item.album_id) {
+        handleAlbumPress(item);
+      } else if (item.mix_id) {
+        handleMixPress(item);
+      } else if (item.song_id) {
+        handlePlaySong(item, items);
+      } else if (item.church_id) {
+        navigation.navigate('Churches', { selectedChurch: item });
+      } else if (item.teaching_id || item.container_id) {
+        navigation.navigate('MafundishoDetail', { 
+          teachingId: item.teaching_id, 
+          containerId: item.container_id, 
+          mafundisho: item 
+        });
+      }
+    };
+
+    // Horizontal Large Cards (e.g., Featured Albums, Mixes)
+    if (layoutStyle === 'horizontal_large') {
+      return (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+          {items.map((item, index) => (
+            <TouchableOpacity 
+              key={item.album_id || item.mix_id || item.song_id || index} 
+              style={styles.largeMixCard}
+              onPress={() => handleItemPress(item)}
+            >
+              <Image
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/280x150' }}
+                style={styles.largeMixImage}
+              />
+              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
+                <Text style={styles.largeMixTitle} numberOfLines={1}>{item.title || item.name}</Text>
+                <Text style={styles.largeMixSubtitle} numberOfLines={1}>
+                  {item.artist_name || item.description || `${item.songs_count || item.song_count || 0} nyimbo`}
+                </Text>
+              </LinearGradient>
+              <TouchableOpacity style={styles.mixPlayButton} onPress={() => handleItemPress(item)}>
+                <Ionicons name="play" size={24} color={COLORS.background} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      );
+    }
+    
+    // Horizontal Small Cards (Default - Album grid style)
+    if (layoutStyle === 'horizontal_small' || layoutStyle === 'horizontal_cards') {
+      return (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+          {items.map((item, index) => (
+            <TouchableOpacity 
+              key={item.album_id || item.mix_id || item.song_id || index} 
+              style={styles.smallSquareCard}
+              onPress={() => handleItemPress(item)}
+            >
+              <Image
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                style={styles.smallSquareImage}
+              />
+              <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
+              <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name || ''}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      );
+    }
+    
+    // Vertical List (Song list style)
+    if (layoutStyle === 'vertical_list') {
+      return (
+        <View>
+          {items.slice(0, 5).map((item, index) => (
+            <TouchableOpacity 
+              key={item.song_id || item.album_id || index} 
+              style={styles.songListItem}
+              onPress={() => handleItemPress(item)}
+            >
+              <Text style={styles.songIndex}>{index + 1}</Text>
+              <Image
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/48' }}
+                style={styles.songImage}
+              />
+              <View style={styles.songInfo}>
+                <Text style={styles.songTitle} numberOfLines={1}>{item.title || item.name}</Text>
+                <Text style={styles.songArtist} numberOfLines={1}>{item.artist_name || ''}</Text>
+              </View>
+              <TouchableOpacity style={styles.songAddButton} onPress={() => handleAddToPlaylist(item)}>
+                <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+    
+    // Grid style (2 column grid)
+    if (layoutStyle === 'grid') {
+      return (
+        <View style={styles.gridContainer}>
+          {items.map((item, index) => (
+            <TouchableOpacity 
+              key={item.album_id || item.mix_id || index} 
+              style={styles.gridItem}
+              onPress={() => handleItemPress(item)}
+            >
+              <Image
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/150' }}
+                style={styles.gridImage}
+              />
+              <Text style={styles.gridTitle} numberOfLines={1}>{item.title || item.name}</Text>
+              <Text style={styles.gridArtist} numberOfLines={1}>{item.artist_name || ''}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+    
+    // Default: horizontal small cards
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {items.map((item, index) => (
+          <TouchableOpacity 
+            key={item.album_id || item.mix_id || item.song_id || index} 
+            style={styles.smallSquareCard}
+            onPress={() => handleItemPress(item)}
+          >
+            <Image
+              source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
+              style={styles.smallSquareImage}
+            />
+            <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
+            <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name || ''}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
