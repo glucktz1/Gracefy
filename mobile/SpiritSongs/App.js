@@ -14,6 +14,9 @@ import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
 
+// Components
+import ErrorBoundary from './src/components/ErrorBoundary';
+
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
