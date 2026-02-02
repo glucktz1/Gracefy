@@ -69,8 +69,10 @@ async def get_book_chapters(book_name: str):
         raise HTTPException(status_code=404, detail="Book not found")
     
     # Support both chapter_count and chapters field names
-    chapters = book.get("chapter_count") or book.get("chapters", 0)
-    return {"book": book, "chapters": chapters}
+    chapter_count = book.get("chapter_count") or book.get("chapters", 0)
+    # Return chapters as an array of chapter numbers (1 to chapter_count) for frontend compatibility
+    chapters_array = list(range(1, chapter_count + 1)) if chapter_count else []
+    return {"book": book, "chapters": chapters_array}
 
 
 @router.get("/bible/books/{book_name}/chapters/{chapter}")
