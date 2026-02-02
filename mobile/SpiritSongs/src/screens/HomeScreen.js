@@ -506,7 +506,7 @@ const HomeScreen = ({ navigation }) => {
           {/* Row 1: Liked Songs, User Playlist 1, Downloads, User Playlist 2 */}
           <TouchableOpacity 
             style={styles.quickAccessItem}
-            onPress={() => navigation.navigate('Library')}
+            onPress={() => navigation.navigate('Library', { tab: 'liked' })}
           >
             <LinearGradient colors={['#5D3FD3', '#7B68EE']} style={styles.quickAccessIcon}>
               <Ionicons name="heart" size={20} color={COLORS.text} />
