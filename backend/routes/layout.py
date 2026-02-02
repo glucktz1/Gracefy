@@ -503,6 +503,7 @@ async def get_hero_content():
     Get hero content for the mobile app carousel.
     Returns featured albums or custom banners based on hero config.
     Each item includes link_type and link_target for navigation.
+    Note: Large base64 thumbnails are stripped for performance - use image_url field.
     """
     db = get_db()
     
@@ -527,7 +528,12 @@ async def get_hero_content():
         ).sort("created_at", -1).limit(6).to_list(6)
         
         for album in albums:
-            album["thumbnail"] = album.get("thumbnail") or album.get("thumbnail_url")
+            # Prefer URL over base64 for performance
+            thumbnail = album.get("thumbnail_url") or album.get("thumbnail")
+            # Skip large base64 data - only use URLs
+            if thumbnail and thumbnail.startswith('data:') and len(thumbnail) > 5000:
+                thumbnail = None  # Will use placeholder
+            album["thumbnail"] = thumbnail
             album["artist_name"] = album.get("artist_name") or album.get("choir_name") or "Unknown"
             # Add navigation metadata for album items
             album["link_type"] = "album"
@@ -541,9 +547,13 @@ async def get_hero_content():
             {"_id": 0}
         ).sort("order", 1).to_list(10)
         
-        # Ensure thumbnail field is set from image_url for banners
+        # Process banners - strip large base64 thumbnails for performance
         for banner in banners:
-            banner["thumbnail"] = banner.get("thumbnail") or banner.get("image_url")
+            # Use image_url if thumbnail is large base64
+            thumbnail = banner.get("image_url") or banner.get("thumbnail")
+            if thumbnail and thumbnail.startswith('data:') and len(thumbnail) > 5000:
+                thumbnail = None  # Will use placeholder
+            banner["thumbnail"] = thumbnail
         
         response["items"] = banners
     
