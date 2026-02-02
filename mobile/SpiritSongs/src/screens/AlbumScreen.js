@@ -34,7 +34,31 @@ const AlbumScreen = ({ route, navigation }) => {
   const { album, playlist, mix } = params;
   const item = album || playlist || mix;
   
-  // If no item, show error state
+  const [songs, setSongs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [likedSongs, setLikedSongs] = useState(new Set());
+  
+  // Modals
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [selectedSong, setSelectedSong] = useState(null);
+
+  const { playTrack, currentTrack } = usePlayer();
+  const { isAuthenticated, user } = useAuth();
+  const { billingEnabled, isPremium } = useBilling();
+
+  useEffect(() => {
+    if (item) {
+      loadSongs();
+      if (isAuthenticated) {
+        loadLikedSongs();
+      }
+    }
+  }, [item, isAuthenticated]);
+  
+  // If no item, show error state - AFTER all hooks are called
   if (!item) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -56,28 +80,6 @@ const AlbumScreen = ({ route, navigation }) => {
       </SafeAreaView>
     );
   }
-  
-  const [songs, setSongs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [likedSongs, setLikedSongs] = useState(new Set());
-  
-  // Modals
-  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
-  const [showActionsModal, setShowActionsModal] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [selectedSong, setSelectedSong] = useState(null);
-
-  const { playTrack, currentTrack } = usePlayer();
-  const { isAuthenticated, user } = useAuth();
-  const { billingEnabled, isPremium } = useBilling();
-
-  useEffect(() => {
-    loadSongs();
-    if (isAuthenticated) {
-      loadLikedSongs();
-    }
-  }, [item, isAuthenticated]);
 
   const loadSongs = async () => {
     try {
