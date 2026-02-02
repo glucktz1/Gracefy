@@ -793,5 +793,146 @@ async def get_content_revenue_analytics(
         "content_type": content_type,
         "period": period,
         "top_content": top_content,
+
+
+@router.get("/admin/analytics/navigation")
+async def get_navigation_analytics(
+    platform: Optional[str] = Query(None),
+    days: int = Query(7, ge=1, le=90)
+):
+    """Get navigation/page analytics - tracks which pages users visit"""
+    db = get_db()
+    from datetime import timedelta
+    
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    query = {"timestamp": {"$gte": start_date.isoformat()}}
+    if platform:
+        query["platform"] = platform
+    
+    # Get page views from navigation_events collection (if exists)
+    page_views = await db.navigation_events.find(query, {"_id": 0}).to_list(10000)
+    
+    if not page_views:
+        # Generate sample data if no real data
+        sample_pages = ["Home", "Search", "Library", "Album", "Profile", "Bible", "Subscription"]
+        import random
+        
+        page_stats = []
+        for page in sample_pages:
+            views = random.randint(50, 500)
+            page_stats.append({
+                "page": page,
+                "views": views,
+                "unique_users": int(views * 0.7),
+                "avg_time_seconds": random.randint(30, 180),
+                "bounce_rate": round(random.uniform(0.2, 0.6), 2)
+            })
+        
+        return {
+            "period_days": days,
+            "total_page_views": sum(p["views"] for p in page_stats),
+            "unique_users": int(sum(p["unique_users"] for p in page_stats) * 0.3),
+            "pages": sorted(page_stats, key=lambda x: x["views"], reverse=True),
+            "platforms": {"app": 60, "web": 40},
+            "is_sample_data": True
+        }
+    
+    # Aggregate by page
+    page_pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": "$page",
+            "views": {"$sum": 1},
+            "unique_users": {"$addToSet": "$user_id"},
+            "avg_time": {"$avg": "$time_on_page"}
+        }},
+        {"$project": {
+            "page": "$_id",
+            "views": 1,
+            "unique_users": {"$size": "$unique_users"},
+            "avg_time_seconds": {"$round": ["$avg_time", 0]}
+        }},
+        {"$sort": {"views": -1}}
+    ]
+    pages = await db.navigation_events.aggregate(page_pipeline).to_list(50)
+    
+    # Platform distribution
+    platform_pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$platform", "count": {"$sum": 1}}}
+    ]
+    platforms = await db.navigation_events.aggregate(platform_pipeline).to_list(10)
+    
+    total_views = sum(p.get("views", 0) for p in pages)
+    unique_pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "total"}
+    ]
+    unique_result = await db.navigation_events.aggregate(unique_pipeline).to_list(1)
+    total_unique = unique_result[0]["total"] if unique_result else 0
+    
+    return {
+        "period_days": days,
+        "total_page_views": total_views,
+        "unique_users": total_unique,
+        "pages": pages,
+        "platforms": {p["_id"]: p["count"] for p in platforms},
+        "is_sample_data": False
+    }
+
+
+@router.get("/admin/analytics/navigation/{page}")
+async def get_page_analytics_detail(
+    page: str,
+    days: int = Query(7)
+):
+    """Get detailed analytics for a specific page"""
+    db = get_db()
+    from datetime import timedelta
+    
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # Get events for this page
+    events = await db.navigation_events.find({
+        "page": page,
+        "timestamp": {"$gte": start_date.isoformat()}
+    }, {"_id": 0}).to_list(5000)
+    
+    if not events:
+        # Return sample data
+        import random
+        return {
+            "page": page,
+            "period_days": days,
+            "total_views": random.randint(100, 500),
+            "unique_users": random.randint(50, 200),
+            "avg_time_seconds": random.randint(30, 180),
+            "entry_sources": {"direct": 40, "search": 30, "navigation": 30},
+            "exit_rate": round(random.uniform(0.2, 0.5), 2),
+            "is_sample_data": True
+        }
+    
+    total_views = len(events)
+    unique_users = len(set(e.get("user_id") for e in events if e.get("user_id")))
+    avg_time = sum(e.get("time_on_page", 0) for e in events) / total_views if total_views > 0 else 0
+    
+    # Source analysis
+    sources = {}
+    for e in events:
+        source = e.get("source", "direct")
+        sources[source] = sources.get(source, 0) + 1
+    
+    return {
+        "page": page,
+        "period_days": days,
+        "total_views": total_views,
+        "unique_users": unique_users,
+        "avg_time_seconds": round(avg_time),
+        "entry_sources": sources,
+        "is_sample_data": False
+    }
+
         "note": "Revenue is estimated based on play counts"
     }
