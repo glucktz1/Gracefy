@@ -45,9 +45,37 @@ const AlbumScreen = ({ route, navigation }) => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
 
-  const { playTrack, currentTrack } = usePlayer();
-  const { isAuthenticated, user } = useAuth();
-  const { billingEnabled, isPremium } = useBilling();
+  // Wrap context hooks in try-catch
+  let playTrack = () => {};
+  let currentTrack = null;
+  let isAuthenticated = false;
+  let user = null;
+  let billingEnabled = false;
+  let isPremium = false;
+
+  try {
+    const playerContext = usePlayer();
+    playTrack = playerContext?.playTrack || (() => {});
+    currentTrack = playerContext?.currentTrack || null;
+  } catch (e) {
+    console.error('Error accessing PlayerContext:', e);
+  }
+
+  try {
+    const authContext = useAuth();
+    isAuthenticated = authContext?.isAuthenticated || false;
+    user = authContext?.user || null;
+  } catch (e) {
+    console.error('Error accessing AuthContext:', e);
+  }
+
+  try {
+    const billingContext = useBilling();
+    billingEnabled = billingContext?.billingEnabled || false;
+    isPremium = billingContext?.isPremium || false;
+  } catch (e) {
+    console.error('Error accessing BillingContext:', e);
+  }
 
   useEffect(() => {
     if (item) {
