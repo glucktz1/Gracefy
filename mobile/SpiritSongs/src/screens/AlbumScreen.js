@@ -45,37 +45,18 @@ const AlbumScreen = ({ route, navigation }) => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
 
-  // Wrap context hooks in try-catch
-  let playTrack = () => {};
-  let currentTrack = null;
-  let isAuthenticated = false;
-  let user = null;
-  let billingEnabled = false;
-  let isPremium = false;
-
-  try {
-    const playerContext = usePlayer();
-    playTrack = playerContext?.playTrack || (() => {});
-    currentTrack = playerContext?.currentTrack || null;
-  } catch (e) {
-    console.error('Error accessing PlayerContext:', e);
-  }
-
-  try {
-    const authContext = useAuth();
-    isAuthenticated = authContext?.isAuthenticated || false;
-    user = authContext?.user || null;
-  } catch (e) {
-    console.error('Error accessing AuthContext:', e);
-  }
-
-  try {
-    const billingContext = useBilling();
-    billingEnabled = billingContext?.billingEnabled || false;
-    isPremium = billingContext?.isPremium || false;
-  } catch (e) {
-    console.error('Error accessing BillingContext:', e);
-  }
+  // Call hooks unconditionally - they have built-in fallbacks
+  const playerContext = usePlayer();
+  const authContext = useAuth();
+  const billingContext = useBilling();
+  
+  // Extract values with safe fallbacks
+  const playTrack = playerContext?.playTrack ?? (() => {});
+  const currentTrack = playerContext?.currentTrack ?? null;
+  const isAuthenticated = authContext?.isAuthenticated ?? false;
+  const user = authContext?.user ?? null;
+  const billingEnabled = billingContext?.billingEnabled ?? false;
+  const isPremium = billingContext?.isPremium ?? false;
 
   useEffect(() => {
     if (item) {
