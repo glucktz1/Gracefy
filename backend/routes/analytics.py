@@ -936,6 +936,3 @@ async def get_page_analytics_detail(
         "entry_sources": sources,
         "is_sample_data": False
     }
-
-        "note": "Revenue is estimated based on play counts"
-    }
