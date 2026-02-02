@@ -32,7 +32,6 @@ const LibraryScreen = ({ navigation, route }) => {
   const [likedSongs, setLikedSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
   
   // Modals
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -41,51 +40,23 @@ const LibraryScreen = ({ navigation, route }) => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
 
-  // Wrap context hooks in try-catch to handle any initialization issues
-  let isAuthenticated = false;
-  let user = null;
-  let playTrack = () => {};
-  let currentTrack = null;
-  let isPlaying = false;
-  let billingEnabled = false;
-  let isPremium = false;
-  let downloads = [];
-  let isDownloaded = () => false;
-  let refreshDownloads = async () => {};
-
-  try {
-    const authContext = useAuth();
-    isAuthenticated = authContext?.isAuthenticated || false;
-    user = authContext?.user || null;
-  } catch (e) {
-    console.error('Error accessing AuthContext:', e);
-  }
-
-  try {
-    const playerContext = usePlayer();
-    playTrack = playerContext?.playTrack || (() => {});
-    currentTrack = playerContext?.currentTrack || null;
-    isPlaying = playerContext?.isPlaying || false;
-  } catch (e) {
-    console.error('Error accessing PlayerContext:', e);
-  }
-
-  try {
-    const billingContext = useBilling();
-    billingEnabled = billingContext?.billingEnabled || false;
-    isPremium = billingContext?.isPremium || false;
-  } catch (e) {
-    console.error('Error accessing BillingContext:', e);
-  }
-
-  try {
-    const downloadContext = useDownloads();
-    downloads = downloadContext?.downloads || [];
-    isDownloaded = downloadContext?.isDownloaded || (() => false);
-    refreshDownloads = downloadContext?.refreshDownloads || (async () => {});
-  } catch (e) {
-    console.error('Error accessing DownloadContext:', e);
-  }
+  // Call hooks unconditionally - they have built-in fallbacks
+  const authContext = useAuth();
+  const playerContext = usePlayer();
+  const billingContext = useBilling();
+  const downloadContext = useDownloads();
+  
+  // Extract values with safe fallbacks
+  const isAuthenticated = authContext?.isAuthenticated ?? false;
+  const user = authContext?.user ?? null;
+  const playTrack = playerContext?.playTrack ?? (() => {});
+  const currentTrack = playerContext?.currentTrack ?? null;
+  const isPlaying = playerContext?.isPlaying ?? false;
+  const billingEnabled = billingContext?.billingEnabled ?? false;
+  const isPremium = billingContext?.isPremium ?? false;
+  const downloads = downloadContext?.downloads ?? [];
+  const isDownloaded = downloadContext?.isDownloaded ?? (() => false);
+  const refreshDownloads = downloadContext?.refreshDownloads ?? (async () => {});
 
   // Update activeTab when route params change
   useEffect(() => {
