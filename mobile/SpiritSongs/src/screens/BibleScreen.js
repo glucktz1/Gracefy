@@ -470,41 +470,6 @@ const BibleScreen = ({ navigation }) => {
           </View>
         </View>
         
-        {/* Voice Selection */}
-        <View style={styles.voiceSection}>
-          <Text style={styles.voiceLabel}>Sauti:</Text>
-          <View style={styles.voiceButtons}>
-            <TouchableOpacity 
-              style={[styles.voiceButton, selectedVoice === 'female' && styles.voiceButtonActive]}
-              onPress={() => setSelectedVoice('female')}
-            >
-              <Ionicons 
-                name="woman" 
-                size={20} 
-                color={selectedVoice === 'female' ? COLORS.background : COLORS.text} 
-              />
-              <Text style={[
-                styles.voiceButtonText,
-                selectedVoice === 'female' && styles.voiceButtonTextActive
-              ]}>Kike</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.voiceButton, selectedVoice === 'male' && styles.voiceButtonActive]}
-              onPress={() => setSelectedVoice('male')}
-            >
-              <Ionicons 
-                name="man" 
-                size={20} 
-                color={selectedVoice === 'male' ? COLORS.background : COLORS.text} 
-              />
-              <Text style={[
-                styles.voiceButtonText,
-                selectedVoice === 'male' && styles.voiceButtonTextActive
-              ]}>Kiume</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        
         {/* Cache Info */}
         <View style={styles.cacheInfo}>
           <Ionicons name="cloud-done-outline" size={16} color={COLORS.textMuted} />
