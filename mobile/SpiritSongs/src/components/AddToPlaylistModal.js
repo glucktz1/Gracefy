@@ -13,6 +13,7 @@ import {
   Share,
   PermissionsAndroid,
   Platform,
+  Keyboard,
   KeyboardAvoidingView,
   Keyboard,
 } from 'react-native';
