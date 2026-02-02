@@ -509,7 +509,8 @@ const HomeScreen = ({ navigation }) => {
                     </LinearGradient>
                   </ImageBackground>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </ScrollView>
             {/* Pagination Dots */}
             {heroContent.items.length > 1 && (
