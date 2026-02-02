@@ -329,6 +329,33 @@ async def clear_all_tts_cache():
     return {"message": f"Cleared {result.deleted_count} cache entries"}
 
 
+# Public TTS settings endpoint for mobile app (no admin required)
+@router.get("/bible/tts-settings")
+async def get_public_bible_tts_settings():
+    """Get Bible TTS settings for mobile app (public endpoint)"""
+    db = get_db()
+    
+    settings = await db.bible_settings.find_one({"settings_id": "main"}, {"_id": 0})
+    
+    if not settings:
+        settings = {
+            "settings_id": "main",
+            "default_voice": "sw-KE-Zuri-Female",
+            "default_voice_male": "sw-KE-Rafiki-Male", 
+            "default_voice_female": "sw-KE-Zuri-Female",
+            "default_speed": 1.0,
+            "auto_play": True,
+            "verse_pause_ms": 500,
+            "enabled": True
+        }
+    
+    # Ensure default_speed is present
+    if "default_speed" not in settings:
+        settings["default_speed"] = 1.0
+    
+    return settings
+
+
 @router.get("/admin/bible/tts-settings")
 async def get_bible_tts_settings():
     """Get Bible TTS settings"""
