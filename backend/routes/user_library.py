@@ -271,7 +271,7 @@ async def unlike_song(song_id: str, request: Request):
 
 @router.get("/library/playlists")
 async def get_playlists(request: Request):
-    """Get user's playlists"""
+    """Get user's playlists with song count"""
     db = get_db()
     user = await get_user_from_token(request)
     
@@ -282,6 +282,20 @@ async def get_playlists(request: Request):
         {"user_id": user["user_id"]},
         {"_id": 0}
     ).sort("created_at", -1).to_list(100)
+    
+    # Add song count and first song thumbnail for each playlist
+    for playlist in playlists:
+        songs = playlist.get("songs", [])
+        playlist["song_count"] = len(songs)
+        
+        # Get thumbnail from first song if playlist doesn't have one
+        if not playlist.get("thumbnail") and songs:
+            first_song = await db.songs.find_one(
+                {"song_id": songs[0]},
+                {"thumbnail": 1, "thumbnail_url": 1}
+            )
+            if first_song:
+                playlist["thumbnail"] = first_song.get("thumbnail") or first_song.get("thumbnail_url")
     
     return {"playlists": playlists}
 
