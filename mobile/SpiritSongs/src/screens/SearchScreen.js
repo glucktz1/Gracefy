@@ -25,7 +25,17 @@ const SearchScreen = ({ navigation }) => {
   const [allAlbums, setAllAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { playTrack, currentTrack } = usePlayer();
+  // Wrap context hooks in try-catch
+  let playTrack = () => {};
+  let currentTrack = null;
+
+  try {
+    const playerContext = usePlayer();
+    playTrack = playerContext?.playTrack || (() => {});
+    currentTrack = playerContext?.currentTrack || null;
+  } catch (e) {
+    console.error('Error accessing PlayerContext:', e);
+  }
 
   useEffect(() => {
     loadInitialData();
