@@ -67,15 +67,32 @@ const LoginScreen = ({ navigation }) => {
     };
   }, []);
 
-  const handleGoogleCallback = async (sessionId) => {
+  const handleGoogleCallback = async (sessionId, directToken = null) => {
     try {
       setGoogleLoading(true);
-      const response = await authAPI.googleCallback(sessionId);
-      if (response.data?.token) {
-        await login(response.data.token, response.data.user);
-        Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
-          { text: 'Sawa', onPress: () => navigation.goBack() }
-        ]);
+      
+      if (directToken) {
+        // If we have a direct token, use it
+        const userResponse = await authAPI.getMe(directToken);
+        if (userResponse.data) {
+          await login(directToken, userResponse.data);
+          Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
+            { text: 'Sawa', onPress: () => navigation.goBack() }
+          ]);
+        }
+      } else if (sessionId) {
+        // Exchange session_id for token
+        const response = await authAPI.googleCallback(sessionId);
+        if (response.data?.token) {
+          await login(response.data.token, response.data.user);
+          Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
+            { text: 'Sawa', onPress: () => navigation.goBack() }
+          ]);
+        } else {
+          throw new Error('No token received');
+        }
+      } else {
+        throw new Error('No session ID or token');
       }
     } catch (error) {
       console.error('Google auth error:', error);
