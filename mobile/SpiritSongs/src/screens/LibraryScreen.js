@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  FlatList,
   ActivityIndicator,
-  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +36,11 @@ const LibraryScreen = ({ navigation, route }) => {
   // Modal state
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
+  
+  // Create playlist modal state
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
   // Context - call hooks at top level unconditionally
   const authContext = useAuth();
@@ -127,43 +134,56 @@ const LibraryScreen = ({ navigation, route }) => {
     setShowActionsModal(true);
   }, []);
 
-  const handleCreatePlaylist = useCallback(() => {
+  // Create Playlist with proper modal
+  const handleOpenCreatePlaylist = useCallback(() => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
       return;
     }
-    Alert.prompt(
-      'Playlist Mpya',
-      'Weka jina la playlist',
-      async (name) => {
-        if (name?.trim()) {
-          try {
-            await libraryAPI.createPlaylist({ name: name.trim() });
-            showToast('Playlist imetengenezwa', 'success');
-            loadLibraryData();
-          } catch (error) {
-            showToast('Imeshindwa kutengeneza playlist', 'error');
-          }
-        }
-      },
-      'plain-text'
-    );
+    setNewPlaylistName('');
+    setShowCreatePlaylistModal(true);
   }, [isAuthenticated, navigation]);
 
+  const handleCreatePlaylist = useCallback(async () => {
+    const name = newPlaylistName.trim();
+    if (!name) {
+      showToast('Tafadhali weka jina la playlist', 'error');
+      return;
+    }
+    
+    setCreatingPlaylist(true);
+    try {
+      await libraryAPI.createPlaylist({ name });
+      showToast('Playlist imetengenezwa', 'success');
+      setShowCreatePlaylistModal(false);
+      setNewPlaylistName('');
+      loadLibraryData();
+    } catch (error) {
+      showToast('Imeshindwa kutengeneza playlist', 'error');
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  }, [newPlaylistName]);
+
+  // Like/Unlike song
   const handleLikeSong = useCallback(async (song) => {
     if (!song?.song_id) return;
+    
     try {
       const isLiked = likedSongs.some(s => s?.song_id === song.song_id);
+      
       if (isLiked) {
         await libraryAPI.unlikeSong(song.song_id);
         setLikedSongs(prev => prev.filter(s => s?.song_id !== song.song_id));
         showToast('Imeondolewa kwenye zilizopendwa', 'success');
       } else {
         await libraryAPI.likeSong(song.song_id);
-        setLikedSongs(prev => [...prev, song]);
+        // Add the full song object to the list
+        setLikedSongs(prev => [song, ...prev]);
         showToast('Imeongezwa kwenye zilizopendwa', 'success');
       }
     } catch (error) {
+      console.error('Error toggling like:', error);
       showToast('Imeshindwa', 'error');
     }
   }, [likedSongs]);
@@ -252,7 +272,7 @@ const LibraryScreen = ({ navigation, route }) => {
       {/* User Playlists */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Playlist Zako</Text>
-        <TouchableOpacity onPress={handleCreatePlaylist}>
+        <TouchableOpacity onPress={handleOpenCreatePlaylist}>
           <Ionicons name="add-circle" size={28} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
@@ -282,7 +302,7 @@ const LibraryScreen = ({ navigation, route }) => {
       ) : (
         <View style={styles.emptySection}>
           <Text style={styles.emptySectionText}>Hakuna playlist bado</Text>
-          <TouchableOpacity style={styles.createButton} onPress={handleCreatePlaylist}>
+          <TouchableOpacity style={styles.createButton} onPress={handleOpenCreatePlaylist}>
             <Ionicons name="add" size={20} color={COLORS.text} />
             <Text style={styles.createButtonText}>Tengeneza Playlist</Text>
           </TouchableOpacity>
@@ -378,7 +398,7 @@ const LibraryScreen = ({ navigation, route }) => {
           >
             <Ionicons name="search" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={handleCreatePlaylist}>
+          <TouchableOpacity style={styles.headerIcon} onPress={handleOpenCreatePlaylist}>
             <Ionicons name="add" size={28} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -437,10 +457,7 @@ const LibraryScreen = ({ navigation, route }) => {
         onLike={() => handleLikeSong(selectedSong)}
         onAddToPlaylist={() => {
           setShowActionsModal(false);
-          // Navigate to add to playlist
-        }}
-        onDownload={() => {
-          setShowActionsModal(false);
+          // Navigate to add to playlist screen or show playlist picker
         }}
         onLoginRequired={() => {
           setShowActionsModal(false);
@@ -451,6 +468,57 @@ const LibraryScreen = ({ navigation, route }) => {
           navigation.navigate('Subscription');
         }}
       />
+
+      {/* Create Playlist Modal */}
+      <Modal
+        visible={showCreatePlaylistModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCreatePlaylistModal(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowCreatePlaylistModal(false)}
+          >
+            <View style={styles.createPlaylistModal} onStartShouldSetResponder={() => true}>
+              <Text style={styles.modalTitle}>Playlist Mpya</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Jina la playlist..."
+                placeholderTextColor={COLORS.textMuted}
+                value={newPlaylistName}
+                onChangeText={setNewPlaylistName}
+                autoFocus
+                maxLength={50}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={styles.modalCancelButton}
+                  onPress={() => setShowCreatePlaylistModal(false)}
+                >
+                  <Text style={styles.modalCancelText}>Ghairi</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalCreateButton, !newPlaylistName.trim() && styles.modalButtonDisabled]}
+                  onPress={handleCreatePlaylist}
+                  disabled={!newPlaylistName.trim() || creatingPlaylist}
+                >
+                  {creatingPlaylist ? (
+                    <ActivityIndicator size="small" color={COLORS.text} />
+                  ) : (
+                    <Text style={styles.modalCreateText}>Tengeneza</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -650,6 +718,67 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.text,
     fontWeight: '500',
+  },
+  // Create Playlist Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createPlaylistModal: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    width: '85%',
+    maxWidth: 350,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  modalInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+  },
+  modalCancelButton: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  modalCancelText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+  },
+  modalCreateButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalCreateText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
   },
 });
 
