@@ -85,6 +85,21 @@ const BibleScreen = ({ navigation }) => {
     }
   };
 
+  // Load TTS settings from admin (voice, speed controlled by admin)
+  const loadTtsSettings = async () => {
+    try {
+      const response = await bibleAPI.getTtsSettings();
+      if (response.data) {
+        setTtsSettings({
+          default_voice: response.data.default_voice || 'sw-KE-Zuri-Female',
+          default_speed: response.data.default_speed || 1.0
+        });
+      }
+    } catch (error) {
+      console.log('Error loading TTS settings, using defaults:', error);
+    }
+  };
+
   const cleanupAudio = async () => {
     if (soundRef.current) {
       try {
