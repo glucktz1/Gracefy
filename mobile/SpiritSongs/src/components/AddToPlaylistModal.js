@@ -17,8 +17,8 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// Use legacy API for backward compatibility with SDK 54
-import * as FileSystem from 'expo-file-system/legacy';
+// Use standard expo-file-system API
+import * as FileSystem from 'expo-file-system';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { libraryAPI, contentAPI, getImageUrl, getAudioUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
