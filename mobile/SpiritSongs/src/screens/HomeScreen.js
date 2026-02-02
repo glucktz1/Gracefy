@@ -64,8 +64,15 @@ const HomeScreen = ({ navigation }) => {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
 
-  const { playTrack, currentTrack } = usePlayer();
-  const { isAuthenticated, user } = useAuth();
+  // Call hooks unconditionally - they have built-in fallbacks
+  const playerContext = usePlayer();
+  const authContext = useAuth();
+  
+  // Extract values with safe fallbacks
+  const playTrack = playerContext?.playTrack ?? (() => {});
+  const currentTrack = playerContext?.currentTrack ?? null;
+  const isAuthenticated = authContext?.isAuthenticated ?? false;
+  const user = authContext?.user ?? null;
 
   useEffect(() => {
     updateGreeting();
