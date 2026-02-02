@@ -44,28 +44,28 @@ import { COLORS } from './src/config/theme';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Tab Navigator with safe area padding and error boundaries
+// Wrapped screen components - defined outside TabNavigator to prevent recreation on every render
+const SafeHomeScreen = (props) => (
+  <ErrorBoundary fallbackMessage="Imeshindwa kupakia ukurasa wa nyumbani. Jaribu tena.">
+    <HomeScreen {...props} />
+  </ErrorBoundary>
+);
+
+const SafeSearchScreen = (props) => (
+  <ErrorBoundary fallbackMessage="Imeshindwa kupakia ukurasa wa kutafuta. Jaribu tena.">
+    <SearchScreen {...props} />
+  </ErrorBoundary>
+);
+
+const SafeLibraryScreen = (props) => (
+  <ErrorBoundary fallbackMessage="Imeshindwa kupakia maktaba. Jaribu tena.">
+    <LibraryScreen {...props} />
+  </ErrorBoundary>
+);
+
+// Tab Navigator with safe area padding
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
-  
-  // Wrap screens with ErrorBoundary for crash protection
-  const SafeHomeScreen = (props) => (
-    <ErrorBoundary fallbackMessage="Imeshindwa kupakia ukurasa wa nyumbani. Jaribu tena.">
-      <HomeScreen {...props} />
-    </ErrorBoundary>
-  );
-  
-  const SafeSearchScreen = (props) => (
-    <ErrorBoundary fallbackMessage="Imeshindwa kupakia ukurasa wa kutafuta. Jaribu tena.">
-      <SearchScreen {...props} />
-    </ErrorBoundary>
-  );
-  
-  const SafeLibraryScreen = (props) => (
-    <ErrorBoundary fallbackMessage="Imeshindwa kupakia maktaba. Jaribu tena.">
-      <LibraryScreen {...props} />
-    </ErrorBoundary>
-  );
   
   return (
     <Tab.Navigator
