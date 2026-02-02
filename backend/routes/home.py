@@ -82,7 +82,8 @@ async def fetch_section_content(db, section: dict) -> dict:
         "name": section_name,
         "title": section_name,
         "description": section.get("description", ""),
-        "section_type": section["section_type"]
+        "section_type": section["section_type"],
+        "layout_style": section.get("layout_style", "horizontal_small"),  # Add layout_style for frontend rendering
     }
     
     content_count = section.get("content_count", 10)
