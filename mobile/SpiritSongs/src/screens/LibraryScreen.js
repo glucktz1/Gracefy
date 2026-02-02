@@ -323,20 +323,20 @@ const LibraryScreen = ({ navigation, route }) => {
             </TouchableOpacity>
 
             {/* User Playlists */}
-            {playlists.map((playlist) => (
+            {(playlists || []).map((playlist, index) => (
               <TouchableOpacity
-                key={playlist.playlist_id}
+                key={playlist?.playlist_id || `playlist-${index}`}
                 style={styles.playlistItem}
                 onPress={() => navigation.navigate('Playlist', { playlist })}
               >
                 <Image
-                  source={{ uri: getImageUrl(playlist.thumbnail) || 'https://via.placeholder.com/56' }}
+                  source={{ uri: getImageUrl(playlist?.thumbnail) || 'https://via.placeholder.com/56' }}
                   style={styles.playlistImage}
                 />
                 <View style={styles.playlistInfo}>
-                  <Text style={styles.playlistTitle}>{playlist.name}</Text>
+                  <Text style={styles.playlistTitle}>{playlist?.name || 'Playlist'}</Text>
                   <Text style={styles.playlistMeta}>
-                    Playlist • {playlist.song_count || 0} nyimbo
+                    Playlist • {playlist?.song_count || 0} nyimbo
                   </Text>
                 </View>
               </TouchableOpacity>
