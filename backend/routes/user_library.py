@@ -283,15 +283,21 @@ async def get_playlists(request: Request):
         {"_id": 0}
     ).sort("created_at", -1).to_list(100)
     
-    # Add song count and first song thumbnail for each playlist
+    # Add accurate song count and first song thumbnail for each playlist
     for playlist in playlists:
-        songs = playlist.get("songs", [])
-        playlist["song_count"] = len(songs)
+        song_ids = playlist.get("songs", [])
+        
+        # Get actual count of existing songs
+        if song_ids:
+            actual_count = await db.songs.count_documents({"song_id": {"$in": song_ids}})
+            playlist["song_count"] = actual_count
+        else:
+            playlist["song_count"] = 0
         
         # Get thumbnail from first song if playlist doesn't have one
-        if not playlist.get("thumbnail") and songs:
+        if not playlist.get("thumbnail") and song_ids:
             first_song = await db.songs.find_one(
-                {"song_id": songs[0]},
+                {"song_id": song_ids[0]},
                 {"thumbnail": 1, "thumbnail_url": 1}
             )
             if first_song:
