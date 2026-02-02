@@ -697,10 +697,10 @@ const HomeScreen = ({ navigation }) => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
               {mafundishoContent.map((item) => (
                 <TouchableOpacity 
-                  key={item.container_id} 
+                  key={item.teaching_id || item.container_id} 
                   style={styles.mafundishoCard}
                   activeOpacity={0.9}
-                  onPress={() => navigation.navigate('MafundishoDetail', { containerId: item.container_id, mafundisho: item })}
+                  onPress={() => navigation.navigate('MafundishoDetail', { teachingId: item.teaching_id, containerId: item.container_id, mafundisho: item })}
                 >
                   {/* Purple Accent Band */}
                   <View style={styles.mafundishoBand}>
@@ -720,20 +720,20 @@ const HomeScreen = ({ navigation }) => {
                       na {item.leader_name || 'Unknown'}
                     </Text>
                     <Text style={styles.mafundishoEpisodes}>
-                      {item.series_count || 0} mfululizo • {item.total_classes || item.episode_count || 0} vipindi
+                      {item.topic_count || item.series_count || 0} mada • {item.lesson_count || item.total_classes || item.episode_count || 0} sehemu
                     </Text>
                     
                     {/* Action Icons */}
                     <View style={styles.mafundishoActions}>
                       <TouchableOpacity 
                         style={styles.mafundishoAddBtn}
-                        onPress={() => navigation.navigate('MafundishoDetail', { containerId: item.container_id, mafundisho: item })}
+                        onPress={() => navigation.navigate('MafundishoDetail', { teachingId: item.teaching_id, containerId: item.container_id, mafundisho: item })}
                       >
                         <Ionicons name="list-outline" size={28} color={COLORS.textSecondary} />
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={styles.mafundishoPlayBtn}
-                        onPress={() => navigation.navigate('MafundishoDetail', { containerId: item.container_id, mafundisho: item })}
+                        onPress={() => navigation.navigate('MafundishoDetail', { teachingId: item.teaching_id, containerId: item.container_id, mafundisho: item })}
                       >
                         <Ionicons name="play" size={24} color={COLORS.background} />
                       </TouchableOpacity>
