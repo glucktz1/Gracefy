@@ -627,6 +627,19 @@ const HomeScreen = ({ navigation }) => {
               {heroContent.items.map((item, index) => {
                 // Get the best available thumbnail URL
                 const thumbnailUrl = item.thumbnail || item.thumbnail_url || item.image_url || item.cover_image;
+                const hasImage = thumbnailUrl && thumbnailUrl.length > 0;
+                
+                // Default placeholder with gradient colors based on index
+                const gradientColors = [
+                  ['#667eea', '#764ba2'], // Purple-pink
+                  ['#f093fb', '#f5576c'], // Pink-red
+                  ['#4facfe', '#00f2fe'], // Blue-cyan
+                  ['#43e97b', '#38f9d7'], // Green-teal
+                  ['#fa709a', '#fee140'], // Pink-yellow
+                  ['#30cfd0', '#330867'], // Cyan-purple
+                ];
+                const colorIndex = index % gradientColors.length;
+                
                 return (
                   <TouchableOpacity 
                     key={item.album_id || item.mix_id || item.banner_id || `hero-${index}`}
@@ -634,29 +647,56 @@ const HomeScreen = ({ navigation }) => {
                     onPress={() => handleHeroPress(item)}
                     activeOpacity={0.9}
                   >
-                    <ImageBackground
-                      source={{ uri: getImageUrl(thumbnailUrl) || 'https://via.placeholder.com/400' }}
-                      style={styles.heroImage}
-                      imageStyle={styles.heroImageStyle}
-                    >
-                      <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.7)', COLORS.background]}
-                        style={styles.heroGradient}
+                    {hasImage ? (
+                      <ImageBackground
+                        source={{ uri: getImageUrl(thumbnailUrl) }}
+                        style={styles.heroImage}
+                        imageStyle={styles.heroImageStyle}
+                        defaultSource={{ uri: 'https://via.placeholder.com/400x200/333/fff?text=Loading...' }}
                       >
-                        <Text style={styles.heroLabel}>FEATURED</Text>
-                        <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.name}</Text>
-                        <Text style={styles.heroSubtitle} numberOfLines={1}>
-                          {item.artist_name || item.subtitle || item.description || 'Curated for you'}
-                        </Text>
-                        <View style={styles.heroButtons}>
-                          <TouchableOpacity style={styles.heroPlayButton} onPress={() => handleHeroPress(item)}>
-                            <Ionicons name="play" size={20} color={COLORS.background} />
-                            <Text style={styles.heroPlayText}>Cheza</Text>
-                          </TouchableOpacity>
-                        </View>
-                    </LinearGradient>
-                  </ImageBackground>
-                </TouchableOpacity>
+                        <LinearGradient
+                          colors={['transparent', 'rgba(0,0,0,0.7)', COLORS.background]}
+                          style={styles.heroGradient}
+                        >
+                          <Text style={styles.heroLabel}>FEATURED</Text>
+                          <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.name}</Text>
+                          <Text style={styles.heroSubtitle} numberOfLines={1}>
+                            {item.artist_name || item.subtitle || item.description || 'Curated for you'}
+                          </Text>
+                          <View style={styles.heroButtons}>
+                            <TouchableOpacity style={styles.heroPlayButton} onPress={() => handleHeroPress(item)}>
+                              <Ionicons name="play" size={20} color={COLORS.background} />
+                              <Text style={styles.heroPlayText}>Cheza</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </LinearGradient>
+                      </ImageBackground>
+                    ) : (
+                      <LinearGradient
+                        colors={gradientColors[colorIndex]}
+                        style={[styles.heroImage, styles.heroImageStyle]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <LinearGradient
+                          colors={['transparent', 'rgba(0,0,0,0.5)', COLORS.background]}
+                          style={styles.heroGradient}
+                        >
+                          <Text style={styles.heroLabel}>FEATURED</Text>
+                          <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.name}</Text>
+                          <Text style={styles.heroSubtitle} numberOfLines={1}>
+                            {item.artist_name || item.subtitle || item.description || 'Curated for you'}
+                          </Text>
+                          <View style={styles.heroButtons}>
+                            <TouchableOpacity style={styles.heroPlayButton} onPress={() => handleHeroPress(item)}>
+                              <Ionicons name="play" size={20} color={COLORS.background} />
+                              <Text style={styles.heroPlayText}>Cheza</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </LinearGradient>
+                      </LinearGradient>
+                    )}
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
