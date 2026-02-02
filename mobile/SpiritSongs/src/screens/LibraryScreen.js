@@ -436,7 +436,7 @@ const LibraryScreen = ({ navigation, route }) => {
         visible={showActionsModal}
         onClose={() => setShowActionsModal(false)}
         song={selectedSong}
-        isLiked={selectedSong ? likedSongsSet.has(selectedSong.song_id) : false}
+        isLiked={selectedSong?.song_id ? likedSongsSet.has(selectedSong.song_id) : false}
         isAuthenticated={isAuthenticated}
         billingEnabled={billingEnabled}
         isPremium={isPremium}
