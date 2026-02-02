@@ -342,6 +342,9 @@ async def get_playlist(playlist_id: str, request: Request):
         {"_id": 0}
     ).to_list(500)
     
+    # Update song_count to reflect actual songs that exist
+    playlist["song_count"] = len(songs)
+    
     return {"playlist": playlist, "songs": songs}
 
 
