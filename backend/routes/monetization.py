@@ -560,3 +560,218 @@ async def get_choir_payouts():
         "total_pending_payout": total_pending,
         "accounts": accounts
     }
+
+
+
+# ============== FRONTEND-EXPECTED REVENUE ENDPOINTS ==============
+# These endpoints match what the RevenueAnalyticsPage.jsx expects
+
+@router.get("/revenue/admin/overview")
+async def get_revenue_admin_overview():
+    """Get revenue overview for admin dashboard"""
+    db = get_db()
+    
+    # Total revenue
+    total_pipeline = [
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    total_result = await db.transactions.aggregate(total_pipeline).to_list(1)
+    total_revenue = total_result[0]["total"] if total_result else 0
+    total_transactions = total_result[0]["count"] if total_result else 0
+    
+    # This month revenue
+    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": month_start.isoformat()}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    month_result = await db.transactions.aggregate(month_pipeline).to_list(1)
+    month_revenue = month_result[0]["total"] if month_result else 0
+    month_transactions = month_result[0]["count"] if month_result else 0
+    
+    # Active subscribers
+    active_subscribers = await db.app_users.count_documents({
+        "subscription_type": "premium",
+        "subscription_expires": {"$gt": datetime.now(timezone.utc).isoformat()}
+    })
+    
+    # Total listening hours (from sessions)
+    listen_pipeline = [
+        {"$group": {"_id": None, "total": {"$sum": "$duration_seconds"}}}
+    ]
+    listen_result = await db.listening_sessions.aggregate(listen_pipeline).to_list(1)
+    total_listen_hours = round((listen_result[0]["total"] if listen_result else 0) / 3600, 1)
+    
+    # Pending choir payouts
+    payout_pipeline = [
+        {"$match": {"current_balance": {"$gt": 0}}},
+        {"$group": {"_id": None, "total": {"$sum": "$current_balance"}}}
+    ]
+    payout_result = await db.choir_accounts.aggregate(payout_pipeline).to_list(1)
+    pending_payouts = payout_result[0]["total"] if payout_result else 0
+    
+    return {
+        "total_revenue": total_revenue,
+        "total_transactions": total_transactions,
+        "month_revenue": month_revenue,
+        "month_transactions": month_transactions,
+        "active_subscribers": active_subscribers,
+        "total_listen_hours": total_listen_hours,
+        "pending_payouts": pending_payouts,
+        "currency": "TZS"
+    }
+
+
+@router.get("/revenue/admin/daily")
+async def get_revenue_daily(days: int = Query(30, ge=1, le=365)):
+    """Get daily revenue data for charts"""
+    db = get_db()
+    
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    
+    pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": start_date}}},
+        {"$addFields": {"date": {"$substr": ["$created_at", 0, 10]}}},
+        {"$group": {
+            "_id": "$date",
+            "revenue": {"$sum": "$amount"},
+            "transactions": {"$sum": 1}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    
+    results = await db.transactions.aggregate(pipeline).to_list(days)
+    
+    return {
+        "daily_data": [
+            {"date": r["_id"], "revenue": r["revenue"], "transactions": r["transactions"]}
+            for r in results
+        ],
+        "period_days": days
+    }
+
+
+@router.get("/revenue/admin/choirs")
+async def get_choir_revenues():
+    """Get choir revenue breakdown"""
+    db = get_db()
+    
+    # Get all choir accounts with their earnings
+    accounts = await db.choir_accounts.find(
+        {},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(200)
+    
+    choir_data = []
+    for account in accounts:
+        choir = await db.singers.find_one(
+            {"singer_id": account.get("choir_id")},
+            {"_id": 0, "singer_id": 1, "name": 1, "total_plays": 1, "thumbnail": 1}
+        )
+        if choir:
+            choir_data.append({
+                "choir_id": account.get("choir_id"),
+                "name": choir.get("name"),
+                "thumbnail": choir.get("thumbnail"),
+                "total_plays": choir.get("total_plays", 0),
+                "total_earned": account.get("total_earned", 0),
+                "current_balance": account.get("current_balance", 0),
+                "total_withdrawn": account.get("total_withdrawn", 0)
+            })
+    
+    # Sort by total earned
+    choir_data.sort(key=lambda x: x.get("total_earned", 0), reverse=True)
+    
+    return {"choirs": choir_data, "total": len(choir_data)}
+
+
+@router.get("/revenue/settings")
+async def get_revenue_settings():
+    """Get revenue sharing settings"""
+    db = get_db()
+    
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    
+    if not settings:
+        # Default settings
+        settings = {
+            "premium_rate_per_hour": 10,  # TZS per hour for premium
+            "standard_rate_per_hour": 5,  # TZS per hour for standard
+            "platform_share_percentage": 30,
+            "minimum_withdrawal": 10000,
+            "currency": "TZS"
+        }
+    
+    return settings
+
+
+@router.post("/revenue/settings")
+async def update_revenue_settings(data: dict):
+    """Update revenue sharing settings"""
+    db = get_db()
+    
+    settings = {
+        "premium_rate_per_hour": data.get("premium_rate_per_hour", 10),
+        "standard_rate_per_hour": data.get("standard_rate_per_hour", 5),
+        "platform_share_percentage": data.get("platform_share_percentage", 30),
+        "minimum_withdrawal": data.get("minimum_withdrawal", 10000),
+        "effective_from": data.get("effective_from", datetime.now(timezone.utc).isoformat()[:10]),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": data.get("updated_by", "admin")
+    }
+    
+    await db.revenue_settings.insert_one(settings)
+    settings.pop("_id", None)
+    
+    return settings
+
+
+@router.post("/demo/generate-listening-data")
+async def generate_demo_listening_data():
+    """Generate demo listening data for testing analytics"""
+    db = get_db()
+    import random
+    
+    # Get some songs
+    songs = await db.songs.find({}, {"_id": 0, "song_id": 1}).limit(20).to_list(20)
+    
+    # Get some users
+    users = await db.app_users.find({}, {"_id": 0, "user_id": 1}).limit(50).to_list(50)
+    
+    if not songs:
+        return {"error": "No songs found", "generated": 0}
+    
+    sessions_created = 0
+    for _ in range(100):
+        song = random.choice(songs) if songs else None
+        user = random.choice(users) if users else None
+        
+        if song:
+            duration = random.randint(30, 300)
+            days_ago = random.randint(0, 30)
+            session_time = datetime.now(timezone.utc) - timedelta(days=days_ago, hours=random.randint(0, 23))
+            
+            session = {
+                "session_id": f"demo_session_{uuid.uuid4().hex[:12]}",
+                "content_type": "song",
+                "content_id": song.get("song_id"),
+                "user_id": user.get("user_id") if user else None,
+                "duration_seconds": duration,
+                "platform": random.choice(["app", "web", "ios", "android"]),
+                "start_time": session_time.isoformat(),
+                "end_time": (session_time + timedelta(seconds=duration)).isoformat(),
+                "counted_as_play": duration >= 45
+            }
+            
+            await db.listening_sessions.insert_one(session)
+            sessions_created += 1
+            
+            # Update song play count
+            if duration >= 45:
+                await db.songs.update_one(
+                    {"song_id": song.get("song_id")},
+                    {"$inc": {"play_count": 1}}
+                )
+    
+    return {"message": "Demo data generated", "sessions_created": sessions_created}
