@@ -17,11 +17,13 @@ import { usePlayer } from '../context/PlayerContext';
 import Toast from '../components/Toast';
 
 const MafundishoDetailScreen = ({ route, navigation }) => {
-  const { containerId, mafundisho } = route.params || {};
+  const { teachingId, containerId, mafundisho } = route.params || {};
+  const id = teachingId || containerId;
   
   const [loading, setLoading] = useState(true);
   const [container, setContainer] = useState(mafundisho || null);
   const [series, setSeries] = useState([]);
+  const [topics, setTopics] = useState([]);
   const [expandedSeries, setExpandedSeries] = useState({});
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
   
@@ -32,19 +34,26 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
   };
 
   useEffect(() => {
-    loadMafundishoDetail();
-  }, [containerId]);
+    if (id) {
+      loadMafundishoDetail();
+    }
+  }, [id]);
 
   const loadMafundishoDetail = async () => {
     try {
       setLoading(true);
-      const response = await leaderContentAPI.getMafundishoDetail(containerId);
+      const response = await leaderContentAPI.getMafundishoDetail(id);
       if (response.data) {
-        setContainer(response.data.container || mafundisho);
+        // Support both old container structure and new teaching structure
+        setContainer(response.data.container || response.data || mafundisho);
         setSeries(response.data.series || []);
-        // Auto-expand first series
+        setTopics(response.data.topics || []);
+        
+        // Auto-expand first series/topic
         if (response.data.series?.length > 0) {
           setExpandedSeries({ [response.data.series[0].series_id]: true });
+        } else if (response.data.topics?.length > 0) {
+          setExpandedSeries({ [response.data.topics[0].topic_id]: true });
         }
       }
     } catch (error) {
