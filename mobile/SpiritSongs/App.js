@@ -44,9 +44,28 @@ import { COLORS } from './src/config/theme';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Tab Navigator with safe area padding
+// Tab Navigator with safe area padding and error boundaries
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
+  
+  // Wrap screens with ErrorBoundary for crash protection
+  const SafeHomeScreen = (props) => (
+    <ErrorBoundary fallbackMessage="Imeshindwa kupakia ukurasa wa nyumbani. Jaribu tena.">
+      <HomeScreen {...props} />
+    </ErrorBoundary>
+  );
+  
+  const SafeSearchScreen = (props) => (
+    <ErrorBoundary fallbackMessage="Imeshindwa kupakia ukurasa wa kutafuta. Jaribu tena.">
+      <SearchScreen {...props} />
+    </ErrorBoundary>
+  );
+  
+  const SafeLibraryScreen = (props) => (
+    <ErrorBoundary fallbackMessage="Imeshindwa kupakia maktaba. Jaribu tena.">
+      <LibraryScreen {...props} />
+    </ErrorBoundary>
+  );
   
   return (
     <Tab.Navigator
@@ -83,9 +102,9 @@ const TabNavigator = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Library" component={LibraryScreen} />
+      <Tab.Screen name="Home" component={SafeHomeScreen} />
+      <Tab.Screen name="Search" component={SafeSearchScreen} />
+      <Tab.Screen name="Library" component={SafeLibraryScreen} />
     </Tab.Navigator>
   );
 };
