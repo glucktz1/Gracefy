@@ -208,25 +208,183 @@ async def get_admin_users(
 
 @router.get("/admin/users/{user_id}")
 async def get_admin_user(user_id: str):
-    """Get single user details - checks both admin and app users"""
+    """Get single user details with comprehensive analytics - checks both admin and app users"""
     db = get_db()
     
     # Try admin users first
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     if user:
         user["user_type"] = "admin"
-        return user
+    else:
+        # Try app users
+        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+        if user:
+            user["user_type"] = "app"
+            user["role"] = "user"
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
     
-    # Try app users
-    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
-    if user:
-        user["user_type"] = "app"
-        user["role"] = "user"
-        return user
+    # Get listening statistics
+    total_listens = await db.listening_sessions.count_documents({"user_id": user_id})
+    total_plays = await db.listening_sessions.count_documents({"user_id": user_id, "counted_as_play": True})
     
-    raise HTTPException(status_code=404, detail="User not found")
+    # Get total listening time
+    listen_time_pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$duration_seconds"}}}
+    ]
+    listen_time_result = await db.listening_sessions.aggregate(listen_time_pipeline).to_list(1)
+    total_listen_minutes = round((listen_time_result[0]["total"] if listen_time_result else 0) / 60, 1)
+    
+    # Get subscription info
+    subscription = await db.subscriptions.find_one(
+        {"user_id": user_id, "status": "active"},
+        {"_id": 0}
+    )
+    
+    # Get transaction summary
+    transaction_pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$group": {"_id": "$status", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    transaction_summary = await db.transactions.aggregate(transaction_pipeline).to_list(10)
+    
+    # Get playlists count
+    playlists_count = await db.user_playlists.count_documents({"user_id": user_id})
+    
+    # Get liked songs count
+    liked_songs_count = await db.user_likes.count_documents({"user_id": user_id})
+    
+    # Add analytics to user
+    user["analytics"] = {
+        "total_listens": total_listens,
+        "total_plays": total_plays,
+        "total_listen_minutes": total_listen_minutes,
+        "playlists_count": playlists_count,
+        "liked_songs_count": liked_songs_count,
+        "transaction_summary": {s["_id"]: {"total": s["total"], "count": s["count"]} for s in transaction_summary}
+    }
+    user["subscription"] = subscription
     
     return user
+
+
+@router.get("/admin/users/{user_id}/listening-history")
+async def get_user_listening_history(
+    user_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get user's listening history with content details"""
+    db = get_db()
+    
+    # Get listening sessions
+    sessions = await db.listening_sessions.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("start_time", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Enrich with content details
+    history = []
+    for session in sessions:
+        content_type = session.get("content_type")
+        content_id = session.get("content_id")
+        content_info = None
+        
+        if content_type == "song":
+            content_info = await db.songs.find_one(
+                {"song_id": content_id},
+                {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+            )
+        elif content_type == "teaching_lesson":
+            content_info = await db.teaching_lessons.find_one(
+                {"lesson_id": content_id},
+                {"_id": 0, "lesson_id": 1, "title": 1, "title_sw": 1}
+            )
+        elif content_type == "album":
+            content_info = await db.albums.find_one(
+                {"album_id": content_id},
+                {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+            )
+        
+        history.append({
+            **session,
+            "content_info": content_info
+        })
+    
+    total = await db.listening_sessions.count_documents({"user_id": user_id})
+    
+    return {"history": history, "total": total, "skip": skip, "limit": limit}
+
+
+@router.get("/admin/users/{user_id}/transactions")
+async def get_user_transactions(
+    user_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get user's transaction history"""
+    db = get_db()
+    
+    transactions = await db.transactions.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    total = await db.transactions.count_documents({"user_id": user_id})
+    
+    # Calculate totals
+    total_spent = sum(t.get("amount", 0) for t in transactions if t.get("status") == "completed")
+    
+    return {
+        "transactions": transactions,
+        "total": total,
+        "total_spent": total_spent,
+        "skip": skip,
+        "limit": limit
+    }
+
+
+@router.get("/admin/users/{user_id}/playlists")
+async def get_user_playlists(user_id: str):
+    """Get user's playlists"""
+    db = get_db()
+    
+    playlists = await db.user_playlists.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).to_list(100)
+    
+    return {"playlists": playlists, "count": len(playlists)}
+
+
+@router.get("/admin/users/{user_id}/liked-songs")
+async def get_user_liked_songs(
+    user_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get user's liked songs"""
+    db = get_db()
+    
+    likes = await db.user_likes.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).skip(skip).limit(limit).to_list(limit)
+    
+    # Enrich with song details
+    liked_songs = []
+    for like in likes:
+        song = await db.songs.find_one(
+            {"song_id": like.get("song_id")},
+            {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+        )
+        if song:
+            liked_songs.append({**like, "song": song})
+    
+    total = await db.user_likes.count_documents({"user_id": user_id})
+    
+    return {"liked_songs": liked_songs, "total": total}
 
 
 @router.put("/admin/users/{user_id}")
