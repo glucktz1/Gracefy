@@ -476,33 +476,36 @@ const HomeScreen = ({ navigation }) => {
               onMomentumScrollEnd={handleHeroScroll}
               contentContainerStyle={styles.heroScrollContent}
             >
-              {heroContent.items.map((item, index) => (
-                <TouchableOpacity 
-                  key={item.album_id || item.mix_id || index}
-                  style={styles.heroContainer}
-                  onPress={() => handleHeroPress(item)}
-                  activeOpacity={0.9}
-                >
-                  <ImageBackground
-                    source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/400' }}
-                    style={styles.heroImage}
-                    imageStyle={styles.heroImageStyle}
+              {heroContent.items.map((item, index) => {
+                // Get the best available thumbnail URL
+                const thumbnailUrl = item.thumbnail || item.thumbnail_url || item.image_url || item.cover_image;
+                return (
+                  <TouchableOpacity 
+                    key={item.album_id || item.mix_id || item.banner_id || `hero-${index}`}
+                    style={styles.heroContainer}
+                    onPress={() => handleHeroPress(item)}
+                    activeOpacity={0.9}
                   >
-                    <LinearGradient
-                      colors={['transparent', 'rgba(0,0,0,0.7)', COLORS.background]}
-                      style={styles.heroGradient}
+                    <ImageBackground
+                      source={{ uri: getImageUrl(thumbnailUrl) || 'https://via.placeholder.com/400' }}
+                      style={styles.heroImage}
+                      imageStyle={styles.heroImageStyle}
                     >
-                      <Text style={styles.heroLabel}>FEATURED</Text>
-                      <Text style={styles.heroTitle} numberOfLines={2}>{item.title}</Text>
-                      <Text style={styles.heroSubtitle} numberOfLines={1}>
-                        {item.artist_name || item.description || 'Curated for you'}
-                      </Text>
-                      <View style={styles.heroButtons}>
-                        <TouchableOpacity style={styles.heroPlayButton}>
-                          <Ionicons name="play" size={20} color={COLORS.background} />
-                          <Text style={styles.heroPlayText}>Cheza</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.7)', COLORS.background]}
+                        style={styles.heroGradient}
+                      >
+                        <Text style={styles.heroLabel}>FEATURED</Text>
+                        <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.name}</Text>
+                        <Text style={styles.heroSubtitle} numberOfLines={1}>
+                          {item.artist_name || item.subtitle || item.description || 'Curated for you'}
+                        </Text>
+                        <View style={styles.heroButtons}>
+                          <TouchableOpacity style={styles.heroPlayButton} onPress={() => handleHeroPress(item)}>
+                            <Ionicons name="play" size={20} color={COLORS.background} />
+                            <Text style={styles.heroPlayText}>Cheza</Text>
+                          </TouchableOpacity>
+                        </View>
                     </LinearGradient>
                   </ImageBackground>
                 </TouchableOpacity>
