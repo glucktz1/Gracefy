@@ -503,7 +503,7 @@ async def get_hero_content():
     Get hero content for the mobile app carousel.
     Returns featured albums or custom banners based on hero config.
     Each item includes link_type and link_target for navigation.
-    Note: Large base64 thumbnails are stripped for performance - use image_url field.
+    Note: Large base64 thumbnails are stripped for performance - use external image_url.
     """
     db = get_db()
     
@@ -519,6 +519,12 @@ async def get_hero_content():
         "items": []
     }
     
+    # Helper function to clean large base64 data
+    def clean_base64(url):
+        if url and isinstance(url, str) and url.startswith('data:') and len(url) > 5000:
+            return None  # Will use placeholder
+        return url
+    
     if hero_type == "album_carousel" or hero_type == "static_banner":
         # Get featured albums
         albums = await db.albums.find(
@@ -529,10 +535,7 @@ async def get_hero_content():
         
         for album in albums:
             # Prefer URL over base64 for performance
-            thumbnail = album.get("thumbnail_url") or album.get("thumbnail")
-            # Skip large base64 data - only use URLs
-            if thumbnail and thumbnail.startswith('data:') and len(thumbnail) > 5000:
-                thumbnail = None  # Will use placeholder
+            thumbnail = clean_base64(album.get("thumbnail_url")) or clean_base64(album.get("thumbnail"))
             album["thumbnail"] = thumbnail
             album["artist_name"] = album.get("artist_name") or album.get("choir_name") or "Unknown"
             # Add navigation metadata for album items
@@ -549,11 +552,11 @@ async def get_hero_content():
         
         # Process banners - strip large base64 thumbnails for performance
         for banner in banners:
-            # Use image_url if thumbnail is large base64
-            thumbnail = banner.get("image_url") or banner.get("thumbnail")
-            if thumbnail and thumbnail.startswith('data:') and len(thumbnail) > 5000:
-                thumbnail = None  # Will use placeholder
-            banner["thumbnail"] = thumbnail
+            # Clean all image fields
+            banner["image_url"] = clean_base64(banner.get("image_url"))
+            banner["thumbnail"] = clean_base64(banner.get("thumbnail"))
+            # Use first available image
+            banner["thumbnail"] = banner.get("thumbnail") or banner.get("image_url")
         
         response["items"] = banners
     
