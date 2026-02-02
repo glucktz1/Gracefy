@@ -80,6 +80,7 @@ async def create_section(data: dict):
         "display_name": data.get("display_name", ""),
         "display_name_en": data.get("display_name_en"),
         "section_type": data.get("section_type", "custom"),
+        "layout_style": data.get("layout_style", "horizontal_small"),  # horizontal_small, horizontal_large, grid, vertical_list
         "description": data.get("description"),
         "platforms": data.get("platforms", ["app", "web"]),
         "is_active": data.get("is_active", True),
