@@ -545,7 +545,7 @@ const HomeScreen = ({ navigation }) => {
 
           <TouchableOpacity 
             style={styles.quickAccessItem}
-            onPress={() => navigation.navigate('Library')}
+            onPress={() => navigation.navigate('Library', { tab: 'downloads' })}
           >
             <LinearGradient colors={['#E91429', '#ff4757']} style={styles.quickAccessIcon}>
               <Ionicons name="download" size={20} color={COLORS.text} />
@@ -556,13 +556,19 @@ const HomeScreen = ({ navigation }) => {
           {userPlaylists[1] ? (
             <TouchableOpacity 
               style={styles.quickAccessItem}
-              onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[1] })}
+              onPress={() => {
+                if (userPlaylists[1]) {
+                  navigation.navigate('Playlist', { playlist: userPlaylists[1] });
+                } else {
+                  navigation.navigate('Library', { tab: 'playlists' });
+                }
+              }}
             >
               <Image
-                source={{ uri: getImageUrl(userPlaylists[1].thumbnail) || 'https://via.placeholder.com/56' }}
+                source={{ uri: getImageUrl(userPlaylists[1]?.thumbnail) || 'https://via.placeholder.com/56' }}
                 style={styles.quickAccessImage}
               />
-              <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[1].name}</Text>
+              <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[1]?.name || 'Playlist'}</Text>
             </TouchableOpacity>
           ) : recentAlbums[0] ? (
             <TouchableOpacity 
