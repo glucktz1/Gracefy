@@ -404,11 +404,11 @@ const LibraryScreen = ({ navigation, route }) => {
                 
                 {downloads.map((song, index) => (
                   <SongListItem
-                    key={song.song_id}
+                    key={song?.song_id || `download-${index}`}
                     item={song}
                     index={index}
-                    isPlaying={currentTrack?.song_id === song.song_id && isPlaying}
-                    isCurrentSong={currentTrack?.song_id === song.song_id}
+                    isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
+                    isCurrentSong={currentTrack?.song_id === song?.song_id}
                     isDownloaded={true}
                     onPress={() => handlePlaySong(song, downloads)}
                     onMorePress={handleSongMore}
