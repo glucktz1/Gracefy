@@ -156,10 +156,11 @@ async def get_admin_users(
     role: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
+    user_type: Optional[str] = None,  # 'admin', 'app', 'all'
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200)
 ):
-    """Get all users for admin panel"""
+    """Get all users for admin panel - includes both admin users and app users"""
     db = get_db()
     
     query = {}
@@ -173,15 +174,36 @@ async def get_admin_users(
             {"name": {"$regex": search, "$options": "i"}}
         ]
     
-    users = await db.users.find(query, {"_id": 0})\
-        .sort("created_at", -1)\
-        .skip(skip)\
-        .limit(limit)\
-        .to_list(limit)
+    all_users = []
     
-    total = await db.users.count_documents(query)
+    # Get admin users (from 'users' collection)
+    if user_type != 'app':
+        admin_users = await db.users.find(query, {"_id": 0})\
+            .sort("created_at", -1)\
+            .to_list(500)
+        for u in admin_users:
+            u["user_type"] = "admin"
+        all_users.extend(admin_users)
     
-    return {"users": users, "total": total, "skip": skip, "limit": limit}
+    # Get app users (from 'app_users' collection)
+    if user_type != 'admin':
+        app_query = {k: v for k, v in query.items() if k != 'role'}  # app_users don't have role field
+        app_users = await db.app_users.find(app_query, {"_id": 0, "password_hash": 0})\
+            .sort("created_at", -1)\
+            .to_list(500)
+        for u in app_users:
+            u["user_type"] = "app"
+            u["role"] = "user"  # Default role for app users
+        all_users.extend(app_users)
+    
+    # Sort combined list by created_at
+    all_users.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Apply pagination
+    total = len(all_users)
+    paginated_users = all_users[skip:skip + limit]
+    
+    return {"users": paginated_users, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/admin/users/{user_id}")
