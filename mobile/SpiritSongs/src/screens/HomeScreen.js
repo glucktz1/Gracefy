@@ -341,10 +341,31 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const handleHeroPress = (item) => {
-    if (item.album_id) {
+    // Handle different link types for hero navigation
+    const linkType = item.link_type;
+    const linkTarget = item.link_target;
+    
+    if (linkType === 'album' || item.album_id) {
       navigation.navigate('Album', { album: item });
-    } else if (item.mix_id) {
+    } else if (linkType === 'mix' || item.mix_id) {
       navigation.navigate('Playlist', { mix: item });
+    } else if (linkType === 'song' || item.song_id) {
+      handlePlaySong(item, [item]);
+    } else if (linkType === 'church' || item.church_id) {
+      navigation.navigate('Churches', { selectedChurch: item });
+    } else if (linkType === 'teaching' || item.teaching_id) {
+      navigation.navigate('MafundishoDetail', { teachingId: item.teaching_id, mafundisho: item });
+    } else if (linkType === 'bible') {
+      navigation.navigate('Bible');
+    } else if (linkType === 'url' && linkTarget) {
+      // External URL - could use Linking.openURL
+      console.log('External link:', linkTarget);
+    } else if (linkType === 'screen' && linkTarget) {
+      // Navigate to specific screen
+      navigation.navigate(linkTarget);
+    } else if (item.album_id) {
+      // Fallback to album navigation if album_id exists
+      navigation.navigate('Album', { album: item });
     }
   };
 
