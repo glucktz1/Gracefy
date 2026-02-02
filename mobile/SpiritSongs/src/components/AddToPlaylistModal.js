@@ -15,7 +15,6 @@ import {
   Platform,
   Keyboard,
   KeyboardAvoidingView,
-  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 // Use legacy API for backward compatibility with SDK 54
