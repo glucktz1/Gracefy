@@ -6,7 +6,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -14,15 +14,22 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error?.message || error);
+    console.error('Error stack:', error?.stack);
+    console.error('Component stack:', errorInfo?.componentStack);
+    this.setState({ errorInfo });
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   render() {
     if (this.state.hasError) {
+      // Log the actual error for debugging
+      const errorMessage = this.state.error?.message || 'Unknown error';
+      console.log('ErrorBoundary rendering fallback. Error:', errorMessage);
+      
       return (
         <View style={styles.container}>
           <Ionicons name="alert-circle-outline" size={64} color={COLORS.error || '#ef4444'} />
@@ -30,6 +37,11 @@ class ErrorBoundary extends React.Component {
           <Text style={styles.message}>
             {this.props.fallbackMessage || 'Imeshindwa kupakia. Tafadhali jaribu tena.'}
           </Text>
+          {__DEV__ && (
+            <Text style={[styles.message, { fontSize: 10, marginTop: 8 }]}>
+              {errorMessage}
+            </Text>
+          )}
           <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
             <Ionicons name="refresh" size={20} color={COLORS.text} />
             <Text style={styles.retryText}>Jaribu Tena</Text>
