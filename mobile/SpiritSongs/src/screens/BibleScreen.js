@@ -34,7 +34,12 @@ const BibleScreen = ({ navigation }) => {
   // Verse range selection - shown immediately after selecting chapter
   const [startVerse, setStartVerse] = useState('1');
   const [endVerse, setEndVerse] = useState('');
-  const [selectedVoice, setSelectedVoice] = useState('female');
+  
+  // TTS Settings from admin (fetched from backend)
+  const [ttsSettings, setTtsSettings] = useState({
+    default_voice: 'sw-KE-Zuri-Female',
+    default_speed: 1.0
+  });
   
   // TTS State
   const [playingAudio, setPlayingAudio] = useState(null);
@@ -58,6 +63,7 @@ const BibleScreen = ({ navigation }) => {
   useEffect(() => {
     loadBooks();
     loadFeaturedSnippets();
+    loadTtsSettings();
     
     setStopExternalAudioCallback(async () => {
       await cleanupAudio();
