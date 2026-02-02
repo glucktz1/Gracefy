@@ -794,6 +794,8 @@ async def get_content_revenue_analytics(
         "content_type": content_type,
         "period": period,
         "top_content": top_content,
+        "note": "Revenue is estimated based on play counts"
+    }
 
 
 @router.get("/admin/analytics/navigation")
