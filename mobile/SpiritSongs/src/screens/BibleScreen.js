@@ -241,7 +241,7 @@ const BibleScreen = ({ navigation }) => {
         chapter: selectedChapter,
         start_verse: start,
         end_verse: end,
-        voice: selectedVoice,
+        voice: ttsSettings.default_voice,
         duration_seconds: durationSeconds,
         was_cached: cached,
         completed: completed
