@@ -132,6 +132,7 @@ export const libraryAPI = {
   likeSong: (songId) => api.post(`/library/like/${songId}`),
   unlikeSong: (songId) => api.delete(`/library/like/${songId}`),
   getPlaylists: () => api.get('/library/playlists'),
+  getPlaylistSongs: (playlistId) => api.get(`/user/playlist/${playlistId}`),
   createPlaylist: (data) => api.post('/library/playlists', data),
   addToPlaylist: (playlistId, songId) => api.post(`/library/playlists/${playlistId}/songs/${songId}`),
   removeFromPlaylist: (playlistId, songId) => api.delete(`/library/playlists/${playlistId}/songs/${songId}`),
