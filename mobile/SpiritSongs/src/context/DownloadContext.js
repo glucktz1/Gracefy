@@ -171,7 +171,20 @@ export const DownloadProvider = ({ children }) => {
 export const useDownloads = () => {
   const context = useContext(DownloadContext);
   if (!context) {
-    throw new Error('useDownloads must be used within a DownloadProvider');
+    // Return safe defaults instead of throwing
+    console.warn('useDownloads called outside DownloadProvider - returning defaults');
+    return {
+      downloads: [],
+      downloadedSongIds: new Set(),
+      loading: false,
+      isDownloaded: () => false,
+      getLocalPath: () => null,
+      addDownload: async () => false,
+      removeDownload: async () => false,
+      clearAllDownloads: async () => false,
+      getTotalSize: async () => 0,
+      refreshDownloads: async () => {},
+    };
   }
   return context;
 };
