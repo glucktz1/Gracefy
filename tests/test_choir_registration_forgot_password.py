@@ -12,7 +12,7 @@ import os
 import uuid
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://mobile-qa-build.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fixcrashing-app.preview.emergentagent.com').rstrip('/')
 
 # Test data
 TEST_CHOIR_EMAIL = f"testchoir_{uuid.uuid4().hex[:8]}@example.com"

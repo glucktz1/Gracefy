@@ -1,123 +1,119 @@
 <analysis>**original_problem_statement:**
-The user's initial problem was not explicitly stated, but the trajectory of requests indicates a goal to build out and refine a Teachings (Mafundisho) feature within a media streaming application, and then fix various bugs and add new features across the admin panel and user-facing applications.
+The user wants to fix several issues in a React Native mobile application.
 
-**PRODUCT REQUIREMENTS:**
-1.  **Teachings Feature:** Full CRUD functionality for Teachings, Topics, and Lessons.
-2.  **Large File Handling:** Support for audio files larger than 16MB, using CDN and a fallback storage mechanism.
-3.  **Admin UI:**
-    *   Integrate Teachings into the main navigation and content management areas.
-    *   A Layout Manager to control the order and visibility of sections on the user home screen.
-    *   Functional Control and Management section for CDN, Role Management, and Approvals.
-    *   Bible TTS settings should include reading speed control.
-4.  **User App (Web & Mobile):**
-    *   Display Teachings sections on the home page as designed (Spotify-style cards).
-    *   A detail view for teachings, showing topics and lessons.
-    -   Audio player enhancements: Play All button, dancing bars for the playing item, and highlighting.
-5.  **Analytics:** Track content plays only if the duration exceeds 45 seconds.
-6.  **Monetization:** The ability to disable all subscription plans globally.
-7.  **Mobile App:** New themed splash screens and an updated app build.
+Initial requirements:
+1.  Ensure redirection to specific content happens from the Hero section.
+2.  Ensure the hero section displays thumbnails correctly.
+3.  Ensure the choice of layout style (e.g., horizontal large) is respected from the layout manager.
 
-**User's preferred language**:
-The user communicates in English. The application's content is primarily in Swahili. The next agent MUST respond in **English**.
+Additional requirements reported by the user after a build:
+1.  The app crashes when the user taps on Library, Search, Playlist, Downloaded list, and Liked songs.
+2.  The app takes a very long time to load.
+3.  The app doesn't display content images in the hero section.
+4.  The Bible section doesn't work (it's blank when a book and snippets are selected).
+5.  The Mafundisho na katekesi section doesn't pull audio content.
+6.  The user has requested to fix the latest issues without triggering a new build immediately.
+
+**User's preferred language**: English
 
 **what currently exists?**
-A comprehensive media streaming application with a FastAPI backend and separate React (web) and React Native (mobile) frontends. The platform supports user authentication, content categories, leaders (artists), and a partially functional admin panel. A Teachings (Mafundisho) feature has been fully built out, including backend APIs, admin UI, and user-facing components. The system is integrated with Bunny CDN for large file storage and Azam Pay for payments. A Redis cache is used for performance.
+A React Native mobile app (SpiritSongs) with a Python/Flask backend and a MongoDB database. The agent has implemented several fixes on both the frontend and backend. Key changes include optimizing a very slow API endpoint by removing large base64 image data, adding dynamic layout rendering on the home screen, fixing a public API endpoint for the Bible section, and adding Error Boundaries to prevent app-wide crashes. A new build was successfully completed and an APK was generated, but the user reported further issues.
 
 **Last working item**:
--   **Last item agent was working:** The agent was executing a multi-part task to fix several broken pages in the Control and Management section of the admin panel and add a new Bible TTS setting, as requested by the user in their last message. This involved:
-    1.  Fixing the Layout Manager to show deactivated sections.
-    2.  Creating a new backend API for Role-Based Access Control (RBAC) because the frontend was calling non-existent endpoints.
-    3.  Investigating a bug in the Approvals workflow.
-    4.  Investigating why the CDN dashboard showed no data.
-    5.  Adding a reading speed setting for Bible TTS.
--   **Status:** IN PROGRESS
+-   **Last item agent was working:** The user reported new issues after testing the latest build. The agent was about to start investigating why the Bible section appears blank and why the Mafundisho na katekesi section is not fetching audio content.
+-   **Status:** NOT STARTED
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both
--   **User Testing Done:** N
+-   **Which testing method agent to use?** backend testing agent. The agent should start by using  to investigate the backend API endpoints responsible for fetching data for the Bible and Mafundisho na katekesi sections to see if they return the correct data.
+-   **User Testing Done:** Y (User tested the last build and reported new issues)
 
 **All Pending/In progress Issue list**:
--   **Issue 1 (P0):** Control and Management section in the admin panel is broken.
--   **Issue 2 (P1):** Add capability to set the reading speed for Bible TTS.
+-   Issue 1: Bible section is blank on selection of book and snippets. (P0)
+-   Issue 2: Mafundisho na katekesi section doesn't pull the audio content. (P0)
+-   Issue 3: App crashes on various screens (Library, Search, Playlist, etc.). (P1)
+-   Issue 4: App takes a very long time to load. (P1)
+-   Issue 5: Hero section does not display content images. (P2)
 
 **Issues Detail:**
--   **Issue 1: Control and Management section in the admin panel is broken**
-    -   This is a container issue for the following sub-issues:
-        -   **Sub-issue 1.1: Layout Manager Deactivation Bug**
-            -   **Description:** When an admin deactivates a section in the Layout Manager, it disappears entirely from the admin view instead of showing as inactive.
-            -   **Attempted fixes:** The agent identified that the backend endpoint  was filtering out inactive sections. A fix was implemented in  to accept a  query parameter, and the frontend in  was updated to send this parameter.
-            -   **Next debug checklist:** Manually deactivate a section in the UI. Verify it remains in the list but appears visually distinct (e.g., greyed out). Confirm no console errors.
-            -   **Status:** IN PROGRESS (Fix implemented, verification pending).
-            -   **Should Test:** Frontend.
-        -   **Sub-issue 1.2: Role Management Page Fails to Load**
-            -   **Description:** The Role Management page shows a failed to load error because the frontend is calling  endpoints that do not exist.
-            -   **Attempted fixes:** Agent created a new stub API router at  with placeholder endpoints and registered it in .
-            -   **Next debug checklist:** Flesh out the endpoints in  with full CRUD logic for roles and permissions, interacting with a new  collection in MongoDB.
-            -   **Status:** IN PROGRESS.
-            -   **Should Test:** Backend.
-        -   **Sub-issue 1.3: Approvals Workflow is Broken**
-            -   **Description:** When an admin approves an item (e.g., a choir registration), the item remains in the pending list and its status is not updated.
-            -   **Attempted fixes:** Agent confirmed the API endpoint  exists but couldn't test due to no pending items.
-            -   **Next debug checklist:**
-                1.  Create a test data entry that requires approval (e.g., a new choir with ).
-                2.  Use the UI to approve the item and observe the network request.
-                3.  Check the backend logs in  for errors during the approval process.
-                4.  Verify in the database if the item's  status changes.
-            -   **Status:** IN PROGRESS.
-            -   **Should Test:** Both.
-        -   **Sub-issue 1.4: CDN Management Dashboard is Empty**
-            -   **Description:** The dashboard shows no content or traffic stats, despite files being present in the CDN.
-            -   **Attempted fixes:** Agent identified a data structure mismatch between the  API response and the frontend's expectations in . The agent started modifying the backend endpoint.
-            -   **Next debug checklist:** Complete the modification of the  function in  to return the structure the frontend expects. Test the endpoint directly, then verify the dashboard UI.
-            -   **Status:** IN PROGRESS.
-            -   **Should Test:** Both.
-
--   **Issue 2: Add Bible TTS Speed Setting**
-    -   **Description:** The admin settings for Bible TTS lacks an option to set a default reading speed.
-    -   **Attempted fixes:** Agent added a  field to the  model and the corresponding API endpoint in . The frontend () was updated with a state and slider control.
+-   **Issue 1:** Bible section is blank on selection of book and snippets.
+    -   **Attempted fixes:** None. This is a newly reported issue.
     -   **Next debug checklist:**
-        1.  Use the new slider in the UI to save a speed setting.
-        2.  Verify the setting is persisted in the database.
-        3.  Confirm that the TTS generation endpoint () uses this default speed.
-    -   **Status:** IN PROGRESS (Fix implemented, verification pending).
-    -   **Should Test:** Both.
+        1.  Examine  to understand how book and snippet data is fetched and rendered.
+        2.  Check the corresponding backend API endpoint (likely in ) to ensure it returns the correct content for a given book/snippet selection.
+        3.  Use  to test the endpoint directly.
+        4.  Inspect network requests from the app to see if the requests are being made correctly and what the responses are.
+    -   **Why fix this issue and what will be achieved with the fix?** The Bible section is a core feature, and it is currently unusable. Fixing it will restore this functionality.
+    -   **Status:** NOT STARTED
+    -   **Should Test frontend/backend/both after fix?** Both
+
+-   **Issue 2:** Mafundisho na katekesi section doesn't pull the audio content.
+    -   **Attempted fixes:** None. This is a newly reported issue.
+    -   **Next debug checklist:**
+        1.  Identify the component responsible for the Mafundisho na katekesi section. It's likely a part of the dynamic section rendering in .
+        2.  Find the backend API endpoint that serves this content. The name suggests it might be related to teachings.
+        3.  Use  to test the endpoint and verify if it returns items with audio URLs.
+        4.  Check the frontend component to ensure it's correctly parsing the API response and trying to play the audio.
+    -   **Why fix this issue and what will be achieved with the fix?** This content section is not providing its primary content (audio). Fixing it will make the section functional.
+    -   **Status:** NOT STARTED
+    -   **Should Test frontend/backend/both after fix?** Both
+
+-   **Issue 3:** App crashes on various screens (Library, Search, Playlist, etc.).
+    -   **Attempted fixes:** The agent wrapped the main app screens in a custom  component ( and ) to prevent the entire app from crashing. This contains the error but does not fix the root cause.
+    -   **Next debug checklist:**
+        1.  The agent inspected , , and context providers, but found no obvious errors.
+        2.  The crashes could be due to null data from APIs or context hooks during initialization.
+        3.  The next agent should try to reproduce the crashes and look at the device logs (if possible) or add more specific logging around the suspected screens (, , , etc.) to pinpoint the exact line of code causing the crash.
+    -   **Why fix this issue and what will be achieved with the fix?** The app is unstable. Fixing the root cause of the crashes is critical for user experience.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend
+
+-   **Issue 4:** App takes a very long time to load.
+    -   **Attempted fixes:** The agent identified that the  endpoint was returning an 84MB response due to large base64-encoded images. The agent modified the endpoint in  to strip this data, reducing the response size to ~2KB. The  endpoint was also optimized.
+    -   **Next debug checklist:**
+        1.  The user still reports slow loading. The cause might be different now.
+        2.  Investigate other API calls made on app startup. Check for other large payloads or slow database queries.
+        3.  Profile the frontend startup sequence in  to see if there are any inefficient computations or rendering loops.
+    -   **Why fix this issue and what will be achieved with the fix?** A slow loading time leads to poor user retention. A faster app is more engaging.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Both
+
+-   **Issue 5:** Hero section does not display content images.
+    -   **Attempted fixes:** This is a side effect of fixing the slow loading issue. The base64 images were removed from the API response. The agent updated  to show a placeholder gradient background when an image URL is not available.
+    -   **Next debug checklist:** This is more of a future task. The real fix involves implementing an image upload/management system where the CMS stores image URLs instead of base64 blobs, and the API returns these URLs. For now, the placeholder is the intended behavior.
+    -   **Why fix this issue and what will be achieved with the fix?** The hero section is a primary visual element. Displaying proper images will make the app more visually appealing.
+    -   **Status:** BLOCKED (pending implementation of a proper image management workflow)
+    -   **Should Test frontend/backend/both after fix?** Both
 
 **In progress Task List**:
--   **Task 1: Complete the Control and Management bug fixes**
-    -   **Where to resume:** Sequentially verify or complete the fixes for the four sub-issues listed above, starting with the Layout Manager verification.
-    -   **What will be achieved with this?** A functional and reliable admin panel, enabling administrators to manage content layout, user roles, approvals, and CDN usage effectively.
-    -   **Status:** IN PROGRESS.
-    -   **Should Test frontend/backend/both after fix?** Both.
-    -   **Blocked on something:** None.
+(None)
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   **(P0) Finalize and Test Mobile App Build:** The EAS build process was initiated but faced environment issues and timeouts. A successful build needs to be completed and tested to deliver the new splash screens and theme. (Files: , )
+    -   (P0) Investigate and fix the blank Bible section.
+    -   (P0) Investigate and fix the missing audio content in Mafundisho na katekesi.
+    -   (P1) Identify and fix the root cause of crashes on navigation screens.
 -   **Future Tasks:**
-    -   **(P1) Implement Create Playlist Functionality:** The UI includes an add to playlist button, but the core backend logic and UI for users to create, view, and manage their own playlists is missing. (Files: , new backend endpoints required).
+    -   Implement a proper image handling pipeline: Instead of using base64 strings, allow content managers to upload images, store their URLs (e.g., on a CDN), and have the API serve these URLs to the app. This will permanently fix the hero image issue.
 
 **Completed work in this session**
--   **Mafundisho Feature:**
-    -   Fixed backend routing and implemented full CRUD for Teachings, Topics, and Lessons.
-    -   Solved large audio file uploads by integrating Bunny CDN and implementing a chunked storage fallback.
-    -   Fixed admin panel routing to place Mafundisho correctly under Contents.
-    -   Added Mafundisho to the Layout Manager.
--   **User Experience:**
-    -   Fixed a critical bug preventing the re-ordering of home screen sections in the Layout Manager.
-    -   Implemented the user-facing UI for Mafundisho sections and a detailed view, matching the provided design.
-    -   Fixed broken images and click navigation for teaching cards.
-    -   Enhanced the audio player with Play All, dancing bars, and highlighting for the active lesson.
--   **Analytics & Monetization:**
-    -   Implemented a 45-second play-counting rule for analytics.
-    -   Implemented a global billing enabled/disabled toggle that controls the visibility of subscription plans in the mobile app.
--   **Mobile App:**
-    -   Designed and integrated new animated splash screens with a new blue color theme.
-    -   Initiated an EAS build to deploy the changes.
+-   **Backend:**
+    -   Optimized  and  endpoints by removing huge base64 image data from the response, drastically reducing app load time. ()
+    -   Added  to the section API response to support dynamic layouts. (, )
+    -   Created a new public API endpoint  to fix access issues for the mobile app. ()
+-   **Frontend:**
+    -   Implemented dynamic section rendering in  based on  from the API (, , etc.).
+    -   Enhanced hero section press handler ( in ) to navigate to various content types.
+    -   Added a placeholder gradient background for hero items without images. ()
+    -   Created and implemented an  component to wrap screens and prevent application-wide crashes. (, )
+    -   Updated the image utility  to correctly handle base64 data URLs. ()
+-   **Build Process:**
+    -   Fixed a fatal build error by removing a duplicate  import in .
+    -   Resolved an  failure by finding and removing a corrupted file from the project directory.
+    -   Successfully triggered and completed a new EAS build, generating a downloadable APK.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1: Incomplete Create Playlist Feature**
-    -   The user requested playlist functionality (ensure add/create playlist like share works). The agent added UI buttons (), but the actual feature of creating and managing personal playlists was not implemented.
-    -   **Why to solve this issue and what will be achieved with this?** This is a core feature for a music/audio streaming app, increasing user engagement and content discovery.
-    -   **Should Test frontend/backend/both after fix:** Both.
+-   **Issue 1:** The root cause of app crashes is still unknown. The  is a temporary containment measure, not a fix.
 
 **Known issue recurrence from previous fork**
 -   N/A
@@ -126,88 +122,79 @@ A comprehensive media streaming application with a FastAPI backend and separate 
 
 
 **Key Technical Concepts**
--   **Backend:** FastAPI, MongoDB, Pydantic
--   **Frontend (Web):** React, Vite, Tailwind CSS
--   **Frontend (Mobile):** React Native, Expo
--   **File Storage:** Bunny CDN (primary), custom chunked storage in MongoDB (fallback).
--   **Caching:** Redis
+-   **Frontend:** React Native, Expo
+-   **Backend:** Python (Flask), MongoDB
+-   **API:** REST
+-   **Build & Deployment:** Expo Application Services (EAS)
 
 **key DB schema**
--   : 
--   : 
--   : 
--   : (Schema to be defined)
--   : (Schema to be defined)
+-   **sections:** Includes a  field (String: , , , ).
+-   **hero_banners:** Contains fields like , , and . The  field was previously storing massive base64 strings but is now expected to be a standard URL.
 
 **changes in tech stack**
--   No changes to the core stack. A custom **Chunked File Storage** pattern was implemented as a fallback to the CDN, manually handling files larger than MongoDB's 16MB document limit.
+-   None
 
 **All files of reference**
--   : **New File.** Created to house the Role-Based Access Control API. (In Progress)
--   : Being modified to fix CDN stats, approval workflow, and add TTS settings.
--   : Modified to allow fetching of inactive sections.
--   : **New File.** Contains the new animated splash screens.
--   : Modified to fetch all sections. Needs UI verification.
--   : Non-functional, awaits backend API implementation.
--   : Non-functional, awaits backend API fix.
--   : Monolithic component where many UI features were added (teachings card, detail view, player enhancements).
+-   : Modified to optimize hero content API and add .
+-   : Modified to add  to the home response.
+-   : Modified to add a public endpoint for TTS settings.
+-   : Heavily modified for dynamic layouts, improved hero press handling, and placeholder images.
+-   : Modified to wrap screens with Error Boundaries.
+-   : New file created to contain component-level errors.
+-   : Updated to use the new public Bible TTS endpoint.
+-   : Updated to handle base64 data URIs.
+-   : Fixed a duplicate import that was breaking the build.
+-   : Version was bumped for the new build.
 
 **Areas that need refactoring**:
--   ****: This single file is over 4000 lines and contains multiple distinct application views and complex state logic. It is extremely difficult to maintain and should be broken down into a proper component hierarchy with separated concerns (e.g., , , ) and custom hooks.
--   ****: At 600+ lines, this hook mixes audio playback logic with API calls for analytics. The analytics tracking should be extracted into a separate hook or service.
+-   The hero banner image handling is a workaround. The backend strips base64 data, and the frontend shows a placeholder. A proper image upload and URL-serving mechanism should be implemented in the future.
 
 **key api endpoints**
--   : Get all layout sections, including inactive ones (for admin).
--   : Get pending approval items.
--   : (In Progress) Get all roles.
--   : (In Progress) Get CDN usage statistics.
--   : Records a listening session, applying the 45-second rule.
--   : Update Bible TTS settings, including the new .
+-   : Provides content for the hero section. (Optimized)
+-   : Provides sections and content for the home screen. (Optimized)
+-   : Public endpoint to fetch Bible TTS settings. (Newly added)
+-   : Admin endpoint to create sections. (Updated to accept )
 
 **Critical Info for New Agent**
--   You are resuming mid-task. The user's last request involves fixing four separate issues in the admin panel and adding one new setting. Address them systematically.
--   The mobile app build process via  has been problematic. Be prepared for authentication/environment issues if you need to trigger another build. The correct Expo account owner appears to be .
--   The web app's main UI file, , is a monolith. Tread carefully when making changes and strongly consider refactoring if time permits.
--   The Create Playlist feature is a significant piece of pending work that was requested but not implemented. Keep this in mind as a future task.
+-   The #1 priority is to address the user's latest bug reports: the non-functional Bible and Mafundisho na katekesi sections. The user wants these fixed without a new build for now, which implies the fixes should primarily be on the backend if possible.
+-   The app's extreme slowness was traced to an 84MB API response. This was fixed by removing base64 image data from the backend. The user still reports slowness, so investigate other potential causes.
+-   The hero section will NOT show images because the image data was removed to fix performance. This is now expected behavior until a proper image URL system is implemented. The frontend shows a gradient placeholder.
+-   App crashes are being caught by an , but the underlying cause is not fixed. Be prepared to investigate instability on the Library, Search, and other screens.
 
 **documents and test reports created in this job**
--   
--   
+-   None
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **Request:** Add Mafundisho to the Layout Manager. **Status:** Completed.
-9.  **Request:** Fix layout reordering bug. **Status:** Completed.
-8.  **Request:** Implement new UI for Mafundisho on app and web. **Status:** Completed.
-7.  **Request:** Fix broken image and click action on Mafundisho card. **Status:** Completed.
-6.  **Confirmation/Request:** Works!!, add dancing bars, play all, and playlist-like features. **Status:** Mostly Completed (Playlist feature is incomplete).
-5.  **Request:** Implement 45-second play count rule for analytics. **Status:** Completed.
-4.  **Request:** Test payment integration and disable plans when billing is off. **Status:** Completed.
-3.  **Request:** Create new splash screens and adopt a blue theme for the mobile app. **Status:** Completed (Build in progress).
-2.  **Input:** Provided an Expo Token for the build. **Status:** Handled.
-1.  **Request:** Fix multiple issues: Layout manager deactivation, broken CDN/Role/Approvals pages, and add Bible TTS speed setting. **Status:** In Progress.
+1.  **User:** 
+    -   **Status:** Pending. This is the current highest priority task.
+2.  **User:** 
+    -   **Status:** Partially addressed (slow load, hero image). Other issues are pending.
+3.  **User:** 
+    -   **Status:** Completed. Agent successfully built and provided the APK.
 
 **Project Health Check:**
 -   **Broken:**
-    -   Role Management page ().
-    -   Approvals page workflow ().
-    -   CDN Management dashboard ().
+    -   Bible section content fetching.
+    -   Mafundisho na katekesi audio fetching.
+    -   Potential instability/crashes on core navigation screens (Library, Search, etc.).
 -   **Mocked:**
-    -   The backend API for RBAC () exists but its endpoints are empty placeholders.
+    -   Hero section images are replaced with a gradient placeholder as a workaround for the performance issue.
 
 **3rd Party Integrations**
--   **Azam Pay (Payments):** Requires User API Key.
--   **Bunny CDN (Storage/CDN):** Requires User API Key.
--   **Expo (EAS Build):** Requires User Token ().
+-   **Expo (EAS Build):** Used for building and distributing the React Native application.
+-   **MongoDB:** The primary database for the backend.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES
+-   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** []
--   **Known regressions:** None identified.
+-   **Test files created:** None.
+-   **Known regressions:**
+    -   Hero section images are no longer displayed (this was a deliberate trade-off for performance).
+    -   User reports crashes and broken sections persist after the latest build.
 
 **Credentials to test flow:**
-Admin login credentials are required to access and test the fixes in the admin panel. If not available, API-level testing via  will be necessary.
+-   None provided.
 
 **What agent forgot to execute**
--   The agent did not fully implement the create playlist functionality as requested by the user. While UI buttons were added, the core system for users to create, save, and manage their own playlists is missing.
--   The agent implemented the new Mafundisho UI card for the mobile view but did not explicitly apply the same design to the web view within , failing to fully meet the app and web requirement for that UI.</analysis>
+-   The agent did not investigate the root cause of the app crashes after being notified about them, instead opting to implement an Error Boundary. While this prevents the app from fully crashing, it doesn't solve the underlying problem.
+-   The agent hasn't started working on the latest user requests regarding the Bible section and Mafundisho na katekesi audio content.</analysis>
