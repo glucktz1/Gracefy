@@ -149,6 +149,104 @@ async def update_admin_settings(data: dict):
     return {"message": "Settings updated"}
 
 
+# ============== TRANSLATIONS MANAGEMENT ==============
+
+@router.get("/admin/translations/languages")
+async def get_translation_languages():
+    """Get translation statistics for all languages"""
+    db = get_db()
+    
+    # Get all translations
+    translations = await db.translations.find({}, {"_id": 0}).to_list(100)
+    
+    # Default languages
+    languages = [
+        {"code": "sw", "name": "Swahili", "name_native": "Kiswahili", "status": "active"},
+        {"code": "en", "name": "English", "name_native": "English", "status": "active"},
+    ]
+    
+    # Calculate key counts per language
+    for lang in languages:
+        lang_translations = next((t for t in translations if t.get("language") == lang["code"]), {})
+        keys = lang_translations.get("translations", {})
+        lang["key_count"] = len(keys) if isinstance(keys, dict) else 0
+        lang["last_updated"] = lang_translations.get("updated_at")
+    
+    return {
+        "languages": languages,
+        "total_languages": len(languages),
+        "default_language": "sw"
+    }
+
+
+@router.get("/admin/translations/download")
+async def download_translations(lang: str = Query("sw")):
+    """Download translations for a language as JSON"""
+    db = get_db()
+    from fastapi.responses import Response
+    import json
+    
+    translations = await db.translations.find_one(
+        {"language": lang},
+        {"_id": 0}
+    )
+    
+    data = translations.get("translations", {}) if translations else {}
+    
+    return Response(
+        content=json.dumps(data, indent=2, ensure_ascii=False),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f"attachment; filename=translations_{lang}.json"
+        }
+    )
+
+
+@router.post("/admin/translations/upload")
+async def upload_translations(lang: str = Query("sw")):
+    """Upload translations for a language"""
+    db = get_db()
+    from fastapi import Request
+    
+    # This would need to handle file upload
+    # For now, accept JSON body
+    return {"message": "Use PUT /admin/translations/{lang} with JSON body"}
+
+
+@router.get("/translations")
+async def get_translations(lang: str = Query("sw")):
+    """Get translations for a language (public endpoint)"""
+    db = get_db()
+    
+    translations = await db.translations.find_one(
+        {"language": lang},
+        {"_id": 0}
+    )
+    
+    return {
+        "language": lang,
+        "translations": translations.get("translations", {}) if translations else {}
+    }
+
+
+@router.put("/admin/translations/{lang}")
+async def update_translations(lang: str, data: dict):
+    """Update translations for a language"""
+    db = get_db()
+    
+    await db.translations.update_one(
+        {"language": lang},
+        {"$set": {
+            "language": lang,
+            "translations": data.get("translations", data),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {"message": f"Translations for {lang} updated"}
+
+
 # ============== USER MANAGEMENT ==============
 
 @router.get("/admin/users")
