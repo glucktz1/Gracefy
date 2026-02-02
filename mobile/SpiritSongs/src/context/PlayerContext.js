@@ -19,7 +19,33 @@ export const clearStopExternalAudioCallback = () => {
 export const usePlayer = () => {
   const context = useContext(PlayerContext);
   if (!context) {
-    throw new Error('usePlayer must be used within PlayerProvider');
+    // Return safe defaults instead of throwing
+    console.warn('usePlayer called outside PlayerProvider - returning defaults');
+    return {
+      currentTrack: null,
+      queue: [],
+      queueIndex: 0,
+      isPlaying: false,
+      isLoading: false,
+      position: 0,
+      duration: 0,
+      shuffle: false,
+      repeat: 'all',
+      isLiked: false,
+      playTrack: async () => {},
+      togglePlayPause: async () => {},
+      skipNext: async () => {},
+      skipPrevious: async () => {},
+      seekTo: async () => {},
+      toggleShuffle: () => {},
+      toggleRepeat: () => {},
+      toggleLike: async () => {},
+      addToQueue: () => {},
+      playQueue: async () => {},
+      clearQueue: () => {},
+      setAutoPlay: () => {},
+      stopPlayback: async () => {},
+    };
   }
   return context;
 };
