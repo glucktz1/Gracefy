@@ -89,43 +89,57 @@ const LoginScreen = ({ navigation }) => {
     try {
       setGoogleLoading(true);
       
-      // Get the redirect URL for mobile
-      const redirectUrl = Linking.createURL('auth');
+      // For mobile, we use the backend's Google OAuth endpoint
+      // which will redirect back to the app with a session_id
+      const callbackUrl = `${API_BASE_URL}/user/auth/google-callback`;
+      const mobileRedirect = Linking.createURL('auth');
       
-      // Build the OAuth URL with proper redirect
-      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUrl)}&platform=mobile`;
+      // Build the OAuth URL - pass both callback and mobile redirect
+      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(callbackUrl)}&mobile_redirect=${encodeURIComponent(mobileRedirect)}&platform=mobile`;
       
       console.log('Opening Google Auth:', authUrl);
-      console.log('Redirect URL:', redirectUrl);
       
-      // Open auth in browser
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+      // Open auth in browser with the mobile scheme as the return URL
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'gracefy://');
       
       console.log('Auth result:', result);
       
       if (result.type === 'success' && result.url) {
-        // Extract session_id from callback URL
         const url = result.url;
+        console.log('Callback URL:', url);
+        
+        // Extract session_id from callback URL
         let sessionId = null;
         
-        // Try to extract session_id from various URL formats
-        if (url.includes('session_id=')) {
+        // Try different URL parameter formats
+        const urlObj = new URL(url.replace('gracefy://', 'https://temp.com/'));
+        sessionId = urlObj.searchParams.get('session_id');
+        
+        if (!sessionId && url.includes('session_id=')) {
           sessionId = url.split('session_id=')[1]?.split('&')[0]?.split('#')[0];
         }
         
-        console.log('Session ID:', sessionId);
+        console.log('Extracted Session ID:', sessionId);
         
         if (sessionId) {
           await handleGoogleCallback(sessionId);
         } else {
-          Alert.alert('Kosa', 'Hakuna session ID. Jaribu tena.');
+          // Try to get token directly if present
+          const token = urlObj.searchParams.get('token');
+          if (token) {
+            await handleGoogleCallback(null, token);
+          } else {
+            Alert.alert('Kosa', 'Hakuna session ID. Jaribu tena.');
+          }
         }
       } else if (result.type === 'cancel') {
         console.log('User cancelled auth');
+      } else if (result.type === 'dismiss') {
+        console.log('Browser dismissed');
       }
     } catch (error) {
       console.error('Google login error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kufungua Google login. ' + error.message);
+      Alert.alert('Kosa', 'Imeshindikana kufungua Google login. ' + (error.message || 'Jaribu tena'));
     } finally {
       setGoogleLoading(false);
     }
