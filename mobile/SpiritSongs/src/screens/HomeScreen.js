@@ -517,13 +517,19 @@ const HomeScreen = ({ navigation }) => {
           {userPlaylists[0] ? (
             <TouchableOpacity 
               style={styles.quickAccessItem}
-              onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[0] })}
+              onPress={() => {
+                if (userPlaylists[0]) {
+                  navigation.navigate('Playlist', { playlist: userPlaylists[0] });
+                } else {
+                  navigation.navigate('Library', { tab: 'playlists' });
+                }
+              }}
             >
               <Image
-                source={{ uri: getImageUrl(userPlaylists[0].thumbnail) || 'https://via.placeholder.com/56' }}
+                source={{ uri: getImageUrl(userPlaylists[0]?.thumbnail) || 'https://via.placeholder.com/56' }}
                 style={styles.quickAccessImage}
               />
-              <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[0].name}</Text>
+              <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[0]?.name || 'Playlist'}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
