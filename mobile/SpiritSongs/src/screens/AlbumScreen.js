@@ -29,8 +29,33 @@ import AddToPlaylistModal, {
 const { width } = Dimensions.get('window');
 
 const AlbumScreen = ({ route, navigation }) => {
-  const { album, playlist, mix } = route.params || {};
+  // Safe extraction with fallbacks
+  const params = route?.params || {};
+  const { album, playlist, mix } = params;
   const item = album || playlist || mix;
+  
+  // If no item, show error state
+  if (!item) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={COLORS.textMuted} />
+          <Text style={styles.errorText}>Hakuna maudhui</Text>
+          <TouchableOpacity 
+            style={styles.errorButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.errorButtonText}>Rudi Nyuma</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
