@@ -164,6 +164,8 @@ export const bibleAPI = {
   getVerses: (bookName, chapter) => api.get(`/bible/books/${encodeURIComponent(bookName)}/chapters/${chapter}`),
   getSnippets: () => api.get('/bible/snippets'),
   getFeaturedSnippets: () => api.get('/bible/featured-snippets'),
+  // Get TTS settings from admin
+  getTtsSettings: () => api.get('/admin/bible/tts-settings'),
   // TTS APIs - use book_name parameter for backend compatibility
   generateTTS: (data) => api.post('/bible/tts/verse', {
     book_name: data.book,
@@ -178,6 +180,7 @@ export const bibleAPI = {
     start_verse: data.start_verse,
     end_verse: data.end_verse,
     voice: data.voice,
+    speed: data.speed,
     language: data.language || 'sw'
   }),
   getListeningStatus: () => api.get('/bible/listening-status'),
