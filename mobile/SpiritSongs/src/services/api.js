@@ -57,7 +57,11 @@ export const getAudioUrl = (path) => {
 // Helper to get full image URL
 export const getImageUrl = (path) => {
   if (!path) return null;
+  // Handle data URLs (base64)
+  if (path.startsWith('data:')) return path;
+  // Handle full URLs
   if (path.startsWith('http')) return path;
+  // Handle relative paths
   return `${API_BASE_URL.replace('/api', '')}${path}`;
 };
 
