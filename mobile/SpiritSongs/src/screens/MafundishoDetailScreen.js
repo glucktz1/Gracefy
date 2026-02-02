@@ -46,14 +46,39 @@ const MafundishoDetailScreen = ({ route, navigation }) => {
       if (response.data) {
         // Support both old container structure and new teaching structure
         setContainer(response.data.container || response.data || mafundisho);
-        setSeries(response.data.series || []);
-        setTopics(response.data.topics || []);
+        
+        // Handle both old 'series' structure and new 'topics' structure
+        // Convert topics/lessons to series/episodes format for backward compatibility
+        const rawSeries = response.data.series || [];
+        const rawTopics = response.data.topics || [];
+        
+        if (rawTopics.length > 0) {
+          // Convert topics/lessons to series/episodes format
+          const convertedSeries = rawTopics.map(topic => ({
+            series_id: topic.topic_id,
+            title: topic.title_sw || topic.title || 'Mada',
+            description: topic.description,
+            thumbnail_url: topic.thumbnail_url || topic.thumbnail,
+            episodes: (topic.lessons || []).map(lesson => ({
+              episode_id: lesson.lesson_id,
+              title: lesson.title_sw || lesson.title,
+              audio_url: lesson.audio_url,
+              duration_seconds: lesson.duration,
+              duration_formatted: lesson.duration_formatted,
+            }))
+          }));
+          setSeries(convertedSeries);
+        } else {
+          setSeries(rawSeries);
+        }
+        
+        setTopics(rawTopics);
         
         // Auto-expand first series/topic
-        if (response.data.series?.length > 0) {
-          setExpandedSeries({ [response.data.series[0].series_id]: true });
-        } else if (response.data.topics?.length > 0) {
-          setExpandedSeries({ [response.data.topics[0].topic_id]: true });
+        if (rawSeries.length > 0) {
+          setExpandedSeries({ [rawSeries[0].series_id]: true });
+        } else if (rawTopics.length > 0) {
+          setExpandedSeries({ [rawTopics[0].topic_id]: true });
         }
       }
     } catch (error) {
