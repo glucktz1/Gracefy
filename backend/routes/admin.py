@@ -1167,3 +1167,212 @@ async def get_church_leader_accounts():
     accounts = await db.church_leader_accounts.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(100)
     
     return {"accounts": accounts}
+
+
+# ============== TRANSACTIONS MANAGEMENT ==============
+
+@router.get("/admin/transactions")
+async def get_admin_transactions(
+    status: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Get all transactions with filtering"""
+    db = get_db()
+    from datetime import timedelta
+    
+    query = {}
+    if status:
+        query["status"] = status
+    if gateway:
+        query["payment_method"] = gateway
+    if start_date:
+        query["created_at"] = {"$gte": start_date}
+    if end_date:
+        if "created_at" in query:
+            query["created_at"]["$lte"] = end_date
+        else:
+            query["created_at"] = {"$lte": end_date}
+    
+    transactions = await db.transactions.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    total = await db.transactions.count_documents(query)
+    
+    # Calculate stats
+    stats_pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": "$status",
+            "count": {"$sum": 1},
+            "total_amount": {"$sum": "$amount"}
+        }}
+    ]
+    stats_result = await db.transactions.aggregate(stats_pipeline).to_list(10)
+    
+    stats = {
+        "total_transactions": total,
+        "total_revenue": sum(s["total_amount"] for s in stats_result if s["_id"] == "completed"),
+        "by_status": {s["_id"]: {"count": s["count"], "amount": s["total_amount"]} for s in stats_result}
+    }
+    
+    # Enrich with user info
+    for tx in transactions:
+        if tx.get("user_id"):
+            user = await db.app_users.find_one(
+                {"user_id": tx["user_id"]},
+                {"_id": 0, "user_id": 1, "name": 1, "email": 1, "phone": 1}
+            )
+            tx["user"] = user
+    
+    return {
+        "transactions": transactions,
+        "total": total,
+        "stats": stats,
+        "skip": skip,
+        "limit": limit
+    }
+
+
+@router.get("/admin/transactions/{transaction_id}")
+async def get_transaction_detail(transaction_id: str):
+    """Get single transaction details"""
+    db = get_db()
+    
+    tx = await db.transactions.find_one(
+        {"transaction_id": transaction_id},
+        {"_id": 0}
+    )
+    
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Get user info
+    if tx.get("user_id"):
+        user = await db.app_users.find_one(
+            {"user_id": tx["user_id"]},
+            {"_id": 0, "user_id": 1, "name": 1, "email": 1, "phone": 1}
+        )
+        tx["user"] = user
+    
+    return tx
+
+
+@router.post("/admin/transactions/{transaction_id}/refund")
+async def refund_transaction(transaction_id: str, data: dict):
+    """Process a refund for a transaction"""
+    db = get_db()
+    
+    tx = await db.transactions.find_one({"transaction_id": transaction_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if tx.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Can only refund completed transactions")
+    
+    # Update transaction
+    await db.transactions.update_one(
+        {"transaction_id": transaction_id},
+        {"$set": {
+            "status": "refunded",
+            "refund_reason": data.get("reason"),
+            "refunded_at": datetime.now(timezone.utc).isoformat(),
+            "refunded_by": data.get("admin_id")
+        }}
+    )
+    
+    # Update user subscription if applicable
+    if tx.get("user_id") and tx.get("type") == "subscription":
+        await db.app_users.update_one(
+            {"user_id": tx["user_id"]},
+            {"$set": {
+                "subscription_type": "free",
+                "subscription_expires": None
+            }}
+        )
+    
+    return {"message": "Refund processed", "transaction_id": transaction_id}
+
+
+@router.get("/admin/transactions/export")
+async def export_transactions(
+    status: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    format: str = Query("csv")
+):
+    """Export transactions as CSV or JSON"""
+    db = get_db()
+    from fastapi.responses import StreamingResponse
+    import io
+    import csv
+    
+    query = {}
+    if status:
+        query["status"] = status
+    if gateway:
+        query["payment_method"] = gateway
+    if start_date:
+        query["created_at"] = {"$gte": start_date}
+    if end_date:
+        if "created_at" in query:
+            query["created_at"]["$lte"] = end_date
+        else:
+            query["created_at"] = {"$lte": end_date}
+    
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    
+    if format == "csv":
+        output = io.StringIO()
+        if transactions:
+            fieldnames = ["transaction_id", "user_id", "amount", "currency", "status", 
+                         "payment_method", "plan_name", "created_at", "completed_at"]
+            writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+            writer.writeheader()
+            for tx in transactions:
+                writer.writerow(tx)
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=transactions.csv"}
+        )
+    
+    return {"transactions": transactions, "total": len(transactions)}
+
+
+@router.get("/admin/payment/gateways")
+async def get_payment_gateways():
+    """Get available payment gateways"""
+    db = get_db()
+    
+    # Get unique gateways from transactions
+    gateways_pipeline = [
+        {"$group": {"_id": "$payment_method", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    used_gateways = await db.transactions.aggregate(gateways_pipeline).to_list(20)
+    
+    # Default gateways
+    default_gateways = [
+        {"id": "mpesa", "name": "M-Pesa", "status": "active"},
+        {"id": "tigopesa", "name": "Tigo Pesa", "status": "active"},
+        {"id": "airtel", "name": "Airtel Money", "status": "active"},
+        {"id": "halopesa", "name": "Halo Pesa", "status": "active"},
+        {"id": "azampay", "name": "AzamPay", "status": "active"},
+    ]
+    
+    # Merge with usage stats
+    for gw in default_gateways:
+        usage = next((g for g in used_gateways if g["_id"] == gw["id"]), None)
+        gw["transactions"] = usage["count"] if usage else 0
+    
+    return {"gateways": default_gateways}
+
