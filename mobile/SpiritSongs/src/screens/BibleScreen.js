@@ -302,7 +302,8 @@ const BibleScreen = ({ navigation }) => {
         start_verse: start,
         end_verse: end,
         language: 'sw',
-        voice: selectedVoice
+        voice: ttsSettings.default_voice,
+        speed: ttsSettings.default_speed
       });
 
       if (response.data?.audio_base64) {
