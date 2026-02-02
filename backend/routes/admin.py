@@ -208,12 +208,23 @@ async def get_admin_users(
 
 @router.get("/admin/users/{user_id}")
 async def get_admin_user(user_id: str):
-    """Get single user details"""
+    """Get single user details - checks both admin and app users"""
     db = get_db()
     
+    # Try admin users first
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if user:
+        user["user_type"] = "admin"
+        return user
+    
+    # Try app users
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    if user:
+        user["user_type"] = "app"
+        user["role"] = "user"
+        return user
+    
+    raise HTTPException(status_code=404, detail="User not found")
     
     return user
 
