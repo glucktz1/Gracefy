@@ -686,12 +686,28 @@ const AddToPlaylistModal = ({
                 value={newPlaylistName}
                 onChangeText={setNewPlaylistName}
                 autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (newPlaylistName.trim()) {
+                    handleCreatePlaylist();
+                  }
+                }}
               />
               <View style={styles.createButtons}>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowCreateNew(false)}>
+                <TouchableOpacity 
+                  style={styles.cancelButton} 
+                  onPress={() => {
+                    setShowCreateNew(false);
+                    Keyboard.dismiss();
+                  }}
+                >
                   <Text style={styles.cancelButtonText}>Ghairi</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.createButton} onPress={handleCreatePlaylist} disabled={creating}>
+                <TouchableOpacity 
+                  style={[styles.createButton, !newPlaylistName.trim() && { opacity: 0.5 }]} 
+                  onPress={handleCreatePlaylist} 
+                  disabled={creating || !newPlaylistName.trim()}
+                >
                   {creating ? (
                     <ActivityIndicator size="small" color={COLORS.background} />
                   ) : (
