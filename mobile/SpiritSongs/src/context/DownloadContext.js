@@ -155,6 +155,13 @@ export const DownloadProvider = ({ children }) => {
       return { success: false, message: 'Invalid song' };
     }
     
+    // Check if song has audio URL
+    const audioUrl = song.audio_url;
+    if (!audioUrl || audioUrl.trim() === '') {
+      console.error('[Downloads] No audio URL for song:', song.song_id);
+      return { success: false, message: 'Wimbo huu hauna faili ya sauti' };
+    }
+    
     // Skip if already downloaded or in queue
     if (downloadedSongIds.has(song.song_id)) {
       console.log('[Downloads] Already downloaded:', song.song_id);
@@ -171,7 +178,7 @@ export const DownloadProvider = ({ children }) => {
       return { success: true, message: 'Download in progress' };
     }
 
-    console.log('[Downloads] Adding to queue:', song.title, song.song_id);
+    console.log('[Downloads] Adding to queue:', song.title, song.song_id, 'URL:', audioUrl);
     const newQueue = [...downloadQueue, song];
     setDownloadQueue(newQueue);
     await AsyncStorage.setItem(DOWNLOAD_QUEUE_KEY, JSON.stringify(newQueue));
