@@ -7,6 +7,10 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,8 +20,9 @@ import { homeAPI, libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
+import { useDownloads } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
-import { SongActionsModal } from '../components/AddToPlaylistModal';
+import { SongActionsSheet, PlaylistPickerSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
 
 const AlbumScreen = ({ route, navigation }) => {
