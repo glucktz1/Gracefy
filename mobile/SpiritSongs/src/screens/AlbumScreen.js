@@ -373,31 +373,89 @@ const AlbumScreen = ({ route, navigation }) => {
         <View style={{ height: 150 }} />
       </ScrollView>
 
-      {/* Song Actions Modal */}
-      <SongActionsModal
-        visible={showActionsModal}
-        onClose={() => setShowActionsModal(false)}
+      {/* Song Actions Sheet */}
+      <SongActionsSheet
+        visible={showActionsSheet}
+        onClose={() => setShowActionsSheet(false)}
         song={selectedSong}
         isLiked={selectedSong?.song_id ? likedSongs.has(selectedSong.song_id) : false}
         isAuthenticated={isAuthenticated}
-        billingEnabled={billingEnabled}
-        isPremium={isPremium}
-        onLike={() => handleLikeSong(selectedSong)}
-        onAddToPlaylist={() => {
-          setShowActionsModal(false);
-        }}
-        onDownload={() => {
-          setShowActionsModal(false);
-        }}
-        onLoginRequired={() => {
-          setShowActionsModal(false);
-          navigation.navigate('Login');
-        }}
-        onSubscriptionRequired={() => {
-          setShowActionsModal(false);
-          navigation.navigate('Subscription');
+        onLike={handleLikeSong}
+        onAddToPlaylist={handleAddToPlaylist}
+        onLoginRequired={() => navigation.navigate('Login')}
+        navigation={navigation}
+      />
+
+      {/* Playlist Picker Sheet */}
+      <PlaylistPickerSheet
+        visible={showPlaylistPicker}
+        onClose={() => setShowPlaylistPicker(false)}
+        song={selectedSong}
+        playlists={playlists}
+        loading={false}
+        onSelectPlaylist={handleSelectPlaylist}
+        onCreatePlaylist={() => {
+          setShowPlaylistPicker(false);
+          setTimeout(() => setShowCreatePlaylistModal(true), 300);
         }}
       />
+
+      {/* Create Playlist Modal */}
+      <Modal
+        visible={showCreatePlaylistModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCreatePlaylistModal(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowCreatePlaylistModal(false)}
+          >
+            <View 
+              style={styles.createPlaylistModal} 
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={styles.modalTitle}>Playlist Mpya</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Jina la playlist..."
+                placeholderTextColor={COLORS.textMuted}
+                value={newPlaylistName}
+                onChangeText={setNewPlaylistName}
+                autoFocus
+                maxLength={50}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={styles.modalCancelButton}
+                  onPress={() => setShowCreatePlaylistModal(false)}
+                >
+                  <Text style={styles.modalCancelText}>Ghairi</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[
+                    styles.modalCreateButton, 
+                    !newPlaylistName.trim() && styles.modalButtonDisabled
+                  ]}
+                  onPress={handleCreatePlaylist}
+                  disabled={!newPlaylistName.trim() || creatingPlaylist}
+                >
+                  {creatingPlaylist ? (
+                    <ActivityIndicator size="small" color={COLORS.text} />
+                  ) : (
+                    <Text style={styles.modalCreateText}>Tengeneza</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
