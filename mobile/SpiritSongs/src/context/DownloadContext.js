@@ -351,28 +351,6 @@ export const DownloadProvider = ({ children }) => {
       return false;
     }
   };
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      
-      // Mark as failed
-      setActiveDownloads(prev => ({
-        ...prev,
-        [songId]: { ...prev[songId], status: DOWNLOAD_STATUS.FAILED }
-      }));
-
-      // Remove from active after delay
-      setTimeout(() => {
-        setActiveDownloads(prev => {
-          const updated = { ...prev };
-          delete updated[songId];
-          return updated;
-        });
-      }, 3000);
-      
-      return false;
-    }
-  };
 
   // Cancel a download
   const cancelDownload = useCallback(async (songId) => {
