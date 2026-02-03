@@ -270,6 +270,34 @@ async def full_cdn_audit(test_cdn_urls: bool = Query(False)):
 
 # ============== CLEANUP & MIGRATION ==============
 
+@router.post("/admin/cdn/disable-songs-by-ids")
+async def disable_songs_by_ids(data: dict):
+    """Disable specific songs by their IDs"""
+    db = get_db()
+    
+    song_ids = data.get("song_ids", [])
+    reason = data.get("reason", "missing_file_data")
+    
+    if not song_ids:
+        raise HTTPException(status_code=400, detail="song_ids required")
+    
+    result = await db.songs.update_many(
+        {"song_id": {"$in": song_ids}},
+        {
+            "$set": {
+                "status": f"disabled_{reason}",
+                "disabled_at": datetime.now(timezone.utc).isoformat(),
+                "disabled_reason": reason
+            }
+        }
+    )
+    
+    return {
+        "disabled_count": result.modified_count,
+        "song_ids": song_ids
+    }
+
+
 @router.post("/admin/cdn/disable-invalid-songs")
 async def disable_songs_without_audio(
     dry_run: bool = Query(True, description="If true, only report what would be disabled")
