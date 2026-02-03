@@ -303,6 +303,12 @@ async def get_feature_controls():
     
     return controls
 
+# Alias for frontend compatibility
+@router.get("/monetization/feature-controls")
+async def get_monetization_feature_controls():
+    """Alias for get_feature_controls"""
+    return await get_feature_controls()
+
 
 @router.post("/feature-controls")
 async def save_feature_controls(data: dict):
@@ -319,6 +325,12 @@ async def save_feature_controls(data: dict):
     )
     
     return {"message": "Feature controls saved"}
+
+# Alias for frontend compatibility
+@router.put("/monetization/feature-controls")
+async def update_monetization_feature_controls(data: dict):
+    """Alias for save_feature_controls"""
+    return await save_feature_controls(data)
 
 
 # ============== USER SUBSCRIPTION ==============
