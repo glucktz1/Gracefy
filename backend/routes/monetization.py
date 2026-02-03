@@ -227,6 +227,96 @@ async def get_billing_status():
     }
 
 
+# ============== TRIAL SETTINGS ==============
+
+@router.get("/monetization/trial-settings")
+async def get_trial_settings():
+    """Get free trial settings"""
+    db = get_db()
+    
+    settings = await db.monetization_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    
+    return {
+        "free_trial_enabled": settings.get("free_trial_enabled", True) if settings else True,
+        "free_trial_days": settings.get("free_trial_days", 7) if settings else 7
+    }
+
+
+@router.put("/monetization/trial-settings")
+async def update_trial_settings(data: dict):
+    """Update free trial settings"""
+    db = get_db()
+    
+    await db.monetization_settings.update_one(
+        {},
+        {"$set": {
+            "free_trial_enabled": data.get("free_trial_enabled", True),
+            "free_trial_days": data.get("free_trial_days", 7),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {"message": "Trial settings updated"}
+
+
+@router.get("/monetization/trial-stats")
+async def get_trial_stats():
+    """Get trial usage statistics"""
+    db = get_db()
+    
+    now = datetime.now(timezone.utc)
+    thirty_days_ago = (now - timedelta(days=30)).isoformat()
+    
+    # Get users on trial
+    active_trials = await db.app_users.count_documents({
+        "subscription_type": "trial",
+        "trial_ends_at": {"$gt": now.isoformat()}
+    })
+    
+    # Get trial conversions (users who upgraded from trial)
+    converted_users = await db.app_users.count_documents({
+        "subscription_type": "premium",
+        "previous_subscription_type": "trial"
+    })
+    
+    # Get expired trials
+    expired_trials = await db.app_users.count_documents({
+        "trial_ends_at": {"$lt": now.isoformat()},
+        "subscription_type": {"$ne": "premium"}
+    })
+    
+    # Trial starts in last 30 days
+    recent_trial_starts = await db.app_users.count_documents({
+        "trial_started_at": {"$gte": thirty_days_ago}
+    })
+    
+    return {
+        "active_trials": active_trials,
+        "converted_users": converted_users,
+        "expired_trials": expired_trials,
+        "recent_trial_starts": recent_trial_starts,
+        "conversion_rate": round((converted_users / max(converted_users + expired_trials, 1)) * 100, 1)
+    }
+
+
+# ============== RATE HISTORY ==============
+
+@router.get("/monetization/rate-history")
+async def get_rate_history():
+    """Get history of rate changes"""
+    db = get_db()
+    
+    # Get all settings documents (which form the history)
+    history = await db.monetization_settings.find(
+        {},
+        {"_id": 0, "premium_rate_per_hour": 1, "standard_rate_per_hour": 1, 
+         "platform_fee_percentage": 1, "created_at": 1, "updated_at": 1}
+    ).sort("created_at", -1).limit(20).to_list(20)
+    
+    return {"history": history}
+
+
 # ============== TRANSACTIONS ==============
 
 @router.get("/transactions")
