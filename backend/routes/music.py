@@ -97,13 +97,20 @@ async def get_song_download_url(song_id: str):
     safe_title = "".join(c if c.isalnum() or c in "._- " else "_" for c in (song.get("title") or "song"))
     filename = f"{safe_title}_{song_id}.mp3"
     
-    # Return the proxy URL instead of direct CDN URL to avoid 403 errors
-    # The /api/stream/song/{song_id} endpoint will handle authentication if needed
-    proxy_url = f"/api/stream/song/{song_id}"
+    # If the URL is already an internal file stream path, return it as-is
+    # Otherwise return a proxy URL
+    if audio_url.startswith('/api/files/'):
+        download_url = audio_url
+    elif audio_url.startswith('http'):
+        # CDN URLs need to be proxied through our stream endpoint
+        download_url = f"/api/stream/song/{song_id}"
+    else:
+        # Unknown format, try the file stream
+        download_url = audio_url
     
     return {
-        "download_url": proxy_url,
-        "direct_url": audio_url,  # Include direct URL for reference
+        "download_url": download_url,
+        "direct_url": audio_url,
         "filename": filename,
         "song_id": song_id
     }
