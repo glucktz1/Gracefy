@@ -5,7 +5,7 @@ import {
   Save, RefreshCw, AlertTriangle, CheckCircle, Plus, Trash2, Edit2,
   Percent, Calendar, Globe, FileText, TrendingDown, Pause, Play,
   Music, Lock, Unlock, Volume2, Download, ListMusic, Shuffle, SkipForward,
-  Headphones, Wifi, WifiOff
+  Headphones, Wifi, WifiOff, Package, TrendingUp, AlertCircle, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
