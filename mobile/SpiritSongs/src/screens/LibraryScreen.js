@@ -1,11 +1,10 @@
 /**
- * LibraryScreen - Spotify-like user library
+ * LibraryScreen - Complete rewrite with robust error handling
  * Features:
  * - Playlists management
- * - Liked songs with instant toggling
+ * - Liked songs with proper API calls
  * - Downloaded songs with offline playback
- * - Smooth animations and transitions
- * - Create playlist modal
+ * - Comprehensive error handling and logging
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -23,6 +22,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +43,7 @@ const LibraryScreen = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState(route?.params?.tab || 'playlists');
   const [playlists, setPlaylists] = useState([]);
   const [likedSongs, setLikedSongs] = useState([]);
+  const [likedSongIds, setLikedSongIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -68,8 +69,6 @@ const LibraryScreen = ({ navigation, route }) => {
   const playTrack = playerContext?.playTrack ?? (() => {});
   const currentTrack = playerContext?.currentTrack ?? null;
   const isPlaying = playerContext?.isPlaying ?? false;
-  const billingEnabled = billingContext?.billingEnabled ?? false;
-  const isPremium = billingContext?.isPremium ?? false;
   const downloads = downloadContext?.downloads ?? [];
   const activeDownloads = downloadContext?.activeDownloads ?? {};
   const downloadQueue = downloadContext?.downloadQueue ?? [];
@@ -94,17 +93,32 @@ const LibraryScreen = ({ navigation, route }) => {
   }, [isAuthenticated]);
 
   const loadLibraryData = async () => {
+    console.log('[Library] Loading library data...');
     try {
       setLoading(true);
-      const [playlistsRes, likesRes] = await Promise.all([
-        libraryAPI.getPlaylists().catch(() => ({ data: { playlists: [] } })),
-        libraryAPI.getLikedSongs().catch(() => ({ data: { songs: [] } })),
-      ]);
       
-      setPlaylists(playlistsRes?.data?.playlists ?? []);
-      setLikedSongs(likesRes?.data?.songs ?? []);
+      // Load playlists
+      try {
+        const playlistsRes = await libraryAPI.getPlaylists();
+        console.log('[Library] Playlists response:', playlistsRes?.data);
+        setPlaylists(playlistsRes?.data?.playlists ?? []);
+      } catch (err) {
+        console.error('[Library] Failed to load playlists:', err.response?.data || err.message);
+      }
+      
+      // Load liked songs
+      try {
+        const likesRes = await libraryAPI.getLikedSongs();
+        console.log('[Library] Likes response:', likesRes?.data);
+        const songs = likesRes?.data?.songs ?? [];
+        setLikedSongs(songs);
+        setLikedSongIds(new Set(songs.filter(s => s?.song_id).map(s => s.song_id)));
+      } catch (err) {
+        console.error('[Library] Failed to load likes:', err.response?.data || err.message);
+      }
+      
     } catch (error) {
-      console.error('Error loading library:', error);
+      console.error('[Library] Error loading library:', error);
     } finally {
       setLoading(false);
     }
@@ -125,7 +139,7 @@ const LibraryScreen = ({ navigation, route }) => {
     try {
       playTrack(song, songList);
     } catch (error) {
-      console.error('Error playing song:', error);
+      console.error('[Library] Error playing song:', error);
       showToast('Imeshindwa kucheza', 'error');
     }
   }, [playTrack]);
@@ -147,28 +161,54 @@ const LibraryScreen = ({ navigation, route }) => {
     setShowActionsSheet(true);
   }, []);
 
+  // LIKE/UNLIKE with comprehensive error handling
   const handleLikeSong = useCallback(async (song) => {
-    if (!song?.song_id) return;
+    if (!song?.song_id) {
+      console.error('[Library] handleLikeSong: No song_id provided');
+      return;
+    }
+    
+    const songId = song.song_id;
+    const isCurrentlyLiked = likedSongIds.has(songId);
+    
+    console.log(`[Library] ${isCurrentlyLiked ? 'Unliking' : 'Liking'} song:`, songId);
     
     try {
-      const isLiked = likedSongs.some(s => s?.song_id === song.song_id);
-      
-      if (isLiked) {
-        await libraryAPI.unlikeSong(song.song_id);
-        setLikedSongs(prev => prev.filter(s => s?.song_id !== song.song_id));
+      if (isCurrentlyLiked) {
+        // UNLIKE
+        const response = await libraryAPI.unlikeSong(songId);
+        console.log('[Library] Unlike response:', response?.data);
+        
+        // Update state
+        setLikedSongs(prev => prev.filter(s => s?.song_id !== songId));
+        setLikedSongIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(songId);
+          return newSet;
+        });
         showToast('Imeondolewa kwenye zilizopendwa', 'success');
       } else {
-        await libraryAPI.likeSong(song.song_id);
+        // LIKE
+        const response = await libraryAPI.likeSong(songId);
+        console.log('[Library] Like response:', response?.data);
+        
+        // Update state
         setLikedSongs(prev => [song, ...prev]);
+        setLikedSongIds(prev => new Set([...prev, songId]));
         showToast('Imeongezwa kwenye zilizopendwa ❤️', 'success');
       }
+      
+      // Close the actions sheet
+      setShowActionsSheet(false);
+      
     } catch (error) {
-      console.error('Error toggling like:', error);
-      showToast('Imeshindwa', 'error');
+      console.error('[Library] Error toggling like:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.detail || 'Imeshindwa kubadilisha hali ya kupenda';
+      showToast(errorMessage, 'error');
     }
-  }, [likedSongs]);
+  }, [likedSongIds]);
 
-  // Playlist handlers
+  // PLAYLIST HANDLERS with comprehensive error handling
   const handleOpenCreatePlaylist = useCallback(() => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
@@ -185,51 +225,78 @@ const LibraryScreen = ({ navigation, route }) => {
       return;
     }
     
+    console.log('[Library] Creating playlist:', name);
     setCreatingPlaylist(true);
+    
     try {
       const response = await libraryAPI.createPlaylist({ name });
+      console.log('[Library] Create playlist response:', response?.data);
+      
       showToast('Playlist imetengenezwa! ✓', 'success');
       setShowCreatePlaylistModal(false);
       setNewPlaylistName('');
       
+      const newPlaylistId = response.data?.playlist_id;
+      
       // If we have a selected song, add it to the new playlist
-      if (selectedSong && response.data?.playlist_id) {
-        await libraryAPI.addToPlaylist(response.data.playlist_id, selectedSong.song_id);
-        showToast(`"${selectedSong.title}" imeongezwa`, 'success');
+      if (selectedSong && newPlaylistId) {
+        console.log('[Library] Adding song to new playlist:', selectedSong.song_id, '->', newPlaylistId);
+        try {
+          const addResponse = await libraryAPI.addToPlaylist(newPlaylistId, selectedSong.song_id);
+          console.log('[Library] Add to playlist response:', addResponse?.data);
+          showToast(`"${selectedSong.title}" imeongezwa`, 'success');
+        } catch (addError) {
+          console.error('[Library] Failed to add song to playlist:', addError.response?.data || addError.message);
+          showToast('Playlist imetengenezwa lakini imeshindwa kuongeza wimbo', 'error');
+        }
         setSelectedSong(null);
         setShowPlaylistPicker(false);
       }
       
+      // Reload playlists
       loadLibraryData();
+      
     } catch (error) {
-      showToast('Imeshindwa kutengeneza playlist', 'error');
+      console.error('[Library] Error creating playlist:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.detail || 'Imeshindwa kutengeneza playlist';
+      showToast(errorMessage, 'error');
     } finally {
       setCreatingPlaylist(false);
     }
   }, [newPlaylistName, selectedSong]);
 
   const handleAddToPlaylist = useCallback((song) => {
+    console.log('[Library] Opening playlist picker for song:', song?.song_id);
     setSelectedSong(song);
     setShowActionsSheet(false);
     setTimeout(() => setShowPlaylistPicker(true), 300);
   }, []);
 
   const handleSelectPlaylist = useCallback(async (playlist) => {
-    if (!selectedSong) return;
+    if (!selectedSong) {
+      console.error('[Library] handleSelectPlaylist: No song selected');
+      return;
+    }
+    
+    console.log('[Library] Adding song to playlist:', selectedSong.song_id, '->', playlist.playlist_id);
     
     try {
-      await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
+      const response = await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
+      console.log('[Library] Add to playlist response:', response?.data);
+      
       showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
       setShowPlaylistPicker(false);
       setSelectedSong(null);
+      
+      // Reload to update song counts
       loadLibraryData();
+      
     } catch (error) {
-      showToast('Imeshindwa kuongeza wimbo', 'error');
+      console.error('[Library] Error adding to playlist:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.detail || 'Imeshindwa kuongeza wimbo';
+      showToast(errorMessage, 'error');
     }
   }, [selectedSong]);
-
-  // Check if song is liked
-  const likedSongIds = new Set(likedSongs.filter(s => s?.song_id).map(s => s.song_id));
 
   // Calculate download stats
   const totalDownloadSize = getTotalSize();
