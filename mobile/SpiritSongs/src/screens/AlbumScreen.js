@@ -69,6 +69,7 @@ const AlbumScreen = ({ route, navigation }) => {
       loadSongs();
       if (isAuthenticated) {
         loadLikedSongs();
+        loadPlaylists();
       }
     } else {
       setLoading(false);
