@@ -476,6 +476,10 @@ async def track_play(request: Request, data: dict):
     Track song play for listening history and revenue.
     Only counts as a valid play if played for 45+ seconds.
     Updates song play_count and creates a listening session.
+    
+    Revenue calculation depends on monetization_mode setting:
+    - time_based: Revenue calculated per play (rate × hours)
+    - percentage_based: Revenue calculated periodically (choir_minutes/total_minutes × revenue_pool)
     """
     db = get_db()
     user = await get_user_from_token(request)
@@ -491,6 +495,27 @@ async def track_play(request: Request, data: dict):
     user_id = user["user_id"] if user else "anonymous"
     subscription_type = user.get("subscription_type", "free") if user else "free"
     
+    # Get song to find choir/album info
+    song = await db.songs.find_one(
+        {"song_id": song_id}, 
+        {"_id": 0, "is_premium": 1, "choir_id": 1, "album_id": 1}
+    )
+    
+    # Get album to find choir_id if not on song
+    song_album_id = song.get("album_id") if song else None
+    if not album_id and song_album_id:
+        album_id = song_album_id
+    
+    choir_id = None
+    if song and song.get("choir_id"):
+        choir_id = song["choir_id"]
+    elif album_id:
+        album = await db.albums.find_one({"album_id": album_id}, {"_id": 0, "singer_id": 1})
+        if album:
+            choir_id = album.get("singer_id")
+    
+    is_premium_content = song.get("is_premium", False) if song else False
+    
     # Create listening session
     session_id = f"listen_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
@@ -500,11 +525,13 @@ async def track_play(request: Request, data: dict):
         "user_id": user_id,
         "song_id": song_id,
         "album_id": album_id,
+        "choir_id": choir_id,  # Store choir for percentage-based calculation
         "content_type": "song",
         "content_id": song_id,
         "duration_seconds": duration,
         "platform": platform,
         "subscription_type": subscription_type,
+        "is_premium_content": is_premium_content,
         "start_time": now.isoformat(),
         "end_time": now.isoformat(),
         "date": now.strftime("%Y-%m-%d"),
@@ -533,31 +560,95 @@ async def track_play(request: Request, data: dict):
                 {"$inc": {"total_plays": 1, "play_count": 1}}
             )
         
-        # Calculate revenue based on subscription type and song type
-        # Get revenue settings
+        # Get revenue settings to determine monetization mode
         settings = await db.revenue_settings.find_one({}, sort=[("created_at", -1)])
         if not settings:
             settings = {
+                "monetization_mode": "time_based",
                 "premium_rate_per_hour": 10,
                 "standard_rate_per_hour": 5,
-                "platform_share_percentage": 30
+                "platform_share_percentage": 30,
+                "choir_share_percentage": 70
             }
         
-        # Get song to check if premium content
-        song = await db.songs.find_one({"song_id": song_id}, {"_id": 0, "is_premium": 1, "choir_id": 1, "album_id": 1})
-        is_premium_content = song.get("is_premium", False) if song else False
+        monetization_mode = settings.get("monetization_mode", "time_based")
         
-        # Calculate revenue for this play
-        # Convert duration to hours for rate calculation
-        duration_hours = duration / 3600
-        
-        if subscription_type == "premium" or is_premium_content:
-            rate_per_hour = settings.get("premium_rate_per_hour", 10)
+        if monetization_mode == "time_based":
+            # OPTION 1: Time-Based Earning
+            # Calculate revenue for this play: rate_per_hour × duration_in_hours
+            duration_hours = duration / 3600
+            
+            if subscription_type == "premium" or is_premium_content:
+                rate_per_hour = settings.get("premium_rate_per_hour", 10)
+            else:
+                rate_per_hour = settings.get("standard_rate_per_hour", 5)
+            
+            revenue_earned = round(duration_hours * rate_per_hour, 4)
+            platform_share_pct = settings.get("platform_share_percentage", 30) / 100
+            choir_revenue = round(revenue_earned * (1 - platform_share_pct), 4)
+            
+            # Update session with revenue info
+            await db.listening_sessions.update_one(
+                {"session_id": session_id},
+                {"$set": {
+                    "revenue_earned": revenue_earned,
+                    "choir_revenue": choir_revenue,
+                    "monetization_mode": "time_based"
+                }}
+            )
+            
+            # Credit choir account immediately for time-based
+            if choir_id and choir_revenue > 0:
+                await db.choir_accounts.update_one(
+                    {"choir_id": choir_id},
+                    {
+                        "$inc": {
+                            "current_balance": choir_revenue,
+                            "total_earned": choir_revenue,
+                            "total_plays": 1
+                        },
+                        "$setOnInsert": {
+                            "choir_id": choir_id,
+                            "created_at": now.isoformat()
+                        }
+                    },
+                    upsert=True
+                )
         else:
-            rate_per_hour = settings.get("standard_rate_per_hour", 5)
-        
-        revenue_earned = round(duration_hours * rate_per_hour, 4)
-        platform_share = settings.get("platform_share_percentage", 30) / 100
+            # OPTION 2: Percentage-Based Earning
+            # Revenue is calculated periodically, not per-play
+            # Just store the session data for later calculation
+            await db.listening_sessions.update_one(
+                {"session_id": session_id},
+                {"$set": {
+                    "monetization_mode": "percentage_based",
+                    "revenue_calculated": False  # Will be True after periodic calculation
+                }}
+            )
+            
+            # Update choir play count (no revenue yet)
+            if choir_id:
+                await db.choir_accounts.update_one(
+                    {"choir_id": choir_id},
+                    {
+                        "$inc": {"total_plays": 1},
+                        "$setOnInsert": {
+                            "choir_id": choir_id,
+                            "created_at": now.isoformat()
+                        }
+                    },
+                    upsert=True
+                )
+    
+    return {
+        "tracked": True, 
+        "session_id": session_id,
+        "play_counted": play_counted,
+        "duration_seconds": duration,
+        "minimum_required": 45,
+        "revenue_earned": revenue_earned if settings.get("monetization_mode") == "time_based" and duration >= 45 else 0,
+        "monetization_mode": settings.get("monetization_mode", "time_based") if duration >= 45 else None
+    }
         choir_revenue = round(revenue_earned * (1 - platform_share), 4)
         
         # Update session with revenue info
