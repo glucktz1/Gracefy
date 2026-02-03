@@ -10,7 +10,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAudioUrl, contentAPI } from '../services/api';
+import { getAudioUrl, contentAPI, API_BASE_URL } from '../services/api';
 
 const DownloadContext = createContext();
 
