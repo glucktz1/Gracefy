@@ -85,11 +85,6 @@
         }
       ]
     ],
-    "owner": "gracefy21",
-    "extra": {
-      "eas": {
-        "projectId": "946a96e8-3fb6-49be-ba4c-5a5969c80811"
-      }
-    }
+    "owner": "gracefy21"
   }
 }
