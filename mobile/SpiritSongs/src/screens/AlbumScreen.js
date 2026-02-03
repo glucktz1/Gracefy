@@ -533,6 +533,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     gap: SPACING.lg,
   },
+  downloadAlbumButton: {
+    width: 48,
+    height: 48,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   shuffleButton: {
     width: 48,
     height: 48,
