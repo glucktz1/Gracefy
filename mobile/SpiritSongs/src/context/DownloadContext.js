@@ -243,31 +243,30 @@ export const DownloadProvider = ({ children }) => {
     
     console.log('[Downloads] Building URL from:', { downloadPath, directUrl, baseUrl });
     
-    // If downloadPath is a relative API path
-    if (downloadPath && downloadPath.startsWith('/api/')) {
-      const fullUrl = `${baseUrl}${downloadPath}`;
-      console.log('[Downloads] Using API path:', fullUrl);
-      return fullUrl;
+    // PRIORITY 1: Use direct CDN URL if available (best performance)
+    if (directUrl && directUrl.startsWith('http')) {
+      console.log('[Downloads] Using CDN URL (preferred):', directUrl);
+      return directUrl;
     }
     
-    // If downloadPath is already a full URL
+    // PRIORITY 2: Use full URL from downloadPath
     if (downloadPath && downloadPath.startsWith('http')) {
       console.log('[Downloads] Using full URL:', downloadPath);
       return downloadPath;
     }
     
-    // Use directUrl if it's an internal file stream
+    // PRIORITY 3: Use API proxy path
+    if (downloadPath && downloadPath.startsWith('/api/')) {
+      const fullUrl = `${baseUrl}${downloadPath}`;
+      console.log('[Downloads] Using API proxy path:', fullUrl);
+      return fullUrl;
+    }
+    
+    // PRIORITY 4: Use internal file stream
     if (directUrl && directUrl.startsWith('/api/files/')) {
       const fullUrl = `${baseUrl}${directUrl}`;
       console.log('[Downloads] Using direct file URL:', fullUrl);
       return fullUrl;
-    }
-    
-    // If directUrl is a full URL (CDN), use streaming proxy
-    if (directUrl && directUrl.startsWith('http')) {
-      // CDN URLs often fail, but try them anyway
-      console.log('[Downloads] Using CDN URL:', directUrl);
-      return directUrl;
     }
     
     return null;
