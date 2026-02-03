@@ -226,38 +226,54 @@ export const DownloadProvider = ({ children }) => {
         [songId]: { progress: 0, status: DOWNLOAD_STATUS.DOWNLOADING, song }
       }));
 
-      // Get download URL
+      // Get download URL from API
       let fileUrl = null;
       let fileName = `${song.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'song'}_${songId}.mp3`;
 
       try {
         const response = await contentAPI.getSongDownloadUrl(songId);
         if (response.data?.download_url) {
-          fileUrl = getAudioUrl(response.data.download_url);
+          // The download_url is a proxy path like /api/stream/song/{id}
+          // We need to make it a full URL
+          const downloadPath = response.data.download_url;
+          if (downloadPath.startsWith('/api/')) {
+            // Use the full backend URL
+            const baseUrl = API_BASE_URL.replace('/api', '');
+            fileUrl = `${baseUrl}${downloadPath}`;
+          } else if (downloadPath.startsWith('http')) {
+            fileUrl = downloadPath;
+          } else {
+            fileUrl = getAudioUrl(downloadPath);
+          }
+          
           if (response.data.filename) {
             fileName = response.data.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
           }
         }
       } catch (e) {
-        console.log('Could not get download URL from API, using audio_url');
+        console.log('Could not get download URL from API, using audio_url:', e.message);
       }
 
-      // Fallback to song's audio_url
+      // Fallback to song's audio_url (stream through our backend)
       if (!fileUrl) {
-        fileUrl = song?.audio_url || song?.file_url;
-        if (!fileUrl) {
-          throw new Error('No audio URL available');
-        }
-        fileUrl = getAudioUrl(fileUrl);
+        // Use the streaming endpoint as fallback
+        const baseUrl = API_BASE_URL.replace('/api', '');
+        fileUrl = `${baseUrl}/api/stream/song/${songId}`;
       }
 
+      console.log('[Download] Starting download from:', fileUrl);
       const downloadPath = `${DOWNLOAD_DIR}${fileName}`;
 
       // Create download resumable for progress tracking
       const downloadResumable = FileSystem.createDownloadResumable(
         fileUrl,
         downloadPath,
-        { headers: { 'Accept': 'audio/mpeg, audio/*, */*' } },
+        { 
+          headers: { 
+            'Accept': 'audio/mpeg, audio/*, */*',
+            'User-Agent': 'Gracefy-App/1.0'
+          } 
+        },
         (downloadProgress) => {
           const progress = Math.round(
             (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100
@@ -283,6 +299,8 @@ export const DownloadProvider = ({ children }) => {
 
       if (result?.uri) {
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
+        console.log('[Download] File info:', fileInfo);
+        
         if (fileInfo.exists && fileInfo.size > 10000) {
           // Success! Add to completed downloads
           const downloadedSong = {
@@ -304,10 +322,35 @@ export const DownloadProvider = ({ children }) => {
             return updated;
           });
 
+          console.log('[Download] Success:', song.title);
           return true;
         } else {
-          throw new Error('Downloaded file is too small or corrupt');
+          throw new Error(`Downloaded file is too small: ${fileInfo.size} bytes`);
         }
+      } else {
+        throw new Error('Download returned no URI');
+      }
+    } catch (error) {
+      console.error('[Download] Error:', error.message);
+      
+      // Mark as failed
+      setActiveDownloads(prev => ({
+        ...prev,
+        [songId]: { ...prev[songId], status: DOWNLOAD_STATUS.FAILED, error: error.message }
+      }));
+
+      // Remove from active after delay
+      setTimeout(() => {
+        setActiveDownloads(prev => {
+          const updated = { ...prev };
+          delete updated[songId];
+          return updated;
+        });
+      }, 3000);
+      
+      return false;
+    }
+  };
       }
     } catch (error) {
       console.error('Download error:', error);
