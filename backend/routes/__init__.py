@@ -38,4 +38,5 @@ __all__ = [
     'monetization_router',
     'categories_router',
     'browse_router',
+    'cdn_management_router',
 ]
