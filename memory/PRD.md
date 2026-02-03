@@ -90,18 +90,49 @@ As requested by the user, the previous buggy implementations were completely rem
 ### How Play Counting Works
 1. **Minimum Duration**: A play is only counted if the user listens for **45+ seconds**
 2. **Automatic Tracking**: PlayerContext tracks playback duration and sends to backend at 45 seconds
-3. **Revenue Calculation**: Based on duration and subscription type
+3. **Revenue Calculation**: Based on monetization mode selected by admin
 
-### Revenue Calculation
-- **Premium Rate**: TZS 10/hour of listening
-- **Standard Rate**: TZS 5/hour of listening
-- **Platform Share**: 30% of revenue
-- **Choir Share**: 70% of revenue
+---
 
-### Admin Endpoints for Play Stats
-- `GET /api/admin/play-stats` - Comprehensive play statistics
-- `GET /api/admin/play-stats/song/{song_id}` - Per-song statistics
-- `GET /api/admin/choir-revenue/{choir_id}` - Per-choir revenue details
+## Monetization System (3 Options)
+
+### Option 1: Time-Based Earning
+- **Formula**: `choir_earning = listening_hours × rate_per_hour`
+- **Example**: 12 hours × TZS 10 = TZS 120 for the choir
+- Revenue is calculated and credited **per play**
+- Settings: `premium_rate_per_hour`, `standard_rate_per_hour`
+
+### Option 2: Percentage-Based Earning
+- **Formula**: `choir_earning = (choir_minutes / total_platform_minutes) × (total_revenue × choir_share%)`
+- Revenue is calculated **periodically** (not per-play)
+- Admin defines percentage split (e.g., 70% choir, 30% platform)
+- Call `/api/revenue/calculate-choir-earnings` to calculate and distribute
+
+### Option 3: Pay-Per-Content Bundle
+- Admin creates content bundles (albums or songs)
+- Users pay for specific bundles
+- Revenue goes directly to content owner minus platform fee
+- Can be enabled alongside Option 1 OR Option 2
+
+### Compatibility Rules
+- ✅ Option 1 + Option 3 (can be enabled together)
+- ✅ Option 2 + Option 3 (can be enabled together)
+- ❌ Option 1 + Option 2 (mutually exclusive)
+- Option 3 can be disabled anytime
+
+### Admin Endpoints
+- `GET /api/revenue/settings` - Get monetization settings
+- `POST /api/revenue/settings` - Update monetization settings
+- `GET /api/admin/monetization-summary` - Full monetization dashboard
+- `POST /api/revenue/calculate-choir-earnings` - Calculate choir earnings (for percentage-based)
+- `GET /api/admin/content-bundles` - Get all bundles
+- `POST /api/admin/content-bundles` - Create bundle
+- `PUT /api/admin/content-bundles/{id}` - Update bundle
+- `DELETE /api/admin/content-bundles/{id}` - Delete bundle
+- `GET /api/content-bundles` - Public bundles list (for app)
+- `POST /api/content-bundles/{id}/purchase` - Purchase a bundle
+- `GET /api/user/purchased-bundles` - User's purchased bundles
+- `GET /api/content/{type}/{id}/access` - Check content access
 
 ## Known Issues / Blockers
 
