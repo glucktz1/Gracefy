@@ -278,6 +278,29 @@ export const DownloadProvider = ({ children }) => {
     const songId = song.song_id;
     console.log('[Downloads] Starting download for:', song.title, songId);
     
+    // Check audio URL first
+    const songAudioUrl = song.audio_url;
+    if (!songAudioUrl || songAudioUrl.trim() === '') {
+      console.error('[Downloads] No audio URL for:', songId);
+      setActiveDownloads(prev => ({
+        ...prev,
+        [songId]: { 
+          progress: 0, 
+          status: DOWNLOAD_STATUS.FAILED, 
+          song,
+          error: 'No audio file available' 
+        }
+      }));
+      setTimeout(() => {
+        setActiveDownloads(prev => {
+          const updated = { ...prev };
+          delete updated[songId];
+          return updated;
+        });
+      }, 3000);
+      return false;
+    }
+    
     try {
       // Set initial status
       setActiveDownloads(prev => ({
@@ -285,10 +308,11 @@ export const DownloadProvider = ({ children }) => {
         [songId]: { progress: 0, status: DOWNLOAD_STATUS.DOWNLOADING, song }
       }));
 
-      // Get download URL from API
+      // Build the download URL
       let fileUrl = null;
       let fileName = `${song.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'song'}_${songId}.mp3`;
 
+      // First try to get download URL from API
       try {
         console.log('[Downloads] Fetching download URL from API...');
         const response = await contentAPI.getSongDownloadUrl(songId);
@@ -302,20 +326,13 @@ export const DownloadProvider = ({ children }) => {
           }
         }
       } catch (e) {
-        console.error('[Downloads] Failed to get download URL:', e.response?.data || e.message);
+        console.error('[Downloads] Failed to get download URL from API:', e.response?.data || e.message);
       }
 
       // Fallback: Use song's audio_url directly
-      if (!fileUrl && song.audio_url) {
-        console.log('[Downloads] Using song.audio_url:', song.audio_url);
-        fileUrl = buildDownloadUrl(null, song.audio_url);
-      }
-
-      // Final fallback: construct streaming URL
-      if (!fileUrl) {
-        const baseUrl = API_BASE_URL.replace('/api', '');
-        fileUrl = `${baseUrl}/api/stream/song/${songId}`;
-        console.log('[Downloads] Using fallback stream URL:', fileUrl);
+      if (!fileUrl && songAudioUrl) {
+        console.log('[Downloads] Using song.audio_url:', songAudioUrl);
+        fileUrl = buildDownloadUrl(null, songAudioUrl);
       }
 
       if (!fileUrl) {
@@ -388,38 +405,54 @@ export const DownloadProvider = ({ children }) => {
             return updated;
           });
 
-          console.log('[Downloads] SUCCESS:', song.title);
+          console.log('[Downloads] SUCCESS:', song.title, '- Size:', fileInfo.size, 'bytes');
           return true;
         } else {
-          // File too small - likely an error page
+          // File too small - likely an error page or failed download
           console.error('[Downloads] File too small:', fileInfo.size, 'bytes');
           
           // Try to read the file to see if it's an error
           try {
-            const content = await FileSystem.readAsStringAsync(result.uri, { length: 200 });
+            const content = await FileSystem.readAsStringAsync(result.uri, { length: 500 });
             console.log('[Downloads] File content preview:', content.substring(0, 200));
-          } catch (e) {}
+            
+            // Check if it's an HTML error page
+            if (content.includes('<!DOCTYPE') || content.includes('<html') || content.includes('403') || content.includes('Forbidden')) {
+              throw new Error('Server imezuia kupakua faili hii');
+            }
+          } catch (readError) {
+            if (readError.message.includes('imezuia')) {
+              throw readError;
+            }
+          }
           
           // Delete the invalid file
           try {
             await FileSystem.deleteAsync(result.uri);
           } catch (e) {}
           
-          throw new Error(`Download failed - received ${fileInfo.size} bytes (expected audio file)`);
+          throw new Error(`Faili ni ndogo sana (${fileInfo.size} bytes)`);
         }
       } else {
-        throw new Error('Download returned no URI');
+        throw new Error('Download haikurudisha faili');
       }
     } catch (error) {
       console.error('[Downloads] FAILED:', song.title, '-', error.message);
       
-      // Mark as failed
+      // Mark as failed with user-friendly message
+      let userMessage = error.message;
+      if (error.message.includes('Network') || error.message.includes('timeout')) {
+        userMessage = 'Tatizo la mtandao';
+      } else if (error.message.includes('403') || error.message.includes('Forbidden') || error.message.includes('imezuia')) {
+        userMessage = 'Faili haiwezi kupakuliwa';
+      }
+      
       setActiveDownloads(prev => ({
         ...prev,
         [songId]: { 
           ...prev[songId], 
           status: DOWNLOAD_STATUS.FAILED, 
-          error: error.message 
+          error: userMessage 
         }
       }));
 
