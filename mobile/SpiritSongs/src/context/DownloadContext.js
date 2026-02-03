@@ -1,10 +1,11 @@
 /**
- * DownloadContext - Spotify-like download management
+ * DownloadContext - Robust download management with comprehensive error handling
  * Features:
  * - Download single songs or entire albums
  * - Real-time download progress tracking
  * - Offline playback support
  * - Download queue management
+ * - Proper URL handling for different audio sources
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
@@ -14,8 +15,8 @@ import { getAudioUrl, contentAPI, API_BASE_URL } from '../services/api';
 
 const DownloadContext = createContext();
 
-const DOWNLOADS_KEY = '@gracefy_downloads_v2';
-const DOWNLOAD_QUEUE_KEY = '@gracefy_download_queue';
+const DOWNLOADS_KEY = '@gracefy_downloads_v3';
+const DOWNLOAD_QUEUE_KEY = '@gracefy_download_queue_v2';
 const DOWNLOAD_DIR = `${FileSystem.documentDirectory}downloads/`;
 
 // Download states
@@ -59,6 +60,7 @@ export const DownloadProvider = ({ children }) => {
   }, [downloadQueue]);
 
   const initializeDownloads = async () => {
+    console.log('[Downloads] Initializing...');
     try {
       setLoading(true);
       
@@ -66,6 +68,7 @@ export const DownloadProvider = ({ children }) => {
       const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
       if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
+        console.log('[Downloads] Created download directory');
       }
 
       // Load saved downloads
@@ -80,15 +83,18 @@ export const DownloadProvider = ({ children }) => {
             const fileInfo = await FileSystem.getInfoAsync(song.localPath);
             if (fileInfo.exists && fileInfo.size > 10000) { // At least 10KB
               verifiedDownloads.push(song);
+            } else {
+              console.log('[Downloads] File missing or too small:', song.song_id);
             }
           } catch (e) {
-            console.log('File verification failed:', song.song_id);
+            console.log('[Downloads] File verification failed:', song.song_id);
           }
         }
       }
       
       setDownloads(verifiedDownloads);
       setDownloadedSongIds(new Set(verifiedDownloads.map(s => s.song_id)));
+      console.log('[Downloads] Loaded', verifiedDownloads.length, 'downloads');
       
       // Save verified list back
       await AsyncStorage.setItem(DOWNLOADS_KEY, JSON.stringify(verifiedDownloads));
@@ -100,7 +106,7 @@ export const DownloadProvider = ({ children }) => {
         setDownloadQueue(queueItems);
       }
     } catch (error) {
-      console.error('Error initializing downloads:', error);
+      console.error('[Downloads] Error initializing:', error);
     } finally {
       setLoading(false);
     }
@@ -144,21 +150,28 @@ export const DownloadProvider = ({ children }) => {
 
   // Add song to download queue
   const queueDownload = useCallback(async (song) => {
-    if (!song?.song_id) return false;
+    if (!song?.song_id) {
+      console.error('[Downloads] queueDownload: No song_id');
+      return { success: false, message: 'Invalid song' };
+    }
     
     // Skip if already downloaded or in queue
     if (downloadedSongIds.has(song.song_id)) {
+      console.log('[Downloads] Already downloaded:', song.song_id);
       return { success: true, message: 'Already downloaded' };
     }
     
     if (downloadQueue.find(s => s.song_id === song.song_id)) {
+      console.log('[Downloads] Already in queue:', song.song_id);
       return { success: true, message: 'Already in queue' };
     }
 
     if (activeDownloads[song.song_id]) {
+      console.log('[Downloads] Download in progress:', song.song_id);
       return { success: true, message: 'Download in progress' };
     }
 
+    console.log('[Downloads] Adding to queue:', song.title, song.song_id);
     const newQueue = [...downloadQueue, song];
     setDownloadQueue(newQueue);
     await AsyncStorage.setItem(DOWNLOAD_QUEUE_KEY, JSON.stringify(newQueue));
@@ -181,6 +194,7 @@ export const DownloadProvider = ({ children }) => {
       return { success: true, message: 'All songs already downloaded or queued' };
     }
 
+    console.log('[Downloads] Adding', newSongs.length, 'songs to queue');
     const newQueue = [...downloadQueue, ...newSongs];
     setDownloadQueue(newQueue);
     await AsyncStorage.setItem(DOWNLOAD_QUEUE_KEY, JSON.stringify(newQueue));
@@ -215,9 +229,47 @@ export const DownloadProvider = ({ children }) => {
     isProcessingQueue.current = false;
   }, [downloadQueue, activeDownloads]);
 
+  // Build the correct download URL
+  const buildDownloadUrl = (downloadPath, directUrl) => {
+    // Get the base URL without /api
+    const baseUrl = API_BASE_URL.replace('/api', '');
+    
+    console.log('[Downloads] Building URL from:', { downloadPath, directUrl, baseUrl });
+    
+    // If downloadPath is a relative API path
+    if (downloadPath && downloadPath.startsWith('/api/')) {
+      const fullUrl = `${baseUrl}${downloadPath}`;
+      console.log('[Downloads] Using API path:', fullUrl);
+      return fullUrl;
+    }
+    
+    // If downloadPath is already a full URL
+    if (downloadPath && downloadPath.startsWith('http')) {
+      console.log('[Downloads] Using full URL:', downloadPath);
+      return downloadPath;
+    }
+    
+    // Use directUrl if it's an internal file stream
+    if (directUrl && directUrl.startsWith('/api/files/')) {
+      const fullUrl = `${baseUrl}${directUrl}`;
+      console.log('[Downloads] Using direct file URL:', fullUrl);
+      return fullUrl;
+    }
+    
+    // If directUrl is a full URL (CDN), use streaming proxy
+    if (directUrl && directUrl.startsWith('http')) {
+      // CDN URLs often fail, but try them anyway
+      console.log('[Downloads] Using CDN URL:', directUrl);
+      return directUrl;
+    }
+    
+    return null;
+  };
+
   // Start actual download
   const startDownload = async (song) => {
     const songId = song.song_id;
+    console.log('[Downloads] Starting download for:', song.title, songId);
     
     try {
       // Set initial status
@@ -231,37 +283,39 @@ export const DownloadProvider = ({ children }) => {
       let fileName = `${song.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'song'}_${songId}.mp3`;
 
       try {
+        console.log('[Downloads] Fetching download URL from API...');
         const response = await contentAPI.getSongDownloadUrl(songId);
-        if (response.data?.download_url) {
-          // The download_url is a proxy path like /api/stream/song/{id}
-          // We need to make it a full URL
-          const downloadPath = response.data.download_url;
-          if (downloadPath.startsWith('/api/')) {
-            // Use the full backend URL
-            const baseUrl = API_BASE_URL.replace('/api', '');
-            fileUrl = `${baseUrl}${downloadPath}`;
-          } else if (downloadPath.startsWith('http')) {
-            fileUrl = downloadPath;
-          } else {
-            fileUrl = getAudioUrl(downloadPath);
-          }
+        console.log('[Downloads] API response:', response?.data);
+        
+        if (response.data) {
+          fileUrl = buildDownloadUrl(response.data.download_url, response.data.direct_url);
           
           if (response.data.filename) {
             fileName = response.data.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
           }
         }
       } catch (e) {
-        console.log('Could not get download URL from API, using audio_url:', e.message);
+        console.error('[Downloads] Failed to get download URL:', e.response?.data || e.message);
       }
 
-      // Fallback to song's audio_url (stream through our backend)
+      // Fallback: Use song's audio_url directly
+      if (!fileUrl && song.audio_url) {
+        console.log('[Downloads] Using song.audio_url:', song.audio_url);
+        fileUrl = buildDownloadUrl(null, song.audio_url);
+      }
+
+      // Final fallback: construct streaming URL
       if (!fileUrl) {
-        // Use the streaming endpoint as fallback
         const baseUrl = API_BASE_URL.replace('/api', '');
         fileUrl = `${baseUrl}/api/stream/song/${songId}`;
+        console.log('[Downloads] Using fallback stream URL:', fileUrl);
       }
 
-      console.log('[Download] Starting download from:', fileUrl);
+      if (!fileUrl) {
+        throw new Error('Could not determine download URL');
+      }
+
+      console.log('[Downloads] Final download URL:', fileUrl);
       const downloadPath = `${DOWNLOAD_DIR}${fileName}`;
 
       // Create download resumable for progress tracking
@@ -278,11 +332,12 @@ export const DownloadProvider = ({ children }) => {
           const progress = Math.round(
             (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100
           );
+          const safeProgress = isNaN(progress) || !isFinite(progress) ? 0 : Math.min(progress, 100);
           setActiveDownloads(prev => ({
             ...prev,
             [songId]: { 
               ...prev[songId], 
-              progress: isNaN(progress) ? 0 : progress 
+              progress: safeProgress
             }
           }));
         }
@@ -292,16 +347,20 @@ export const DownloadProvider = ({ children }) => {
       downloadTasksRef.current[songId] = downloadResumable;
 
       // Start download
+      console.log('[Downloads] Starting file download...');
       const result = await downloadResumable.downloadAsync();
       
       // Clean up task reference
       delete downloadTasksRef.current[songId];
 
+      console.log('[Downloads] Download result:', result);
+
       if (result?.uri) {
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        console.log('[Download] File info:', fileInfo);
+        console.log('[Downloads] File info:', fileInfo);
         
-        if (fileInfo.exists && fileInfo.size > 10000) {
+        // Check if the downloaded file is valid (not an error page)
+        if (fileInfo.exists && fileInfo.size > 50000) { // At least 50KB for a real audio file
           // Success! Add to completed downloads
           const downloadedSong = {
             ...song,
@@ -322,21 +381,39 @@ export const DownloadProvider = ({ children }) => {
             return updated;
           });
 
-          console.log('[Download] Success:', song.title);
+          console.log('[Downloads] SUCCESS:', song.title);
           return true;
         } else {
-          throw new Error(`Downloaded file is too small: ${fileInfo.size} bytes`);
+          // File too small - likely an error page
+          console.error('[Downloads] File too small:', fileInfo.size, 'bytes');
+          
+          // Try to read the file to see if it's an error
+          try {
+            const content = await FileSystem.readAsStringAsync(result.uri, { length: 200 });
+            console.log('[Downloads] File content preview:', content.substring(0, 200));
+          } catch (e) {}
+          
+          // Delete the invalid file
+          try {
+            await FileSystem.deleteAsync(result.uri);
+          } catch (e) {}
+          
+          throw new Error(`Download failed - received ${fileInfo.size} bytes (expected audio file)`);
         }
       } else {
         throw new Error('Download returned no URI');
       }
     } catch (error) {
-      console.error('[Download] Error:', error.message);
+      console.error('[Downloads] FAILED:', song.title, '-', error.message);
       
       // Mark as failed
       setActiveDownloads(prev => ({
         ...prev,
-        [songId]: { ...prev[songId], status: DOWNLOAD_STATUS.FAILED, error: error.message }
+        [songId]: { 
+          ...prev[songId], 
+          status: DOWNLOAD_STATUS.FAILED, 
+          error: error.message 
+        }
       }));
 
       // Remove from active after delay
@@ -346,7 +423,7 @@ export const DownloadProvider = ({ children }) => {
           delete updated[songId];
           return updated;
         });
-      }, 3000);
+      }, 5000);
       
       return false;
     }
@@ -354,13 +431,15 @@ export const DownloadProvider = ({ children }) => {
 
   // Cancel a download
   const cancelDownload = useCallback(async (songId) => {
+    console.log('[Downloads] Canceling:', songId);
+    
     // Cancel if actively downloading
     const task = downloadTasksRef.current[songId];
     if (task?.cancelAsync) {
       try {
         await task.cancelAsync();
       } catch (e) {
-        console.log('Cancel error:', e);
+        console.log('[Downloads] Cancel error:', e);
       }
       delete downloadTasksRef.current[songId];
     }
@@ -384,6 +463,7 @@ export const DownloadProvider = ({ children }) => {
 
   // Remove a completed download
   const removeDownload = useCallback(async (songId) => {
+    console.log('[Downloads] Removing:', songId);
     const song = downloads.find(s => s.song_id === songId);
     
     // Delete the file
@@ -392,9 +472,10 @@ export const DownloadProvider = ({ children }) => {
         const fileInfo = await FileSystem.getInfoAsync(song.localPath);
         if (fileInfo.exists) {
           await FileSystem.deleteAsync(song.localPath);
+          console.log('[Downloads] File deleted');
         }
       } catch (e) {
-        console.log('Could not delete file:', e);
+        console.log('[Downloads] Could not delete file:', e);
       }
     }
     
@@ -408,6 +489,8 @@ export const DownloadProvider = ({ children }) => {
 
   // Clear all downloads
   const clearAllDownloads = useCallback(async () => {
+    console.log('[Downloads] Clearing all...');
+    
     // Cancel all active downloads
     for (const songId of Object.keys(downloadTasksRef.current)) {
       const task = downloadTasksRef.current[songId];
@@ -492,7 +575,7 @@ export const DownloadProvider = ({ children }) => {
 export const useDownloads = () => {
   const context = useContext(DownloadContext);
   if (!context) {
-    console.warn('useDownloads called outside DownloadProvider');
+    console.warn('[Downloads] useDownloads called outside DownloadProvider');
     return {
       downloads: [],
       downloadedSongIds: new Set(),
