@@ -35,15 +35,23 @@ const AlbumScreen = ({ route, navigation }) => {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [likedSongs, setLikedSongs] = useState(new Set());
+  const [playlists, setPlaylists] = useState([]);
   
-  // Modal state
-  const [showActionsModal, setShowActionsModal] = useState(false);
+  // Modal states
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
+  
+  // Create playlist modal
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
   // Context - call hooks unconditionally at top level
   const playerContext = usePlayer();
   const authContext = useAuth();
   const billingContext = useBilling();
+  const downloadContext = useDownloads();
   
   // Safe extraction
   const playTrack = playerContext?.playTrack ?? (() => {});
@@ -53,6 +61,7 @@ const AlbumScreen = ({ route, navigation }) => {
   const user = authContext?.user ?? null;
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
+  const queueAlbumDownload = downloadContext?.queueAlbumDownload ?? (async () => ({}));
 
   // Load data
   useEffect(() => {
