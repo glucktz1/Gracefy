@@ -149,8 +149,75 @@ const AlbumScreen = ({ route, navigation }) => {
 
   const handleSongMore = useCallback((song) => {
     setSelectedSong(song);
-    setShowActionsModal(true);
+    setShowActionsSheet(true);
   }, []);
+
+  const handleAddToPlaylist = useCallback((song) => {
+    setSelectedSong(song);
+    setShowActionsSheet(false);
+    setTimeout(() => setShowPlaylistPicker(true), 300);
+  }, []);
+
+  const handleSelectPlaylist = useCallback(async (playlist) => {
+    if (!selectedSong) return;
+    
+    try {
+      await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
+      showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
+      setShowPlaylistPicker(false);
+      setSelectedSong(null);
+    } catch (error) {
+      showToast('Imeshindwa kuongeza wimbo', 'error');
+    }
+  }, [selectedSong]);
+
+  const handleCreatePlaylist = useCallback(async () => {
+    const name = newPlaylistName.trim();
+    if (!name) {
+      showToast('Tafadhali weka jina la playlist', 'error');
+      return;
+    }
+    
+    setCreatingPlaylist(true);
+    try {
+      const response = await libraryAPI.createPlaylist({ name });
+      showToast('Playlist imetengenezwa! ✓', 'success');
+      setShowCreatePlaylistModal(false);
+      setNewPlaylistName('');
+      
+      if (selectedSong && response.data?.playlist_id) {
+        await libraryAPI.addToPlaylist(response.data.playlist_id, selectedSong.song_id);
+        showToast(`"${selectedSong.title}" imeongezwa`, 'success');
+        setSelectedSong(null);
+        setShowPlaylistPicker(false);
+      }
+      
+      loadPlaylists();
+    } catch (error) {
+      showToast('Imeshindwa kutengeneza playlist', 'error');
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  }, [newPlaylistName, selectedSong]);
+
+  const handleDownloadAlbum = useCallback(async () => {
+    if (!isAuthenticated) {
+      navigation.navigate('Login');
+      return;
+    }
+    
+    if (songs.length === 0) {
+      showToast('Hakuna nyimbo za kupakua', 'info');
+      return;
+    }
+    
+    const result = await queueAlbumDownload(songs);
+    if (result.success) {
+      showToast(result.message, 'success');
+    } else {
+      showToast('Imeshindwa kupakua', 'error');
+    }
+  }, [songs, isAuthenticated, navigation, queueAlbumDownload]);
 
   const handleLikeSong = useCallback(async (song) => {
     if (!song?.song_id || !isAuthenticated) {
