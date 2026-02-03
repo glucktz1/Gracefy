@@ -181,6 +181,12 @@ async def get_monetization_settings():
     
     return settings
 
+# Alias for frontend compatibility
+@router.get("/monetization/settings")
+async def get_monetization_settings_alias():
+    """Alias for get_monetization_settings"""
+    return await get_monetization_settings()
+
 
 @router.post("/monetization-settings")
 async def save_monetization_settings(data: dict):
