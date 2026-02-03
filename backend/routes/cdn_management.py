@@ -627,8 +627,10 @@ async def migrate_internal_files_to_cdn(
         
         try:
             # Extract file_id from URL
+            # /api/files/file_abc123/stream -> file_abc123
             # /api/files/file_abc123 -> file_abc123
-            file_id = internal_url.split("/")[-1]
+            parts = internal_url.replace("/api/files/", "").split("/")
+            file_id = parts[0]  # Get the file_id part before /stream
             
             # Get file from database
             file_doc = await db.files.find_one({"file_id": file_id})
