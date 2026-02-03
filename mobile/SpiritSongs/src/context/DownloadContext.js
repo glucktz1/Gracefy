@@ -277,9 +277,11 @@ export const DownloadProvider = ({ children }) => {
     const songId = song.song_id;
     console.log('[Downloads] Starting download for:', song.title, songId);
     
-    // Check audio URL first
-    const songAudioUrl = song.audio_url;
-    if (!songAudioUrl || songAudioUrl.trim() === '') {
+    // Get audio URL - prefer song's own URL first
+    let audioUrl = song.audio_url;
+    
+    // If no audio URL on song object, it shouldn't be downloadable
+    if (!audioUrl || audioUrl.trim() === '') {
       console.error('[Downloads] No audio URL for:', songId);
       setActiveDownloads(prev => ({
         ...prev,
@@ -287,7 +289,7 @@ export const DownloadProvider = ({ children }) => {
           progress: 0, 
           status: DOWNLOAD_STATUS.FAILED, 
           song,
-          error: 'No audio file available' 
+          error: 'Hakuna faili ya sauti' 
         }
       }));
       setTimeout(() => {
@@ -307,38 +309,53 @@ export const DownloadProvider = ({ children }) => {
         [songId]: { progress: 0, status: DOWNLOAD_STATUS.DOWNLOADING, song }
       }));
 
-      // Build the download URL
+      // Build the download URL - CDN URLs start with http
       let fileUrl = null;
       let fileName = `${song.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'song'}_${songId}.mp3`;
+      
+      // Get base URL for internal paths
+      const baseUrl = API_BASE_URL.replace('/api', '');
 
-      // First try to get download URL from API
-      try {
-        console.log('[Downloads] Fetching download URL from API...');
-        const response = await contentAPI.getSongDownloadUrl(songId);
-        console.log('[Downloads] API response:', response?.data);
-        
-        if (response.data) {
-          fileUrl = buildDownloadUrl(response.data.download_url, response.data.direct_url);
+      // If audio_url is already a CDN URL (starts with http), use it directly
+      if (audioUrl.startsWith('http')) {
+        fileUrl = audioUrl;
+        console.log('[Downloads] Using direct CDN URL:', fileUrl);
+      } 
+      // If it's an internal path, build the full URL
+      else if (audioUrl.startsWith('/api/')) {
+        fileUrl = `${baseUrl}${audioUrl}`;
+        console.log('[Downloads] Using internal URL:', fileUrl);
+      }
+      // Try the download API endpoint as fallback
+      else {
+        try {
+          console.log('[Downloads] Fetching download URL from API...');
+          const response = await contentAPI.getSongDownloadUrl(songId);
+          console.log('[Downloads] API response:', response?.data);
           
-          if (response.data.filename) {
+          if (response.data?.direct_url && response.data.direct_url.startsWith('http')) {
+            fileUrl = response.data.direct_url;
+          } else if (response.data?.download_url) {
+            fileUrl = response.data.download_url.startsWith('http') 
+              ? response.data.download_url 
+              : `${baseUrl}${response.data.download_url}`;
+          }
+          
+          if (response.data?.filename) {
             fileName = response.data.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
           }
+        } catch (e) {
+          console.error('[Downloads] API call failed:', e.message);
         }
-      } catch (e) {
-        console.error('[Downloads] Failed to get download URL from API:', e.response?.data || e.message);
-      }
-
-      // Fallback: Use song's audio_url directly
-      if (!fileUrl && songAudioUrl) {
-        console.log('[Downloads] Using song.audio_url:', songAudioUrl);
-        fileUrl = buildDownloadUrl(null, songAudioUrl);
       }
 
       if (!fileUrl) {
-        throw new Error('Could not determine download URL');
+        throw new Error('Haiwezekani kupata URL ya kupakua');
       }
 
       console.log('[Downloads] Final download URL:', fileUrl);
+      console.log('[Downloads] Filename:', fileName);
+      
       const downloadPath = `${DOWNLOAD_DIR}${fileName}`;
 
       // Create download resumable for progress tracking
@@ -370,7 +387,7 @@ export const DownloadProvider = ({ children }) => {
       downloadTasksRef.current[songId] = downloadResumable;
 
       // Start download
-      console.log('[Downloads] Starting file download...');
+      console.log('[Downloads] Starting file download to:', downloadPath);
       const result = await downloadResumable.downloadAsync();
       
       // Clean up task reference
