@@ -649,49 +649,6 @@ async def track_play(request: Request, data: dict):
         "revenue_earned": revenue_earned if settings.get("monetization_mode") == "time_based" and duration >= 45 else 0,
         "monetization_mode": settings.get("monetization_mode", "time_based") if duration >= 45 else None
     }
-        choir_revenue = round(revenue_earned * (1 - platform_share), 4)
-        
-        # Update session with revenue info
-        await db.listening_sessions.update_one(
-            {"session_id": session_id},
-            {"$set": {
-                "revenue_earned": revenue_earned,
-                "choir_revenue": choir_revenue,
-                "is_premium_content": is_premium_content
-            }}
-        )
-        
-        # Credit choir account if song belongs to a choir
-        choir_id = song.get("choir_id") if song else None
-        if not choir_id and song and song.get("album_id"):
-            album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0, "singer_id": 1})
-            choir_id = album.get("singer_id") if album else None
-        
-        if choir_id and choir_revenue > 0:
-            await db.choir_accounts.update_one(
-                {"choir_id": choir_id},
-                {
-                    "$inc": {
-                        "current_balance": choir_revenue,
-                        "total_earned": choir_revenue,
-                        "total_plays": 1
-                    },
-                    "$setOnInsert": {
-                        "choir_id": choir_id,
-                        "created_at": now.isoformat()
-                    }
-                },
-                upsert=True
-            )
-    
-    return {
-        "tracked": True, 
-        "session_id": session_id,
-        "play_counted": play_counted,
-        "duration_seconds": duration,
-        "minimum_required": 45,
-        "revenue_earned": revenue_earned if duration >= 45 else 0
-    }
 
 
 @router.get("/user/daily-plays")
