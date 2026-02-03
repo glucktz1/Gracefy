@@ -186,6 +186,34 @@ export default function MonetizationSettingsPage() {
     }
   };
 
+  const handleSaveRevenueSettings = async () => {
+    setSavingRevenue(true);
+    try {
+      await axios.post(`${API}/revenue/settings`, revenueSettings, { withCredentials: true });
+      toast.success("Revenue settings saved successfully");
+      fetchData();
+    } catch (error) {
+      console.error("Error saving revenue settings:", error);
+      toast.error("Failed to save revenue settings");
+    } finally {
+      setSavingRevenue(false);
+    }
+  };
+
+  const handleMonetizationModeChange = (mode) => {
+    setRevenueSettings(prev => ({
+      ...prev,
+      monetization_mode: mode
+    }));
+  };
+
+  const handleRevenueChange = (key, value) => {
+    setRevenueSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
