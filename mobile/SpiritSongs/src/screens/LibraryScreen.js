@@ -1,3 +1,13 @@
+/**
+ * LibraryScreen - Spotify-like user library
+ * Features:
+ * - Playlists management
+ * - Liked songs with instant toggling
+ * - Downloaded songs with offline playback
+ * - Smooth animations and transitions
+ * - Create playlist modal
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -12,6 +22,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,10 +31,12 @@ import { libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
-import { useDownloads } from '../context/DownloadContext';
+import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
-import { SongActionsModal } from '../components/AddToPlaylistModal';
+import { SongActionsSheet, PlaylistPickerSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
+
+const { width } = Dimensions.get('window');
 
 const LibraryScreen = ({ navigation, route }) => {
   // State
@@ -33,22 +46,23 @@ const LibraryScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Modal state
-  const [showActionsModal, setShowActionsModal] = useState(false);
+  // Modal states
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   
-  // Create playlist modal state
+  // Create playlist modal
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
-  // Context - call hooks at top level unconditionally
+  // Context hooks - called unconditionally
   const authContext = useAuth();
   const playerContext = usePlayer();
   const billingContext = useBilling();
   const downloadContext = useDownloads();
   
-  // Safe extraction of values
+  // Safe extraction
   const isAuthenticated = authContext?.isAuthenticated ?? false;
   const user = authContext?.user ?? null;
   const playTrack = playerContext?.playTrack ?? (() => {});
@@ -57,7 +71,10 @@ const LibraryScreen = ({ navigation, route }) => {
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
   const downloads = downloadContext?.downloads ?? [];
-  const isDownloaded = downloadContext?.isDownloaded ?? (() => false);
+  const activeDownloads = downloadContext?.activeDownloads ?? {};
+  const downloadQueue = downloadContext?.downloadQueue ?? [];
+  const formatSize = downloadContext?.formatSize ?? (() => '0 B');
+  const getTotalSize = downloadContext?.getTotalSize ?? (() => 0);
   const refreshDownloads = downloadContext?.refreshDownloads ?? (async () => {});
 
   // Update tab from route params
@@ -67,7 +84,7 @@ const LibraryScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.tab]);
 
-  // Load data on mount and when auth changes
+  // Load data on mount
   useEffect(() => {
     if (isAuthenticated) {
       loadLibraryData();
@@ -100,8 +117,9 @@ const LibraryScreen = ({ navigation, route }) => {
       refreshDownloads(),
     ]);
     setRefreshing(false);
-  }, []);
+  }, [refreshDownloads]);
 
+  // Playback handlers
   const handlePlaySong = useCallback((song, songList) => {
     if (!song) return;
     try {
@@ -114,27 +132,43 @@ const LibraryScreen = ({ navigation, route }) => {
 
   const handlePlayAll = useCallback((songs) => {
     if (!songs?.length) return;
-    const firstSong = songs[0];
-    if (firstSong) {
-      handlePlaySong(firstSong, songs);
-    }
+    handlePlaySong(songs[0], songs);
   }, [handlePlaySong]);
 
   const handleShuffle = useCallback((songs) => {
     if (!songs?.length) return;
     const shuffled = [...songs].sort(() => Math.random() - 0.5);
-    const firstSong = shuffled[0];
-    if (firstSong) {
-      handlePlaySong(firstSong, shuffled);
-    }
+    handlePlaySong(shuffled[0], shuffled);
   }, [handlePlaySong]);
 
+  // Song actions
   const handleSongMore = useCallback((song) => {
     setSelectedSong(song);
-    setShowActionsModal(true);
+    setShowActionsSheet(true);
   }, []);
 
-  // Create Playlist with proper modal
+  const handleLikeSong = useCallback(async (song) => {
+    if (!song?.song_id) return;
+    
+    try {
+      const isLiked = likedSongs.some(s => s?.song_id === song.song_id);
+      
+      if (isLiked) {
+        await libraryAPI.unlikeSong(song.song_id);
+        setLikedSongs(prev => prev.filter(s => s?.song_id !== song.song_id));
+        showToast('Imeondolewa kwenye zilizopendwa', 'success');
+      } else {
+        await libraryAPI.likeSong(song.song_id);
+        setLikedSongs(prev => [song, ...prev]);
+        showToast('Imeongezwa kwenye zilizopendwa ❤️', 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      showToast('Imeshindwa', 'error');
+    }
+  }, [likedSongs]);
+
+  // Playlist handlers
   const handleOpenCreatePlaylist = useCallback(() => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
@@ -153,45 +187,53 @@ const LibraryScreen = ({ navigation, route }) => {
     
     setCreatingPlaylist(true);
     try {
-      await libraryAPI.createPlaylist({ name });
-      showToast('Playlist imetengenezwa', 'success');
+      const response = await libraryAPI.createPlaylist({ name });
+      showToast('Playlist imetengenezwa! ✓', 'success');
       setShowCreatePlaylistModal(false);
       setNewPlaylistName('');
+      
+      // If we have a selected song, add it to the new playlist
+      if (selectedSong && response.data?.playlist_id) {
+        await libraryAPI.addToPlaylist(response.data.playlist_id, selectedSong.song_id);
+        showToast(`"${selectedSong.title}" imeongezwa`, 'success');
+        setSelectedSong(null);
+        setShowPlaylistPicker(false);
+      }
+      
       loadLibraryData();
     } catch (error) {
       showToast('Imeshindwa kutengeneza playlist', 'error');
     } finally {
       setCreatingPlaylist(false);
     }
-  }, [newPlaylistName]);
+  }, [newPlaylistName, selectedSong]);
 
-  // Like/Unlike song
-  const handleLikeSong = useCallback(async (song) => {
-    if (!song?.song_id) return;
+  const handleAddToPlaylist = useCallback((song) => {
+    setSelectedSong(song);
+    setShowActionsSheet(false);
+    setTimeout(() => setShowPlaylistPicker(true), 300);
+  }, []);
+
+  const handleSelectPlaylist = useCallback(async (playlist) => {
+    if (!selectedSong) return;
     
     try {
-      const isLiked = likedSongs.some(s => s?.song_id === song.song_id);
-      
-      if (isLiked) {
-        await libraryAPI.unlikeSong(song.song_id);
-        setLikedSongs(prev => prev.filter(s => s?.song_id !== song.song_id));
-        showToast('Imeondolewa kwenye zilizopendwa', 'success');
-      } else {
-        await libraryAPI.likeSong(song.song_id);
-        // Add the full song object to the list
-        setLikedSongs(prev => [song, ...prev]);
-        showToast('Imeongezwa kwenye zilizopendwa', 'success');
-      }
+      await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
+      showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
+      setShowPlaylistPicker(false);
+      setSelectedSong(null);
+      loadLibraryData();
     } catch (error) {
-      console.error('Error toggling like:', error);
-      showToast('Imeshindwa', 'error');
+      showToast('Imeshindwa kuongeza wimbo', 'error');
     }
-  }, [likedSongs]);
+  }, [selectedSong]);
 
-  // Create Set for quick lookup
-  const likedSongIds = new Set(
-    (likedSongs ?? []).filter(s => s?.song_id).map(s => s.song_id)
-  );
+  // Check if song is liked
+  const likedSongIds = new Set(likedSongs.filter(s => s?.song_id).map(s => s.song_id));
+
+  // Calculate download stats
+  const totalDownloadSize = getTotalSize();
+  const activeDownloadCount = Object.keys(activeDownloads).length + downloadQueue.length;
 
   // Not authenticated view
   if (!isAuthenticated) {
@@ -209,6 +251,7 @@ const LibraryScreen = ({ navigation, route }) => {
           <TouchableOpacity 
             style={styles.loginButton}
             onPress={() => navigation.navigate('Login')}
+            data-testid="library-login-button"
           >
             <Text style={styles.loginButtonText}>Ingia</Text>
           </TouchableOpacity>
@@ -237,52 +280,72 @@ const LibraryScreen = ({ navigation, route }) => {
     { id: 'downloads', label: 'Zilizopakuwa', icon: 'download' },
   ];
 
+  // Playlists Tab Content
   const renderPlaylistsTab = () => (
     <View style={styles.tabContent}>
-      {/* Liked Songs Quick Access */}
-      <TouchableOpacity 
-        style={styles.quickAccessCard}
-        onPress={() => setActiveTab('liked')}
-      >
-        <View style={[styles.quickAccessIcon, { backgroundColor: COLORS.error + '30' }]}>
-          <Ionicons name="heart" size={24} color={COLORS.error} />
-        </View>
-        <View style={styles.quickAccessInfo}>
-          <Text style={styles.quickAccessTitle}>Nyimbo Pendwa</Text>
-          <Text style={styles.quickAccessCount}>{likedSongs?.length ?? 0} nyimbo</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
-      </TouchableOpacity>
+      {/* Quick Access Cards */}
+      <View style={styles.quickAccessContainer}>
+        {/* Liked Songs Card */}
+        <TouchableOpacity 
+          style={styles.quickAccessCard}
+          onPress={() => setActiveTab('liked')}
+          data-testid="quick-access-liked"
+        >
+          <View style={[styles.quickAccessIcon, { backgroundColor: COLORS.error + '30' }]}>
+            <Ionicons name="heart" size={24} color={COLORS.error} />
+          </View>
+          <View style={styles.quickAccessInfo}>
+            <Text style={styles.quickAccessTitle}>Nyimbo Pendwa</Text>
+            <Text style={styles.quickAccessCount}>{likedSongs.length} nyimbo</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
+        </TouchableOpacity>
 
-      {/* Downloads Quick Access */}
-      <TouchableOpacity 
-        style={styles.quickAccessCard}
-        onPress={() => setActiveTab('downloads')}
-      >
-        <View style={[styles.quickAccessIcon, { backgroundColor: COLORS.primary + '30' }]}>
-          <Ionicons name="download" size={24} color={COLORS.primary} />
-        </View>
-        <View style={styles.quickAccessInfo}>
-          <Text style={styles.quickAccessTitle}>Zilizopakuwa</Text>
-          <Text style={styles.quickAccessCount}>{downloads?.length ?? 0} nyimbo</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
-      </TouchableOpacity>
+        {/* Downloads Card */}
+        <TouchableOpacity 
+          style={styles.quickAccessCard}
+          onPress={() => setActiveTab('downloads')}
+          data-testid="quick-access-downloads"
+        >
+          <View style={[styles.quickAccessIcon, { backgroundColor: COLORS.primary + '30' }]}>
+            <Ionicons name="download" size={24} color={COLORS.primary} />
+          </View>
+          <View style={styles.quickAccessInfo}>
+            <Text style={styles.quickAccessTitle}>Zilizopakuwa</Text>
+            <View style={styles.downloadStats}>
+              <Text style={styles.quickAccessCount}>
+                {downloads.length} nyimbo
+              </Text>
+              {activeDownloadCount > 0 && (
+                <View style={styles.downloadingBadge}>
+                  <ActivityIndicator size={10} color={COLORS.primary} />
+                  <Text style={styles.downloadingText}>{activeDownloadCount}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
+        </TouchableOpacity>
+      </View>
 
-      {/* User Playlists */}
+      {/* Playlists Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Playlist Zako</Text>
-        <TouchableOpacity onPress={handleOpenCreatePlaylist}>
+        <TouchableOpacity 
+          onPress={handleOpenCreatePlaylist}
+          data-testid="create-playlist-button"
+        >
           <Ionicons name="add-circle" size={28} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      {(playlists ?? []).length > 0 ? (
-        (playlists ?? []).map((playlist, index) => (
+      {playlists.length > 0 ? (
+        playlists.map((playlist, index) => (
           <TouchableOpacity
             key={playlist?.playlist_id ?? `playlist-${index}`}
             style={styles.playlistItem}
             onPress={() => navigation.navigate('Playlist', { playlist })}
+            data-testid={`playlist-item-${index}`}
           >
             <Image
               source={{ uri: getImageUrl(playlist?.thumbnail) || 'https://via.placeholder.com/56' }}
@@ -302,7 +365,11 @@ const LibraryScreen = ({ navigation, route }) => {
       ) : (
         <View style={styles.emptySection}>
           <Text style={styles.emptySectionText}>Hakuna playlist bado</Text>
-          <TouchableOpacity style={styles.createButton} onPress={handleOpenCreatePlaylist}>
+          <TouchableOpacity 
+            style={styles.createButton} 
+            onPress={handleOpenCreatePlaylist}
+            data-testid="create-first-playlist"
+          >
             <Ionicons name="add" size={20} color={COLORS.text} />
             <Text style={styles.createButtonText}>Tengeneza Playlist</Text>
           </TouchableOpacity>
@@ -311,24 +378,24 @@ const LibraryScreen = ({ navigation, route }) => {
     </View>
   );
 
+  // Liked Songs Tab Content
   const renderLikedTab = () => (
     <View style={styles.tabContent}>
-      {(likedSongs ?? []).length > 0 ? (
+      {likedSongs.length > 0 ? (
         <>
           <PlayAllHeader
             title="Nyimbo Pendwa"
-            songCount={likedSongs?.length ?? 0}
+            songCount={likedSongs.length}
             onPlayAll={() => handlePlayAll(likedSongs)}
             onShuffle={() => handleShuffle(likedSongs)}
           />
-          {(likedSongs ?? []).map((song, index) => (
+          {likedSongs.map((song, index) => (
             <SongListItem
               key={song?.song_id ?? `liked-${index}`}
               item={song}
               index={index}
               isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
               isCurrentSong={currentTrack?.song_id === song?.song_id}
-              isDownloaded={song?.song_id ? isDownloaded(song.song_id) : false}
               onPress={() => handlePlaySong(song, likedSongs)}
               onMorePress={() => handleSongMore(song)}
             />
@@ -346,24 +413,41 @@ const LibraryScreen = ({ navigation, route }) => {
     </View>
   );
 
+  // Downloads Tab Content
   const renderDownloadsTab = () => (
     <View style={styles.tabContent}>
-      {(downloads ?? []).length > 0 ? (
+      {/* Download Stats Header */}
+      {(downloads.length > 0 || activeDownloadCount > 0) && (
+        <View style={styles.downloadStatsHeader}>
+          <View style={styles.downloadStatItem}>
+            <Ionicons name="folder" size={20} color={COLORS.primary} />
+            <Text style={styles.downloadStatText}>{formatSize(totalDownloadSize)}</Text>
+          </View>
+          {activeDownloadCount > 0 && (
+            <View style={styles.downloadStatItem}>
+              <ActivityIndicator size={16} color={COLORS.primary} />
+              <Text style={styles.downloadStatText}>{activeDownloadCount} inapakua</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {downloads.length > 0 ? (
         <>
           <PlayAllHeader
             title="Zilizopakuwa"
-            songCount={downloads?.length ?? 0}
+            subtitle="Sikiliza bila mtandao"
+            songCount={downloads.length}
             onPlayAll={() => handlePlayAll(downloads)}
             onShuffle={() => handleShuffle(downloads)}
           />
-          {(downloads ?? []).map((song, index) => (
+          {downloads.map((song, index) => (
             <SongListItem
               key={song?.song_id ?? `download-${index}`}
               item={song}
               index={index}
               isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
               isCurrentSong={currentTrack?.song_id === song?.song_id}
-              isDownloaded={true}
               onPress={() => handlePlaySong(song, downloads)}
               onMorePress={() => handleSongMore(song)}
             />
@@ -395,10 +479,15 @@ const LibraryScreen = ({ navigation, route }) => {
           <TouchableOpacity 
             style={styles.headerIcon} 
             onPress={() => navigation.navigate('Search')}
+            data-testid="search-button"
           >
             <Ionicons name="search" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={handleOpenCreatePlaylist}>
+          <TouchableOpacity 
+            style={styles.headerIcon} 
+            onPress={handleOpenCreatePlaylist}
+            data-testid="add-button"
+          >
             <Ionicons name="add" size={28} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -411,6 +500,7 @@ const LibraryScreen = ({ navigation, route }) => {
             key={tab.id}
             style={[styles.tab, activeTab === tab.id && styles.tabActive]}
             onPress={() => setActiveTab(tab.id)}
+            data-testid={`tab-${tab.id}`}
           >
             <Ionicons 
               name={tab.icon} 
@@ -420,6 +510,11 @@ const LibraryScreen = ({ navigation, route }) => {
             <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextActive]}>
               {tab.label}
             </Text>
+            {tab.id === 'downloads' && activeDownloadCount > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{activeDownloadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -445,27 +540,30 @@ const LibraryScreen = ({ navigation, route }) => {
         <View style={{ height: 150 }} />
       </ScrollView>
 
-      {/* Song Actions Modal */}
-      <SongActionsModal
-        visible={showActionsModal}
-        onClose={() => setShowActionsModal(false)}
+      {/* Song Actions Sheet */}
+      <SongActionsSheet
+        visible={showActionsSheet}
+        onClose={() => setShowActionsSheet(false)}
         song={selectedSong}
         isLiked={selectedSong?.song_id ? likedSongIds.has(selectedSong.song_id) : false}
         isAuthenticated={isAuthenticated}
-        billingEnabled={billingEnabled}
-        isPremium={isPremium}
-        onLike={() => handleLikeSong(selectedSong)}
-        onAddToPlaylist={() => {
-          setShowActionsModal(false);
-          // Navigate to add to playlist screen or show playlist picker
-        }}
-        onLoginRequired={() => {
-          setShowActionsModal(false);
-          navigation.navigate('Login');
-        }}
-        onSubscriptionRequired={() => {
-          setShowActionsModal(false);
-          navigation.navigate('Subscription');
+        onLike={handleLikeSong}
+        onAddToPlaylist={handleAddToPlaylist}
+        onLoginRequired={() => navigation.navigate('Login')}
+        navigation={navigation}
+      />
+
+      {/* Playlist Picker Sheet */}
+      <PlaylistPickerSheet
+        visible={showPlaylistPicker}
+        onClose={() => setShowPlaylistPicker(false)}
+        song={selectedSong}
+        playlists={playlists}
+        loading={false}
+        onSelectPlaylist={handleSelectPlaylist}
+        onCreatePlaylist={() => {
+          setShowPlaylistPicker(false);
+          setTimeout(() => setShowCreatePlaylistModal(true), 300);
         }}
       />
 
@@ -485,7 +583,10 @@ const LibraryScreen = ({ navigation, route }) => {
             activeOpacity={1}
             onPress={() => setShowCreatePlaylistModal(false)}
           >
-            <View style={styles.createPlaylistModal} onStartShouldSetResponder={() => true}>
+            <View 
+              style={styles.createPlaylistModal} 
+              onStartShouldSetResponder={() => true}
+            >
               <Text style={styles.modalTitle}>Playlist Mpya</Text>
               <TextInput
                 style={styles.modalInput}
@@ -495,6 +596,7 @@ const LibraryScreen = ({ navigation, route }) => {
                 onChangeText={setNewPlaylistName}
                 autoFocus
                 maxLength={50}
+                data-testid="playlist-name-input"
               />
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
@@ -504,9 +606,13 @@ const LibraryScreen = ({ navigation, route }) => {
                   <Text style={styles.modalCancelText}>Ghairi</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.modalCreateButton, !newPlaylistName.trim() && styles.modalButtonDisabled]}
+                  style={[
+                    styles.modalCreateButton, 
+                    !newPlaylistName.trim() && styles.modalButtonDisabled
+                  ]}
                   onPress={handleCreatePlaylist}
                   disabled={!newPlaylistName.trim() || creatingPlaylist}
+                  data-testid="create-playlist-confirm"
                 >
                   {creatingPlaylist ? (
                     <ActivityIndicator size="small" color={COLORS.text} />
@@ -584,6 +690,20 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: COLORS.text,
   },
+  tabBadge: {
+    backgroundColor: COLORS.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 2,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
   content: {
     flex: 1,
   },
@@ -628,6 +748,11 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },
+  
+  // Quick Access
+  quickAccessContainer: {
+    marginBottom: SPACING.md,
+  },
   quickAccessCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -657,6 +782,27 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
+  downloadStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  downloadingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+    gap: 4,
+  },
+  downloadingText: {
+    fontSize: 10,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  
+  // Section
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -669,6 +815,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
+  
+  // Playlist Item
   playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -719,7 +867,27 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '500',
   },
-  // Create Playlist Modal Styles
+  
+  // Download Stats Header
+  downloadStatsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    gap: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  downloadStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  downloadStatText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+  },
+  
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
