@@ -198,19 +198,55 @@ async def get_user_library(request: Request):
 
 @router.get("/library/likes")
 async def get_likes(request: Request):
-    """Get all liked items"""
+    """Get all liked songs with full song details"""
     db = get_db()
     user = await get_user_from_token(request)
     
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    # Get all likes for this user
     likes = await db.user_likes.find(
-        {"user_id": user["user_id"]},
+        {"user_id": user["user_id"], "item_type": "song"},
         {"_id": 0}
     ).sort("created_at", -1).to_list(200)
     
-    return {"likes": likes}
+    # Get song IDs
+    song_ids = [like["item_id"] for like in likes if like.get("item_id")]
+    
+    if not song_ids:
+        return {"songs": [], "likes": []}
+    
+    # Fetch full song details
+    songs = await db.songs.find(
+        {"song_id": {"$in": song_ids}},
+        {"_id": 0}
+    ).to_list(200)
+    
+    # Create a map for ordering
+    songs_map = {s["song_id"]: s for s in songs}
+    
+    # Return songs in the order they were liked (most recent first)
+    ordered_songs = []
+    for like in likes:
+        song_id = like.get("item_id")
+        if song_id and song_id in songs_map:
+            song = songs_map[song_id]
+            # Add album info if needed
+            if song.get("album_id"):
+                album = await db.albums.find_one(
+                    {"album_id": song["album_id"]},
+                    {"_id": 0, "title": 1, "artist_name": 1, "thumbnail": 1}
+                )
+                if album:
+                    song["album_title"] = album.get("title")
+                    if not song.get("artist_name"):
+                        song["artist_name"] = album.get("artist_name")
+                    if not song.get("thumbnail"):
+                        song["thumbnail"] = album.get("thumbnail")
+            ordered_songs.append(song)
+    
+    return {"songs": ordered_songs, "likes": likes}
 
 
 @router.post("/library/like/{song_id}")
