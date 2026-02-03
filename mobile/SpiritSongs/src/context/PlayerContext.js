@@ -252,6 +252,10 @@ export const PlayerProvider = ({ children }) => {
   const loadAndPlayTrack = async (track) => {
     try {
       console.log('[PlayerContext] loadAndPlayTrack:', track.title, 'id:', track.song_id);
+      
+      // Reset play tracking for new track
+      playTrackedRef.current = false;
+      playStartTimeRef.current = Date.now();
 
       // Stop any external audio first
       if (stopExternalAudioCallback) {
@@ -296,9 +300,6 @@ export const PlayerProvider = ({ children }) => {
       setCurrentTrack(track);
       setIsLoading(false);
       setIsPlaying(true);
-
-      // Track play in backend (non-blocking)
-      playerAPI.trackPlay(track.song_id).catch(() => {});
 
       return true;
     } catch (error) {
