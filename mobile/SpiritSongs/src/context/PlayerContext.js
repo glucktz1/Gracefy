@@ -214,14 +214,36 @@ export const PlayerProvider = ({ children }) => {
     }
 
     // Update UI state
-    setPosition(status.positionMillis / 1000);
+    const currentPosition = status.positionMillis / 1000;
+    setPosition(currentPosition);
     setDuration(status.durationMillis / 1000 || 0);
     setIsPlaying(status.isPlaying);
     setIsLoading(status.isBuffering);
+    
+    // Track play after 45 seconds of listening
+    if (status.isPlaying && currentPosition >= 45 && !playTrackedRef.current && currentTrackIdRef.current) {
+      playTrackedRef.current = true;
+      console.log('[PlayerContext] 45+ seconds reached, tracking play for:', currentTrackIdRef.current);
+      
+      // Track play with duration
+      playerAPI.trackPlay(currentTrackIdRef.current, {
+        duration: Math.floor(currentPosition),
+        platform: 'app'
+      }).catch(err => console.log('[PlayerContext] Track play error:', err));
+    }
 
     // Handle track end - this works when app is in foreground
     if (status.didJustFinish && !status.isLooping) {
       console.log('[PlayerContext] Track finished, advancing to next...');
+      
+      // Track final play duration if not already tracked
+      if (!playTrackedRef.current && currentTrackIdRef.current && currentPosition >= 45) {
+        playerAPI.trackPlay(currentTrackIdRef.current, {
+          duration: Math.floor(currentPosition),
+          platform: 'app'
+        }).catch(() => {});
+      }
+      
       playNextTrackInternal();
     }
   }, []);
