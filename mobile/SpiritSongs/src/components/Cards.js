@@ -424,6 +424,39 @@ const styles = StyleSheet.create({
   songListAdd: {
     padding: SPACING.sm,
   },
+  // Mini Progress Ring for downloads
+  miniProgressContainer: {
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniProgressBg: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  miniProgressFill: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  miniProgressCenter: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   // Quick Access Item
   quickAccessItem: {
