@@ -131,13 +131,14 @@ export default function MonetizationSettingsPage() {
 
   const fetchData = async () => {
     try {
-      const [settingsRes, plansRes, historyRes, featuresRes, trialRes, trialStatsRes] = await Promise.all([
+      const [settingsRes, plansRes, historyRes, featuresRes, trialRes, trialStatsRes, revenueRes] = await Promise.all([
         axios.get(`${API}/monetization/settings`, { withCredentials: true }),
         axios.get(`${API}/monetization/plans`, { withCredentials: true }),
         axios.get(`${API}/monetization/rate-history`, { withCredentials: true }),
         axios.get(`${API}/monetization/feature-controls`, { withCredentials: true }),
         axios.get(`${API}/monetization/trial-settings`, { withCredentials: true }),
-        axios.get(`${API}/monetization/trial-stats`, { withCredentials: true })
+        axios.get(`${API}/monetization/trial-stats`, { withCredentials: true }),
+        axios.get(`${API}/revenue/settings`, { withCredentials: true }).catch(() => ({ data: {} }))
       ]);
       setSettings(settingsRes.data);
       setPlans(plansRes.data.plans || []);
@@ -145,6 +146,22 @@ export default function MonetizationSettingsPage() {
       setFeatureControls(featuresRes.data.controls || DEFAULT_FEATURE_CONTROLS);
       setTrialSettings(trialRes.data);
       setTrialStats(trialStatsRes.data);
+      
+      // Set revenue settings with defaults
+      if (revenueRes.data) {
+        setRevenueSettings(prev => ({
+          ...prev,
+          monetization_mode: revenueRes.data.monetization_mode || "time_based",
+          pay_per_content_enabled: revenueRes.data.pay_per_content_enabled || false,
+          premium_rate_per_hour: revenueRes.data.premium_rate_per_hour || 10,
+          standard_rate_per_hour: revenueRes.data.standard_rate_per_hour || 5,
+          choir_share_percentage: revenueRes.data.choir_share_percentage || 70,
+          platform_share_percentage: revenueRes.data.platform_share_percentage || 30,
+          bundle_platform_fee_percentage: revenueRes.data.bundle_platform_fee_percentage || 20,
+          minimum_withdrawal: revenueRes.data.minimum_withdrawal || 10000,
+          currency: revenueRes.data.currency || "TZS"
+        }));
+      }
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast.error("Failed to load settings");
