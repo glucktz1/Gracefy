@@ -181,11 +181,28 @@ export const SongActionsSheet = ({
       return;
     }
     
+    // Check if song has an audio URL
+    const audioUrl = song?.audio_url;
+    if (!audioUrl || audioUrl.trim() === '') {
+      showToast('Wimbo huu hauna faili ya sauti', 'error');
+      return;
+    }
+    
+    // Check if it's a CDN URL (likely to fail with 403)
+    if (audioUrl.startsWith('https://') && audioUrl.includes('cdn')) {
+      showToast('Inapakua... (inaweza kuchukua muda)', 'info');
+    }
+    
     const result = await queueDownload(song);
     if (result.success) {
-      showToast(result.message === 'Added to download queue' ? 'Imeongezwa kwenye foleni ya kupakua' : result.message, 'success');
+      const message = result.message === 'Added to download queue' 
+        ? 'Imeongezwa kwenye foleni ya kupakua' 
+        : result.message === 'Already downloaded'
+        ? 'Tayari imepakuliwa'
+        : result.message;
+      showToast(message, 'success');
     } else {
-      showToast('Imeshindikana kupakua', 'error');
+      showToast(result.message || 'Imeshindikana kupakua', 'error');
     }
   };
 
