@@ -19,6 +19,7 @@ from .content import router as content_router
 from .monetization import router as monetization_router
 from .categories import router as categories_router
 from .browse import router as browse_router
+from .cdn_management import router as cdn_management_router
 
 __all__ = [
     'auth_router',
