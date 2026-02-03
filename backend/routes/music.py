@@ -97,11 +97,79 @@ async def get_song_download_url(song_id: str):
     safe_title = "".join(c if c.isalnum() or c in "._- " else "_" for c in (song.get("title") or "song"))
     filename = f"{safe_title}_{song_id}.mp3"
     
+    # Return the proxy URL instead of direct CDN URL to avoid 403 errors
+    # The /api/stream/song/{song_id} endpoint will handle authentication if needed
+    proxy_url = f"/api/stream/song/{song_id}"
+    
     return {
-        "download_url": audio_url,
+        "download_url": proxy_url,
+        "direct_url": audio_url,  # Include direct URL for reference
         "filename": filename,
         "song_id": song_id
     }
+
+
+@router.get("/stream/song/{song_id}")
+async def stream_song(song_id: str, request: Request):
+    """Stream a song file - proxies from CDN to handle access issues"""
+    import httpx
+    from fastapi.responses import StreamingResponse
+    
+    db = get_db()
+    
+    song = await db.songs.find_one(
+        {"song_id": song_id},
+        {"_id": 0, "audio_url": 1, "file_url": 1, "title": 1}
+    )
+    
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    audio_url = song.get("audio_url") or song.get("file_url")
+    
+    if not audio_url:
+        raise HTTPException(status_code=404, detail="No audio file available")
+    
+    # Handle range requests for seeking
+    range_header = request.headers.get("Range")
+    headers = {
+        "User-Agent": "Gracefy-App/1.0",
+        "Accept": "audio/mpeg, audio/*, */*"
+    }
+    
+    if range_header:
+        headers["Range"] = range_header
+    
+    async def stream_content():
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream("GET", audio_url, headers=headers) as response:
+                async for chunk in response.aiter_bytes(chunk_size=65536):
+                    yield chunk
+    
+    # Get content info
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            head_response = await client.head(audio_url, headers={"User-Agent": "Gracefy-App/1.0"})
+            content_length = head_response.headers.get("Content-Length", "0")
+            content_type = head_response.headers.get("Content-Type", "audio/mpeg")
+    except:
+        content_length = "0"
+        content_type = "audio/mpeg"
+    
+    response_headers = {
+        "Content-Type": content_type,
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": f'attachment; filename="{song.get("title", "song")}.mp3"'
+    }
+    
+    if content_length != "0":
+        response_headers["Content-Length"] = content_length
+    
+    return StreamingResponse(
+        stream_content(),
+        media_type=content_type,
+        headers=response_headers
+    )
 
 
 @router.get("/albums")
