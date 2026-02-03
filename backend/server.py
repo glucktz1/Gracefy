@@ -62,6 +62,7 @@ from routes import (
     monetization_router,
     categories_router,
     browse_router,
+    cdn_management_router,
 )
 from routes.teachings import router as teachings_router
 from routes.rbac import router as rbac_router
