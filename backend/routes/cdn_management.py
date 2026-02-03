@@ -620,6 +620,90 @@ async def get_broken_cdn_songs():
     }
 
 
+@router.post("/admin/cdn/propagate-album-thumbnails")
+async def propagate_album_thumbnails(
+    dry_run: bool = Query(True, description="Preview changes only")
+):
+    """
+    Copy album thumbnails to songs that don't have thumbnails.
+    Songs will inherit their album's thumbnail.
+    """
+    db = get_db()
+    
+    # Find songs without thumbnails
+    songs_without_thumb = await db.songs.find({
+        "$or": [
+            {"thumbnail": {"$exists": False}},
+            {"thumbnail": None},
+            {"thumbnail": ""},
+        ],
+        "album_id": {"$exists": True, "$ne": None}
+    }, {"_id": 0, "song_id": 1, "title": 1, "album_id": 1}).to_list(1000)
+    
+    if not songs_without_thumb:
+        return {"message": "All songs have thumbnails", "updated": 0}
+    
+    # Get unique album IDs
+    album_ids = list(set(s.get("album_id") for s in songs_without_thumb if s.get("album_id")))
+    
+    # Get album thumbnails
+    albums = await db.albums.find(
+        {"album_id": {"$in": album_ids}},
+        {"_id": 0, "album_id": 1, "thumbnail": 1, "title": 1}
+    ).to_list(len(album_ids))
+    
+    album_thumbs = {a["album_id"]: a.get("thumbnail") for a in albums}
+    
+    if dry_run:
+        songs_to_update = []
+        for song in songs_without_thumb:
+            album_thumb = album_thumbs.get(song.get("album_id"))
+            if album_thumb:
+                songs_to_update.append({
+                    "song_id": song["song_id"],
+                    "title": song["title"],
+                    "album_id": song["album_id"],
+                    "will_get_thumbnail": album_thumb[:50] + "..." if len(album_thumb) > 50 else album_thumb
+                })
+        
+        return {
+            "dry_run": True,
+            "songs_to_update": len(songs_to_update),
+            "albums_with_thumbnails": len([a for a in albums if a.get("thumbnail")]),
+            "sample_songs": songs_to_update[:20]
+        }
+    
+    # Actually update songs
+    updated_count = 0
+    errors = []
+    
+    for song in songs_without_thumb:
+        album_id = song.get("album_id")
+        album_thumb = album_thumbs.get(album_id)
+        
+        if album_thumb:
+            try:
+                await db.songs.update_one(
+                    {"song_id": song["song_id"]},
+                    {"$set": {
+                        "thumbnail": album_thumb,
+                        "thumbnail_source": "album",
+                        "thumbnail_updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                updated_count += 1
+            except Exception as e:
+                errors.append({"song_id": song["song_id"], "error": str(e)})
+    
+    return {
+        "updated_count": updated_count,
+        "error_count": len(errors),
+        "errors": errors[:10] if errors else []
+    }
+
+
+
+
 @router.post("/admin/cdn/migrate-internal-to-cdn")
 async def migrate_internal_files_to_cdn(
     limit: int = Query(10, description="Max files to migrate"),
