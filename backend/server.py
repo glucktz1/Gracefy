@@ -124,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(browse_router)         # /api/user/browse/*, /api/user/search
     app.include_router(teachings_router)      # /api/teachings/*
     app.include_router(rbac_router)           # /api/rbac/*
+    app.include_router(cdn_management_router) # /api/admin/cdn/*
     
     # ============== ROOT ENDPOINTS ==============
     
