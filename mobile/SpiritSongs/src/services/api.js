@@ -164,7 +164,12 @@ export const churchAPI = {
 
 // ============ PLAYER API ============
 export const playerAPI = {
-  trackPlay: (songId) => api.post('/listening/track-play', { song_id: songId }),
+  trackPlay: (songId, options = {}) => api.post('/listening/track-play', { 
+    song_id: songId,
+    duration: options.duration || 0,
+    platform: options.platform || 'app',
+    album_id: options.album_id
+  }),
   startSession: (songId) => api.post('/sessions/start', { song_id: songId }),
   endSession: (sessionId, duration) => api.post(`/sessions/${sessionId}/end`, { duration }),
 };
