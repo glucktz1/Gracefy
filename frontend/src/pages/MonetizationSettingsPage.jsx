@@ -705,6 +705,273 @@ export default function MonetizationSettingsPage() {
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-6">
+          {/* Monetization Options Section */}
+          <Card className="bg-gradient-to-br from-violet-900/30 to-zinc-900/50 border-violet-800/50">
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-white text-lg flex items-center gap-2">
+                    <TrendingUp size={20} className="text-violet-400" /> Choir Revenue Model
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Choose how choirs earn revenue from their content. Options 1 & 2 are mutually exclusive.
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={handleSaveRevenueSettings} 
+                  disabled={savingRevenue} 
+                  className="bg-violet-600 hover:bg-violet-700"
+                  data-testid="save-revenue-settings-btn"
+                >
+                  <Save size={16} className="mr-2" /> {savingRevenue ? "Saving..." : "Save Revenue Settings"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Option 1 & 2 Toggle - Mutually Exclusive */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle size={16} className="text-amber-400" />
+                  <span className="text-sm text-amber-400">Select ONE revenue calculation method below</span>
+                </div>
+                
+                {/* Option 1: Time-Based Earning */}
+                <div 
+                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                    revenueSettings.monetization_mode === "time_based" 
+                      ? "border-emerald-500 bg-emerald-500/10" 
+                      : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                  }`}
+                  onClick={() => handleMonetizationModeChange("time_based")}
+                  data-testid="option-time-based"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg ${revenueSettings.monetization_mode === "time_based" ? "bg-emerald-500/20" : "bg-zinc-700"}`}>
+                        <Clock size={24} className={revenueSettings.monetization_mode === "time_based" ? "text-emerald-400" : "text-zinc-400"} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-white">Option 1: Time-Based Earning</h3>
+                          {revenueSettings.monetization_mode === "time_based" && (
+                            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Active</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          <code className="bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">choir_earning = listening_hours × rate_per_hour</code>
+                        </p>
+                        <p className="text-xs text-zinc-500 mt-2">
+                          Example: 12 hours × TZS 10 = TZS 120 choir revenue. Revenue calculated per play.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={revenueSettings.monetization_mode === "time_based"}
+                      onCheckedChange={() => handleMonetizationModeChange("time_based")}
+                      className="data-[state=checked]:bg-emerald-600"
+                    />
+                  </div>
+                  
+                  {/* Time-Based Settings */}
+                  {revenueSettings.monetization_mode === "time_based" && (
+                    <div className="mt-4 pt-4 border-t border-zinc-700 grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-zinc-400 mb-1 block">Premium Rate (per hour)</label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={revenueSettings.premium_rate_per_hour}
+                            onChange={(e) => handleRevenueChange("premium_rate_per_hour", parseFloat(e.target.value))}
+                            className="bg-zinc-950 border-zinc-700 text-white"
+                            data-testid="premium-rate-input"
+                          />
+                          <span className="text-zinc-500 text-sm">{revenueSettings.currency}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm text-zinc-400 mb-1 block">Standard Rate (per hour)</label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={revenueSettings.standard_rate_per_hour}
+                            onChange={(e) => handleRevenueChange("standard_rate_per_hour", parseFloat(e.target.value))}
+                            className="bg-zinc-950 border-zinc-700 text-white"
+                            data-testid="standard-rate-input"
+                          />
+                          <span className="text-zinc-500 text-sm">{revenueSettings.currency}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Option 2: Percentage-Based Earning */}
+                <div 
+                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                    revenueSettings.monetization_mode === "percentage_based" 
+                      ? "border-blue-500 bg-blue-500/10" 
+                      : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                  }`}
+                  onClick={() => handleMonetizationModeChange("percentage_based")}
+                  data-testid="option-percentage-based"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg ${revenueSettings.monetization_mode === "percentage_based" ? "bg-blue-500/20" : "bg-zinc-700"}`}>
+                        <Percent size={24} className={revenueSettings.monetization_mode === "percentage_based" ? "text-blue-400" : "text-zinc-400"} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-white">Option 2: Percentage-Based Earning</h3>
+                          {revenueSettings.monetization_mode === "percentage_based" && (
+                            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Active</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          <code className="bg-zinc-800 px-2 py-0.5 rounded text-blue-400">(choir_mins / total_mins) × choir_share% × revenue</code>
+                        </p>
+                        <p className="text-xs text-zinc-500 mt-2">
+                          Revenue distributed periodically based on listening proportion. Calculate via admin action.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={revenueSettings.monetization_mode === "percentage_based"}
+                      onCheckedChange={() => handleMonetizationModeChange("percentage_based")}
+                      className="data-[state=checked]:bg-blue-600"
+                    />
+                  </div>
+                  
+                  {/* Percentage-Based Settings */}
+                  {revenueSettings.monetization_mode === "percentage_based" && (
+                    <div className="mt-4 pt-4 border-t border-zinc-700 grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-zinc-400 mb-1 block">Choir Share (%)</label>
+                        <Input
+                          type="number"
+                          value={revenueSettings.choir_share_percentage}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            handleRevenueChange("choir_share_percentage", val);
+                            handleRevenueChange("platform_share_percentage", 100 - val);
+                          }}
+                          className="bg-zinc-950 border-zinc-700 text-white"
+                          data-testid="choir-share-input"
+                          min={0}
+                          max={100}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-zinc-400 mb-1 block">Platform Share (%)</label>
+                        <Input
+                          type="number"
+                          value={revenueSettings.platform_share_percentage}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            handleRevenueChange("platform_share_percentage", val);
+                            handleRevenueChange("choir_share_percentage", 100 - val);
+                          }}
+                          className="bg-zinc-950 border-zinc-700 text-white"
+                          data-testid="platform-share-input"
+                          min={0}
+                          max={100}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-zinc-700 pt-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Info size={16} className="text-zinc-500" />
+                  <span className="text-sm text-zinc-400">Option 3 can be enabled alongside either Option 1 or 2</span>
+                </div>
+              </div>
+
+              {/* Option 3: Pay-Per-Content Bundle */}
+              <div 
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  revenueSettings.pay_per_content_enabled 
+                    ? "border-amber-500 bg-amber-500/10" 
+                    : "border-zinc-700 bg-zinc-800/50"
+                }`}
+                data-testid="option-pay-per-content"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${revenueSettings.pay_per_content_enabled ? "bg-amber-500/20" : "bg-zinc-700"}`}>
+                      <Package size={24} className={revenueSettings.pay_per_content_enabled ? "text-amber-400" : "text-zinc-400"} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">Option 3: Pay-Per-Content Bundle</h3>
+                        {revenueSettings.pay_per_content_enabled && (
+                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Enabled</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-400 mt-1">
+                        Create content bundles (albums/collections) that users pay for access
+                      </p>
+                      <p className="text-xs text-zinc-500 mt-2">
+                        Like pay-per-view. Revenue goes directly to content owner minus platform fee. Manage bundles in Content Bundles section.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={revenueSettings.pay_per_content_enabled}
+                    onCheckedChange={(checked) => handleRevenueChange("pay_per_content_enabled", checked)}
+                    className="data-[state=checked]:bg-amber-600"
+                    data-testid="pay-per-content-toggle"
+                  />
+                </div>
+                
+                {/* Bundle Settings */}
+                {revenueSettings.pay_per_content_enabled && (
+                  <div className="mt-4 pt-4 border-t border-zinc-700">
+                    <div className="max-w-xs">
+                      <label className="text-sm text-zinc-400 mb-1 block">Platform Fee for Bundles (%)</label>
+                      <Input
+                        type="number"
+                        value={revenueSettings.bundle_platform_fee_percentage}
+                        onChange={(e) => handleRevenueChange("bundle_platform_fee_percentage", parseFloat(e.target.value))}
+                        className="bg-zinc-950 border-zinc-700 text-white"
+                        data-testid="bundle-fee-input"
+                        min={0}
+                        max={100}
+                      />
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Content owner receives {100 - (revenueSettings.bundle_platform_fee_percentage || 20)}% of bundle price
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Summary Alert */}
+              <Alert className="bg-zinc-800/50 border-zinc-700">
+                <Info className="h-4 w-4" />
+                <AlertTitle className="text-white">Current Configuration</AlertTitle>
+                <AlertDescription className="text-zinc-400">
+                  <ul className="mt-2 space-y-1 text-sm">
+                    <li>• Revenue Model: <span className="text-white font-medium">
+                      {revenueSettings.monetization_mode === "time_based" ? "Time-Based Earning" : "Percentage-Based Earning"}
+                    </span></li>
+                    {revenueSettings.monetization_mode === "time_based" ? (
+                      <li>• Rates: Premium {revenueSettings.premium_rate_per_hour} {revenueSettings.currency}/hr, Standard {revenueSettings.standard_rate_per_hour} {revenueSettings.currency}/hr</li>
+                    ) : (
+                      <li>• Split: {revenueSettings.choir_share_percentage}% Choir / {revenueSettings.platform_share_percentage}% Platform</li>
+                    )}
+                    <li>• Pay-Per-Content: <span className={revenueSettings.pay_per_content_enabled ? "text-emerald-400" : "text-zinc-500"}>
+                      {revenueSettings.pay_per_content_enabled ? `Enabled (${revenueSettings.bundle_platform_fee_percentage}% platform fee)` : "Disabled"}
+                    </span></li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Platform Revenue */}
             <Card className="bg-zinc-900/50 border-zinc-800">
