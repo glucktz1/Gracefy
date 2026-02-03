@@ -80,7 +80,28 @@ As requested by the user, the previous buggy implementations were completely rem
   - `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js` - Complete rewrite
   - `/app/mobile/SpiritSongs/src/screens/AlbumScreen.js` - Updated
   - `/app/mobile/SpiritSongs/src/components/Cards.js` - Updated with progress indicators
-  - `/app/backend/routes/user_library.py` - Fixed likes endpoint
+  - `/app/backend/routes/user_library.py` - Fixed likes endpoint, enhanced play tracking
+  - `/app/mobile/SpiritSongs/src/context/PlayerContext.js` - Added proper play tracking with duration
+  - `/app/mobile/SpiritSongs/src/services/api.js` - Updated playerAPI to include duration
+  - `/app/backend/routes/admin.py` - Added comprehensive play stats endpoints
+
+## Play Tracking & Revenue System
+
+### How Play Counting Works
+1. **Minimum Duration**: A play is only counted if the user listens for **45+ seconds**
+2. **Automatic Tracking**: PlayerContext tracks playback duration and sends to backend at 45 seconds
+3. **Revenue Calculation**: Based on duration and subscription type
+
+### Revenue Calculation
+- **Premium Rate**: TZS 10/hour of listening
+- **Standard Rate**: TZS 5/hour of listening
+- **Platform Share**: 30% of revenue
+- **Choir Share**: 70% of revenue
+
+### Admin Endpoints for Play Stats
+- `GET /api/admin/play-stats` - Comprehensive play statistics
+- `GET /api/admin/play-stats/song/{song_id}` - Per-song statistics
+- `GET /api/admin/choir-revenue/{choir_id}` - Per-choir revenue details
 
 ## Known Issues / Blockers
 
