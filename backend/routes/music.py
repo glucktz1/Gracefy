@@ -74,6 +74,36 @@ def optimize_thumbnails(items: list) -> list:
 
 # ============== ALBUMS ==============
 
+@router.get("/songs/{song_id}/download")
+async def get_song_download_url(song_id: str):
+    """Get download URL for a song"""
+    db = get_db()
+    
+    song = await db.songs.find_one(
+        {"song_id": song_id},
+        {"_id": 0, "song_id": 1, "title": 1, "audio_url": 1, "file_url": 1}
+    )
+    
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    # Get the audio URL
+    audio_url = song.get("audio_url") or song.get("file_url")
+    
+    if not audio_url:
+        raise HTTPException(status_code=404, detail="No audio file available for this song")
+    
+    # Generate a filename
+    safe_title = "".join(c if c.isalnum() or c in "._- " else "_" for c in (song.get("title") or "song"))
+    filename = f"{safe_title}_{song_id}.mp3"
+    
+    return {
+        "download_url": audio_url,
+        "filename": filename,
+        "song_id": song_id
+    }
+
+
 @router.get("/albums")
 async def get_albums(
     category_id: Optional[str] = None,
