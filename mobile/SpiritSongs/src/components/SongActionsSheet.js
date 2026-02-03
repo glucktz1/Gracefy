@@ -170,6 +170,7 @@ export const SongActionsSheet = ({
       onLoginRequired?.();
       return;
     }
+    // Call the like handler - it will close the sheet after completion
     onLike?.(song);
   };
 
