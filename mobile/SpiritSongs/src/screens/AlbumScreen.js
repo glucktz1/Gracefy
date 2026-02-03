@@ -110,6 +110,15 @@ const AlbumScreen = ({ route, navigation }) => {
     }
   };
 
+  const loadPlaylists = async () => {
+    try {
+      const response = await libraryAPI.getPlaylists();
+      setPlaylists(response?.data?.playlists ?? []);
+    } catch (error) {
+      console.error('Error loading playlists:', error);
+    }
+  };
+
   const handlePlaySong = useCallback((song) => {
     if (!song) return;
     try {
