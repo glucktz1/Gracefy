@@ -67,6 +67,20 @@ export const SmallCard = ({ item, onPress, style }) => (
   </TouchableOpacity>
 );
 
+// Mini Progress Ring for download indication
+const MiniProgressRing = ({ progress }) => (
+  <View style={styles.miniProgressContainer}>
+    <View style={[styles.miniProgressBg]} />
+    <View style={[
+      styles.miniProgressFill,
+      { transform: [{ rotate: `${(progress / 100) * 360}deg` }] }
+    ]} />
+    <View style={styles.miniProgressCenter}>
+      <Ionicons name="arrow-down" size={8} color={COLORS.primary} />
+    </View>
+  </View>
+);
+
 // Song List Item - With three dots menu, equalizer, and download status
 export const SongListItem = ({ 
   item, 
@@ -74,13 +88,21 @@ export const SongListItem = ({
   onPress, 
   isPlaying,
   isCurrentSong,
-  isDownloaded,
   onAddPress, 
   onMorePress,
   albumThumbnail, 
   style 
 }) => {
+  const { isDownloaded, getDownloadProgress, getDownloadStatus } = useDownloads();
+  
+  const songId = item?.song_id;
+  const downloaded = songId ? isDownloaded(songId) : false;
+  const downloadStatus = songId ? getDownloadStatus(songId) : null;
+  const downloadProgress = songId ? getDownloadProgress(songId) : null;
+  
   const showEqualizer = isCurrentSong || isPlaying;
+  const isDownloading = downloadStatus === DOWNLOAD_STATUS.DOWNLOADING;
+  const isQueued = downloadStatus === DOWNLOAD_STATUS.QUEUED;
   
   return (
     <TouchableOpacity 
@@ -110,10 +132,16 @@ export const SongListItem = ({
           source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail) || 'https://via.placeholder.com/50' }}
           style={styles.songListImage}
         />
-        {/* Download indicator badge */}
-        {isDownloaded && (
+        {/* Download status indicator */}
+        {(downloaded || isDownloading || isQueued) && (
           <View style={styles.downloadedBadge}>
-            <Ionicons name="arrow-down-circle" size={14} color={COLORS.primary} />
+            {isDownloading ? (
+              <MiniProgressRing progress={downloadProgress || 0} />
+            ) : isQueued ? (
+              <ActivityIndicator size={12} color={COLORS.primary} />
+            ) : (
+              <Ionicons name="arrow-down-circle" size={14} color={COLORS.primary} />
+            )}
           </View>
         )}
       </View>
@@ -124,13 +152,23 @@ export const SongListItem = ({
           {item.title}
         </Text>
         <View style={styles.songListMeta}>
-          {isDownloaded && (
+          {downloaded && (
             <View style={styles.downloadedTag}>
               <Ionicons name="checkmark-circle" size={12} color={COLORS.primary} />
               <Text style={styles.downloadedTagText}>Imepakuliwa</Text>
             </View>
           )}
-          <Text style={[styles.songListArtist, isDownloaded && styles.songListArtistWithTag]} numberOfLines={1}>
+          {isDownloading && (
+            <View style={styles.downloadedTag}>
+              <Text style={styles.downloadingTagText}>{downloadProgress || 0}%</Text>
+            </View>
+          )}
+          {isQueued && (
+            <View style={styles.downloadedTag}>
+              <Text style={styles.queuedTagText}>Foleni</Text>
+            </View>
+          )}
+          <Text style={[styles.songListArtist, (downloaded || isDownloading || isQueued) && styles.songListArtistWithTag]} numberOfLines={1}>
             {item.artist_name}
           </Text>
         </View>
