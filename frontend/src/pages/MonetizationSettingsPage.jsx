@@ -114,6 +114,20 @@ export default function MonetizationSettingsPage() {
   const [planForm, setPlanForm] = useState({
     name: "", display_name: "", price: "", duration_days: "", features: "", is_active: true
   });
+  
+  // Revenue/Monetization settings state
+  const [revenueSettings, setRevenueSettings] = useState({
+    monetization_mode: "time_based",
+    pay_per_content_enabled: false,
+    premium_rate_per_hour: 10,
+    standard_rate_per_hour: 5,
+    choir_share_percentage: 70,
+    platform_share_percentage: 30,
+    bundle_platform_fee_percentage: 20,
+    minimum_withdrawal: 10000,
+    currency: "TZS"
+  });
+  const [savingRevenue, setSavingRevenue] = useState(false);
 
   const fetchData = async () => {
     try {
