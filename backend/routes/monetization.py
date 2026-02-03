@@ -688,17 +688,30 @@ async def get_choir_revenues():
 
 @router.get("/revenue/settings")
 async def get_revenue_settings():
-    """Get revenue sharing settings"""
+    """Get revenue sharing settings including monetization options"""
     db = get_db()
     
     settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
     
     if not settings:
-        # Default settings
+        # Default settings with new monetization options
         settings = {
-            "premium_rate_per_hour": 10,  # TZS per hour for premium
-            "standard_rate_per_hour": 5,  # TZS per hour for standard
-            "platform_share_percentage": 30,
+            # Monetization Options
+            "monetization_mode": "time_based",  # "time_based" (Option 1) or "percentage_based" (Option 2)
+            "pay_per_content_enabled": False,  # Option 3
+            
+            # Option 1: Time-Based Earning Settings
+            "premium_rate_per_hour": 10,  # TZS per hour for premium subscribers
+            "standard_rate_per_hour": 5,  # TZS per hour for standard users
+            
+            # Option 2: Percentage-Based Earning Settings
+            "choir_share_percentage": 70,  # Choir gets 70%
+            "platform_share_percentage": 30,  # Platform gets 30%
+            
+            # Option 3: Pay-Per-Content Settings
+            "bundle_platform_fee_percentage": 20,  # Platform keeps 20% of bundle purchases
+            
+            # General Settings
             "minimum_withdrawal": 10000,
             "currency": "TZS"
         }
@@ -708,14 +721,35 @@ async def get_revenue_settings():
 
 @router.post("/revenue/settings")
 async def update_revenue_settings(data: dict):
-    """Update revenue sharing settings"""
+    """Update revenue sharing settings including monetization options"""
     db = get_db()
     
+    # Validate: Option 1 and 2 cannot be enabled together
+    monetization_mode = data.get("monetization_mode", "time_based")
+    if monetization_mode not in ["time_based", "percentage_based"]:
+        monetization_mode = "time_based"
+    
     settings = {
+        # Monetization Options
+        "monetization_mode": monetization_mode,
+        "pay_per_content_enabled": data.get("pay_per_content_enabled", False),
+        
+        # Option 1: Time-Based Earning Settings
         "premium_rate_per_hour": data.get("premium_rate_per_hour", 10),
         "standard_rate_per_hour": data.get("standard_rate_per_hour", 5),
+        
+        # Option 2: Percentage-Based Earning Settings
+        "choir_share_percentage": data.get("choir_share_percentage", 70),
         "platform_share_percentage": data.get("platform_share_percentage", 30),
+        
+        # Option 3: Pay-Per-Content Settings
+        "bundle_platform_fee_percentage": data.get("bundle_platform_fee_percentage", 20),
+        
+        # General Settings
         "minimum_withdrawal": data.get("minimum_withdrawal", 10000),
+        "currency": data.get("currency", "TZS"),
+        
+        # Metadata
         "effective_from": data.get("effective_from", datetime.now(timezone.utc).isoformat()[:10]),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_by": data.get("updated_by", "admin")
@@ -727,7 +761,765 @@ async def update_revenue_settings(data: dict):
     return settings
 
 
-@router.post("/demo/generate-listening-data")
+# ============== CONTENT BUNDLES (Option 3: Pay-Per-Content) ==============
+
+@router.get("/admin/content-bundles")
+async def get_content_bundles(
+    status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """Get all content bundles"""
+    db = get_db()
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    bundles = await db.content_bundles.find(query, {"_id": 0})\
+        .sort("created_at", -1)\
+        .skip(skip)\
+        .limit(limit)\
+        .to_list(limit)
+    
+    total = await db.content_bundles.count_documents(query)
+    
+    # Enrich with content details
+    for bundle in bundles:
+        content_ids = bundle.get("content_ids", [])
+        content_type = bundle.get("content_type", "album")
+        
+        if content_type == "album":
+            items = await db.albums.find(
+                {"album_id": {"$in": content_ids}},
+                {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+            ).to_list(len(content_ids))
+        else:
+            items = await db.songs.find(
+                {"song_id": {"$in": content_ids}},
+                {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+            ).to_list(len(content_ids))
+        
+        bundle["content_items"] = items
+        bundle["content_count"] = len(items)
+        
+        # Get purchase stats
+        purchases = await db.bundle_purchases.count_documents({
+            "bundle_id": bundle["bundle_id"],
+            "status": "completed"
+        })
+        bundle["total_purchases"] = purchases
+    
+    return {"bundles": bundles, "total": total}
+
+
+@router.post("/admin/content-bundles")
+async def create_content_bundle(data: dict):
+    """Create a new content bundle for pay-per-content"""
+    db = get_db()
+    
+    bundle_id = f"bundle_{uuid.uuid4().hex[:12]}"
+    
+    bundle = {
+        "bundle_id": bundle_id,
+        "name": data.get("name"),
+        "description": data.get("description", ""),
+        "content_type": data.get("content_type", "album"),  # "album" or "song"
+        "content_ids": data.get("content_ids", []),  # List of album_ids or song_ids
+        "price": data.get("price", 0),
+        "currency": data.get("currency", "TZS"),
+        "choir_id": data.get("choir_id"),  # Primary beneficiary
+        "thumbnail": data.get("thumbnail"),
+        "status": data.get("status", "active"),  # "active", "inactive", "draft"
+        "access_duration_days": data.get("access_duration_days"),  # None = lifetime
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.content_bundles.insert_one(bundle)
+    bundle.pop("_id", None)
+    
+    # Mark content as paid
+    if bundle["content_type"] == "album":
+        await db.albums.update_many(
+            {"album_id": {"$in": bundle["content_ids"]}},
+            {"$set": {"is_paid_content": True, "bundle_id": bundle_id}}
+        )
+    else:
+        await db.songs.update_many(
+            {"song_id": {"$in": bundle["content_ids"]}},
+            {"$set": {"is_paid_content": True, "bundle_id": bundle_id}}
+        )
+    
+    return bundle
+
+
+@router.put("/admin/content-bundles/{bundle_id}")
+async def update_content_bundle(bundle_id: str, data: dict):
+    """Update a content bundle"""
+    db = get_db()
+    
+    data.pop("_id", None)
+    data.pop("bundle_id", None)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Get current bundle to handle content changes
+    current_bundle = await db.content_bundles.find_one({"bundle_id": bundle_id})
+    if not current_bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    
+    # If content_ids changed, update the content items
+    if "content_ids" in data:
+        old_content_ids = current_bundle.get("content_ids", [])
+        new_content_ids = data.get("content_ids", [])
+        content_type = data.get("content_type", current_bundle.get("content_type", "album"))
+        
+        collection = db.albums if content_type == "album" else db.songs
+        id_field = "album_id" if content_type == "album" else "song_id"
+        
+        # Remove paid flag from old content not in new list
+        removed_ids = [cid for cid in old_content_ids if cid not in new_content_ids]
+        if removed_ids:
+            await collection.update_many(
+                {id_field: {"$in": removed_ids}},
+                {"$unset": {"is_paid_content": "", "bundle_id": ""}}
+            )
+        
+        # Add paid flag to new content
+        if new_content_ids:
+            await collection.update_many(
+                {id_field: {"$in": new_content_ids}},
+                {"$set": {"is_paid_content": True, "bundle_id": bundle_id}}
+            )
+    
+    result = await db.content_bundles.update_one(
+        {"bundle_id": bundle_id},
+        {"$set": data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    
+    return {"message": "Bundle updated"}
+
+
+@router.delete("/admin/content-bundles/{bundle_id}")
+async def delete_content_bundle(bundle_id: str):
+    """Delete a content bundle"""
+    db = get_db()
+    
+    bundle = await db.content_bundles.find_one({"bundle_id": bundle_id})
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    
+    # Remove paid flag from content
+    content_type = bundle.get("content_type", "album")
+    content_ids = bundle.get("content_ids", [])
+    
+    collection = db.albums if content_type == "album" else db.songs
+    id_field = "album_id" if content_type == "album" else "song_id"
+    
+    if content_ids:
+        await collection.update_many(
+            {id_field: {"$in": content_ids}},
+            {"$unset": {"is_paid_content": "", "bundle_id": ""}}
+        )
+    
+    await db.content_bundles.delete_one({"bundle_id": bundle_id})
+    
+    return {"message": "Bundle deleted"}
+
+
+@router.get("/content-bundles")
+async def get_public_bundles():
+    """Get active content bundles for app users"""
+    db = get_db()
+    
+    bundles = await db.content_bundles.find(
+        {"status": "active"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    # Enrich with content preview
+    for bundle in bundles:
+        content_ids = bundle.get("content_ids", [])[:5]  # First 5 items as preview
+        content_type = bundle.get("content_type", "album")
+        
+        if content_type == "album":
+            items = await db.albums.find(
+                {"album_id": {"$in": content_ids}},
+                {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+            ).to_list(5)
+        else:
+            items = await db.songs.find(
+                {"song_id": {"$in": content_ids}},
+                {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+            ).to_list(5)
+        
+        bundle["content_preview"] = items
+        bundle["total_content"] = len(bundle.get("content_ids", []))
+    
+    return {"bundles": bundles}
+
+
+@router.get("/content-bundles/{bundle_id}")
+async def get_bundle_detail(bundle_id: str):
+    """Get bundle details"""
+    db = get_db()
+    
+    bundle = await db.content_bundles.find_one(
+        {"bundle_id": bundle_id, "status": "active"},
+        {"_id": 0}
+    )
+    
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    
+    # Get all content
+    content_ids = bundle.get("content_ids", [])
+    content_type = bundle.get("content_type", "album")
+    
+    if content_type == "album":
+        items = await db.albums.find(
+            {"album_id": {"$in": content_ids}},
+            {"_id": 0}
+        ).to_list(len(content_ids))
+    else:
+        items = await db.songs.find(
+            {"song_id": {"$in": content_ids}},
+            {"_id": 0}
+        ).to_list(len(content_ids))
+    
+    bundle["content_items"] = items
+    
+    return bundle
+
+
+@router.post("/content-bundles/{bundle_id}/purchase")
+async def purchase_bundle(bundle_id: str, request: Request, data: dict):
+    """Purchase a content bundle"""
+    db = get_db()
+    
+    # Get user
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = token_doc["user_id"]
+    
+    # Get bundle
+    bundle = await db.content_bundles.find_one(
+        {"bundle_id": bundle_id, "status": "active"},
+        {"_id": 0}
+    )
+    
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    
+    # Check if already purchased
+    existing = await db.bundle_purchases.find_one({
+        "user_id": user_id,
+        "bundle_id": bundle_id,
+        "status": "completed"
+    })
+    
+    if existing:
+        # Check if access is still valid
+        if existing.get("access_expires"):
+            if existing["access_expires"] > datetime.now(timezone.utc).isoformat():
+                return {"message": "Already purchased", "purchase_id": existing["purchase_id"]}
+        else:
+            return {"message": "Already purchased", "purchase_id": existing["purchase_id"]}
+    
+    # Get revenue settings
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    platform_fee_pct = settings.get("bundle_platform_fee_percentage", 20) if settings else 20
+    
+    # Calculate revenue split
+    bundle_price = bundle.get("price", 0)
+    platform_revenue = round(bundle_price * (platform_fee_pct / 100), 2)
+    choir_revenue = round(bundle_price - platform_revenue, 2)
+    
+    # Create purchase record
+    purchase_id = f"purchase_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    access_expires = None
+    if bundle.get("access_duration_days"):
+        access_expires = (now + timedelta(days=bundle["access_duration_days"])).isoformat()
+    
+    purchase = {
+        "purchase_id": purchase_id,
+        "user_id": user_id,
+        "bundle_id": bundle_id,
+        "bundle_name": bundle.get("name"),
+        "amount": bundle_price,
+        "currency": bundle.get("currency", "TZS"),
+        "platform_revenue": platform_revenue,
+        "choir_revenue": choir_revenue,
+        "choir_id": bundle.get("choir_id"),
+        "payment_method": data.get("payment_method"),
+        "payment_reference": data.get("payment_reference"),
+        "status": "completed",  # In production, would be "pending" until payment confirmed
+        "access_expires": access_expires,
+        "created_at": now.isoformat()
+    }
+    
+    await db.bundle_purchases.insert_one(purchase)
+    purchase.pop("_id", None)
+    
+    # Grant access to user
+    await db.app_users.update_one(
+        {"user_id": user_id},
+        {"$addToSet": {"purchased_bundles": {
+            "bundle_id": bundle_id,
+            "purchased_at": now.isoformat(),
+            "access_expires": access_expires
+        }}}
+    )
+    
+    # Credit choir account
+    choir_id = bundle.get("choir_id")
+    if choir_id and choir_revenue > 0:
+        await db.choir_accounts.update_one(
+            {"choir_id": choir_id},
+            {
+                "$inc": {
+                    "current_balance": choir_revenue,
+                    "total_earned": choir_revenue,
+                    "bundle_revenue": choir_revenue
+                },
+                "$setOnInsert": {
+                    "choir_id": choir_id,
+                    "created_at": now.isoformat()
+                }
+            },
+            upsert=True
+        )
+    
+    return {
+        "message": "Purchase successful",
+        "purchase_id": purchase_id,
+        "access_expires": access_expires
+    }
+
+
+@router.get("/user/purchased-bundles")
+async def get_user_purchased_bundles(request: Request):
+    """Get user's purchased bundles"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return {"bundles": [], "purchased_content_ids": []}
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        return {"bundles": [], "purchased_content_ids": []}
+    
+    user_id = token_doc["user_id"]
+    
+    # Get purchases
+    purchases = await db.bundle_purchases.find(
+        {"user_id": user_id, "status": "completed"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Filter out expired purchases
+    now = datetime.now(timezone.utc).isoformat()
+    valid_purchases = []
+    purchased_content_ids = []
+    
+    for p in purchases:
+        if p.get("access_expires") and p["access_expires"] < now:
+            continue  # Skip expired
+        valid_purchases.append(p)
+        
+        # Get bundle to extract content_ids
+        bundle = await db.content_bundles.find_one(
+            {"bundle_id": p["bundle_id"]},
+            {"_id": 0, "content_ids": 1}
+        )
+        if bundle:
+            purchased_content_ids.extend(bundle.get("content_ids", []))
+    
+    return {
+        "bundles": valid_purchases,
+        "purchased_content_ids": list(set(purchased_content_ids))
+    }
+
+
+@router.get("/content/{content_type}/{content_id}/access")
+async def check_content_access(content_type: str, content_id: str, request: Request):
+    """Check if user has access to paid content"""
+    db = get_db()
+    
+    # Check if content is paid
+    collection = db.albums if content_type == "album" else db.songs
+    id_field = "album_id" if content_type == "album" else "song_id"
+    
+    content = await collection.find_one({id_field: content_id}, {"_id": 0})
+    
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    # If not paid content, access is granted
+    if not content.get("is_paid_content"):
+        return {"has_access": True, "is_paid_content": False}
+    
+    # Check user authentication
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return {
+            "has_access": False,
+            "is_paid_content": True,
+            "bundle_id": content.get("bundle_id"),
+            "message": "Authentication required"
+        }
+    
+    token = auth_header[7:]
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if not token_doc:
+        return {
+            "has_access": False,
+            "is_paid_content": True,
+            "bundle_id": content.get("bundle_id"),
+            "message": "Invalid token"
+        }
+    
+    user_id = token_doc["user_id"]
+    bundle_id = content.get("bundle_id")
+    
+    # Check if user has purchased the bundle
+    purchase = await db.bundle_purchases.find_one({
+        "user_id": user_id,
+        "bundle_id": bundle_id,
+        "status": "completed"
+    })
+    
+    if not purchase:
+        # Get bundle info for the error response
+        bundle = await db.content_bundles.find_one(
+            {"bundle_id": bundle_id},
+            {"_id": 0, "name": 1, "price": 1, "currency": 1}
+        )
+        return {
+            "has_access": False,
+            "is_paid_content": True,
+            "bundle_id": bundle_id,
+            "bundle": bundle,
+            "message": "Purchase required"
+        }
+    
+    # Check if access has expired
+    if purchase.get("access_expires"):
+        if purchase["access_expires"] < datetime.now(timezone.utc).isoformat():
+            return {
+                "has_access": False,
+                "is_paid_content": True,
+                "bundle_id": bundle_id,
+                "message": "Access expired",
+                "expired_at": purchase["access_expires"]
+            }
+    
+    return {"has_access": True, "is_paid_content": True, "purchase_id": purchase["purchase_id"]}
+
+
+# ============== REVENUE CALCULATION (DUAL MODE) ==============
+
+@router.post("/revenue/calculate-choir-earnings")
+async def calculate_choir_earnings(data: dict = None):
+    """
+    Calculate earnings for all choirs based on active monetization mode.
+    Can be called manually or scheduled.
+    
+    Option 1 (Time-Based): choir_earning = listening_hours × rate_per_hour
+    Option 2 (Percentage-Based): choir_earning = (choir_minutes/total_minutes) × (total_revenue × choir_share%)
+    """
+    db = get_db()
+    
+    period = data.get("period", "30d") if data else "30d"
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period, 30)
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    
+    # Get current settings
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {
+            "monetization_mode": "time_based",
+            "premium_rate_per_hour": 10,
+            "standard_rate_per_hour": 5,
+            "choir_share_percentage": 70,
+            "platform_share_percentage": 30
+        }
+    
+    monetization_mode = settings.get("monetization_mode", "time_based")
+    
+    # Get all choirs with their content
+    choirs = await db.singers.find({}, {"_id": 0, "singer_id": 1, "name": 1}).to_list(500)
+    
+    results = []
+    
+    if monetization_mode == "time_based":
+        # Option 1: Time-Based Earning
+        # choir_earning = listening_hours × rate_per_hour
+        
+        premium_rate = settings.get("premium_rate_per_hour", 10)
+        standard_rate = settings.get("standard_rate_per_hour", 5)
+        
+        for choir in choirs:
+            choir_id = choir["singer_id"]
+            
+            # Get albums by this choir
+            albums = await db.albums.find({"singer_id": choir_id}, {"_id": 0, "album_id": 1}).to_list(100)
+            album_ids = [a["album_id"] for a in albums]
+            
+            if not album_ids:
+                continue
+            
+            # Get songs from these albums
+            songs = await db.songs.find({"album_id": {"$in": album_ids}}, {"_id": 0, "song_id": 1}).to_list(500)
+            song_ids = [s["song_id"] for s in songs]
+            
+            if not song_ids:
+                continue
+            
+            # Calculate listening time by subscription type
+            listen_pipeline = [
+                {"$match": {
+                    "song_id": {"$in": song_ids},
+                    "counted_as_play": True,
+                    "start_time": {"$gte": start_date}
+                }},
+                {"$group": {
+                    "_id": "$subscription_type",
+                    "total_seconds": {"$sum": "$duration_seconds"},
+                    "play_count": {"$sum": 1}
+                }}
+            ]
+            listen_data = await db.listening_sessions.aggregate(listen_pipeline).to_list(10)
+            
+            # Calculate earnings
+            total_earning = 0
+            premium_hours = 0
+            standard_hours = 0
+            
+            for ld in listen_data:
+                hours = ld["total_seconds"] / 3600
+                if ld["_id"] == "premium":
+                    premium_hours = hours
+                    total_earning += hours * premium_rate
+                else:
+                    standard_hours = hours
+                    total_earning += hours * standard_rate
+            
+            results.append({
+                "choir_id": choir_id,
+                "choir_name": choir["name"],
+                "calculation_mode": "time_based",
+                "premium_hours": round(premium_hours, 2),
+                "standard_hours": round(standard_hours, 2),
+                "total_hours": round(premium_hours + standard_hours, 2),
+                "total_earning": round(total_earning, 2),
+                "play_count": sum(ld["play_count"] for ld in listen_data)
+            })
+    
+    else:
+        # Option 2: Percentage-Based Earning
+        # choir_earning = (choir_minutes/total_minutes) × (total_revenue × choir_share%)
+        
+        choir_share_pct = settings.get("choir_share_percentage", 70) / 100
+        
+        # Get total platform listening minutes
+        total_minutes_pipeline = [
+            {"$match": {"counted_as_play": True, "start_time": {"$gte": start_date}}},
+            {"$group": {"_id": None, "total": {"$sum": "$duration_seconds"}}}
+        ]
+        total_result = await db.listening_sessions.aggregate(total_minutes_pipeline).to_list(1)
+        total_platform_minutes = (total_result[0]["total"] / 60) if total_result else 0
+        
+        # Get total subscription revenue in period
+        revenue_pipeline = [
+            {"$match": {"status": "completed", "created_at": {"$gte": start_date}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]
+        revenue_result = await db.transactions.aggregate(revenue_pipeline).to_list(1)
+        total_subscription_revenue = revenue_result[0]["total"] if revenue_result else 0
+        
+        # Pool available for choirs
+        choir_pool = total_subscription_revenue * choir_share_pct
+        
+        for choir in choirs:
+            choir_id = choir["singer_id"]
+            
+            # Get albums by this choir
+            albums = await db.albums.find({"singer_id": choir_id}, {"_id": 0, "album_id": 1}).to_list(100)
+            album_ids = [a["album_id"] for a in albums]
+            
+            if not album_ids:
+                continue
+            
+            # Get songs from these albums
+            songs = await db.songs.find({"album_id": {"$in": album_ids}}, {"_id": 0, "song_id": 1}).to_list(500)
+            song_ids = [s["song_id"] for s in songs]
+            
+            if not song_ids:
+                continue
+            
+            # Get choir's listening minutes
+            choir_minutes_pipeline = [
+                {"$match": {
+                    "song_id": {"$in": song_ids},
+                    "counted_as_play": True,
+                    "start_time": {"$gte": start_date}
+                }},
+                {"$group": {
+                    "_id": None,
+                    "total_seconds": {"$sum": "$duration_seconds"},
+                    "play_count": {"$sum": 1}
+                }}
+            ]
+            choir_result = await db.listening_sessions.aggregate(choir_minutes_pipeline).to_list(1)
+            
+            if not choir_result:
+                continue
+            
+            choir_minutes = choir_result[0]["total_seconds"] / 60
+            play_count = choir_result[0]["play_count"]
+            
+            # Calculate choir's share
+            # (choir_minutes / total_platform_minutes) × choir_pool
+            if total_platform_minutes > 0:
+                choir_share_ratio = choir_minutes / total_platform_minutes
+                choir_earning = choir_pool * choir_share_ratio
+            else:
+                choir_share_ratio = 0
+                choir_earning = 0
+            
+            results.append({
+                "choir_id": choir_id,
+                "choir_name": choir["name"],
+                "calculation_mode": "percentage_based",
+                "choir_minutes": round(choir_minutes, 2),
+                "total_platform_minutes": round(total_platform_minutes, 2),
+                "share_percentage": round(choir_share_ratio * 100, 4),
+                "total_subscription_revenue": total_subscription_revenue,
+                "choir_pool": round(choir_pool, 2),
+                "total_earning": round(choir_earning, 2),
+                "play_count": play_count
+            })
+    
+    # Sort by earnings
+    results.sort(key=lambda x: x["total_earning"], reverse=True)
+    
+    return {
+        "monetization_mode": monetization_mode,
+        "period": period,
+        "calculations": results,
+        "total_choir_earnings": sum(r["total_earning"] for r in results),
+        "settings_used": {
+            "mode": monetization_mode,
+            "premium_rate_per_hour": settings.get("premium_rate_per_hour") if monetization_mode == "time_based" else None,
+            "standard_rate_per_hour": settings.get("standard_rate_per_hour") if monetization_mode == "time_based" else None,
+            "choir_share_percentage": settings.get("choir_share_percentage") if monetization_mode == "percentage_based" else None
+        }
+    }
+
+
+@router.get("/admin/monetization-summary")
+async def get_monetization_summary():
+    """Get comprehensive monetization summary for admin dashboard"""
+    db = get_db()
+    
+    # Get current settings
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    if not settings:
+        settings = {
+            "monetization_mode": "time_based",
+            "pay_per_content_enabled": False,
+            "premium_rate_per_hour": 10,
+            "standard_rate_per_hour": 5,
+            "choir_share_percentage": 70,
+            "platform_share_percentage": 30,
+            "bundle_platform_fee_percentage": 20
+        }
+    
+    # Calculate 30-day stats
+    days_30_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    
+    # Subscription revenue
+    sub_revenue_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": days_30_ago}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    sub_result = await db.transactions.aggregate(sub_revenue_pipeline).to_list(1)
+    subscription_revenue = sub_result[0]["total"] if sub_result else 0
+    subscription_count = sub_result[0]["count"] if sub_result else 0
+    
+    # Bundle revenue
+    bundle_revenue_pipeline = [
+        {"$match": {"status": "completed", "created_at": {"$gte": days_30_ago}}},
+        {"$group": {
+            "_id": None,
+            "total": {"$sum": "$amount"},
+            "platform_revenue": {"$sum": "$platform_revenue"},
+            "choir_revenue": {"$sum": "$choir_revenue"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    bundle_result = await db.bundle_purchases.aggregate(bundle_revenue_pipeline).to_list(1)
+    bundle_revenue = bundle_result[0]["total"] if bundle_result else 0
+    bundle_platform_revenue = bundle_result[0]["platform_revenue"] if bundle_result else 0
+    bundle_choir_revenue = bundle_result[0]["choir_revenue"] if bundle_result else 0
+    bundle_count = bundle_result[0]["count"] if bundle_result else 0
+    
+    # Active bundles
+    active_bundles = await db.content_bundles.count_documents({"status": "active"})
+    
+    # Total listening hours
+    listen_pipeline = [
+        {"$match": {"counted_as_play": True, "start_time": {"$gte": days_30_ago}}},
+        {"$group": {"_id": None, "total": {"$sum": "$duration_seconds"}}}
+    ]
+    listen_result = await db.listening_sessions.aggregate(listen_pipeline).to_list(1)
+    total_listen_hours = round((listen_result[0]["total"] if listen_result else 0) / 3600, 1)
+    
+    return {
+        "settings": settings,
+        "period": "30d",
+        "subscription_monetization": {
+            "mode": settings.get("monetization_mode"),
+            "mode_description": "Time-Based (hourly rate)" if settings.get("monetization_mode") == "time_based" else "Percentage-Based (revenue share)",
+            "total_revenue": subscription_revenue,
+            "transaction_count": subscription_count,
+            "total_listen_hours": total_listen_hours
+        },
+        "bundle_monetization": {
+            "enabled": settings.get("pay_per_content_enabled", False),
+            "active_bundles": active_bundles,
+            "total_revenue": bundle_revenue,
+            "platform_revenue": bundle_platform_revenue,
+            "choir_revenue": bundle_choir_revenue,
+            "purchase_count": bundle_count
+        },
+        "total_revenue": subscription_revenue + bundle_revenue,
+        "rules": {
+            "option_1_name": "Time-Based Earning",
+            "option_1_description": "Choir earning = listening hours × rate per hour",
+            "option_2_name": "Percentage-Based Earning", 
+            "option_2_description": "Choir earning = (choir minutes / total platform minutes) × 70% of subscription revenue",
+            "option_3_name": "Pay-Per-Content Bundle",
+            "option_3_description": "Users pay for specific content bundles, revenue goes directly to content owner minus platform fee",
+            "compatibility": "Option 1 and 2 are mutually exclusive. Option 3 can be combined with either."
+        }
+    }
+
 async def generate_demo_listening_data():
     """Generate demo listening data for testing analytics"""
     db = get_db()
