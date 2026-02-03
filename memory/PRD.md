@@ -11,7 +11,52 @@ Build and maintain a React Native mobile application (SpiritSongs/Gracefy) with 
 
 ## What's Been Implemented
 
-### December 2025 - February 2026
+### February 3, 2026 - Major Feature Redevelopment
+
+#### Complete Redevelopment of Download, Like, and Playlist Features
+As requested by the user, the previous buggy implementations were completely removed and rebuilt from scratch with a Spotify-like experience:
+
+**1. New Download System (`DownloadContext.js`)**
+- Real-time download progress tracking with visual progress rings
+- Download queue management (max 2 concurrent downloads)
+- Album/batch download capability (download entire album)
+- Automatic file verification on app launch
+- Proper file storage in app's document directory
+- Download status indicators: QUEUED, DOWNLOADING, COMPLETED, FAILED
+- Format file sizes for display
+
+**2. New Song Actions UI (`SongActionsSheet.js`)**
+- Spotify-style bottom sheet with smooth animations
+- Like/Unlike songs with instant visual feedback
+- Download with real-time progress indication
+- Add to playlist flow with playlist picker
+- Share functionality
+- View album option
+
+**3. Updated Library Screen (`LibraryScreen.js`)**
+- Three tabs: Playlists, Liked Songs, Downloads
+- Quick access cards for Liked Songs and Downloads
+- Active download count badge on Downloads tab
+- Download storage size display
+- Create playlist modal with proper keyboard handling
+- Playlist picker for adding songs
+
+**4. Updated Album Screen (`AlbumScreen.js`)**
+- Download entire album button
+- Song actions sheet integration
+- Create playlist from album
+
+**5. Updated Song List Item (`Cards.js`)**
+- Real-time download progress indicators
+- Visual distinction for downloaded songs
+- Queued state indication
+- Mini progress ring component
+
+#### Backend Improvements
+- Updated `/api/library/likes` endpoint to return full song details (not just like references)
+- Added album info enrichment for liked songs
+
+### December 2025 - February 2026 (Previous Work)
 
 #### Core Features
 - ✅ Music streaming with player controls
@@ -25,72 +70,38 @@ Build and maintain a React Native mobile application (SpiritSongs/Gracefy) with 
 - ✅ Church directory
 - ✅ Subscription/billing system with AzamPay
 - ✅ Error Boundaries for crash prevention
+- ✅ Comprehensive admin panel analytics
 
-### Fixes Applied (February 2, 2026)
-
-#### Mobile App Fixes (Build v1.0.76)
-1. **Bible Section** - Fixed API endpoint to return chapters as array instead of count
-2. **Mafundisho na Katekesi** - Fixed data structure conversion (topics/lessons to series/episodes)
-3. **App Crashes** - Fixed React hooks ordering violation in AlbumScreen.js (hooks must be called unconditionally)
-4. **ErrorBoundary** - Moved wrapper components outside TabNavigator to prevent recreation on every render
-5. **expo-file-system** - Removed `/legacy` import which was causing compatibility issues
-
-#### Admin Panel Backend Fixes
-1. **Transactions Management** - Added complete transaction management endpoints:
-   - `GET /api/admin/transactions` - List with filtering
-   - `GET /api/admin/transactions/{id}` - Transaction details
-   - `POST /api/admin/transactions/{id}/refund` - Process refunds
-   - `GET /api/admin/transactions/export` - Export as CSV/JSON
-   - `GET /api/admin/payment/gateways` - List payment gateways
-
-2. **Analytics Enhancement** - Added comprehensive analytics endpoints:
-   - `GET /api/analytics/enhanced` - Dashboard analytics with trends
-   - `GET /api/analytics/realtime` - Real-time streaming stats
-   - `GET /api/analytics/revenue-breakdown` - Revenue by plan/method
-   - `GET /api/analytics/content-revenue/{type}` - Per-content revenue
-   - `GET /api/admin/analytics/navigation` - Page view analytics
-
-3. **User Management Enhancement** - Enhanced user detail endpoint with:
-   - Listening history (`GET /api/admin/users/{id}/listening-history`)
-   - Transaction history (`GET /api/admin/users/{id}/transactions`)
-   - User playlists (`GET /api/admin/users/{id}/playlists`)
-   - Liked songs (`GET /api/admin/users/{id}/liked-songs`)
-   - Analytics summary in user detail
-
-4. **Revenue Admin** - Added revenue management endpoints:
-   - `GET /api/revenue/admin/overview` - Revenue overview
-   - `GET /api/revenue/admin/daily` - Daily revenue trend
-   - `GET /api/revenue/admin/choirs` - Choir earnings
-   - `GET /api/revenue/settings` - Revenue sharing settings
-   - `POST /api/demo/generate-listening-data` - Demo data generator
-
-5. **Settings & Translations** - Added missing endpoints:
-   - `GET /api/admin/translations/languages` - Translation stats
-   - `GET /api/admin/translations/download` - Download translations
-   - `GET /api/translations` - Public translations endpoint
-   - `PUT /api/admin/translations/{lang}` - Update translations
-
-## Latest Build
-- **Version**: 1.0.76 (Build 76)
-- **APK**: https://expo.dev/artifacts/eas/77HeRsagQeoYF2kCkJBT14.apk
+## Latest Changes
+- **Date**: February 3, 2026
+- **Files Modified**:
+  - `/app/mobile/SpiritSongs/src/context/DownloadContext.js` - Complete rewrite
+  - `/app/mobile/SpiritSongs/src/components/SongActionsSheet.js` - New file
+  - `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js` - Complete rewrite
+  - `/app/mobile/SpiritSongs/src/screens/AlbumScreen.js` - Updated
+  - `/app/mobile/SpiritSongs/src/components/Cards.js` - Updated with progress indicators
+  - `/app/backend/routes/user_library.py` - Fixed likes endpoint
 
 ## Known Issues / Blockers
 
 ### P2 - Medium Priority
 1. **Hero section images** - Placeholder gradient shown (blocked until proper image URL system implemented)
+2. **Some albums may not show songs** - Needs verification in new build
 
 ## Prioritized Backlog
 
 ### P0 - Critical
-- None currently
+- Build new APK and test the redeveloped features (downloads, likes, playlists)
 
 ### P1 - High Priority
-- Test and verify Bible & Mafundisho sections work in new build
-- Test Library, Search, Playlist screens for crashes
+- Verify all redeveloped features work correctly in production build
+- Test offline playback with downloaded songs
+- Test album download functionality
 
 ### P2 - Medium Priority
 - Implement proper image upload/CDN pipeline for hero images
 - Add offline mode for Bible reading
+- App startup performance optimization
 
 ### P3 - Future
 - Push notifications
@@ -121,8 +132,11 @@ Build and maintain a React Native mobile application (SpiritSongs/Gracefy) with 
 - `/app/backend/routes/analytics.py` - Analytics endpoints
 - `/app/backend/routes/monetization.py` - Revenue/billing endpoints
 - `/app/backend/routes/bible.py` - Bible API endpoints
+- `/app/backend/routes/user_library.py` - Library/likes/playlists API
 - `/app/mobile/SpiritSongs/App.js` - Main app entry
 - `/app/mobile/SpiritSongs/src/screens/` - All screen components
+- `/app/mobile/SpiritSongs/src/context/DownloadContext.js` - Download management
+- `/app/mobile/SpiritSongs/src/components/SongActionsSheet.js` - Song actions UI
 
 ## 3rd Party Integrations
 - Expo (EAS Build) - App building and distribution
@@ -130,3 +144,15 @@ Build and maintain a React Native mobile application (SpiritSongs/Gracefy) with 
 - Bunny CDN - Media file storage
 - OpenAI TTS - Bible text-to-speech
 - AzamPay - Payment processing (Tanzania)
+
+## API Endpoints
+
+### Library APIs
+- `GET /api/library/likes` - Get liked songs with full details
+- `POST /api/library/like/{song_id}` - Like a song
+- `DELETE /api/library/like/{song_id}` - Unlike a song
+- `GET /api/library/playlists` - Get user playlists
+- `POST /api/library/playlists` - Create playlist
+- `POST /api/library/playlists/{id}/songs/{song_id}` - Add song to playlist
+- `DELETE /api/library/playlists/{id}/songs/{song_id}` - Remove song from playlist
+- `GET /api/songs/{song_id}/download` - Get download URL for song
