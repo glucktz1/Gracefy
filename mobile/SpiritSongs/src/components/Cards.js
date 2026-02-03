@@ -402,6 +402,15 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginLeft: 2,
   },
+  downloadingTagText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  queuedTagText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+  },
   songListArtist: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
