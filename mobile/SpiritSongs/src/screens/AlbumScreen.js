@@ -595,6 +595,67 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
   },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createPlaylistModal: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    width: '85%',
+    maxWidth: 350,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  modalInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+  },
+  modalCancelButton: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  modalCancelText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+  },
+  modalCreateButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalCreateText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
 });
 
 export default AlbumScreen;
