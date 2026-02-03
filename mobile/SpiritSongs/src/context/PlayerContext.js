@@ -77,6 +77,11 @@ export const PlayerProvider = ({ children }) => {
   
   // Track if we're handling track end to prevent double-trigger
   const isHandlingTrackEndRef = useRef(false);
+  
+  // Play tracking - track when user has listened 45+ seconds
+  const playStartTimeRef = useRef(null);
+  const playTrackedRef = useRef(false);
+  const playTrackingTimerRef = useRef(null);
 
   // Keep refs in sync with state
   useEffect(() => { queueRef.current = queue; }, [queue]);
