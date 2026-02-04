@@ -1,9 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { AppState, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { getAudioUrl, playerAPI, contentAPI } from '../services/api';
 
 const PlayerContext = createContext(null);
+
+// Configure notifications for background playback
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 // Global callback for stopping external audio (like Bible TTS)
 let stopExternalAudioCallback = null;
