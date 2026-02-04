@@ -83,6 +83,14 @@
           "icon": "./assets/icon.png",
           "color": "#3498DB"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "owner": "gracefy21",
