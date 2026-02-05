@@ -64,9 +64,24 @@ Build a music streaming platform (SpiritSongs/Gracefy) with:
 - [x] Platform revenue vs choir payouts tracking
 - [x] Revenue settings in admin panel
 
+### Phase 5: Download Feature Redesign (Completed - Feb 2026)
+- [x] Complete rewrite of download system (Spotify-like design)
+- [x] DownloadContext with queue-based download manager
+- [x] Individual song download from 3-dot menu (SongActionsSheet)
+- [x] Album/playlist bulk download button on AlbumScreen
+- [x] New "Downloads" tab in LibraryScreen
+- [x] Offline playback from local files
+- [x] Download progress indicators on song items
+- [x] Storage size tracking in ProfileScreen
+- [x] Clear all downloads functionality
+- [x] AsyncStorage persistence for download metadata
+- [x] File verification after download
+- [x] PlaylistPickerSheet for adding songs to playlists
+
 ## Current App Version
-- **Mobile App**: v1.0.87
-- **APK Download**: https://expo.dev/artifacts/eas/azPmMm7Xxz4tNnDtZEFXqW.apk
+- **Mobile App**: v1.0.90
+- **Build Status**: In Queue (Build ID: 046a04bc-256d-4f1e-8ffb-f3fd19aa19ab)
+- **APK Download**: Pending build completion
 
 ## Database Collections
 
@@ -111,23 +126,26 @@ Build a music streaming platform (SpiritSongs/Gracefy) with:
 ## Remaining Tasks (Prioritized)
 
 ### P0 - Critical
-- [ ] Test download functionality in v1.0.87 build
-- [ ] Verify background playback works when app locked
+- [ ] ~~Test download functionality~~ (Implemented, build pending)
+- [ ] Verify background playback works when app locked (code ready, needs APK testing)
 
 ### P1 - High Priority
 - [ ] Bible offline reading mode
 - [ ] Push notifications
 - [ ] Performance optimization for app startup
+- [ ] Admin dashboard data verification from user
 
 ### P2 - Medium Priority  
 - [ ] Admin panel: Withdrawal request management
 - [ ] Admin panel: Cron job for periodic revenue calculation
 - [ ] Hero section images from CDN
+- [ ] Azam Pay live integration (UI ready)
 
 ### P3 - Future
 - [ ] Social features (sharing, comments)
 - [ ] Advanced recommendation system
 - [ ] Multi-language support
+- [ ] Choir-specific dashboards for earnings tracking
 
 ## Environment Variables
 
