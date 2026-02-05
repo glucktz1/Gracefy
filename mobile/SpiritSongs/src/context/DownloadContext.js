@@ -276,13 +276,27 @@ export const DownloadProvider = ({ children }) => {
   const startDownload = async (song) => {
     const songId = song.song_id;
     console.log('[Downloads] Starting download for:', song.title, songId);
+    console.log('[Downloads] Song object:', JSON.stringify(song, null, 2));
     
     // Get audio URL - prefer song's own URL first
-    let audioUrl = song.audio_url;
+    let audioUrl = song.audio_url || song.file_url;
+    console.log('[Downloads] Audio URL from song:', audioUrl);
     
-    // If no audio URL on song object, it shouldn't be downloadable
+    // If no audio URL on song object, try to fetch from API
     if (!audioUrl || audioUrl.trim() === '') {
-      console.error('[Downloads] No audio URL for:', songId);
+      console.log('[Downloads] No audio URL on song, fetching from API...');
+      try {
+        const response = await contentAPI.getSongDownloadUrl(songId);
+        console.log('[Downloads] API Response:', response?.data);
+        audioUrl = response?.data?.direct_url || response?.data?.download_url;
+      } catch (apiError) {
+        console.error('[Downloads] API fetch failed:', apiError);
+      }
+    }
+    
+    // Still no URL - fail
+    if (!audioUrl || audioUrl.trim() === '') {
+      console.error('[Downloads] No audio URL available for:', songId);
       setActiveDownloads(prev => ({
         ...prev,
         [songId]: { 
@@ -309,44 +323,31 @@ export const DownloadProvider = ({ children }) => {
         [songId]: { progress: 0, status: DOWNLOAD_STATUS.DOWNLOADING, song }
       }));
 
-      // Build the download URL - CDN URLs start with http
+      // Build the final download URL
       let fileUrl = null;
       let fileName = `${song.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'song'}_${songId}.mp3`;
       
       // Get base URL for internal paths
       const baseUrl = API_BASE_URL.replace('/api', '');
+      console.log('[Downloads] Base URL:', baseUrl);
 
-      // If audio_url is already a CDN URL (starts with http), use it directly
-      if (audioUrl.startsWith('http')) {
+      // Determine the file URL based on format
+      if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {
+        // Full URL - use directly (CDN or external)
         fileUrl = audioUrl;
-        console.log('[Downloads] Using direct CDN URL:', fileUrl);
-      } 
-      // If it's an internal path, build the full URL
-      else if (audioUrl.startsWith('/api/')) {
+        console.log('[Downloads] Using full URL:', fileUrl);
+      } else if (audioUrl.startsWith('/api/')) {
+        // Internal API path - prepend base URL
         fileUrl = `${baseUrl}${audioUrl}`;
-        console.log('[Downloads] Using internal URL:', fileUrl);
-      }
-      // Try the download API endpoint as fallback
-      else {
-        try {
-          console.log('[Downloads] Fetching download URL from API...');
-          const response = await contentAPI.getSongDownloadUrl(songId);
-          console.log('[Downloads] API response:', response?.data);
-          
-          if (response.data?.direct_url && response.data.direct_url.startsWith('http')) {
-            fileUrl = response.data.direct_url;
-          } else if (response.data?.download_url) {
-            fileUrl = response.data.download_url.startsWith('http') 
-              ? response.data.download_url 
-              : `${baseUrl}${response.data.download_url}`;
-          }
-          
-          if (response.data?.filename) {
-            fileName = response.data.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-          }
-        } catch (e) {
-          console.error('[Downloads] API call failed:', e.message);
-        }
+        console.log('[Downloads] Using internal API URL:', fileUrl);
+      } else if (audioUrl.startsWith('/')) {
+        // Other relative path - prepend base URL
+        fileUrl = `${baseUrl}${audioUrl}`;
+        console.log('[Downloads] Using relative URL:', fileUrl);
+      } else {
+        // Unknown format - try as-is
+        fileUrl = audioUrl;
+        console.log('[Downloads] Using unknown format URL:', fileUrl);
       }
 
       if (!fileUrl) {
@@ -357,6 +358,7 @@ export const DownloadProvider = ({ children }) => {
       console.log('[Downloads] Filename:', fileName);
       
       const downloadPath = `${DOWNLOAD_DIR}${fileName}`;
+      console.log('[Downloads] Download path:', downloadPath);
 
       // Create download resumable for progress tracking
       const downloadResumable = FileSystem.createDownloadResumable(
@@ -373,6 +375,7 @@ export const DownloadProvider = ({ children }) => {
             (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100
           );
           const safeProgress = isNaN(progress) || !isFinite(progress) ? 0 : Math.min(progress, 100);
+          console.log('[Downloads] Progress:', safeProgress, '%');
           setActiveDownloads(prev => ({
             ...prev,
             [songId]: { 
