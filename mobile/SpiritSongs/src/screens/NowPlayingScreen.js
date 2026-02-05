@@ -277,6 +277,17 @@ const NowPlayingScreen = ({ navigation }) => {
                 </Text>
               </View>
               <View style={styles.trackActions}>
+                {/* Like Button */}
+                <TouchableOpacity 
+                  style={styles.trackActionBtn}
+                  onPress={handleLike}
+                >
+                  <Ionicons 
+                    name={isLiked ? "heart" : "heart-outline"} 
+                    size={26} 
+                    color={isLiked ? COLORS.error : COLORS.text} 
+                  />
+                </TouchableOpacity>
                 {/* Download Button - Shows checkmark if downloaded */}
                 <TouchableOpacity 
                   style={[
