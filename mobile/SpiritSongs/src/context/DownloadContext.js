@@ -13,12 +13,15 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { contentAPI } from '../services/api';
+import { showToast } from '../components/Toast';
 
 const DownloadContext = createContext(null);
 
-// Storage keys
-const DOWNLOADS_STORAGE_KEY = '@gracefy_downloads';
-const DOWNLOAD_DIR = FileSystem.documentDirectory + 'downloads/';
+// Constants
+const STORAGE_KEY = '@gracefy_downloads_v2';
+const DOWNLOAD_DIR = FileSystem.documentDirectory + 'gracefy_songs/';
+const MIN_FILE_SIZE = 10000; // Minimum 10KB for a valid audio file
+const MAX_CONCURRENT = 1;
 
 // Download status constants
 export const DOWNLOAD_STATUS = {
