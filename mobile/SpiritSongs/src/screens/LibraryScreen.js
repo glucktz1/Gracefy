@@ -396,12 +396,12 @@ const LibraryScreen = ({ navigation, route }) => {
           {likedSongs.map((song, index) => (
             <SongListItem
               key={song?.song_id ?? `liked-${index}`}
-              song={song}
+              item={song}
               index={index}
               isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
               isLiked={true}
               onPress={() => handlePlaySong(song, likedSongs)}
-              onOptions={() => handleSongOptions(song)}
+              onMorePress={() => handleSongOptions(song)}
             />
           ))}
         </>
