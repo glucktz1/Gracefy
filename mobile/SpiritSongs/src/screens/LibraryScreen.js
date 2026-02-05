@@ -1,10 +1,8 @@
 /**
- * LibraryScreen - Complete rewrite with robust error handling
+ * LibraryScreen - User's music library
  * Features:
  * - Playlists management
- * - Liked songs with proper API calls
- * - Downloaded songs with offline playback
- * - Comprehensive error handling and logging
+ * - Liked songs
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -31,9 +29,8 @@ import { libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
-import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
-import { SongActionsSheet, PlaylistPickerSheet } from '../components/SongActionsSheet';
+import { SongActionsSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
 
 const { width } = Dimensions.get('window');
@@ -57,11 +54,10 @@ const LibraryScreen = ({ navigation, route }) => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
-  // Context hooks - called unconditionally
+  // Context hooks
   const authContext = useAuth();
   const playerContext = usePlayer();
   const billingContext = useBilling();
-  const downloadContext = useDownloads();
   
   // Safe extraction
   const isAuthenticated = authContext?.isAuthenticated ?? false;
@@ -69,12 +65,6 @@ const LibraryScreen = ({ navigation, route }) => {
   const playTrack = playerContext?.playTrack ?? (() => {});
   const currentTrack = playerContext?.currentTrack ?? null;
   const isPlaying = playerContext?.isPlaying ?? false;
-  const downloads = downloadContext?.downloads ?? [];
-  const activeDownloads = downloadContext?.activeDownloads ?? {};
-  const downloadQueue = downloadContext?.downloadQueue ?? [];
-  const formatSize = downloadContext?.formatSize ?? (() => '0 B');
-  const getTotalSize = downloadContext?.getTotalSize ?? (() => 0);
-  const refreshDownloads = downloadContext?.refreshDownloads ?? (async () => {});
 
   // Update tab from route params
   useEffect(() => {
@@ -118,7 +108,7 @@ const LibraryScreen = ({ navigation, route }) => {
       }
       
     } catch (error) {
-      console.error('[Library] Error loading library:', error);
+      console.error('[Library] Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -126,199 +116,139 @@ const LibraryScreen = ({ navigation, route }) => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([
-      loadLibraryData(),
-      refreshDownloads(),
-    ]);
+    await loadLibraryData();
     setRefreshing(false);
-  }, [refreshDownloads]);
-
-  // Playback handlers
-  const handlePlaySong = useCallback((song, songList) => {
-    if (!song) return;
-    try {
-      playTrack(song, songList);
-    } catch (error) {
-      console.error('[Library] Error playing song:', error);
-      showToast('Imeshindwa kucheza', 'error');
-    }
-  }, [playTrack]);
-
-  const handlePlayAll = useCallback((songs) => {
-    if (!songs?.length) return;
-    handlePlaySong(songs[0], songs);
-  }, [handlePlaySong]);
-
-  const handleShuffle = useCallback((songs) => {
-    if (!songs?.length) return;
-    const shuffled = [...songs].sort(() => Math.random() - 0.5);
-    handlePlaySong(shuffled[0], shuffled);
-  }, [handlePlaySong]);
-
-  // Song actions
-  const handleSongMore = useCallback((song) => {
-    setSelectedSong(song);
-    setShowActionsSheet(true);
   }, []);
 
-  // LIKE/UNLIKE with comprehensive error handling
-  const handleLikeSong = useCallback(async (song) => {
-    if (!song?.song_id) {
-      console.error('[Library] handleLikeSong: No song_id provided');
+  // Playlist creation
+  const handleOpenCreatePlaylist = () => {
+    if (!isAuthenticated) {
+      showToast('Ingia kwanza ili kutengeneza playlist', 'warning');
+      navigation.navigate('Auth');
       return;
     }
+    setShowCreatePlaylistModal(true);
+  };
+
+  const handleCreatePlaylist = async () => {
+    const name = newPlaylistName.trim();
+    if (!name) {
+      showToast('Tafadhali weka jina la playlist', 'warning');
+      return;
+    }
+
+    try {
+      setCreatingPlaylist(true);
+      const response = await libraryAPI.createPlaylist({ name });
+      console.log('[Library] Create playlist response:', response?.data);
+      
+      showToast(`Playlist "${name}" imetengenezwa`, 'success');
+      setNewPlaylistName('');
+      setShowCreatePlaylistModal(false);
+      await loadLibraryData();
+    } catch (error) {
+      console.error('[Library] Create playlist error:', error.response?.data || error.message);
+      showToast('Imeshindikana kutengeneza playlist', 'error');
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  };
+
+  // Song actions
+  const handleSongOptions = (song) => {
+    console.log('[Library] Song options for:', song?.title);
+    setSelectedSong(song);
+    setShowActionsSheet(true);
+  };
+
+  const handlePlaySong = (song, playlist = null) => {
+    console.log('[Library] Playing song:', song?.title);
+    const tracklist = playlist || likedSongs;
+    const index = tracklist.findIndex(s => s?.song_id === song?.song_id);
+    playTrack(song, tracklist, index);
+  };
+
+  const handleLikeSong = async () => {
+    if (!selectedSong) return;
     
-    const songId = song.song_id;
-    const isCurrentlyLiked = likedSongIds.has(songId);
-    
-    console.log(`[Library] ${isCurrentlyLiked ? 'Unliking' : 'Liking'} song:`, songId);
+    const songId = selectedSong.song_id;
+    const isLiked = likedSongIds.has(songId);
     
     try {
-      if (isCurrentlyLiked) {
-        // UNLIKE
-        const response = await libraryAPI.unlikeSong(songId);
-        console.log('[Library] Unlike response:', response?.data);
-        
-        // Update state
-        setLikedSongs(prev => prev.filter(s => s?.song_id !== songId));
+      if (isLiked) {
+        await libraryAPI.unlikeSong(songId);
         setLikedSongIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(songId);
           return newSet;
         });
-        showToast('Imeondolewa kwenye zilizopendwa', 'success');
+        setLikedSongs(prev => prev.filter(s => s.song_id !== songId));
+        showToast('Imeondolewa kwenye pendwa', 'info');
       } else {
-        // LIKE
-        const response = await libraryAPI.likeSong(songId);
-        console.log('[Library] Like response:', response?.data);
-        
-        // Update state
-        setLikedSongs(prev => [song, ...prev]);
+        await libraryAPI.likeSong(songId);
         setLikedSongIds(prev => new Set([...prev, songId]));
-        showToast('Imeongezwa kwenye zilizopendwa ❤️', 'success');
+        showToast('Imeongezwa kwenye pendwa', 'success');
+        await loadLibraryData();
       }
-      
-      // Close the actions sheet
-      setShowActionsSheet(false);
-      
     } catch (error) {
-      console.error('[Library] Error toggling like:', error.response?.data || error.message);
-      const errorMessage = error.response?.data?.detail || 'Imeshindwa kubadilisha hali ya kupenda';
-      showToast(errorMessage, 'error');
+      console.error('[Library] Like error:', error);
+      showToast('Imeshindikana', 'error');
     }
-  }, [likedSongIds]);
+  };
 
-  // PLAYLIST HANDLERS with comprehensive error handling
-  const handleOpenCreatePlaylist = useCallback(() => {
-    if (!isAuthenticated) {
-      navigation.navigate('Login');
-      return;
-    }
-    setNewPlaylistName('');
-    setShowCreatePlaylistModal(true);
-  }, [isAuthenticated, navigation]);
-
-  const handleCreatePlaylist = useCallback(async () => {
-    const name = newPlaylistName.trim();
-    if (!name) {
-      showToast('Tafadhali weka jina la playlist', 'error');
-      return;
-    }
-    
-    console.log('[Library] Creating playlist:', name);
-    setCreatingPlaylist(true);
-    
-    try {
-      const response = await libraryAPI.createPlaylist({ name });
-      console.log('[Library] Create playlist response:', response?.data);
-      
-      showToast('Playlist imetengenezwa! ✓', 'success');
-      setShowCreatePlaylistModal(false);
-      setNewPlaylistName('');
-      
-      const newPlaylistId = response.data?.playlist_id;
-      
-      // If we have a selected song, add it to the new playlist
-      if (selectedSong && newPlaylistId) {
-        console.log('[Library] Adding song to new playlist:', selectedSong.song_id, '->', newPlaylistId);
-        try {
-          const addResponse = await libraryAPI.addToPlaylist(newPlaylistId, selectedSong.song_id);
-          console.log('[Library] Add to playlist response:', addResponse?.data);
-          showToast(`"${selectedSong.title}" imeongezwa`, 'success');
-        } catch (addError) {
-          console.error('[Library] Failed to add song to playlist:', addError.response?.data || addError.message);
-          showToast('Playlist imetengenezwa lakini imeshindwa kuongeza wimbo', 'error');
-        }
-        setSelectedSong(null);
-        setShowPlaylistPicker(false);
-      }
-      
-      // Reload playlists
-      loadLibraryData();
-      
-    } catch (error) {
-      console.error('[Library] Error creating playlist:', error.response?.data || error.message);
-      const errorMessage = error.response?.data?.detail || 'Imeshindwa kutengeneza playlist';
-      showToast(errorMessage, 'error');
-    } finally {
-      setCreatingPlaylist(false);
-    }
-  }, [newPlaylistName, selectedSong]);
-
-  const handleAddToPlaylist = useCallback((song) => {
-    console.log('[Library] Opening playlist picker for song:', song?.song_id);
-    setSelectedSong(song);
+  const handleAddToPlaylist = () => {
+    if (!selectedSong) return;
     setShowActionsSheet(false);
-    setTimeout(() => setShowPlaylistPicker(true), 300);
-  }, []);
+    setShowPlaylistPicker(true);
+  };
 
-  const handleSelectPlaylist = useCallback(async (playlist) => {
-    if (!selectedSong) {
-      console.error('[Library] handleSelectPlaylist: No song selected');
-      return;
+  const handlePlayAll = (songs) => {
+    if (songs.length > 0) {
+      playTrack(songs[0], songs, 0);
     }
-    
-    console.log('[Library] Adding song to playlist:', selectedSong.song_id, '->', playlist.playlist_id);
-    
-    try {
-      const response = await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
-      console.log('[Library] Add to playlist response:', response?.data);
-      
-      showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
-      setShowPlaylistPicker(false);
-      setSelectedSong(null);
-      
-      // Reload to update song counts
-      loadLibraryData();
-      
-    } catch (error) {
-      console.error('[Library] Error adding to playlist:', error.response?.data || error.message);
-      const errorMessage = error.response?.data?.detail || 'Imeshindwa kuongeza wimbo';
-      showToast(errorMessage, 'error');
-    }
-  }, [selectedSong]);
+  };
 
-  // Calculate download stats
-  const totalDownloadSize = getTotalSize();
-  const activeDownloadCount = Object.keys(activeDownloads).length + downloadQueue.length;
+  const handleDeletePlaylist = async (playlist) => {
+    Alert.alert(
+      'Futa Playlist',
+      `Je, una uhakika unataka kufuta "${playlist.name}"?`,
+      [
+        { text: 'Hapana', style: 'cancel' },
+        {
+          text: 'Futa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await libraryAPI.deletePlaylist(playlist.playlist_id);
+              showToast('Playlist imefutwa', 'success');
+              await loadLibraryData();
+            } catch (error) {
+              console.error('[Library] Delete playlist error:', error);
+              showToast('Imeshindikana kufuta', 'error');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   // Not authenticated view
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Maktaba Yako</Text>
+          <Text style={styles.headerTitle}>Maktaba Yako</Text>
         </View>
-        <View style={styles.emptyStateContainer}>
-          <Ionicons name="library-outline" size={80} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>Ingia ili kuona maktaba yako</Text>
-          <Text style={styles.emptyText}>
-            Playlist, nyimbo unazopenda na zilizopakuwa zitaonekana hapa
+        <View style={styles.loginPrompt}>
+          <Ionicons name="library-outline" size={64} color={COLORS.textMuted} />
+          <Text style={styles.loginTitle}>Karibu kwenye Maktaba</Text>
+          <Text style={styles.loginMessage}>
+            Ingia ili kuona playlists na nyimbo ulizopenda
           </Text>
           <TouchableOpacity 
             style={styles.loginButton}
-            onPress={() => navigation.navigate('Login')}
-            data-testid="library-login-button"
+            onPress={() => navigation.navigate('Auth')}
+            data-testid="login-button"
           >
             <Text style={styles.loginButtonText}>Ingia</Text>
           </TouchableOpacity>
@@ -332,10 +262,11 @@ const LibraryScreen = ({ navigation, route }) => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Maktaba Yako</Text>
+          <Text style={styles.headerTitle}>Maktaba Yako</Text>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Inapakia...</Text>
         </View>
       </SafeAreaView>
     );
@@ -344,7 +275,6 @@ const LibraryScreen = ({ navigation, route }) => {
   const tabs = [
     { id: 'playlists', label: 'Playlist', icon: 'list' },
     { id: 'liked', label: 'Zilizopendwa', icon: 'heart' },
-    { id: 'downloads', label: 'Zilizopakuwa', icon: 'download' },
   ];
 
   // Playlists Tab Content
@@ -367,32 +297,6 @@ const LibraryScreen = ({ navigation, route }) => {
           </View>
           <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
         </TouchableOpacity>
-
-        {/* Downloads Card */}
-        <TouchableOpacity 
-          style={styles.quickAccessCard}
-          onPress={() => setActiveTab('downloads')}
-          data-testid="quick-access-downloads"
-        >
-          <View style={[styles.quickAccessIcon, { backgroundColor: COLORS.primary + '30' }]}>
-            <Ionicons name="download" size={24} color={COLORS.primary} />
-          </View>
-          <View style={styles.quickAccessInfo}>
-            <Text style={styles.quickAccessTitle}>Zilizopakuwa</Text>
-            <View style={styles.downloadStats}>
-              <Text style={styles.quickAccessCount}>
-                {downloads.length} nyimbo
-              </Text>
-              {activeDownloadCount > 0 && (
-                <View style={styles.downloadingBadge}>
-                  <ActivityIndicator size={10} color={COLORS.primary} />
-                  <Text style={styles.downloadingText}>{activeDownloadCount}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
-        </TouchableOpacity>
       </View>
 
       {/* Playlists Section */}
@@ -412,6 +316,7 @@ const LibraryScreen = ({ navigation, route }) => {
             key={playlist?.playlist_id ?? `playlist-${index}`}
             style={styles.playlistItem}
             onPress={() => navigation.navigate('Playlist', { playlist })}
+            onLongPress={() => handleDeletePlaylist(playlist)}
             data-testid={`playlist-item-${index}`}
           >
             <Image
@@ -430,15 +335,16 @@ const LibraryScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         ))
       ) : (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptySectionText}>Hakuna playlist bado</Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="musical-notes-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.emptyTitle}>Hakuna Playlist</Text>
+          <Text style={styles.emptyMessage}>Tengeneza playlist ya kwanza</Text>
           <TouchableOpacity 
-            style={styles.createButton} 
+            style={styles.createFirstButton}
             onPress={handleOpenCreatePlaylist}
-            data-testid="create-first-playlist"
           >
             <Ionicons name="add" size={20} color={COLORS.text} />
-            <Text style={styles.createButtonText}>Tengeneza Playlist</Text>
+            <Text style={styles.createFirstText}>Tengeneza Playlist</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -451,82 +357,30 @@ const LibraryScreen = ({ navigation, route }) => {
       {likedSongs.length > 0 ? (
         <>
           <PlayAllHeader
-            title="Nyimbo Pendwa"
             songCount={likedSongs.length}
             onPlayAll={() => handlePlayAll(likedSongs)}
-            onShuffle={() => handleShuffle(likedSongs)}
+            onShuffle={() => {
+              const shuffled = [...likedSongs].sort(() => Math.random() - 0.5);
+              handlePlayAll(shuffled);
+            }}
           />
           {likedSongs.map((song, index) => (
             <SongListItem
               key={song?.song_id ?? `liked-${index}`}
-              item={song}
+              song={song}
               index={index}
               isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
-              isCurrentSong={currentTrack?.song_id === song?.song_id}
+              isLiked={true}
               onPress={() => handlePlaySong(song, likedSongs)}
-              onMorePress={() => handleSongMore(song)}
+              onOptions={() => handleSongOptions(song)}
             />
           ))}
         </>
       ) : (
-        <View style={styles.emptyStateContainer}>
-          <Ionicons name="heart-outline" size={64} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>Hakuna nyimbo unazopenda</Text>
-          <Text style={styles.emptyText}>
-            Bofya ikoni ya moyo ili kuhifadhi nyimbo unazopenda
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-
-  // Downloads Tab Content
-  const renderDownloadsTab = () => (
-    <View style={styles.tabContent}>
-      {/* Download Stats Header */}
-      {(downloads.length > 0 || activeDownloadCount > 0) && (
-        <View style={styles.downloadStatsHeader}>
-          <View style={styles.downloadStatItem}>
-            <Ionicons name="folder" size={20} color={COLORS.primary} />
-            <Text style={styles.downloadStatText}>{formatSize(totalDownloadSize)}</Text>
-          </View>
-          {activeDownloadCount > 0 && (
-            <View style={styles.downloadStatItem}>
-              <ActivityIndicator size={16} color={COLORS.primary} />
-              <Text style={styles.downloadStatText}>{activeDownloadCount} inapakua</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {downloads.length > 0 ? (
-        <>
-          <PlayAllHeader
-            title="Zilizopakuwa"
-            subtitle="Sikiliza bila mtandao"
-            songCount={downloads.length}
-            onPlayAll={() => handlePlayAll(downloads)}
-            onShuffle={() => handleShuffle(downloads)}
-          />
-          {downloads.map((song, index) => (
-            <SongListItem
-              key={song?.song_id ?? `download-${index}`}
-              item={song}
-              index={index}
-              isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
-              isCurrentSong={currentTrack?.song_id === song?.song_id}
-              onPress={() => handlePlaySong(song, downloads)}
-              onMorePress={() => handleSongMore(song)}
-            />
-          ))}
-        </>
-      ) : (
-        <View style={styles.emptyStateContainer}>
-          <Ionicons name="download-outline" size={64} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>Hakuna zilizopakuwa</Text>
-          <Text style={styles.emptyText}>
-            Pakua nyimbo ili kusikiliza bila mtandao
-          </Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="heart-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.emptyTitle}>Hakuna Nyimbo Pendwa</Text>
+          <Text style={styles.emptyMessage}>Penda nyimbo kuziona hapa</Text>
         </View>
       )}
     </View>
@@ -536,33 +390,19 @@ const LibraryScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {user?.avatar && (
-            <Image source={{ uri: user.avatar }} style={styles.avatar} />
-          )}
-          <Text style={styles.title}>Maktaba Yako</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.headerIcon} 
-            onPress={() => navigation.navigate('Search')}
-            data-testid="search-button"
-          >
-            <Ionicons name="search" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIcon} 
-            onPress={handleOpenCreatePlaylist}
-            data-testid="add-button"
-          >
-            <Ionicons name="add" size={28} color={COLORS.text} />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>Maktaba Yako</Text>
+        <TouchableOpacity 
+          onPress={handleOpenCreatePlaylist}
+          style={styles.headerButton}
+          data-testid="header-create-button"
+        >
+          <Ionicons name="add-circle-outline" size={28} color={COLORS.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <TouchableOpacity
             key={tab.id}
             style={[styles.tab, activeTab === tab.id && styles.tabActive]}
@@ -577,11 +417,6 @@ const LibraryScreen = ({ navigation, route }) => {
             <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextActive]}>
               {tab.label}
             </Text>
-            {tab.id === 'downloads' && activeDownloadCount > 0 && (
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>{activeDownloadCount}</Text>
-              </View>
-            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -589,7 +424,7 @@ const LibraryScreen = ({ navigation, route }) => {
       {/* Content */}
       <ScrollView
         style={styles.content}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -598,13 +433,10 @@ const LibraryScreen = ({ navigation, route }) => {
             colors={[COLORS.primary]}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
         {activeTab === 'playlists' && renderPlaylistsTab()}
         {activeTab === 'liked' && renderLikedTab()}
-        {activeTab === 'downloads' && renderDownloadsTab()}
-        
-        {/* Bottom spacing for mini player */}
-        <View style={{ height: 150 }} />
       </ScrollView>
 
       {/* Song Actions Sheet */}
@@ -612,84 +444,63 @@ const LibraryScreen = ({ navigation, route }) => {
         visible={showActionsSheet}
         onClose={() => setShowActionsSheet(false)}
         song={selectedSong}
-        isLiked={selectedSong?.song_id ? likedSongIds.has(selectedSong.song_id) : false}
-        isAuthenticated={isAuthenticated}
+        isLiked={selectedSong ? likedSongIds.has(selectedSong.song_id) : false}
         onLike={handleLikeSong}
         onAddToPlaylist={handleAddToPlaylist}
-        onLoginRequired={() => navigation.navigate('Login')}
-        navigation={navigation}
-      />
-
-      {/* Playlist Picker Sheet */}
-      <PlaylistPickerSheet
-        visible={showPlaylistPicker}
-        onClose={() => setShowPlaylistPicker(false)}
-        song={selectedSong}
-        playlists={playlists}
-        loading={false}
-        onSelectPlaylist={handleSelectPlaylist}
-        onCreatePlaylist={() => {
-          setShowPlaylistPicker(false);
-          setTimeout(() => setShowCreatePlaylistModal(true), 300);
-        }}
+        isAuthenticated={isAuthenticated}
+        onLoginRequired={() => navigation.navigate('Auth')}
       />
 
       {/* Create Playlist Modal */}
       <Modal
         visible={showCreatePlaylistModal}
-        transparent
         animationType="fade"
+        transparent
         onRequestClose={() => setShowCreatePlaylistModal(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <TouchableOpacity 
-            style={styles.modalOverlay}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => setShowCreatePlaylistModal(false)}
-          >
-            <View 
-              style={styles.createPlaylistModal} 
-              onStartShouldSetResponder={() => true}
-            >
-              <Text style={styles.modalTitle}>Playlist Mpya</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Jina la playlist..."
-                placeholderTextColor={COLORS.textMuted}
-                value={newPlaylistName}
-                onChangeText={setNewPlaylistName}
-                autoFocus
-                maxLength={50}
-                data-testid="playlist-name-input"
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={styles.modalCancelButton}
-                  onPress={() => setShowCreatePlaylistModal(false)}
-                >
-                  <Text style={styles.modalCancelText}>Ghairi</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[
-                    styles.modalCreateButton, 
-                    !newPlaylistName.trim() && styles.modalButtonDisabled
-                  ]}
-                  onPress={handleCreatePlaylist}
-                  disabled={!newPlaylistName.trim() || creatingPlaylist}
-                  data-testid="create-playlist-confirm"
-                >
-                  {creatingPlaylist ? (
-                    <ActivityIndicator size="small" color={COLORS.text} />
-                  ) : (
-                    <Text style={styles.modalCreateText}>Tengeneza</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+          />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Tengeneza Playlist</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Jina la Playlist..."
+              placeholderTextColor={COLORS.textMuted}
+              value={newPlaylistName}
+              onChangeText={setNewPlaylistName}
+              autoFocus
+              maxLength={50}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setNewPlaylistName('');
+                  setShowCreatePlaylistModal(false);
+                }}
+              >
+                <Text style={styles.modalCancelText}>Ghairi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalCreateButton, creatingPlaylist && styles.modalButtonDisabled]}
+                onPress={handleCreatePlaylist}
+                disabled={creatingPlaylist}
+              >
+                {creatingPlaylist ? (
+                  <ActivityIndicator size="small" color={COLORS.text} />
+                ) : (
+                  <Text style={styles.modalCreateText}>Tengeneza</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
@@ -703,135 +514,75 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  headerIcon: {
-    padding: SPACING.xs,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  title: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
+  headerTitle: {
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: '700',
     color: COLORS.text,
   },
+  headerButton: {
+    padding: SPACING.xs,
+  },
+  
+  // Tabs
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
+    marginBottom: SPACING.sm,
     gap: SPACING.sm,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.md,
     backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.full,
     gap: SPACING.xs,
   },
   tabActive: {
     backgroundColor: COLORS.primary,
   },
   tabText: {
-    fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '500',
   },
   tabTextActive: {
     color: COLORS.text,
   },
-  tabBadge: {
-    backgroundColor: COLORS.error,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 2,
-  },
-  tabBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
+  
+  // Content
   content: {
     flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 120,
   },
   tabContent: {
     paddingHorizontal: SPACING.md,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xxl,
-  },
-  emptyTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
-    lineHeight: 20,
-  },
-  loginButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.full,
-    marginTop: SPACING.lg,
-  },
-  loginButtonText: {
-    color: COLORS.text,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-  },
   
   // Quick Access
   quickAccessContainer: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   quickAccessCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
     marginBottom: SPACING.sm,
   },
   quickAccessIcon: {
     width: 48,
     height: 48,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -840,46 +591,27 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.md,
   },
   quickAccessTitle: {
+    color: COLORS.text,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    marginBottom: 2,
   },
   quickAccessCount: {
-    fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  downloadStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  downloadingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-    gap: 4,
-  },
-  downloadingText: {
-    fontSize: 10,
-    color: COLORS.primary,
-    fontWeight: '600',
+    fontSize: FONT_SIZES.sm,
   },
   
   // Section
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: SPACING.lg,
+    justifyContent: 'space-between',
     marginBottom: SPACING.md,
+    marginTop: SPACING.sm,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
   },
   
@@ -887,91 +619,127 @@ const styles = StyleSheet.create({
   playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   playlistImage: {
     width: 56,
     height: 56,
     borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
   },
   playlistInfo: {
     flex: 1,
     marginLeft: SPACING.md,
   },
   playlistTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
     color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   playlistMeta: {
-    fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
-    marginTop: 2,
+    fontSize: FONT_SIZES.sm,
   },
-  emptySection: {
+  
+  // Empty State
+  emptyState: {
     alignItems: 'center',
-    paddingVertical: SPACING.xl,
+    paddingVertical: SPACING.xxl,
   },
-  emptySectionText: {
-    fontSize: FONT_SIZES.sm,
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  emptyMessage: {
     color: COLORS.textMuted,
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
     marginBottom: SPACING.md,
   },
-  createButton: {
+  createFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.primary,
     paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
     borderRadius: BORDER_RADIUS.full,
     gap: SPACING.xs,
   },
-  createButtonText: {
-    fontSize: FONT_SIZES.sm,
+  createFirstText: {
     color: COLORS.text,
-    fontWeight: '500',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
   },
   
-  // Download Stats Header
-  downloadStatsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    gap: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  downloadStatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  downloadStatText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textMuted,
-  },
-  
-  // Modal Styles
-  modalOverlay: {
+  // Loading
+  loadingContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  createPlaylistModal: {
+  loadingText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.md,
+    marginTop: SPACING.md,
+  },
+  
+  // Login Prompt
+  loginPrompt: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  loginTitle: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  loginMessage: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  loginButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xxl,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  loginButtonText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
+  
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
-    width: '85%',
-    maxWidth: 350,
+    width: width - SPACING.xl * 2,
+    maxWidth: 400,
   },
   modalTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
     color: COLORS.text,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
     marginBottom: SPACING.md,
     textAlign: 'center',
   },
@@ -979,20 +747,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    fontSize: FONT_SIZES.md,
+    paddingVertical: SPACING.sm,
     color: COLORS.text,
+    fontSize: FONT_SIZES.md,
     marginBottom: SPACING.md,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     gap: SPACING.sm,
   },
   modalCancelButton: {
-    paddingHorizontal: SPACING.lg,
+    flex: 1,
     paddingVertical: SPACING.sm,
+    alignItems: 'center',
     borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.background,
   },
   modalCancelText: {
     color: COLORS.textMuted,
@@ -1000,15 +769,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   modalCreateButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
+    flex: 1,
     paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    minWidth: 100,
     alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
   },
   modalButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   modalCreateText: {
     color: COLORS.text,
