@@ -224,13 +224,11 @@ export default function App() {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
         <AuthProvider>
           <BillingProvider>
-            <DownloadProvider>
-              <PlayerProvider>
-                <ToastProvider>
-                  <AppContent />
-                </ToastProvider>
-              </PlayerProvider>
-            </DownloadProvider>
+            <PlayerProvider>
+              <ToastProvider>
+                <AppContent />
+              </ToastProvider>
+            </PlayerProvider>
           </BillingProvider>
         </AuthProvider>
       </SafeAreaProvider>
