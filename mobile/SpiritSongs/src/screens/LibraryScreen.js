@@ -69,14 +69,23 @@ const LibraryScreen = ({ navigation, route }) => {
   const currentTrack = playerContext?.currentTrack ?? null;
   const isPlaying = playerContext?.isPlaying ?? false;
   
-  // Download context
-  const downloadedSongs = downloadContext?.getDownloadedSongs?.() ?? [];
+  // Download context - get the raw downloads object for reactivity
+  const downloads = downloadContext?.downloads ?? {};
   const downloadCount = downloadContext?.downloadCount ?? 0;
   const getTotalDownloadSize = downloadContext?.getTotalDownloadSize ?? (() => 0);
   const isDownloaded = downloadContext?.isDownloaded ?? (() => false);
   const getDownloadedFilePath = downloadContext?.getDownloadedFilePath ?? (() => null);
   const removeDownload = downloadContext?.removeDownload ?? (() => {});
   const clearAllDownloads = downloadContext?.clearAllDownloads ?? (() => {});
+  const activeDownloads = downloadContext?.activeDownloads ?? {};
+  const queueCount = downloadContext?.queueCount ?? 0;
+  
+  // Derive downloaded songs from downloads object for reactivity
+  const downloadedSongs = React.useMemo(() => {
+    return Object.values(downloads).sort((a, b) => 
+      new Date(b.downloaded_at || 0) - new Date(a.downloaded_at || 0)
+    );
+  }, [downloads]);
 
   // Update tab from route params
   useEffect(() => {
