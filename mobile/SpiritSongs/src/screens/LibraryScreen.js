@@ -620,6 +620,7 @@ const LibraryScreen = ({ navigation, route }) => {
       >
         {activeTab === 'playlists' && renderPlaylistsTab()}
         {activeTab === 'liked' && renderLikedTab()}
+        {activeTab === 'downloads' && renderDownloadsTab()}
       </ScrollView>
 
       {/* Song Actions Sheet */}
