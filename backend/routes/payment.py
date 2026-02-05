@@ -455,4 +455,202 @@ async def get_monetization_settings():
             "default_currency": "TZS",
         }
     
+
+
+# ============== AZAM PAY SETTINGS ==============
+
+@router.get("/admin/payment/azampay/settings")
+async def get_azampay_settings():
+    """Get Azam Pay configuration settings for admin."""
+    db = get_db()
+    
+    settings = await db.payment_gateway_settings.find_one(
+        {"gateway": "azampay"}, 
+        {"_id": 0, "client_secret": 0, "api_key": 0}  # Don't expose secrets in GET
+    )
+    
+    if not settings:
+        return {
+            "gateway": "azampay",
+            "enabled": True,
+            "app_name": "",
+            "client_id": "",
+            "is_production": False,
+            "has_credentials": False,
+            "supported_mnos": ["Vodacom", "Tigo", "Airtel", "Halotel"]
+        }
+    
+    # Check if credentials are set
+    full_settings = await db.payment_gateway_settings.find_one({"gateway": "azampay"}, {"_id": 0})
+    has_credentials = bool(
+        full_settings.get("client_id") and 
+        full_settings.get("client_secret") and 
+        full_settings.get("api_key")
+    )
+    
+    return {
+        **settings,
+        "has_credentials": has_credentials,
+        "supported_mnos": ["Vodacom", "Tigo", "Airtel", "Halotel", "TTCL", "Zantel"]
+    }
+
+
+@router.post("/admin/payment/azampay/settings")
+async def save_azampay_settings(data: dict):
+    """Save Azam Pay configuration settings."""
+    db = get_db()
+    
+    # Validate required fields if enabling
+    enabled = data.get("enabled", True)
+    is_production = data.get("is_production", False)
+    
+    settings = {
+        "gateway": "azampay",
+        "enabled": enabled,
+        "app_name": data.get("app_name", "").strip(),
+        "client_id": data.get("client_id", "").strip(),
+        "client_secret": data.get("client_secret", "").strip(),
+        "api_key": data.get("api_key", "").strip(),
+        "is_production": is_production,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": data.get("admin_id", "admin")
+    }
+    
+    # Validate credentials if enabling production mode
+    if enabled and is_production:
+        if not all([settings["app_name"], settings["client_id"], settings["client_secret"], settings["api_key"]]):
+            raise HTTPException(
+                status_code=400, 
+                detail="All credentials (App Name, Client ID, Client Secret, API Key) are required for production mode"
+            )
+    
+    # Upsert settings
+    await db.payment_gateway_settings.update_one(
+        {"gateway": "azampay"},
+        {"$set": settings},
+        upsert=True
+    )
+    
+    # Also update environment-based config marker
+    await db.system_config.update_one(
+        {"config_key": "azampay_configured"},
+        {"$set": {
+            "config_key": "azampay_configured",
+            "value": enabled and bool(settings["client_id"]),
+            "is_production": is_production,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {
+        "success": True,
+        "message": "Azam Pay settings saved successfully",
+        "is_production": is_production,
+        "has_credentials": bool(settings["client_id"] and settings["client_secret"] and settings["api_key"])
+    }
+
+
+@router.post("/admin/payment/azampay/test-connection")
+async def test_azampay_connection():
+    """Test Azam Pay API connection with stored credentials."""
+    db = get_db()
+    
+    settings = await db.payment_gateway_settings.find_one({"gateway": "azampay"}, {"_id": 0})
+    
+    if not settings:
+        raise HTTPException(status_code=400, detail="Azam Pay not configured")
+    
+    if not all([settings.get("client_id"), settings.get("client_secret"), settings.get("api_key")]):
+        raise HTTPException(status_code=400, detail="Missing credentials")
+    
+    # In production, this would make a test API call to Azam Pay
+    # For now, we just validate the credentials format
+    import httpx
+    
+    base_url = "https://checkout.azampay.co.tz" if settings.get("is_production") else "https://sandbox.azampay.co.tz"
+    
+    try:
+        # Attempt to get auth token to verify credentials
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            auth_response = await client.post(
+                f"{base_url}/AppRegistration/GenerateToken",
+                json={
+                    "appName": settings["app_name"],
+                    "clientId": settings["client_id"],
+                    "clientSecret": settings["client_secret"]
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            
+            if auth_response.status_code == 200:
+                return {
+                    "success": True,
+                    "message": "Connection successful! Azam Pay credentials are valid.",
+                    "mode": "production" if settings.get("is_production") else "sandbox"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Connection failed: {auth_response.text}",
+                    "status_code": auth_response.status_code
+                }
+    except httpx.TimeoutException:
+        return {
+            "success": False,
+            "message": "Connection timed out. Please try again.",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Connection error: {str(e)}",
+        }
+
+
+@router.get("/admin/payment/gateways")
+async def get_all_payment_gateways():
+    """Get all configured payment gateways with status."""
+    db = get_db()
+    
+    # Get all gateway settings
+    gateways = []
+    
+    # Azam Pay
+    azampay = await db.payment_gateway_settings.find_one({"gateway": "azampay"}, {"_id": 0, "client_secret": 0, "api_key": 0})
+    gateways.append({
+        "id": "azampay",
+        "name": "Azam Pay",
+        "description": "Mobile money & bank payments (Tanzania)",
+        "enabled": azampay.get("enabled", False) if azampay else False,
+        "configured": bool(azampay.get("client_id")) if azampay else False,
+        "is_production": azampay.get("is_production", False) if azampay else False,
+        "supported_methods": ["Vodacom M-Pesa", "Tigo Pesa", "Airtel Money", "Halotel Halopesa", "Bank Transfer"]
+    })
+    
+    # Stripe (placeholder)
+    stripe_settings = await db.payment_gateway_settings.find_one({"gateway": "stripe"}, {"_id": 0})
+    gateways.append({
+        "id": "stripe",
+        "name": "Stripe",
+        "description": "Card & international payments",
+        "enabled": stripe_settings.get("enabled", False) if stripe_settings else False,
+        "configured": bool(stripe_settings.get("secret_key")) if stripe_settings else False,
+        "is_production": stripe_settings.get("is_production", False) if stripe_settings else False,
+        "supported_methods": ["Visa", "Mastercard", "Apple Pay", "Google Pay"]
+    })
+    
+    # PayPal (placeholder)
+    paypal_settings = await db.payment_gateway_settings.find_one({"gateway": "paypal"}, {"_id": 0})
+    gateways.append({
+        "id": "paypal",
+        "name": "PayPal",
+        "description": "PayPal & card payments",
+        "enabled": paypal_settings.get("enabled", False) if paypal_settings else False,
+        "configured": bool(paypal_settings.get("client_id")) if paypal_settings else False,
+        "is_production": paypal_settings.get("is_production", False) if paypal_settings else False,
+        "supported_methods": ["PayPal", "Credit/Debit Cards"]
+    })
+    
+    return {"gateways": gateways}
+
     return settings
