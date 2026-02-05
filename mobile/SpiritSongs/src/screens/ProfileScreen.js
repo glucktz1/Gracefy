@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
+import { useDownloads } from '../context/DownloadContext';
 import { userAPI, libraryAPI, billingAPI, getImageUrl } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,20 +27,37 @@ const THEME_KEY = '@gracefy_theme';
 const ProfileScreen = ({ navigation }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { billingEnabled, isPremium, subscription, refreshBilling } = useBilling();
+  const { 
+    downloadCount, 
+    getDownloadedSongs, 
+    getTotalDownloadSize,
+    clearAllDownloads 
+  } = useDownloads();
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     playlists: 0,
     liked_songs: 0,
+    downloads: 0,
     following: 0,
   });
+  const [downloadSize, setDownloadSize] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedPhone, setEditedPhone] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('sw');
   const [currentTheme, setCurrentTheme] = useState('dark');
   const [transactions, setTransactions] = useState([]);
+
+  // Update download stats when downloadCount changes
+  useEffect(() => {
+    setStats(prev => ({
+      ...prev,
+      downloads: downloadCount
+    }));
+    setDownloadSize(getTotalDownloadSize());
+  }, [downloadCount, getTotalDownloadSize]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -50,11 +68,6 @@ const ProfileScreen = ({ navigation }) => {
       setEditedPhone(user?.phone || '');
     }
   }, [isAuthenticated, user]);
-      ...prev,
-      downloads: downloads.length
-    }));
-    loadDownloadSize();
-  }, [downloads]);
 
   const loadSettings = async () => {
     try {
@@ -69,11 +82,6 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  const loadDownloadSize = async () => {
-    const size = await getTotalSize();
-    setDownloadSize(size);
-  };
-
   const loadStats = async () => {
     try {
       const [playlistsRes, likesRes] = await Promise.all([
@@ -84,12 +92,12 @@ const ProfileScreen = ({ navigation }) => {
       const playlistsData = playlistsRes.data?.playlists || playlistsRes.data || [];
       const likesData = likesRes.data?.songs || likesRes.data || [];
       
-      setStats({
+      setStats(prev => ({
         playlists: playlistsData.length,
         liked_songs: likesData.length,
-        downloads: downloads.length,
+        downloads: prev.downloads, // Keep download count from context
         following: 0,
-      });
+      }));
     } catch (error) {
       console.error('Error loading stats:', error);
     }
@@ -99,7 +107,7 @@ const ProfileScreen = ({ navigation }) => {
     setRefreshing(true);
     await loadStats();
     await loadSettings();
-    await loadDownloadSize();
+    setDownloadSize(getTotalDownloadSize());
     await loadTransactions();
     await refreshBilling();
     setRefreshing(false);
@@ -207,24 +215,21 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleClearDownloads = () => {
-    if (downloads.length === 0) {
+    if (downloadCount === 0) {
       Alert.alert('Hakuna Downloads', 'Huna nyimbo zilizopakuliwa');
       return;
     }
     Alert.alert(
       'Futa Downloads',
-      `Una uhakika unataka kufuta nyimbo ${downloads.length} zilizopakuliwa?`,
+      `Una uhakika unataka kufuta nyimbo ${downloadCount} zilizopakuliwa?`,
       [
         { text: 'Hapana', style: 'cancel' },
         { 
           text: 'Futa Zote', 
           style: 'destructive',
           onPress: async () => {
-            const success = await clearAllDownloads();
-            if (success) {
-              Alert.alert('Umefanikiwa', 'Downloads zote zimefutwa');
-              loadStats();
-            }
+            await clearAllDownloads();
+            Alert.alert('Umefanikiwa', 'Downloads zote zimefutwa');
           }
         },
       ]
