@@ -76,7 +76,7 @@ export const DownloadProvider = ({ children }) => {
       }
 
       // Load saved downloads from storage
-      const savedDownloads = await AsyncStorage.getItem(DOWNLOADS_STORAGE_KEY);
+      const savedDownloads = await AsyncStorage.getItem(STORAGE_KEY);
       if (savedDownloads) {
         const parsed = JSON.parse(savedDownloads);
         
