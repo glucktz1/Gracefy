@@ -24,7 +24,6 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
-import { useDownloads } from '../context/DownloadContext';
 import { getImageUrl, getAudioUrl, contentAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
 import { showToast } from '../components/Toast';
@@ -52,17 +51,11 @@ const NowPlayingScreen = ({ navigation }) => {
 
   const { isAuthenticated, user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { isDownloaded, addDownload, removeDownload } = useDownloads();
   
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  
-  // Check if current song is downloaded
-  const songIsDownloaded = currentTrack ? isDownloaded(currentTrack.song_id) : false;
 
   // Billing settings from context
   const { billingEnabled, isPremium } = useBilling();
@@ -77,6 +70,7 @@ const NowPlayingScreen = ({ navigation }) => {
       </SafeAreaView>
     );
   }
+
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
