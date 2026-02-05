@@ -515,12 +515,12 @@ const LibraryScreen = ({ navigation, route }) => {
             {downloadedSongs.map((song, index) => (
               <View key={song?.song_id ?? `download-${index}`} style={styles.downloadedSongItem}>
                 <SongListItem
-                  song={song}
+                  item={song}
                   index={index}
                   isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
                   isDownloaded={true}
                   onPress={() => handlePlayDownloadedSong(song)}
-                  onOptions={() => handleSongOptions(song)}
+                  onMorePress={() => handleSongOptions(song)}
                 />
                 {/* Offline badge */}
                 <View style={styles.offlineBadge}>
