@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZES } from '../config/theme';
 import { getImageUrl } from '../services/api';
 import AnimatedEqualizer from './AnimatedEqualizer';
-import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 
 const { width } = Dimensions.get('window');
 
