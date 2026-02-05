@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/context/AuthContext';
 import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
+import { DownloadProvider } from './src/context/DownloadContext';
 
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -224,11 +225,13 @@ export default function App() {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
         <AuthProvider>
           <BillingProvider>
-            <PlayerProvider>
-              <ToastProvider>
-                <AppContent />
-              </ToastProvider>
-            </PlayerProvider>
+            <DownloadProvider>
+              <PlayerProvider>
+                <ToastProvider>
+                  <AppContent />
+                </ToastProvider>
+              </PlayerProvider>
+            </DownloadProvider>
           </BillingProvider>
         </AuthProvider>
       </SafeAreaProvider>
