@@ -1,6 +1,7 @@
 /**
  * SongActionsSheet - Spotify-like bottom sheet for song actions
  * Features:
+ * - Download songs for offline listening
  * - Like/Unlike songs
  * - Add to playlist
  * - Share functionality
@@ -24,9 +25,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { getImageUrl } from '../services/api';
+import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { showToast } from './Toast';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Mini circular progress for download
+const MiniProgress = ({ progress, size = 24 }) => {
+  const strokeWidth = 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Animated.View style={StyleSheet.absoluteFill}>
+        {/* Background circle */}
+        <View style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: strokeWidth,
+          borderColor: 'rgba(255,255,255,0.2)',
+        }} />
+      </Animated.View>
+      {/* Progress indicator - simplified */}
+      <View style={{
+        position: 'absolute',
+        width: size,
+        height: size,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <Text style={{ fontSize: 8, color: COLORS.primary, fontWeight: '700' }}>
+          {Math.round(progress)}%
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 // Main Song Actions Sheet
 export const SongActionsSheet = ({
@@ -44,6 +81,23 @@ export const SongActionsSheet = ({
 }) => {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+  
+  // Download context
+  const { 
+    isDownloaded, 
+    getDownloadStatus, 
+    getDownloadProgress,
+    queueDownload,
+    removeDownload,
+    cancelDownload 
+  } = useDownloads();
+
+  const songId = song?.song_id;
+  const downloaded = songId ? isDownloaded(songId) : false;
+  const downloadStatus = songId ? getDownloadStatus(songId) : DOWNLOAD_STATUS.IDLE;
+  const downloadProgress = songId ? getDownloadProgress(songId) : 0;
+  const isDownloading = downloadStatus === DOWNLOAD_STATUS.DOWNLOADING;
+  const isQueued = downloadStatus === DOWNLOAD_STATUS.QUEUED;
 
   useEffect(() => {
     if (visible) {
@@ -91,6 +145,31 @@ export const SongActionsSheet = ({
       onClose?.();
     });
   }, [slideAnim, backdropAnim, onClose]);
+
+  const handleDownload = useCallback(() => {
+    if (!song?.audio_url) {
+      showToast('Wimbo huu hauna faili ya sauti', 'error');
+      return;
+    }
+
+    if (downloaded) {
+      // Already downloaded - offer to remove
+      removeDownload(song.song_id);
+      showToast('Imeondolewa kutoka vilivyopakuliwa', 'info');
+    } else if (isDownloading || isQueued) {
+      // Currently downloading - offer to cancel
+      cancelDownload(song.song_id);
+      showToast('Upakuaji umesitishwa', 'info');
+    } else {
+      // Start download
+      const success = queueDownload(song);
+      if (success) {
+        showToast('Inapakuliwa...', 'success');
+      } else {
+        showToast('Haiwezi kupakua', 'error');
+      }
+    }
+  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload]);
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) {
@@ -144,6 +223,34 @@ export const SongActionsSheet = ({
         : { uri: getImageUrl(song.thumbnail) })
     : require('../../assets/default-album.png');
 
+  // Download button content
+  const renderDownloadIcon = () => {
+    if (downloaded) {
+      return <Ionicons name="checkmark-circle" size={28} color="#1DB954" />;
+    }
+    if (isDownloading) {
+      return <MiniProgress progress={downloadProgress} size={28} />;
+    }
+    if (isQueued) {
+      return <ActivityIndicator size={20} color={COLORS.primary} />;
+    }
+    return <Ionicons name="arrow-down-circle-outline" size={28} color={COLORS.text} />;
+  };
+
+  const getDownloadText = () => {
+    if (downloaded) return 'Ondoa Upakuaji';
+    if (isDownloading) return `Inapakua ${downloadProgress}%`;
+    if (isQueued) return 'Inasubiri...';
+    return 'Pakua';
+  };
+
+  const getDownloadSubtext = () => {
+    if (downloaded) return 'Imepakuliwa kwa offline';
+    if (isDownloading || isQueued) return 'Gusa kusitisha';
+    if (!song.audio_url) return 'Haiwezi kupakuliwa';
+    return 'Sikiliza offline';
+  };
+
   return (
     <Modal
       visible={visible}
@@ -196,6 +303,30 @@ export const SongActionsSheet = ({
 
             {/* Actions */}
             <View style={styles.actionsContainer}>
+              {/* Download */}
+              <TouchableOpacity 
+                style={styles.actionItem} 
+                onPress={handleDownload}
+                disabled={!song.audio_url && !downloaded}
+                data-testid="download-button"
+              >
+                <View style={[
+                  styles.actionIcon, 
+                  downloaded && styles.actionIconDownloaded
+                ]}>
+                  {renderDownloadIcon()}
+                </View>
+                <View style={styles.actionTextContainer}>
+                  <Text style={[
+                    styles.actionText, 
+                    downloaded && styles.actionTextDownloaded
+                  ]}>
+                    {getDownloadText()}
+                  </Text>
+                  <Text style={styles.actionSubtext}>{getDownloadSubtext()}</Text>
+                </View>
+              </TouchableOpacity>
+
               {/* Like */}
               <TouchableOpacity 
                 style={styles.actionItem} 
@@ -206,7 +337,7 @@ export const SongActionsSheet = ({
                   <Ionicons 
                     name={isLiked ? "heart" : "heart-outline"} 
                     size={28} 
-                    color={isLiked ? COLORS.primary : COLORS.text} 
+                    color={isLiked ? "#1DB954" : COLORS.text} 
                   />
                 </View>
                 <View style={styles.actionTextContainer}>
@@ -223,7 +354,7 @@ export const SongActionsSheet = ({
                 data-testid="add-to-playlist-button"
               >
                 <View style={styles.actionIcon}>
-                  <Ionicons name="list-outline" size={28} color={COLORS.text} />
+                  <Ionicons name="add-circle-outline" size={28} color={COLORS.text} />
                 </View>
                 <View style={styles.actionTextContainer}>
                   <Text style={styles.actionText}>Ongeza kwenye Orodha</Text>
@@ -256,22 +387,6 @@ export const SongActionsSheet = ({
                   </View>
                   <View style={styles.actionTextContainer}>
                     <Text style={styles.actionText}>Tazama Albamu</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-
-              {/* View Artist */}
-              {(song.artist_id || song.choir_id) && (
-                <TouchableOpacity 
-                  style={styles.actionItem} 
-                  onPress={handleViewArtist}
-                  data-testid="view-artist-button"
-                >
-                  <View style={styles.actionIcon}>
-                    <Ionicons name="person-outline" size={28} color={COLORS.text} />
-                  </View>
-                  <View style={styles.actionTextContainer}>
-                    <Text style={styles.actionText}>Tazama Msanii</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -369,7 +484,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionIconActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    backgroundColor: 'rgba(29, 185, 84, 0.2)',
+  },
+  actionIconDownloaded: {
+    backgroundColor: 'rgba(29, 185, 84, 0.2)',
   },
   actionTextContainer: {
     flex: 1,
@@ -381,7 +499,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   actionTextActive: {
-    color: COLORS.primary,
+    color: '#1DB954',
+  },
+  actionTextDownloaded: {
+    color: '#1DB954',
   },
   actionSubtext: {
     color: COLORS.textMuted,
