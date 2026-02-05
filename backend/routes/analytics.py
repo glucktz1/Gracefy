@@ -666,9 +666,12 @@ async def get_enhanced_analytics(
     unique_songs_played = len(unique_songs) if unique_songs else 0
     
     # ========== REVENUE STATS (only if billing enabled) ==========
-    # Check if billing/monetization is enabled
+    # Check if billing/monetization is enabled - check subscription_settings first
+    subscription_settings = await db.subscription_settings.find_one({}, {"_id": 0})
+    billing_enabled = subscription_settings.get("billing_enabled", True) if subscription_settings else True
+    
+    # Get revenue settings for rates
     revenue_settings = await db.revenue_settings.find_one({}, {"_id": 0})
-    billing_enabled = revenue_settings.get("billing_enabled", False) if revenue_settings else False
     monetization_mode = revenue_settings.get("monetization_mode", "time_based") if revenue_settings else "time_based"
     
     gross_revenue = 0
