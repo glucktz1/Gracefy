@@ -277,29 +277,26 @@ export const DownloadProvider = ({ children }) => {
         throw new Error('Haiwezi kupata URL ya kupakua - hakuna link');
       }
 
-      // Ensure download directory exists
-      const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
-      if (!dirInfo.exists) {
+      // Ensure download directory exists using new API
+      const downloadDir = getDownloadDirectory();
+      if (!downloadDir.exists) {
         console.log('[Downloads] Creating download directory...');
-        await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
+        downloadDir.create();
       }
 
       // Create safe filename
       const safeTitle = (song.title || 'song').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
       const fileName = `${safeTitle}_${song.song_id}.mp3`;
-      const filePath = DOWNLOAD_DIR + fileName;
+      const filePath = `${Paths.document}${DOWNLOAD_DIR_NAME}/${fileName}`;
 
       console.log('[Downloads] Downloading from:', audioUrl);
       console.log('[Downloads] Saving to:', filePath);
 
       // Delete existing file if present (fresh download)
-      const existingFile = await FileSystem.getInfoAsync(filePath);
-      if (existingFile.exists) {
-        await FileSystem.deleteAsync(filePath, { idempotent: true });
-      }
+      await deleteFile(filePath);
 
-      // Create download with progress callback
-      const downloadResumable = FileSystem.createDownloadResumable(
+      // Use downloadAsync for downloading with progress
+      const result = await downloadAsync(
         audioUrl,
         filePath,
         {
@@ -327,12 +324,6 @@ export const DownloadProvider = ({ children }) => {
           }
         }
       );
-
-      // Store reference for potential cancellation
-      downloadTasksRef.current[song.song_id] = downloadResumable;
-
-      // Execute download
-      const result = await downloadResumable.downloadAsync();
       
       console.log('[Downloads] Download result:', result);
 
@@ -346,33 +337,35 @@ export const DownloadProvider = ({ children }) => {
         }
       }));
 
-      // CRITICAL: Verify file actually exists and has valid size
+      // CRITICAL: Verify file actually exists and has valid size using new API
       if (!result?.uri) {
         throw new Error('Download haikurudisha faili - jaribu tena');
       }
 
-      const fileInfo = await FileSystem.getInfoAsync(result.uri);
+      const fileExists = await checkFileExists(result.uri);
+      const fileSize = await getFileSize(result.uri);
+      
       console.log('[Downloads] File verification:', {
-        exists: fileInfo.exists,
-        size: fileInfo.size,
+        exists: fileExists,
+        size: fileSize,
         uri: result.uri
       });
 
-      if (!fileInfo.exists) {
+      if (!fileExists) {
         throw new Error('Faili haikuhifadhiwa kwenye kifaa - jaribu tena');
       }
 
-      if (fileInfo.size < MIN_FILE_SIZE) {
+      if (fileSize < MIN_FILE_SIZE) {
         // File too small - likely an error response, delete it
-        await FileSystem.deleteAsync(result.uri, { idempotent: true });
-        throw new Error(`Faili ni ndogo sana (${fileInfo.size} bytes) - huenda ni tatizo la mtandao`);
+        await deleteFile(result.uri);
+        throw new Error(`Faili ni ndogo sana (${fileSize} bytes) - huenda ni tatizo la mtandao`);
       }
 
       // SUCCESS: File verified, save to downloads state
       const downloadData = {
         ...song,
         file_path: result.uri,
-        file_size: fileInfo.size,
+        file_size: fileSize,
         downloaded_at: new Date().toISOString(),
         verified: true,
       };
@@ -391,11 +384,11 @@ export const DownloadProvider = ({ children }) => {
           progress: 100, 
           status: DOWNLOAD_STATUS.COMPLETED, 
           song,
-          fileSize: fileInfo.size
+          fileSize: fileSize
         }
       }));
 
-      console.log('[Downloads] ✓ Verified and saved:', song.title, '- Size:', fileInfo.size);
+      console.log('[Downloads] ✓ Verified and saved:', song.title, '- Size:', fileSize);
       showToast(`"${song.title}" imepakuliwa ✓`, 'success');
 
       // Remove from active downloads after delay (keep showing success briefly)
