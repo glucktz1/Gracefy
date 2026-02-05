@@ -415,6 +415,160 @@ const LibraryScreen = ({ navigation, route }) => {
     </View>
   );
 
+  // Downloads Tab Content - Spotify-like offline songs section
+  const renderDownloadsTab = () => {
+    const handlePlayDownloadedSong = (song) => {
+      // Play from local file path
+      const localPath = getDownloadedFilePath(song.song_id);
+      if (localPath) {
+        // Create a copy of the song with local file path
+        const offlineSong = {
+          ...song,
+          audio_url: localPath, // Use local file
+          is_offline: true
+        };
+        playTrack(offlineSong, downloadedSongs.map(s => ({
+          ...s,
+          audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
+          is_offline: true
+        })));
+      } else {
+        // Fallback to original URL
+        playTrack(song, downloadedSongs);
+      }
+    };
+
+    const handleRemoveDownload = (song) => {
+      Alert.alert(
+        'Ondoa Download',
+        `Ondoa "${song.title}" kutoka downloads?`,
+        [
+          { text: 'Hapana', style: 'cancel' },
+          { 
+            text: 'Ondoa', 
+            style: 'destructive',
+            onPress: () => {
+              removeDownload(song.song_id);
+              showToast('Imeondolewa', 'success');
+            }
+          }
+        ]
+      );
+    };
+
+    const handleClearAll = () => {
+      if (downloadCount === 0) return;
+      Alert.alert(
+        'Futa Downloads Zote',
+        `Ondoa nyimbo ${downloadCount} zote zilizopakuliwa?`,
+        [
+          { text: 'Hapana', style: 'cancel' },
+          { 
+            text: 'Futa Zote', 
+            style: 'destructive',
+            onPress: async () => {
+              await clearAllDownloads();
+              showToast('Downloads zote zimefutwa', 'success');
+            }
+          }
+        ]
+      );
+    };
+
+    return (
+      <View style={styles.tabContent}>
+        {downloadedSongs.length > 0 ? (
+          <>
+            {/* Header with storage info */}
+            <View style={styles.downloadHeader}>
+              <View style={styles.downloadHeaderInfo}>
+                <Ionicons name="download" size={20} color={COLORS.primary} />
+                <Text style={styles.downloadHeaderText}>
+                  {downloadCount} nyimbo • {formatFileSize(getTotalDownloadSize())}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.clearAllButton}
+                onPress={handleClearAll}
+                data-testid="clear-all-downloads"
+              >
+                <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                <Text style={styles.clearAllText}>Futa Zote</Text>
+              </TouchableOpacity>
+            </View>
+
+            <PlayAllHeader
+              songCount={downloadedSongs.length}
+              onPlayAll={() => {
+                if (downloadedSongs.length > 0) {
+                  handlePlayDownloadedSong(downloadedSongs[0]);
+                }
+              }}
+              onShuffle={() => {
+                const shuffled = [...downloadedSongs].sort(() => Math.random() - 0.5);
+                if (shuffled.length > 0) {
+                  handlePlayDownloadedSong(shuffled[0]);
+                }
+              }}
+            />
+
+            {downloadedSongs.map((song, index) => (
+              <View key={song?.song_id ?? `download-${index}`} style={styles.downloadedSongItem}>
+                <SongListItem
+                  song={song}
+                  index={index}
+                  isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
+                  isDownloaded={true}
+                  onPress={() => handlePlayDownloadedSong(song)}
+                  onOptions={() => handleSongOptions(song)}
+                />
+                {/* Offline badge */}
+                <View style={styles.offlineBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color={COLORS.primary} />
+                </View>
+              </View>
+            ))}
+
+            {/* Info text */}
+            <View style={styles.downloadInfoContainer}>
+              <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+              <Text style={styles.downloadInfoText}>
+                Nyimbo hizi zinaweza kuchezwa bila mtandao
+              </Text>
+            </View>
+          </>
+        ) : (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="cloud-download-outline" size={64} color={COLORS.textMuted} />
+            </View>
+            <Text style={styles.emptyTitle}>Hakuna Downloads</Text>
+            <Text style={styles.emptyMessage}>
+              Pakua nyimbo ili kuzisikiliza bila mtandao
+            </Text>
+            <TouchableOpacity 
+              style={styles.browseButton}
+              onPress={() => navigation.navigate('Search')}
+              data-testid="browse-songs-button"
+            >
+              <Ionicons name="search" size={20} color={COLORS.text} />
+              <Text style={styles.browseButtonText}>Tafuta Nyimbo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Helper function for file size formatting
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
