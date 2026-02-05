@@ -911,36 +911,87 @@ export default function SystemSettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* M-Pesa */}
+          {/* Azam Pay */}
           <div className="p-4 bg-slate-800 rounded-lg space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold">M</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">AP</div>
                 <div>
-                  <h4 className="font-medium">M-Pesa</h4>
-                  <p className="text-sm text-slate-400">Mobile money payments</p>
+                  <h4 className="font-medium">Azam Pay</h4>
+                  <p className="text-sm text-slate-400">Mobile money & bank payments (Tanzania)</p>
                 </div>
               </div>
               <Switch
-                checked={settings.mpesaEnabled}
-                onCheckedChange={(v) => updateSetting("mpesaEnabled", v)}
+                checked={settings.azamPayEnabled}
+                onCheckedChange={(v) => updateSetting("azamPayEnabled", v)}
               />
             </div>
-            {settings.mpesaEnabled && (
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-700">
-                <Input
-                  placeholder="Consumer Key"
-                  value={settings.mpesaConsumerKey}
-                  onChange={(e) => updateSetting("mpesaConsumerKey", e.target.value)}
-                  className="bg-slate-900 border-slate-600"
-                />
-                <Input
-                  type="password"
-                  placeholder="Consumer Secret"
-                  value={settings.mpesaConsumerSecret}
-                  onChange={(e) => updateSetting("mpesaConsumerSecret", e.target.value)}
-                  className="bg-slate-900 border-slate-600"
-                />
+            {settings.azamPayEnabled && (
+              <div className="space-y-4 pt-4 border-t border-slate-700">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">App Name</label>
+                    <Input
+                      placeholder="Your App Name"
+                      value={settings.azamPayAppName}
+                      onChange={(e) => updateSetting("azamPayAppName", e.target.value)}
+                      className="bg-slate-900 border-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">Client ID</label>
+                    <Input
+                      placeholder="Client ID"
+                      value={settings.azamPayClientId}
+                      onChange={(e) => updateSetting("azamPayClientId", e.target.value)}
+                      className="bg-slate-900 border-slate-600"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">Client Secret</label>
+                    <Input
+                      type="password"
+                      placeholder="Client Secret"
+                      value={settings.azamPayClientSecret}
+                      onChange={(e) => updateSetting("azamPayClientSecret", e.target.value)}
+                      className="bg-slate-900 border-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">API Key</label>
+                    <Input
+                      type="password"
+                      placeholder="API Key"
+                      value={settings.azamPayApiKey}
+                      onChange={(e) => updateSetting("azamPayApiKey", e.target.value)}
+                      className="bg-slate-900 border-slate-600"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={settings.azamPayIsProduction}
+                      onCheckedChange={(v) => updateSetting("azamPayIsProduction", v)}
+                    />
+                    <span className="text-sm text-slate-300">Production Mode</span>
+                  </div>
+                  <a 
+                    href="https://developers.azampay.co.tz" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                  >
+                    Get API Credentials →
+                  </a>
+                </div>
+                {!settings.azamPayIsProduction && (
+                  <p className="text-xs text-amber-400 bg-amber-500/10 p-2 rounded">
+                    ⚠️ Sandbox mode - transactions will not be processed
+                  </p>
+                )}
               </div>
             )}
           </div>
