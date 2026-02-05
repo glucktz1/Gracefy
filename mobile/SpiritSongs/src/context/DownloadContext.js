@@ -460,12 +460,9 @@ export const DownloadProvider = ({ children }) => {
     if (!download) return;
 
     try {
-      // Delete file
+      // Delete file using new API
       if (download.file_path) {
-        const fileInfo = await FileSystem.getInfoAsync(download.file_path);
-        if (fileInfo.exists) {
-          await FileSystem.deleteAsync(download.file_path);
-        }
+        await deleteFile(download.file_path);
       }
 
       // Remove from state
@@ -485,11 +482,11 @@ export const DownloadProvider = ({ children }) => {
   // Clear all downloads
   const clearAllDownloads = useCallback(async () => {
     try {
-      // Delete all files
+      // Delete all files using new API
       for (const download of Object.values(downloads)) {
         if (download.file_path) {
           try {
-            await FileSystem.deleteAsync(download.file_path);
+            await deleteFile(download.file_path);
           } catch (e) {
             console.error('[Downloads] Delete file error:', e);
           }
