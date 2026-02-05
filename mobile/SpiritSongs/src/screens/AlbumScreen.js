@@ -153,6 +153,33 @@ const AlbumScreen = ({ route, navigation }) => {
     }
   }, [songs, playTrack]);
 
+  // Handle download all songs in album
+  const handleDownloadAlbum = useCallback(() => {
+    if (!songs?.length) {
+      showToast('Hakuna nyimbo za kupakua', 'warning');
+      return;
+    }
+    
+    // Check how many songs are already downloaded
+    const notDownloaded = songs.filter(s => !isDownloaded(s.song_id));
+    
+    if (notDownloaded.length === 0) {
+      showToast('Nyimbo zote tayari zimepakuliwa! ✓', 'success');
+      return;
+    }
+    
+    const result = queueAlbumDownload(songs);
+    if (result.success) {
+      showToast(result.message, 'success');
+    } else {
+      showToast(result.message || 'Haiwezi kupakua', 'error');
+    }
+  }, [songs, queueAlbumDownload, isDownloaded]);
+
+  // Check if all songs are downloaded
+  const allSongsDownloaded = songs?.length > 0 && songs.every(s => isDownloaded(s.song_id));
+  const someDownloading = queueCount > 0;
+
   const handleSongMore = useCallback((song) => {
     setSelectedSong(song);
     setShowActionsSheet(true);
