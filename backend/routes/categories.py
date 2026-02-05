@@ -256,20 +256,57 @@ async def get_singers(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200)
 ):
-    """Get all singers/choirs"""
+    """Get all singers/choirs with aggregated stats"""
     db = get_db()
     
     query = {}
     if status:
         query["status"] = status
     else:
-        query["status"] = {"$in": ["active", "approved"]}
+        query["status"] = {"$in": ["active", "approved", "pending"]}
     
     singers = await db.singers.find(query, {"_id": 0})\
         .sort("followers_count", -1)\
         .skip(skip)\
         .limit(limit)\
         .to_list(limit)
+    
+    # Enrich each singer with real album/song/play counts
+    for singer in singers:
+        singer_id = singer.get("singer_id")
+        singer_name = singer.get("name")
+        
+        # Count albums by this singer (using artist_id or artist_name)
+        albums_by_id = await db.albums.count_documents({"artist_id": singer_id, "status": {"$ne": "disabled"}})
+        albums_by_name = await db.albums.count_documents({"artist_name": singer_name, "status": {"$ne": "disabled"}}) if singer_name else 0
+        singer["albums_count"] = max(albums_by_id, albums_by_name)
+        
+        # Get all album IDs for this singer
+        album_ids = []
+        if albums_by_id > 0:
+            albums = await db.albums.find({"artist_id": singer_id}, {"album_id": 1}).to_list(100)
+            album_ids.extend([a["album_id"] for a in albums])
+        if albums_by_name > 0 and singer_name:
+            albums = await db.albums.find({"artist_name": singer_name}, {"album_id": 1}).to_list(100)
+            album_ids.extend([a["album_id"] for a in albums if a["album_id"] not in album_ids])
+        
+        # Count songs in those albums
+        if album_ids:
+            singer["songs_count"] = await db.songs.count_documents({
+                "album_id": {"$in": album_ids},
+                "status": {"$ne": "disabled_no_audio"}
+            })
+            
+            # Sum total plays from songs
+            plays_pipeline = [
+                {"$match": {"album_id": {"$in": album_ids}, "status": {"$ne": "disabled_no_audio"}}},
+                {"$group": {"_id": None, "total_plays": {"$sum": {"$ifNull": ["$plays", 0]}}}}
+            ]
+            plays_result = await db.songs.aggregate(plays_pipeline).to_list(1)
+            singer["total_plays"] = plays_result[0]["total_plays"] if plays_result else 0
+        else:
+            singer["songs_count"] = 0
+            singer["total_plays"] = 0
     
     total = await db.singers.count_documents(query)
     
