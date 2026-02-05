@@ -7,10 +7,13 @@
  * - File integrity validation (size check)
  * - State synchronization - only marks downloaded when file verified
  * - Persistent storage with AsyncStorage
+ * 
+ * Updated for Expo SDK 54+ - uses new File API instead of deprecated methods
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths, Directory } from 'expo-file-system/next';
+import { downloadAsync } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { contentAPI } from '../services/api';
 import { showToast } from '../components/Toast';
@@ -18,8 +21,8 @@ import { showToast } from '../components/Toast';
 const DownloadContext = createContext(null);
 
 // Constants
-const STORAGE_KEY = '@gracefy_downloads_v2';
-const DOWNLOAD_DIR = FileSystem.documentDirectory + 'gracefy_songs/';
+const STORAGE_KEY = '@gracefy_downloads_v3';
+const DOWNLOAD_DIR_NAME = 'gracefy_songs';
 const MIN_FILE_SIZE = 10000; // Minimum 10KB for a valid audio file
 const MAX_CONCURRENT = 1;
 
