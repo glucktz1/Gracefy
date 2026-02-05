@@ -221,7 +221,7 @@ export const SongActionsSheet = ({
     ? (song.thumbnail.startsWith('http') || song.thumbnail.startsWith('data:') 
         ? { uri: song.thumbnail } 
         : { uri: getImageUrl(song.thumbnail) })
-    : require('../../assets/default-album.png');
+    : require('../../assets/placeholder-album.png');
 
   // Download button content
   const renderDownloadIcon = () => {
