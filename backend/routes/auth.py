@@ -153,6 +153,253 @@ async def logout(request: Request, response: Response):
     return {"message": "Logged out successfully"}
 
 
+# ============== ADMIN USER MANAGEMENT ==============
+
+VALID_ROLES = ["admin", "choir_admin", "church_admin", "content_manager", "viewer", "user"]
+
+@router.get("/admin/users")
+async def get_admin_users(request: Request):
+    """Get all admin/system users"""
+    db = get_db()
+    
+    # Verify admin access
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.user_sessions.find_one({"session_token": session_token})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    current_user = await db.users.find_one({"user_id": session["user_id"]})
+    if not current_user or current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all system users
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(200)
+    
+    return {"users": users, "total": len(users)}
+
+
+@router.post("/admin/users")
+async def create_admin_user(request: Request, data: dict):
+    """Create a new admin/system user with username and password"""
+    db = get_db()
+    
+    # Verify admin access
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.user_sessions.find_one({"session_token": session_token})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    current_user = await db.users.find_one({"user_id": session["user_id"]})
+    if not current_user or current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Validate input
+    email = data.get("email")
+    username = data.get("username")
+    password = data.get("password")
+    name = data.get("name")
+    role = data.get("role", "user")
+    
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    
+    if role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")
+    
+    # Check if email already exists
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Check if username already exists (if provided)
+    if username:
+        existing_username = await db.users.find_one({"username": username})
+        if existing_username:
+            raise HTTPException(status_code=400, detail="Username already taken")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    user = {
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": email,
+        "username": username,
+        "name": name or username or email.split("@")[0],
+        "password_hash": password_hash,
+        "role": role,
+        "status": "active",
+        "created_by": current_user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user)
+    user.pop("_id", None)
+    user.pop("password_hash", None)
+    
+    logger.info(f"Admin user created: {email} with role {role} by {current_user['email']}")
+    
+    return user
+
+
+@router.put("/admin/users/{user_id}")
+async def update_admin_user(request: Request, user_id: str, data: dict):
+    """Update an admin/system user"""
+    db = get_db()
+    
+    # Verify admin access
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.user_sessions.find_one({"session_token": session_token})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    current_user = await db.users.find_one({"user_id": session["user_id"]})
+    if not current_user or current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Find user to update
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prepare update
+    update_data = {}
+    
+    if "name" in data:
+        update_data["name"] = data["name"]
+    if "role" in data and data["role"] in VALID_ROLES:
+        update_data["role"] = data["role"]
+    if "status" in data and data["status"] in ["active", "inactive", "suspended"]:
+        update_data["status"] = data["status"]
+    if "password" in data and data["password"]:
+        update_data["password_hash"] = hashlib.sha256(data["password"].encode()).hexdigest()
+    
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.users.update_one({"user_id": user_id}, {"$set": update_data})
+    
+    updated_user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    return updated_user
+
+
+@router.delete("/admin/users/{user_id}")
+async def delete_admin_user(request: Request, user_id: str):
+    """Delete an admin/system user"""
+    db = get_db()
+    
+    # Verify admin access
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.user_sessions.find_one({"session_token": session_token})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    current_user = await db.users.find_one({"user_id": session["user_id"]})
+    if not current_user or current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Cannot delete yourself
+    if user_id == current_user["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    result = await db.users.delete_one({"user_id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Also delete any sessions
+    await db.user_sessions.delete_many({"user_id": user_id})
+    
+    return {"message": "User deleted successfully"}
+
+
+@router.post("/admin/users/login")
+async def admin_user_login(data: dict, response: Response):
+    """Login with username/email and password for admin users"""
+    db = get_db()
+    
+    email = data.get("email") or data.get("username")
+    password = data.get("password")
+    
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email/username and password required")
+    
+    # Find user by email or username
+    user = await db.users.find_one({"$or": [{"email": email}, {"username": email}]})
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Check if user has password_hash (created by admin)
+    if not user.get("password_hash"):
+        raise HTTPException(status_code=401, detail="This account uses OAuth login")
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user["password_hash"] != password_hash:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if user.get("status") != "active":
+        raise HTTPException(status_code=403, detail="Account is not active")
+    
+    # Create session
+    session_token = f"token_{uuid.uuid4().hex}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
+    
+    session_doc = {
+        "session_id": f"sess_{uuid.uuid4().hex}",
+        "user_id": user["user_id"],
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.user_sessions.insert_one(session_doc)
+    
+    # Set cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60
+    )
+    
+    user.pop("_id", None)
+    user.pop("password_hash", None)
+    
+    return {"user": user, "session_token": session_token}
+
+
 # ============== MOBILE APP AUTH ==============
 
 @router.post("/user/register")
