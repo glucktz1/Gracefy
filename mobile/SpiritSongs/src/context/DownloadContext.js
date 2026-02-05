@@ -271,12 +271,28 @@ export const DownloadProvider = ({ children }) => {
       const result = await downloadResumable.downloadAsync();
 
       if (result?.uri) {
-        // Verify file
+        // Update status to verifying
+        setActiveDownloads(prev => ({
+          ...prev,
+          [song.song_id]: { 
+            ...prev[song.song_id], 
+            status: DOWNLOAD_STATUS.VERIFYING,
+            progress: 100
+          }
+        }));
+
+        // Verify file integrity
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
         
-        if (!fileInfo.exists || fileInfo.size < 1000) {
-          throw new Error('Faili iliyopakuliwa si sahihi');
+        if (!fileInfo.exists) {
+          throw new Error('Faili iliyopakuliwa haipatikani');
         }
+        
+        if (fileInfo.size < MIN_FILE_SIZE) {
+          throw new Error(`Faili ni ndogo sana (${fileInfo.size} bytes). Inaweza kuwa imeharibika.`);
+        }
+
+        console.log(`[Downloads] File verified: ${fileInfo.size} bytes`);
 
         // Save to downloads
         const downloadData = {
