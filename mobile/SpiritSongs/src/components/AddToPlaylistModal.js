@@ -9,20 +9,15 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
   Share,
-  PermissionsAndroid,
-  Platform,
   Keyboard,
   KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// Use standard expo-file-system API
-import * as FileSystem from 'expo-file-system';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { libraryAPI, contentAPI, getImageUrl, getAudioUrl } from '../services/api';
+import { libraryAPI, getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { useDownloads } from '../context/DownloadContext';
 import { showToast } from './Toast';
 
 // Login Required Modal Component
@@ -34,7 +29,7 @@ export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
         <Ionicons name="lock-closed-outline" size={48} color={COLORS.primary} />
         <Text style={styles.loginTitle}>Ingia kwanza</Text>
         <Text style={styles.loginMessage}>
-          {message || 'Unahitaji kuingia ili kutengeneza playlist au kupakua nyimbo'}
+          {message || 'Unahitaji kuingia ili kutumia huduma hii'}
         </Text>
         <TouchableOpacity style={styles.loginButton} onPress={onLogin}>
           <Text style={styles.loginButtonText}>Ingia Sasa</Text>
@@ -48,31 +43,18 @@ export const LoginRequiredModal = ({ visible, onClose, onLogin, message }) => (
 );
 
 // Subscription Required Modal Component
-export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, message, navigation }) => (
+export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.centeredOverlay}>
       <TouchableOpacity style={styles.overlayBackground} activeOpacity={1} onPress={onClose} />
-      <View style={styles.subscriptionModal}>
-        <View style={styles.subscriptionIconContainer}>
-          <Ionicons name="lock-closed" size={32} color={COLORS.warning} />
-        </View>
-        <Text style={styles.subscriptionTitle}>Changia Kidogo</Text>
-        <Text style={styles.subscriptionMessage}>
-          {message || 'Maudhui ya Gracefy ni bure kuwezesha kupakua nyimbo, au kutengeneza playlist yako au kusikiliza bila kukwama simu yako iki-lock changia kidogo.'}
+      <View style={styles.loginModal}>
+        <Ionicons name="star-outline" size={48} color={COLORS.primary} />
+        <Text style={styles.loginTitle}>Usajili Unahitajika</Text>
+        <Text style={styles.loginMessage}>
+          Unahitaji usajili wa premium ili kutumia huduma hii
         </Text>
-        <TouchableOpacity 
-          style={styles.subscriptionButton} 
-          onPress={() => {
-            onClose();
-            if (navigation) {
-              navigation.navigate('SubscriptionPlans', { featurePrompt: message });
-            } else if (onSubscribe) {
-              onSubscribe();
-            }
-          }}
-        >
-          <Ionicons name="star" size={18} color={COLORS.background} style={{ marginRight: 8 }} />
-          <Text style={styles.subscriptionButtonText}>Ona Mipango</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={onSubscribe}>
+          <Text style={styles.loginButtonText}>Jisajili Sasa</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelLink} onPress={onClose}>
           <Text style={styles.cancelLinkText}>Baadaye</Text>
@@ -82,14 +64,13 @@ export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe, messa
   </Modal>
 );
 
-// Song Actions Bottom Sheet (Three dots menu)
+// Song Actions Bottom Sheet (Three dots menu) - Without download
 export const SongActionsModal = ({ 
   visible, 
   onClose, 
   song, 
   onLike, 
   onAddToPlaylist, 
-  onDownload, 
   onShare,
   isLiked,
   isAuthenticated,
@@ -98,10 +79,6 @@ export const SongActionsModal = ({
   onLoginRequired,
   onSubscriptionRequired,
 }) => {
-  const [downloading, setDownloading] = useState(false);
-  const { isDownloaded, addDownload, removeDownload } = useDownloads();
-  
-  const songIsDownloaded = song ? isDownloaded(song.song_id) : false;
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -125,158 +102,35 @@ export const SongActionsModal = ({
     onClose();
   };
 
-  const handleDeleteDownload = async () => {
-    if (song && songIsDownloaded) {
-      const success = await removeDownload(song.song_id);
-      if (success) {
-        showToast(`"${song.title}" imefutwa ✓`, 'info');
-      } else {
-        showToast('Imeshindikana kufuta', 'error');
-      }
-      onClose();
-    }
-  };
-
-  const requestStoragePermission = async () => {
-    // For Android 10+ (API 29+), we don't need WRITE_EXTERNAL_STORAGE
-    if (Platform.OS === 'android' && Platform.Version < 29) {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Ruhusa ya Kuhifadhi',
-            message: 'Gracefy inahitaji ruhusa ya kuhifadhi nyimbo kwenye simu yako.',
-            buttonNeutral: 'Uliza Baadaye',
-            buttonNegative: 'Kataa',
-            buttonPositive: 'Kubali',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleDownload = async () => {
-    // If already downloaded, show option to delete
-    if (songIsDownloaded) {
-      Alert.alert(
-        'Tayari Imepakuliwa',
-        'Wimbo huu tayari umepakuliwa. Je, unataka kuufuta?',
-        [
-          { text: 'Hapana', style: 'cancel' },
-          { 
-            text: 'Futa', 
-            style: 'destructive',
-            onPress: handleDeleteDownload
-          }
-        ]
-      );
-      return;
-    }
-
-    if (!isAuthenticated) {
-      onLoginRequired?.();
-      return;
-    }
-    if (billingEnabled && !isPremium) {
-      onSubscriptionRequired?.();
-      return;
-    }
-
-    const hasPermission = await requestStoragePermission();
-    if (!hasPermission) {
-      showToast('Tafadhali ruhusu kuhifadhi faili katika Settings', 'warning');
-      return;
-    }
-
-    try {
-      setDownloading(true);
-      
-      let fileUrl = null;
-      let fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}_${song.song_id}.mp3`;
-
-      // Try to get download URL from API first
-      if (song?.song_id) {
-        try {
-          const response = await contentAPI.getSongDownloadUrl(song.song_id);
-          if (response.data?.download_url) {
-            fileUrl = getAudioUrl(response.data.download_url);
-            if (response.data.filename) {
-              fileName = response.data.filename.replace(/[^a-zA-Z0-9.]/g, '_');
-            }
-          }
-        } catch (e) {
-          console.log('Could not get download URL from API');
-        }
-      }
-
-      // Fallback to song's audio_url
-      if (!fileUrl) {
-        fileUrl = song?.audio_url || song?.file_url;
-        if (!fileUrl) {
-          showToast('Wimbo huu hauwezi kupakuliwa', 'error');
-          setDownloading(false);
-          return;
-        }
-        fileUrl = getAudioUrl(fileUrl);
-      }
-
-      console.log('Downloading from:', fileUrl);
-
-      // Use app's document directory
-      const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-      }
-
-      const downloadPath = `${downloadDir}${fileName}`;
-
-      const result = await FileSystem.downloadAsync(fileUrl, downloadPath, {
-        headers: { 'Accept': 'audio/mpeg, audio/*, */*' }
-      });
-      
-      if (result?.uri) {
-        const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        if (fileInfo.exists && fileInfo.size > 1000) {
-          // Add to download context
-          await addDownload(song, result.uri);
-          showToast(`"${song.title}" imepakuliwa ✓`, 'success');
-        } else {
-          throw new Error('Downloaded file is empty or too small');
-        }
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      showToast('Imeshindikana kupakua', 'error');
-    } finally {
-      setDownloading(false);
-      onClose();
-    }
-  };
-
   const handleShare = async () => {
     try {
       await Share.share({
         message: `Sikiliza "${song?.title}" kwenye Gracefy App!`,
-        title: song?.title,
+        title: song?.title || 'Shiriki Wimbo',
       });
     } catch (error) {
-      console.log('Share error:', error);
+      console.error('Share failed:', error);
     }
     onClose();
   };
 
+  if (!song) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.actionsContainer}>
-          {/* Header */}
-          <View style={styles.actionsHeader}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <View style={styles.bottomSheet}>
+          {/* Handle */}
+          <View style={styles.handleContainer}>
             <View style={styles.handle} />
           </View>
 
@@ -310,21 +164,6 @@ export const SongActionsModal = ({
               <Text style={styles.actionText}>Ongeza kwenye Playlist</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionItem} onPress={handleDownload} disabled={downloading}>
-              {downloading ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
-              ) : songIsDownloaded ? (
-                <View style={styles.downloadedIcon}>
-                  <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                </View>
-              ) : (
-                <Ionicons name="download-outline" size={24} color={COLORS.text} />
-              )}
-              <Text style={[styles.actionText, songIsDownloaded && styles.actionTextDownloaded]}>
-                {downloading ? 'Inapakua...' : songIsDownloaded ? 'Imepakuliwa ✓' : 'Pakua'}
-              </Text>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.actionItem} onPress={handleShare}>
               <Ionicons name="share-outline" size={24} color={COLORS.text} />
               <Text style={styles.actionText}>Shiriki</Text>
@@ -336,7 +175,7 @@ export const SongActionsModal = ({
   );
 };
 
-// Main Add to Playlist Modal - UPDATED: Playlists at top, Like & Create at bottom
+// Main Add to Playlist Modal
 const AddToPlaylistModal = ({ 
   visible, 
   onClose, 
@@ -347,14 +186,12 @@ const AddToPlaylistModal = ({
   isPremium,
   onLoginRequired,
   onSubscriptionRequired,
-  onDownload,
 }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateNew, setShowCreateNew] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (visible && isAuthenticated) {
@@ -368,7 +205,6 @@ const AddToPlaylistModal = ({
     try {
       setLoading(true);
       const response = await libraryAPI.getPlaylists();
-      // Handle both response formats
       const playlistsData = response.data?.playlists || response.data || [];
       console.log('Loaded playlists:', playlistsData.length);
       setPlaylists(playlistsData);
@@ -427,7 +263,6 @@ const AddToPlaylistModal = ({
       }
       setNewPlaylistName('');
       setShowCreateNew(false);
-      // Reload playlists to show the new one
       await loadPlaylists();
     } catch (error) {
       console.error('Error creating playlist:', error);
@@ -453,340 +288,255 @@ const AddToPlaylistModal = ({
     }
   };
 
-  const requestStoragePermission = async () => {
-    // For Android 10+ (API 29+), we don't need WRITE_EXTERNAL_STORAGE
-    if (Platform.OS === 'android' && Platform.Version < 29) {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Ruhusa ya Kuhifadhi',
-            message: 'Gracefy inahitaji ruhusa ya kuhifadhi nyimbo kwenye simu yako.',
-            buttonNeutral: 'Uliza Baadaye',
-            buttonNegative: 'Kataa',
-            buttonPositive: 'Kubali',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleDownload = async () => {
-    if (!isAuthenticated) {
-      onLoginRequired?.();
-      return;
-    }
-    if (billingEnabled && !isPremium) {
-      onSubscriptionRequired?.();
-      return;
-    }
-
-    const hasPermission = await requestStoragePermission();
-    if (!hasPermission) {
-      showToast('Tafadhali ruhusu kuhifadhi faili katika Settings', 'warning');
-      return;
-    }
-
-    if (onDownload) {
-      onDownload(song);
-      onClose();
-      return;
-    }
-
+  const handleShare = async () => {
     try {
-      setDownloading(true);
-      
-      let fileUrl = null;
-      let fileName = `${song.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
-
-      // Try to get download URL from API first
-      if (song?.song_id) {
-        try {
-          const response = await contentAPI.getSongDownloadUrl(song.song_id);
-          if (response.data?.download_url) {
-            fileUrl = getAudioUrl(response.data.download_url);
-            if (response.data.filename) {
-              fileName = response.data.filename;
-            }
-          }
-        } catch (e) {
-          console.log('Could not get download URL from API');
-        }
-      }
-
-      // Fallback to song's audio_url
-      if (!fileUrl) {
-        fileUrl = song?.audio_url || song?.file_url;
-        if (!fileUrl) {
-          showToast('Wimbo huu hauwezi kupakuliwa', 'error');
-          setDownloading(false);
-          return;
-        }
-        fileUrl = getAudioUrl(fileUrl);
-      }
-
-      console.log('Downloading from:', fileUrl);
-
-      const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}downloads/`, { intermediates: true });
-
-      const result = await FileSystem.downloadAsync(fileUrl, downloadPath, {
-        headers: { 'Accept': 'audio/mpeg, audio/*, */*' }
+      await Share.share({
+        message: `Sikiliza "${song?.title}" kwenye Gracefy App!`,
+        title: song?.title || 'Shiriki Wimbo',
       });
-      
-      if (result?.uri) {
-        const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        if (fileInfo.exists && fileInfo.size > 1000) {
-          showToast(`"${song.title}" imepakuliwa ✓`, 'success');
-        } else {
-          throw new Error('Downloaded file is empty or too small');
-        }
-      }
     } catch (error) {
-      console.error('Download error:', error);
-      showToast('Imeshindikana kupakua wimbo', 'error');
-    } finally {
-      setDownloading(false);
-      onClose();
+      console.error('Share failed:', error);
     }
   };
 
-  // Not logged in view
-  if (!isAuthenticated) {
-    return (
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-          <View style={styles.container}>
-            <View style={styles.header}>
-              <View style={styles.handle} />
-            </View>
-            <View style={styles.notLoggedInContainer}>
-              <Ionicons name="lock-closed-outline" size={48} color={COLORS.primary} />
-              <Text style={styles.notLoggedInTitle}>Ingia kwanza</Text>
-              <Text style={styles.notLoggedInText}>
-                Unahitaji kuingia ili kutengeneza playlist au kupakua nyimbo
-              </Text>
-              <TouchableOpacity 
-                style={styles.loginPromptButton}
-                onPress={() => {
-                  onClose();
-                  onLoginRequired?.();
-                }}
-              >
-                <Text style={styles.loginPromptButtonText}>Ingia Sasa</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    );
-  }
+  const renderPlaylistItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.playlistItem} 
+      onPress={() => handleAddToPlaylist(item)}
+      data-testid={`playlist-item-${item.playlist_id}`}
+    >
+      <View style={styles.playlistImageContainer}>
+        <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
+      </View>
+      <View style={styles.playlistInfo}>
+        <Text style={styles.playlistName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.playlistCount}>{item.song_count || 0} nyimbo</Text>
+      </View>
+      <Ionicons name="add" size={24} color={COLORS.textMuted} />
+    </TouchableOpacity>
+  );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={styles.modalOverlay} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableOpacity 
-          style={styles.overlayTouchable} 
+          style={StyleSheet.absoluteFill} 
           activeOpacity={1} 
-          onPress={() => {
-            Keyboard.dismiss();
-            onClose();
-          }}
-        >
-          <TouchableOpacity 
-            style={[styles.container, showCreateNew && { paddingBottom: Platform.OS === 'android' ? 20 : 0 }]} 
-            activeOpacity={1} 
-            onPress={(e) => e.stopPropagation()}
-          >
-          {/* Header */}
-          <View style={styles.header}>
+          onPress={onClose} 
+        />
+        <View style={styles.modalContent}>
+          {/* Handle */}
+          <View style={styles.handleContainer}>
             <View style={styles.handle} />
-            <Text style={styles.title}>Ongeza kwenye...</Text>
           </View>
+
+          {/* Title */}
+          <Text style={styles.modalTitle}>Ongeza kwenye Playlist</Text>
 
           {/* Song Info */}
           {song && (
-            <View style={styles.songInfo}>
+            <View style={styles.songInfoSmall}>
               <Image
-                source={{ uri: getImageUrl(song.thumbnail || song.thumbnail_url) || 'https://via.placeholder.com/48' }}
-                style={styles.songImage}
+                source={{ uri: getImageUrl(song.thumbnail) || 'https://via.placeholder.com/40' }}
+                style={styles.songImageSmall}
               />
-              <View style={styles.songDetails}>
-                <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
-                <Text style={styles.songArtist} numberOfLines={1}>{song.artist_name}</Text>
+              <View style={styles.songDetailsSmall}>
+                <Text style={styles.songTitleSmall} numberOfLines={1}>{song.title}</Text>
+                <Text style={styles.songArtistSmall} numberOfLines={1}>{song.artist_name}</Text>
               </View>
             </View>
           )}
 
-          {/* EXISTING PLAYLISTS AT TOP */}
-          <Text style={styles.sectionTitle}>Playlist zako</Text>
+          {/* Playlists */}
           {loading ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={styles.loader} />
-          ) : playlists.length > 0 ? (
-            <FlatList
-              data={playlists}
-              keyExtractor={(item) => item.playlist_id}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.playlistItem} onPress={() => handleAddToPlaylist(item)}>
-                  <Image
-                    source={{ uri: item.thumbnail || 'https://via.placeholder.com/48' }}
-                    style={styles.playlistImage}
-                  />
-                  <View style={styles.playlistInfo}>
-                    <Text style={styles.playlistName}>{item.name}</Text>
-                    <Text style={styles.playlistCount}>{item.song_count || 0} nyimbo</Text>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          ) : !isAuthenticated ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="lock-closed-outline" size={48} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>Ingia ili uone playlists zako</Text>
+              <TouchableOpacity style={styles.loginSmallButton} onPress={onLoginRequired}>
+                <Text style={styles.loginSmallButtonText}>Ingia</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <FlatList
+                data={playlists}
+                renderItem={renderPlaylistItem}
+                keyExtractor={(item) => item.playlist_id}
+                style={styles.playlistList}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="musical-notes-outline" size={48} color={COLORS.textMuted} />
+                    <Text style={styles.emptyText}>Hakuna playlists</Text>
+                    <Text style={styles.emptySubtext}>Tengeneza playlist mpya hapa chini</Text>
                   </View>
-                  <Ionicons name="add" size={24} color={COLORS.textSecondary} />
+                }
+              />
+
+              {/* Create New Playlist */}
+              {showCreateNew ? (
+                <View style={styles.createPlaylistContainer}>
+                  <TextInput
+                    style={styles.playlistInput}
+                    placeholder="Jina la playlist..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newPlaylistName}
+                    onChangeText={setNewPlaylistName}
+                    autoFocus
+                    maxLength={50}
+                  />
+                  <View style={styles.createButtonsRow}>
+                    <TouchableOpacity 
+                      style={styles.cancelCreateButton}
+                      onPress={() => {
+                        setShowCreateNew(false);
+                        setNewPlaylistName('');
+                      }}
+                    >
+                      <Text style={styles.cancelCreateText}>Ghairi</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.createButton, creating && styles.createButtonDisabled]}
+                      onPress={handleCreatePlaylist}
+                      disabled={creating}
+                    >
+                      {creating ? (
+                        <ActivityIndicator size="small" color={COLORS.background} />
+                      ) : (
+                        <Text style={styles.createButtonText}>Tengeneza</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.newPlaylistButton}
+                  onPress={() => setShowCreateNew(true)}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+                  <Text style={styles.newPlaylistText}>Tengeneza Playlist Mpya</Text>
                 </TouchableOpacity>
               )}
-              style={styles.playlistsList}
-              scrollEnabled={playlists.length > 4}
-            />
-          ) : (
-            <Text style={styles.emptyText}>Hakuna playlist bado</Text>
+            </>
           )}
 
-          {/* DIVIDER */}
-          <View style={styles.divider} />
-
-          {/* LIKE AND CREATE AT BOTTOM */}
+          {/* Bottom Actions */}
           <View style={styles.bottomActions}>
-            {/* Like Button */}
             <TouchableOpacity style={styles.bottomActionItem} onPress={handleLike}>
-              <View style={[styles.bottomActionIcon, { backgroundColor: '#E91429' }]}>
-                <Ionicons name="heart" size={20} color={COLORS.text} />
-              </View>
-              <Text style={styles.bottomActionText}>Penda Wimbo</Text>
+              <Ionicons name="heart-outline" size={22} color={COLORS.text} />
+              <Text style={styles.bottomActionText}>Penda</Text>
             </TouchableOpacity>
-
-            {/* Download Button */}
-            <TouchableOpacity style={styles.bottomActionItem} onPress={handleDownload} disabled={downloading}>
-              <View style={[styles.bottomActionIcon, { backgroundColor: COLORS.primary }]}>
-                {downloading ? (
-                  <ActivityIndicator size="small" color={COLORS.text} />
-                ) : (
-                  <Ionicons name="download" size={20} color={COLORS.text} />
-                )}
-              </View>
-              <Text style={styles.bottomActionText}>{downloading ? 'Inapakua...' : 'Pakua'}</Text>
-            </TouchableOpacity>
-
-            {/* Create Playlist */}
-            <TouchableOpacity style={styles.bottomActionItem} onPress={() => setShowCreateNew(true)}>
-              <View style={[styles.bottomActionIcon, { backgroundColor: COLORS.card }]}>
-                <Ionicons name="add" size={20} color={COLORS.text} />
-              </View>
-              <Text style={styles.bottomActionText}>Tengeneza Playlist</Text>
+            <TouchableOpacity style={styles.bottomActionItem} onPress={handleShare}>
+              <Ionicons name="share-outline" size={22} color={COLORS.text} />
+              <Text style={styles.bottomActionText}>Shiriki</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Create New Playlist Form */}
-          {showCreateNew && (
-            <View style={styles.createForm}>
-              <TextInput
-                style={styles.input}
-                placeholder="Jina la playlist"
-                placeholderTextColor={COLORS.textMuted}
-                value={newPlaylistName}
-                onChangeText={setNewPlaylistName}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={() => {
-                  if (newPlaylistName.trim()) {
-                    handleCreatePlaylist();
-                  }
-                }}
-              />
-              <View style={styles.createButtons}>
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
-                  onPress={() => {
-                    setShowCreateNew(false);
-                    Keyboard.dismiss();
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Ghairi</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.createButton, !newPlaylistName.trim() && { opacity: 0.5 }]} 
-                  onPress={handleCreatePlaylist} 
-                  disabled={creating || !newPlaylistName.trim()}
-                >
-                  {creating ? (
-                    <ActivityIndicator size="small" color={COLORS.background} />
-                  ) : (
-                    <Text style={styles.createButtonText}>Tengeneza</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </TouchableOpacity>
-        </TouchableOpacity>
+          {/* Close Button */}
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>Funga</Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  // Modal Overlay
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
-  overlayTouchable: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  overlayBackground: {
+    ...StyleSheet.absoluteFillObject,
   },
   centeredOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  overlayBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  
+  // Login Modal
+  loginModal: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    width: '85%',
+    maxWidth: 320,
   },
-  container: {
+  loginTitle: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  loginMessage: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  loginButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.full,
+    width: '100%',
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
+  cancelLink: {
+    marginTop: SPACING.md,
+    padding: SPACING.sm,
+  },
+  cancelLinkText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.md,
+  },
+  
+  // Bottom Sheet
+  bottomSheet: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '85%',
-    paddingBottom: SPACING.xxl,
+    paddingBottom: 34,
   },
-  header: {
+  handleContainer: {
     alignItems: 'center',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   handle: {
     width: 40,
     height: 4,
     backgroundColor: COLORS.textMuted,
     borderRadius: 2,
-    marginBottom: SPACING.md,
   },
-  title: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
+  
+  // Song Info
   songInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
@@ -794,285 +544,241 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.background,
   },
   songDetails: {
     flex: 1,
     marginLeft: SPACING.md,
   },
   songTitle: {
+    color: COLORS.text,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    marginBottom: 4,
   },
   songArtist: {
-    fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
-    marginTop: 2,
+    fontSize: FONT_SIZES.sm,
   },
-  sectionTitle: {
+  
+  // Actions List
+  actionsList: {
+    paddingVertical: SPACING.sm,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  actionText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    marginLeft: SPACING.md,
+  },
+  
+  // Modal Content
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    maxHeight: '80%',
+    paddingBottom: 34,
+  },
+  modalTitle: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingVertical: SPACING.md,
+  },
+  
+  // Small Song Info
+  songInfoSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  songImageSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.xs,
+    backgroundColor: COLORS.background,
+  },
+  songDetailsSmall: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+  },
+  songTitleSmall: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+  },
+  songArtistSmall: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.xs,
+  },
+  
+  // Loading & Empty
+  loadingContainer: {
+    padding: SPACING.xl,
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: SPACING.xl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.md,
+    marginTop: SPACING.md,
+  },
+  emptySubtext: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.sm,
+    marginTop: SPACING.xs,
+  },
+  loginSmallButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.full,
+    marginTop: SPACING.md,
+  },
+  loginSmallButtonText: {
+    color: COLORS.text,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textSecondary,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  loader: {
-    paddingVertical: SPACING.lg,
-  },
-  playlistsList: {
-    maxHeight: 200,
+  
+  // Playlist List
+  playlistList: {
+    maxHeight: 300,
   },
   playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  playlistImage: {
+  playlistImageContainer: {
     width: 48,
     height: 48,
     borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playlistInfo: {
     flex: 1,
     marginLeft: SPACING.md,
   },
   playlistName: {
+    color: COLORS.text,
     fontSize: FONT_SIZES.md,
     fontWeight: '500',
-    color: COLORS.text,
   },
   playlistCount: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.xs,
     marginTop: 2,
   },
-  emptyText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    paddingVertical: SPACING.md,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: SPACING.md,
-    marginHorizontal: SPACING.md,
-  },
-  bottomActions: {
-    paddingHorizontal: SPACING.md,
-  },
-  bottomActionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  bottomActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  bottomActionText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  createForm: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+  
+  // Create Playlist
+  createPlaylistContainer: {
+    padding: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    marginTop: SPACING.md,
   },
-  input: {
-    backgroundColor: COLORS.card,
+  playlistInput: {
+    backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    marginBottom: SPACING.md,
-  },
-  createButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  cancelButton: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginRight: SPACING.sm,
-  },
-  cancelButtonText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-  },
-  createButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  createButtonText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.background,
-  },
-  // Login Modal Styles
-  loginModal: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.xl,
-    alignItems: 'center',
-  },
-  loginTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-  },
-  loginMessage: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
-  loginButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.full,
-    width: '100%',
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.background,
-  },
-  cancelLink: {
-    marginTop: SPACING.md,
-  },
-  cancelLinkText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-  },
-  // Subscription Modal Styles
-  subscriptionModal: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.xl,
-    alignItems: 'center',
-  },
-  subscriptionIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.warning + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  subscriptionTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
     marginBottom: SPACING.sm,
   },
-  subscriptionMessage: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: SPACING.lg,
-  },
-  subscriptionButton: {
-    backgroundColor: COLORS.warning,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.full,
-    width: '100%',
+  createButtonsRow: {
     flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  cancelCreateButton: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.background,
   },
-  subscriptionButtonText: {
+  cancelCreateText: {
+    color: COLORS.textMuted,
     fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.background,
   },
-  notLoggedInContainer: {
+  createButton: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  notLoggedInTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-  },
-  notLoggedInText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
-  loginPromptButton: {
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.full,
   },
-  loginPromptButtonText: {
+  createButtonDisabled: {
+    opacity: 0.6,
+  },
+  createButtonText: {
+    color: COLORS.text,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.background,
   },
-  // Actions container for song menu
-  actionsContainer: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-    paddingBottom: SPACING.xxl,
-  },
-  actionsHeader: {
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-  },
-  actionsList: {
-    paddingHorizontal: SPACING.md,
-  },
-  actionItem: {
+  newPlaylistButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
-  },
-  actionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-    fontWeight: '500',
-    marginLeft: SPACING.md,
-  },
-  actionTextDownloaded: {
-    color: COLORS.primary,
-  },
-  downloadedIcon: {
-    width: 24,
-    height: 24,
     justifyContent: 'center',
+    padding: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  newPlaylistText: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+    marginLeft: SPACING.sm,
+  },
+  
+  // Bottom Actions
+  bottomActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: SPACING.xl,
+  },
+  bottomActionItem: {
     alignItems: 'center',
+  },
+  bottomActionText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.xs,
+    marginTop: 4,
+  },
+  
+  // Close Button
+  closeButton: {
+    marginHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  closeButtonText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
   },
 });
 
