@@ -409,7 +409,7 @@ export const DownloadProvider = ({ children }) => {
 
       // Clear state
       setDownloads({});
-      await AsyncStorage.removeItem(DOWNLOADS_STORAGE_KEY);
+      await AsyncStorage.removeItem(STORAGE_KEY);
       console.log('[Downloads] Cleared all downloads');
     } catch (error) {
       console.error('[Downloads] Clear all error:', error);
