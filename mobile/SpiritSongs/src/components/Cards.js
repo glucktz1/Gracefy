@@ -92,16 +92,8 @@ export const SongListItem = ({
   albumThumbnail, 
   style 
 }) => {
-  const { isDownloaded, getDownloadProgress, getDownloadStatus } = useDownloads();
-  
   const songId = item?.song_id;
-  const downloaded = songId ? isDownloaded(songId) : false;
-  const downloadStatus = songId ? getDownloadStatus(songId) : null;
-  const downloadProgress = songId ? getDownloadProgress(songId) : null;
-  
   const showEqualizer = isCurrentSong || isPlaying;
-  const isDownloading = downloadStatus === DOWNLOAD_STATUS.DOWNLOADING;
-  const isQueued = downloadStatus === DOWNLOAD_STATUS.QUEUED;
   
   return (
     <TouchableOpacity 
@@ -131,18 +123,6 @@ export const SongListItem = ({
           source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail) || 'https://via.placeholder.com/50' }}
           style={styles.songListImage}
         />
-        {/* Download status indicator */}
-        {(downloaded || isDownloading || isQueued) && (
-          <View style={styles.downloadedBadge}>
-            {isDownloading ? (
-              <MiniProgressRing progress={downloadProgress || 0} />
-            ) : isQueued ? (
-              <ActivityIndicator size={12} color={COLORS.primary} />
-            ) : (
-              <Ionicons name="arrow-down-circle" size={14} color={COLORS.primary} />
-            )}
-          </View>
-        )}
       </View>
       
       {/* Song info */}
@@ -151,12 +131,6 @@ export const SongListItem = ({
           {item.title}
         </Text>
         <View style={styles.songListMeta}>
-          {downloaded && (
-            <View style={styles.downloadedTag}>
-              <Ionicons name="checkmark-circle" size={12} color={COLORS.primary} />
-              <Text style={styles.downloadedTagText}>Imepakuliwa</Text>
-            </View>
-          )}
           {isDownloading && (
             <View style={styles.downloadedTag}>
               <Text style={styles.downloadingTagText}>{downloadProgress || 0}%</Text>
