@@ -23,6 +23,7 @@ import { useBilling } from '../context/BillingContext';
 import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { SongActionsSheet } from '../components/SongActionsSheet';
+import PlaylistPickerSheet from '../components/PlaylistPickerSheet';
 import { showToast } from '../components/Toast';
 
 const AlbumScreen = ({ route, navigation }) => {
