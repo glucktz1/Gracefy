@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZES } from '../config/theme';
 import { getImageUrl } from '../services/api';
+import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import AnimatedEqualizer from './AnimatedEqualizer';
 
 const { width } = Dimensions.get('window');
@@ -90,10 +91,21 @@ export const SongListItem = ({
   onAddPress, 
   onMorePress,
   albumThumbnail, 
+  isDownloaded: propIsDownloaded,
   style 
 }) => {
   const songId = item?.song_id;
   const showEqualizer = isCurrentSong || isPlaying;
+  
+  // Download context - with safe fallbacks
+  const downloadContext = useDownloads();
+  const isDownloaded = propIsDownloaded ?? (downloadContext?.isDownloaded?.(songId) ?? false);
+  const downloadStatus = downloadContext?.getDownloadStatus?.(songId) ?? DOWNLOAD_STATUS.IDLE;
+  const downloadProgress = downloadContext?.getDownloadProgress?.(songId) ?? 0;
+  
+  const isDownloading = downloadStatus === DOWNLOAD_STATUS.DOWNLOADING;
+  const isQueued = downloadStatus === DOWNLOAD_STATUS.QUEUED;
+  const downloaded = isDownloaded || downloadStatus === DOWNLOAD_STATUS.COMPLETED;
   
   return (
     <TouchableOpacity 
