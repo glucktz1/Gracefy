@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { 
   Users, Music2, Church, Heart, UserCheck, CheckCircle,
-  TrendingUp, DollarSign, Play, MapPin, Calendar, Smartphone, Globe
+  TrendingUp, DollarSign, Play, MapPin, Calendar, Smartphone, Globe,
+  Headphones, Activity, Clock
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from "recharts";
 
@@ -17,19 +18,22 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [trends, setTrends] = useState(null);
   const [demographics, setDemographics] = useState(null);
+  const [streamingStats, setStreamingStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsRes, trendsRes, demographicsRes] = await Promise.all([
+        const [analyticsRes, trendsRes, demographicsRes, streamingRes] = await Promise.all([
           axios.get(`${API}/analytics/overview`, { withCredentials: true }),
           axios.get(`${API}/analytics/trends`, { withCredentials: true }),
-          axios.get(`${API}/analytics/user-demographics`, { withCredentials: true })
+          axios.get(`${API}/analytics/user-demographics`, { withCredentials: true }),
+          axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch(() => ({ data: null }))
         ]);
         setAnalytics(analyticsRes.data);
         setTrends(trendsRes.data);
         setDemographics(demographicsRes.data);
+        setStreamingStats(streamingRes.data);
       } catch (error) {
         console.error("Error fetching analytics:", error);
       } finally {
@@ -37,6 +41,16 @@ export default function Dashboard() {
       }
     };
     fetchData();
+    
+    // Refresh streaming stats every 30 seconds
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API}/analytics/realtime`, { withCredentials: true });
+        setStreamingStats(res.data);
+      } catch (e) {}
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#ec4899'];
@@ -56,28 +70,28 @@ export default function Dashboard() {
       value: analytics?.total_users || 0, 
       icon: Users, 
       color: "bg-violet-600/20 text-violet-400",
-      trend: "+12%"
+      subValue: `${analytics?.total_customers || 0} customers`
     },
     { 
       label: "Total Songs", 
       value: analytics?.total_songs || 0, 
       icon: Music2, 
       color: "bg-emerald-600/20 text-emerald-400",
-      trend: "+8%"
+      subValue: `${analytics?.total_albums || 0} albums`
     },
     { 
       label: "Churches", 
       value: analytics?.total_churches || 0, 
       icon: Church, 
       color: "bg-amber-600/20 text-amber-400",
-      trend: "+5%"
+      subValue: `${analytics?.total_leaders || 0} leaders`
     },
     { 
       label: "Total Raised", 
       value: `$${(analytics?.total_raised || 0).toLocaleString()}`, 
       icon: Heart, 
       color: "bg-pink-600/20 text-pink-400",
-      trend: "+24%"
+      subValue: `${analytics?.total_donations || 0} campaigns`
     },
   ];
 
