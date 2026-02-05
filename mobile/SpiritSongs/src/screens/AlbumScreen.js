@@ -294,15 +294,6 @@ const AlbumScreen = ({ route, navigation }) => {
           
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            {/* Download Album Button */}
-            <TouchableOpacity 
-              style={styles.downloadAlbumButton}
-              onPress={handleDownloadAlbum}
-              data-testid="download-album-button"
-            >
-              <Ionicons name="download-outline" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-            
             <TouchableOpacity 
               style={styles.shuffleButton}
               onPress={handleShuffle}
