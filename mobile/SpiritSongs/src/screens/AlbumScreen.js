@@ -330,6 +330,26 @@ const AlbumScreen = ({ route, navigation }) => {
           
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
+            {/* Download Album Button */}
+            <TouchableOpacity 
+              style={[
+                styles.downloadAlbumButton,
+                allSongsDownloaded && styles.downloadAlbumButtonDone
+              ]}
+              onPress={handleDownloadAlbum}
+              data-testid="download-album-button"
+            >
+              {someDownloading && !allSongsDownloaded ? (
+                <ActivityIndicator size={20} color={COLORS.primary} />
+              ) : (
+                <Ionicons 
+                  name={allSongsDownloaded ? "checkmark-circle" : "arrow-down-circle-outline"} 
+                  size={24} 
+                  color={allSongsDownloaded ? COLORS.primary : COLORS.text} 
+                />
+              )}
+            </TouchableOpacity>
+
             <TouchableOpacity 
               style={styles.shuffleButton}
               onPress={handleShuffle}
