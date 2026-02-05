@@ -1,210 +1,160 @@
-# SpiritSongs/Gracefy Mobile App - Product Requirements Document
+# SpiritSongs / Gracefy - Product Requirements Document
 
 ## Original Problem Statement
-Build and maintain a React Native mobile application (SpiritSongs/Gracefy) with a Python/FastAPI backend and MongoDB database. The app is a religious music streaming platform with features including:
-- Music streaming and downloads
-- Bible reading with TTS (Text-to-Speech)
-- Religious teachings (Mafundisho na Katekesi)
-- Church management
-- User subscriptions and monetization
-- Admin panel with comprehensive analytics
+Build a music streaming platform (SpiritSongs/Gracefy) with:
+1. Mobile app for streaming and downloading Christian music
+2. Admin web panel for managing content, analytics, and revenue
+3. CDN-based content delivery for audio and images
+4. Monetization system with revenue tracking and choir payouts
 
-## What's Been Implemented
+## Core Architecture
 
-### February 3, 2026 - Major Feature Redevelopment
-
-#### Complete Redevelopment of Download, Like, and Playlist Features
-As requested by the user, the previous buggy implementations were completely removed and rebuilt from scratch with a Spotify-like experience:
-
-**1. New Download System (`DownloadContext.js`)**
-- Real-time download progress tracking with visual progress rings
-- Download queue management (max 2 concurrent downloads)
-- Album/batch download capability (download entire album)
-- Automatic file verification on app launch
-- Proper file storage in app's document directory
-- Download status indicators: QUEUED, DOWNLOADING, COMPLETED, FAILED
-- Format file sizes for display
-
-**2. New Song Actions UI (`SongActionsSheet.js`)**
-- Spotify-style bottom sheet with smooth animations
-- Like/Unlike songs with instant visual feedback
-- Download with real-time progress indication
-- Add to playlist flow with playlist picker
-- Share functionality
-- View album option
-
-**3. Updated Library Screen (`LibraryScreen.js`)**
-- Three tabs: Playlists, Liked Songs, Downloads
-- Quick access cards for Liked Songs and Downloads
-- Active download count badge on Downloads tab
-- Download storage size display
-- Create playlist modal with proper keyboard handling
-- Playlist picker for adding songs
-
-**4. Updated Album Screen (`AlbumScreen.js`)**
-- Download entire album button
-- Song actions sheet integration
-- Create playlist from album
-
-**5. Updated Song List Item (`Cards.js`)**
-- Real-time download progress indicators
-- Visual distinction for downloaded songs
-- Queued state indication
-- Mini progress ring component
-
-#### Backend Improvements
-- Updated `/api/library/likes` endpoint to return full song details (not just like references)
-- Added album info enrichment for liked songs
-
-### December 2025 - February 2026 (Previous Work)
-
-#### Core Features
-- ✅ Music streaming with player controls
-- ✅ Album and playlist management
-- ✅ Search functionality
-- ✅ User authentication (email/phone, Google OAuth)
-- ✅ Library management (likes, playlists, downloads)
-- ✅ Bible reading with Swahili translation
-- ✅ Bible TTS (Text-to-Speech) generation and caching
-- ✅ Religious teachings (Mafundisho) with audio lessons
-- ✅ Church directory
-- ✅ Subscription/billing system with AzamPay
-- ✅ Error Boundaries for crash prevention
-- ✅ Comprehensive admin panel analytics
-
-## Latest Changes
-- **Date**: February 3, 2026
-- **Files Modified**:
-  - `/app/mobile/SpiritSongs/src/context/DownloadContext.js` - Complete rewrite
-  - `/app/mobile/SpiritSongs/src/components/SongActionsSheet.js` - New file
-  - `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js` - Complete rewrite
-  - `/app/mobile/SpiritSongs/src/screens/AlbumScreen.js` - Updated
-  - `/app/mobile/SpiritSongs/src/components/Cards.js` - Updated with progress indicators
-  - `/app/backend/routes/user_library.py` - Fixed likes endpoint, enhanced play tracking
-  - `/app/mobile/SpiritSongs/src/context/PlayerContext.js` - Added proper play tracking with duration
-  - `/app/mobile/SpiritSongs/src/services/api.js` - Updated playerAPI to include duration
-  - `/app/backend/routes/admin.py` - Added comprehensive play stats endpoints
-
-## Play Tracking & Revenue System
-
-### How Play Counting Works
-1. **Minimum Duration**: A play is only counted if the user listens for **45+ seconds**
-2. **Automatic Tracking**: PlayerContext tracks playback duration and sends to backend at 45 seconds
-3. **Revenue Calculation**: Based on monetization mode selected by admin
-
----
-
-## Monetization System (3 Options)
-
-### Option 1: Time-Based Earning
-- **Formula**: `choir_earning = listening_hours × rate_per_hour`
-- **Example**: 12 hours × TZS 10 = TZS 120 for the choir
-- Revenue is calculated and credited **per play**
-- Settings: `premium_rate_per_hour`, `standard_rate_per_hour`
-
-### Option 2: Percentage-Based Earning
-- **Formula**: `choir_earning = (choir_minutes / total_platform_minutes) × (total_revenue × choir_share%)`
-- Revenue is calculated **periodically** (not per-play)
-- Admin defines percentage split (e.g., 70% choir, 30% platform)
-- Call `/api/revenue/calculate-choir-earnings` to calculate and distribute
-
-### Option 3: Pay-Per-Content Bundle
-- Admin creates content bundles (albums or songs)
-- Users pay for specific bundles
-- Revenue goes directly to content owner minus platform fee
-- Can be enabled alongside Option 1 OR Option 2
-
-### Compatibility Rules
-- ✅ Option 1 + Option 3 (can be enabled together)
-- ✅ Option 2 + Option 3 (can be enabled together)
-- ❌ Option 1 + Option 2 (mutually exclusive)
-- Option 3 can be disabled anytime
-
-### Admin Endpoints
-- `GET /api/revenue/settings` - Get monetization settings
-- `POST /api/revenue/settings` - Update monetization settings
-- `GET /api/admin/monetization-summary` - Full monetization dashboard
-- `POST /api/revenue/calculate-choir-earnings` - Calculate choir earnings (for percentage-based)
-- `GET /api/admin/content-bundles` - Get all bundles
-- `POST /api/admin/content-bundles` - Create bundle
-- `PUT /api/admin/content-bundles/{id}` - Update bundle
-- `DELETE /api/admin/content-bundles/{id}` - Delete bundle
-- `GET /api/content-bundles` - Public bundles list (for app)
-- `POST /api/content-bundles/{id}/purchase` - Purchase a bundle
-- `GET /api/user/purchased-bundles` - User's purchased bundles
-- `GET /api/content/{type}/{id}/access` - Check content access
-
-## Known Issues / Blockers
-
-### P2 - Medium Priority
-1. **Hero section images** - Placeholder gradient shown (blocked until proper image URL system implemented)
-2. **Some albums may not show songs** - Needs verification in new build
-
-## Prioritized Backlog
-
-### P0 - Critical
-- Build new APK and test the redeveloped features (downloads, likes, playlists)
-
-### P1 - High Priority
-- Verify all redeveloped features work correctly in production build
-- Test offline playback with downloaded songs
-- Test album download functionality
-
-### P2 - Medium Priority
-- Implement proper image upload/CDN pipeline for hero images
-- Add offline mode for Bible reading
-- App startup performance optimization
-
-### P3 - Future
-- Push notifications
-- Social features (sharing, comments)
-- Audio quality settings
-
-## Architecture
-
-### Frontend (Mobile)
-- React Native with Expo (SDK 54)
-- State management: React Context
-- Navigation: React Navigation v7
-- UI: Custom components with theme system
+### Frontend (Admin Panel)
+- React 18 with Vite
+- Shadcn UI components
+- Recharts for analytics visualization
+- Located at `/app/frontend`
 
 ### Backend
 - Python FastAPI
 - MongoDB database
-- Redis caching (optional)
-- Bunny CDN for media files
+- Bunny CDN integration
+- Located at `/app/backend`
 
-### Admin Panel (Web)
-- React with Vite
-- Shadcn/UI components
-- Tailwind CSS
+### Mobile App
+- React Native with Expo
+- expo-av for audio playback
+- expo-file-system for downloads
+- Located at `/app/mobile/SpiritSongs`
 
-### Key Files
-- `/app/backend/routes/admin.py` - Admin panel endpoints
-- `/app/backend/routes/analytics.py` - Analytics endpoints
-- `/app/backend/routes/monetization.py` - Revenue/billing endpoints
-- `/app/backend/routes/bible.py` - Bible API endpoints
-- `/app/backend/routes/user_library.py` - Library/likes/playlists API
-- `/app/mobile/SpiritSongs/App.js` - Main app entry
-- `/app/mobile/SpiritSongs/src/screens/` - All screen components
-- `/app/mobile/SpiritSongs/src/context/DownloadContext.js` - Download management
-- `/app/mobile/SpiritSongs/src/components/SongActionsSheet.js` - Song actions UI
+## What's Been Implemented
 
-## 3rd Party Integrations
-- Expo (EAS Build) - App building and distribution
-- MongoDB - Primary database
-- Bunny CDN - Media file storage
-- OpenAI TTS - Bible text-to-speech
-- AzamPay - Payment processing (Tanzania)
+### Phase 1: Core App Functionality (Completed)
+- [x] User authentication (JWT-based)
+- [x] Song streaming with background playback
+- [x] Download functionality with CDN URLs
+- [x] Like/Unlike songs
+- [x] Add songs to playlists
+- [x] Album browsing and playback
+
+### Phase 2: CDN Migration (Completed - Feb 2026)
+- [x] Bunny CDN integration for audio files
+- [x] 73/86 songs migrated to CDN
+- [x] 10/14 album thumbnails on CDN
+- [x] 24 song thumbnails on CDN
+- [x] CDN Management page showing real stats
+- [x] Auto-propagation of album thumbnails to songs
+
+### Phase 3: Analytics & Dashboard (Completed - Feb 2026)
+- [x] Dashboard with real user growth data
+- [x] Customer growth chart (total vs active users)
+- [x] Content performance chart
+- [x] Live streaming banner (active streams, listeners)
+- [x] Enhanced analytics with streaming stats
+- [x] Daily trend charts with real data
+- [x] Top songs and choirs rankings
+
+### Phase 4: Revenue System (Completed - Feb 2026)
+- [x] Play tracking (45+ second rule)
+- [x] Three monetization modes:
+  - Time-based (pay per listening hour)
+  - Percentage-based (share of platform revenue)
+  - Pay-per-bundle (premium content)
+- [x] Revenue calculation with billing toggle
+- [x] Platform revenue vs choir payouts tracking
+- [x] Revenue settings in admin panel
+
+## Current App Version
+- **Mobile App**: v1.0.87
+- **APK Download**: https://expo.dev/artifacts/eas/azPmMm7Xxz4tNnDtZEFXqW.apk
+
+## Database Collections
+
+### Content
+- `songs`: Song metadata, audio_url (CDN), thumbnails
+- `albums`: Album metadata, thumbnails
+- `singers`: Choir/artist information
+- `playlists`: User playlists
+
+### Users
+- `app_users`: Mobile app users
+- `users`: Admin/system users
+
+### Analytics
+- `listening_sessions`: Play tracking with duration, revenue
+- `navigation_events`: Page view analytics
+
+### Settings
+- `subscription_settings`: billing_enabled, trial settings
+- `revenue_settings`: rates, monetization mode
 
 ## API Endpoints
 
-### Library APIs
-- `GET /api/library/likes` - Get liked songs with full details
-- `POST /api/library/like/{song_id}` - Like a song
-- `DELETE /api/library/like/{song_id}` - Unlike a song
-- `GET /api/library/playlists` - Get user playlists
-- `POST /api/library/playlists` - Create playlist
-- `POST /api/library/playlists/{id}/songs/{song_id}` - Add song to playlist
-- `DELETE /api/library/playlists/{id}/songs/{song_id}` - Remove song from playlist
-- `GET /api/songs/{song_id}/download` - Get download URL for song
+### Analytics
+- `GET /api/analytics/overview` - Dashboard stats
+- `GET /api/analytics/trends` - User growth & content performance
+- `GET /api/analytics/enhanced` - Comprehensive analytics
+- `GET /api/analytics/realtime` - Live streaming data
+- `POST /api/demo/generate-listening-data` - Generate test data
+
+### CDN Management
+- `GET /api/admin/cdn/stats` - CDN file counts and sizes
+- `GET /api/admin/cdn/audit/songs` - Song audio URL audit
+- `POST /api/admin/cdn/migrate-internal-to-cdn` - Migrate files
+- `POST /api/admin/cdn/propagate-album-thumbnails` - Copy album art to songs
+
+### Revenue
+- `GET /api/revenue/settings` - Revenue configuration
+- `GET /api/billing-status` - Check if billing enabled
+- `POST /api/analytics/track-play` - Record a song play
+
+## Remaining Tasks (Prioritized)
+
+### P0 - Critical
+- [ ] Test download functionality in v1.0.87 build
+- [ ] Verify background playback works when app locked
+
+### P1 - High Priority
+- [ ] Bible offline reading mode
+- [ ] Push notifications
+- [ ] Performance optimization for app startup
+
+### P2 - Medium Priority  
+- [ ] Admin panel: Withdrawal request management
+- [ ] Admin panel: Cron job for periodic revenue calculation
+- [ ] Hero section images from CDN
+
+### P3 - Future
+- [ ] Social features (sharing, comments)
+- [ ] Advanced recommendation system
+- [ ] Multi-language support
+
+## Environment Variables
+
+### Backend (.env)
+```
+MONGO_URL=mongodb://...
+DB_NAME=test_database
+BUNNY_API_KEY=...
+BUNNY_STORAGE_ZONE=gracefy-media
+BUNNY_CDN_URL=https://gracefy-cdn.b-cdn.net
+```
+
+### Frontend (.env)
+```
+REACT_APP_BACKEND_URL=https://musichealers.preview.emergentagent.com
+```
+
+## EAS Build Credentials
+- Account: gracefy21
+- Token: PW6T-YrsehtxX4cEvRrB2SnQwS_4xQL86LQDpBaL
+
+## Known Issues
+1. Some songs (10) still have internal `/api/files/` URLs - need migration
+2. 3 songs have no audio URL - disabled
+3. Hero section images may not display properly
+
+## Testing Notes
+- Use "Generate Data" button in analytics to create demo listening sessions
+- Revenue only calculates when billing is enabled in subscription_settings
+- CDN stats now count from songs/albums collections, not legacy files collection
