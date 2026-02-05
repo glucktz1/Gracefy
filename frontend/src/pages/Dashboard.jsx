@@ -170,13 +170,16 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="charts-grid">
-        {/* User Growth Chart */}
+        {/* User Growth Chart - Now shows Total vs Active */}
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardHeader>
             <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
               <TrendingUp size={18} className="text-violet-400" />
-              User Growth
+              Customer Growth
             </CardTitle>
+            <CardDescription className="text-zinc-500 text-xs">
+              Total customers vs active users over time
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -185,6 +188,10 @@ export default function Dashboard() {
                   <linearGradient id="userGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
                     <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="activeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
@@ -198,12 +205,22 @@ export default function Dashboard() {
                     color: '#fff'
                   }} 
                 />
+                <Legend />
                 <Area 
                   type="monotone" 
                   dataKey="users" 
+                  name="Total Users"
                   stroke="#8b5cf6" 
                   strokeWidth={2}
                   fill="url(#userGradient)" 
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="active" 
+                  name="Active Users"
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  fill="url(#activeGradient)" 
                 />
               </AreaChart>
             </ResponsiveContainer>
