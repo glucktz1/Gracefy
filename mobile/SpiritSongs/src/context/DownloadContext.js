@@ -105,7 +105,7 @@ export const DownloadProvider = ({ children }) => {
   // Save downloads to persistent storage
   const persistDownloads = async (newDownloads) => {
     try {
-      await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(newDownloads));
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newDownloads));
     } catch (error) {
       console.error('[Downloads] Failed to persist downloads:', error);
     }
