@@ -79,9 +79,29 @@ Build a music streaming platform (SpiritSongs/Gracefy) with:
 - [x] PlaylistPickerSheet for adding songs to playlists
 
 ## Current App Version
-- **Mobile App**: v1.0.90
-- **Build Status**: In Queue (Build ID: 046a04bc-256d-4f1e-8ffb-f3fd19aa19ab)
-- **APK Download**: Pending build completion
+- **Mobile App**: v1.0.92 ✅ BUILD COMPLETE
+- **APK Download**: https://expo.dev/artifacts/eas/dxMssAw6Ry9JEs7u2GZmnN.apk
+- **Features**: Spotify-like downloads, offline playback, background audio
+
+## Latest Updates (Feb 5, 2026)
+
+### Session Update 1: Dashboard & Analytics Fix
+- [x] Cleaned up 14,000+ demo listening sessions from database
+- [x] Dashboard now shows real data (0 active streams when none active)
+- [x] Realtime analytics endpoint returns accurate counts
+
+### Session Update 2: Choir Management Fix
+- [x] Fixed `/api/singers` endpoint to calculate real album/song/play counts
+- [x] Albums count now aggregated from albums collection by artist_id/artist_name
+- [x] Songs count now aggregated from songs in choir's albums
+- [x] Play counts now summed from song plays in choir's catalog
+
+### Session Update 3: Admin User Management
+- [x] Added `/api/admin/users` endpoints (GET, POST, PUT, DELETE)
+- [x] Created AdminUsersPage.jsx for managing system users
+- [x] Support for roles: admin, choir_admin, church_admin, content_manager, viewer, user
+- [x] Password-based login for admin-created users
+- [x] Added to sidebar navigation as "Admin Users"
 
 ## Database Collections
 
