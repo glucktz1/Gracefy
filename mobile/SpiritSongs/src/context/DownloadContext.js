@@ -23,14 +23,13 @@ const DOWNLOAD_DIR = FileSystem.documentDirectory + 'gracefy_songs/';
 const MIN_FILE_SIZE = 10000; // Minimum 10KB for a valid audio file
 const MAX_CONCURRENT = 1;
 
-// Download status constants
 export const DOWNLOAD_STATUS = {
   IDLE: 'idle',
   QUEUED: 'queued',
   DOWNLOADING: 'downloading',
+  VERIFYING: 'verifying',
   COMPLETED: 'completed',
   FAILED: 'failed',
-  PAUSED: 'paused',
 };
 
 export const DownloadProvider = ({ children }) => {
