@@ -16,7 +16,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
-import { useDownloads } from '../context/DownloadContext';
 import { useBilling } from '../context/BillingContext';
 import { userAPI, libraryAPI, billingAPI, getImageUrl } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,7 +25,6 @@ const THEME_KEY = '@gracefy_theme';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, isAuthenticated, logout } = useAuth();
-  const { downloads, clearAllDownloads, getTotalSize } = useDownloads();
   const { billingEnabled, isPremium, subscription, refreshBilling } = useBilling();
   
   const [loading, setLoading] = useState(false);
@@ -34,7 +32,6 @@ const ProfileScreen = ({ navigation }) => {
   const [stats, setStats] = useState({
     playlists: 0,
     liked_songs: 0,
-    downloads: 0,
     following: 0,
   });
   const [editMode, setEditMode] = useState(false);
@@ -42,7 +39,6 @@ const ProfileScreen = ({ navigation }) => {
   const [editedPhone, setEditedPhone] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('sw');
   const [currentTheme, setCurrentTheme] = useState('dark');
-  const [downloadSize, setDownloadSize] = useState(0);
   const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
@@ -54,10 +50,6 @@ const ProfileScreen = ({ navigation }) => {
       setEditedPhone(user?.phone || '');
     }
   }, [isAuthenticated, user]);
-
-  useEffect(() => {
-    // Update download stats when downloads change
-    setStats(prev => ({
       ...prev,
       downloads: downloads.length
     }));
