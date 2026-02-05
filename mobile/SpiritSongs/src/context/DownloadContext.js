@@ -1,11 +1,12 @@
 /**
- * Download Context - Manages offline song downloads
+ * DownloadContext - Robust song download manager with file validation
+ * 
  * Features:
- * - Download single songs or entire albums
- * - Track download progress
- * - Mark downloaded content
- * - Persist downloads across app sessions
- * - Show download status indicators
+ * - Queue-based downloads
+ * - Progress tracking with real-time UI updates
+ * - File integrity validation (size check)
+ * - State synchronization - only marks downloaded when file verified
+ * - Persistent storage with AsyncStorage
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
