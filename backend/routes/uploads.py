@@ -339,81 +339,99 @@ async def get_cdn_status():
 
 @router.get("/admin/cdn/stats")
 async def get_cdn_stats():
-    """Get CDN usage statistics"""
+    """Get CDN usage statistics - counts from actual content collections"""
     db = get_db()
     
-    # Count files by storage type
-    cdn_files = await db.files.count_documents({"cdn_url": {"$ne": None}})
-    mongodb_files = await db.files.count_documents({"$and": [
-        {"data": {"$exists": True}},
-        {"$or": [{"cdn_url": None}, {"cdn_url": {"$exists": False}}]}
-    ]})
-    local_files = await db.files.count_documents({"storage_type": "local"})
-    chunked_files = await db.files.count_documents({"storage_type": "chunked"})
+    # Count audio files from songs collection
+    songs_with_cdn = await db.songs.count_documents({"audio_url": {"$regex": "^https://"}})
+    songs_with_internal = await db.songs.count_documents({"audio_url": {"$regex": "^/api/"}})
+    songs_no_audio = await db.songs.count_documents({
+        "$or": [
+            {"audio_url": {"$exists": False}},
+            {"audio_url": None},
+            {"audio_url": ""}
+        ]
+    })
+    total_songs = await db.songs.count_documents({})
+    
+    # Count images from albums collection
+    albums_with_cdn_thumb = await db.albums.count_documents({"thumbnail": {"$regex": "^https://"}})
+    albums_with_base64_thumb = await db.albums.count_documents({"thumbnail": {"$regex": "^data:image"}})
+    albums_no_thumb = await db.albums.count_documents({
+        "$or": [
+            {"thumbnail": {"$exists": False}},
+            {"thumbnail": None},
+            {"thumbnail": ""}
+        ]
+    })
+    total_albums = await db.albums.count_documents({})
+    
+    # Count song thumbnails
+    songs_with_cdn_thumb = await db.songs.count_documents({"thumbnail": {"$regex": "^https://"}})
+    songs_with_base64_thumb = await db.songs.count_documents({"thumbnail": {"$regex": "^data:image"}})
+    
+    # Files collection stats (for legacy tracking)
+    cdn_tracked_files = await db.files.count_documents({"cdn_url": {"$ne": None}})
+    local_tracked_files = await db.files.count_documents({"storage_type": "local"})
     total_tracked = await db.files.count_documents({})
     
-    # Total CDN size
-    cdn_size_pipeline = [
-        {"$match": {"cdn_url": {"$ne": None}}},
-        {"$group": {"_id": None, "total": {"$sum": "$size_bytes"}}}
+    # Estimate sizes (from songs and albums)
+    songs_size_pipeline = [
+        {"$match": {"audio_url": {"$regex": "^https://"}}},
+        {"$group": {"_id": None, "count": {"$sum": 1}}}
     ]
-    cdn_size_result = await db.files.aggregate(cdn_size_pipeline).to_list(1)
-    cdn_size = cdn_size_result[0]["total"] if cdn_size_result else 0
+    songs_result = await db.songs.aggregate(songs_size_pipeline).to_list(1)
+    cdn_audio_count = songs_result[0]["count"] if songs_result else 0
     
-    # Total local size
-    local_size_pipeline = [
-        {"$match": {"$or": [{"cdn_url": None}, {"cdn_url": {"$exists": False}}]}},
-        {"$group": {"_id": None, "total": {"$sum": "$size_bytes"}}}
-    ]
-    local_size_result = await db.files.aggregate(local_size_pipeline).to_list(1)
-    local_size = local_size_result[0]["total"] if local_size_result else 0
-    
-    # Files by folder/type (for backend compatibility)
-    folder_pipeline = [
-        {"$group": {"_id": "$folder", "count": {"$sum": 1}, "size": {"$sum": "$size_bytes"}}}
-    ]
-    folder_stats = await db.files.aggregate(folder_pipeline).to_list(20)
-    
-    # Build folders dict in the structure the frontend expects
+    # Build response
     folders = {
-        "audio": {"count": 0, "size_mb": 0},
-        "images": {"count": 0, "size_mb": 0},
-        "thumbnails": {"count": 0, "size_mb": 0}
-    }
-    by_folder = {}
-    for item in folder_stats:
-        folder_name = item["_id"] or "general"
-        folder_data = {
-            "count": item["count"],
-            "size_mb": round((item["size"] or 0) / (1024 * 1024), 2)
+        "audio": {
+            "count": songs_with_cdn,
+            "size_mb": round(songs_with_cdn * 5, 2),  # Estimate ~5MB per song
+            "cdn_count": songs_with_cdn,
+            "internal_count": songs_with_internal,
+            "missing_count": songs_no_audio
+        },
+        "images": {
+            "count": albums_with_cdn_thumb,
+            "size_mb": round(albums_with_cdn_thumb * 0.5, 2),  # Estimate ~0.5MB per image
+            "cdn_count": albums_with_cdn_thumb,
+            "base64_count": albums_with_base64_thumb,
+            "missing_count": albums_no_thumb
+        },
+        "thumbnails": {
+            "count": songs_with_cdn_thumb,
+            "size_mb": round(songs_with_cdn_thumb * 0.2, 2),  # Estimate ~0.2MB per thumbnail
+            "cdn_count": songs_with_cdn_thumb,
+            "base64_count": songs_with_base64_thumb
         }
-        by_folder[folder_name] = folder_data
-        # Map to known folder types
-        if folder_name in ["audio", "teachings"]:
-            folders["audio"]["count"] += item["count"]
-            folders["audio"]["size_mb"] += folder_data["size_mb"]
-        elif folder_name in ["images", "covers", "banners"]:
-            folders["images"]["count"] += item["count"]
-            folders["images"]["size_mb"] += folder_data["size_mb"]
-        elif folder_name in ["thumbnails"]:
-            folders["thumbnails"]["count"] += item["count"]
-            folders["thumbnails"]["size_mb"] += folder_data["size_mb"]
+    }
     
-    total_size_mb = round((cdn_size + local_size) / (1024 * 1024), 2)
+    total_cdn_files = songs_with_cdn + albums_with_cdn_thumb + songs_with_cdn_thumb
+    total_local_files = songs_with_internal + albums_with_base64_thumb + songs_with_base64_thumb
     
     return {
-        "cdn_files": cdn_files,
-        "local_files": local_files + chunked_files,
-        "total_size_mb": total_size_mb,
-        "total_cdn_size_mb": round(cdn_size / (1024 * 1024), 2),
-        "total_local_size_mb": round(local_size / (1024 * 1024), 2),
+        "cdn_files": total_cdn_files,
+        "local_files": total_local_files,
+        "total_size_mb": round((total_cdn_files * 5) + (albums_with_cdn_thumb * 0.5), 2),
+        "total_cdn_size_mb": round((songs_with_cdn * 5) + (albums_with_cdn_thumb * 0.5), 2),
+        "total_local_size_mb": 0,
         "database_stats": {
-            "mongodb_files": mongodb_files + chunked_files,
-            "cdn_files": cdn_files,
-            "total_tracked": total_tracked
+            "total_songs": total_songs,
+            "songs_on_cdn": songs_with_cdn,
+            "songs_on_internal": songs_with_internal,
+            "songs_no_audio": songs_no_audio,
+            "total_albums": total_albums,
+            "albums_with_cdn_images": albums_with_cdn_thumb,
+            "albums_with_base64_images": albums_with_base64_thumb,
+            "legacy_files_tracked": total_tracked
         },
         "folders": folders,
-        "by_folder": by_folder
+        "summary": {
+            "audio": f"{songs_with_cdn}/{total_songs} songs on CDN",
+            "images": f"{albums_with_cdn_thumb}/{total_albums} album images on CDN",
+            "thumbnails": f"{songs_with_cdn_thumb} song thumbnails on CDN"
+        }
     }
 
 
