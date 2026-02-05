@@ -3,6 +3,7 @@
  * Features:
  * - Playlists management
  * - Liked songs
+ * - Downloaded songs for offline listening
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -29,6 +30,7 @@ import { libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
+import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { SongActionsSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
@@ -58,6 +60,7 @@ const LibraryScreen = ({ navigation, route }) => {
   const authContext = useAuth();
   const playerContext = usePlayer();
   const billingContext = useBilling();
+  const downloadContext = useDownloads();
   
   // Safe extraction
   const isAuthenticated = authContext?.isAuthenticated ?? false;
@@ -65,6 +68,15 @@ const LibraryScreen = ({ navigation, route }) => {
   const playTrack = playerContext?.playTrack ?? (() => {});
   const currentTrack = playerContext?.currentTrack ?? null;
   const isPlaying = playerContext?.isPlaying ?? false;
+  
+  // Download context
+  const downloadedSongs = downloadContext?.getDownloadedSongs?.() ?? [];
+  const downloadCount = downloadContext?.downloadCount ?? 0;
+  const getTotalDownloadSize = downloadContext?.getTotalDownloadSize ?? (() => 0);
+  const isDownloaded = downloadContext?.isDownloaded ?? (() => false);
+  const getDownloadedFilePath = downloadContext?.getDownloadedFilePath ?? (() => null);
+  const removeDownload = downloadContext?.removeDownload ?? (() => {});
+  const clearAllDownloads = downloadContext?.clearAllDownloads ?? (() => {});
 
   // Update tab from route params
   useEffect(() => {
@@ -275,6 +287,7 @@ const LibraryScreen = ({ navigation, route }) => {
   const tabs = [
     { id: 'playlists', label: 'Playlist', icon: 'list' },
     { id: 'liked', label: 'Zilizopendwa', icon: 'heart' },
+    { id: 'downloads', label: 'Downloads', icon: 'download' },
   ];
 
   // Playlists Tab Content
@@ -294,6 +307,22 @@ const LibraryScreen = ({ navigation, route }) => {
           <View style={styles.quickAccessInfo}>
             <Text style={styles.quickAccessTitle}>Nyimbo Pendwa</Text>
             <Text style={styles.quickAccessCount}>{likedSongs.length} nyimbo</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
+        </TouchableOpacity>
+
+        {/* Downloads Card */}
+        <TouchableOpacity 
+          style={styles.quickAccessCard}
+          onPress={() => setActiveTab('downloads')}
+          data-testid="quick-access-downloads"
+        >
+          <View style={[styles.quickAccessIcon, { backgroundColor: COLORS.primary + '30' }]}>
+            <Ionicons name="download" size={24} color={COLORS.primary} />
+          </View>
+          <View style={styles.quickAccessInfo}>
+            <Text style={styles.quickAccessTitle}>Downloads</Text>
+            <Text style={styles.quickAccessCount}>{downloadCount} nyimbo • {formatFileSize(getTotalDownloadSize())}</Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
         </TouchableOpacity>
