@@ -110,6 +110,31 @@ export default function Dashboard() {
         <p className="page-subtitle">Welcome back! Here's what's happening with your platform.</p>
       </div>
 
+      {/* Live Streaming Banner */}
+      {streamingStats && (
+        <div className="bg-gradient-to-r from-emerald-900/30 via-zinc-900 to-violet-900/30 rounded-xl p-4 mb-6 border border-zinc-800">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-emerald-400 font-medium">Live</span>
+              </div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{streamingStats.active_streams || 0}</span> active streams
+              </div>
+              <div className="text-zinc-500">•</div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{streamingStats.active_listeners || 0}</span> listeners now
+              </div>
+              <div className="text-zinc-500">•</div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{streamingStats.plays_today || 0}</span> plays today
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Primary Stats */}
       <div className="stats-grid">
         {stats.map((stat, index) => (
@@ -119,14 +144,11 @@ export default function Dashboard() {
                 <div className={`stat-icon ${stat.color}`}>
                   <stat.icon size={20} />
                 </div>
-                <span className="text-emerald-400 text-xs font-medium flex items-center gap-1">
-                  <TrendingUp size={12} />
-                  {stat.trend}
-                </span>
               </div>
               <div className="mt-4">
                 <p className="stat-value">{stat.value}</p>
                 <p className="stat-label">{stat.label}</p>
+                {stat.subValue && <p className="text-xs text-zinc-500 mt-1">{stat.subValue}</p>}
               </div>
             </CardContent>
           </Card>
