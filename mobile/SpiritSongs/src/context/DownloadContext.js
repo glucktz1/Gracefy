@@ -196,14 +196,16 @@ export const DownloadProvider = ({ children }) => {
     };
   }, [queueDownload]);
 
-  // Process next download in queue
+  // Process download queue - one at a time with proper validation
   const processNextDownload = useCallback(async () => {
-    if (downloadQueue.length === 0 || isProcessing) return;
-
+    if (isProcessing || downloadQueue.length === 0) return;
+    
     setIsProcessing(true);
     const song = downloadQueue[0];
 
     try {
+      console.log('[Downloads] Starting download for:', song.title);
+      
       // Update status to downloading
       setActiveDownloads(prev => ({
         ...prev,
@@ -216,121 +218,155 @@ export const DownloadProvider = ({ children }) => {
       // Get download URL
       let audioUrl = song.audio_url;
       
-      // If URL is relative, try to get full URL from API
+      // If URL is relative or missing, try to get full URL from API
       if (!audioUrl?.startsWith('http')) {
         try {
+          console.log('[Downloads] Fetching download URL from API...');
           const response = await contentAPI.getSongDownloadUrl(song.song_id);
-          audioUrl = response?.data?.direct_url || response?.data?.download_url;
+          audioUrl = response?.data?.direct_url || response?.data?.download_url || response?.data?.audio_url;
+          console.log('[Downloads] Got URL from API:', audioUrl);
         } catch (e) {
-          console.error('[Downloads] Failed to get download URL:', e);
+          console.error('[Downloads] Failed to get download URL from API:', e);
         }
       }
 
       if (!audioUrl?.startsWith('http')) {
-        throw new Error('Haiwezi kupata URL ya kupakua');
+        throw new Error('Haiwezi kupata URL ya kupakua - hakuna link');
       }
 
-      // Create filename
-      const safeTitle = (song.title || 'song').replace(/[^a-zA-Z0-9]/g, '_');
+      // Ensure download directory exists
+      const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
+      if (!dirInfo.exists) {
+        console.log('[Downloads] Creating download directory...');
+        await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
+      }
+
+      // Create safe filename
+      const safeTitle = (song.title || 'song').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
       const fileName = `${safeTitle}_${song.song_id}.mp3`;
       const filePath = DOWNLOAD_DIR + fileName;
 
-      console.log('[Downloads] Downloading:', audioUrl);
-      console.log('[Downloads] To:', filePath);
+      console.log('[Downloads] Downloading from:', audioUrl);
+      console.log('[Downloads] Saving to:', filePath);
 
-      // Create download resumable
+      // Delete existing file if present (fresh download)
+      const existingFile = await FileSystem.getInfoAsync(filePath);
+      if (existingFile.exists) {
+        await FileSystem.deleteAsync(filePath, { idempotent: true });
+      }
+
+      // Create download with progress callback
       const downloadResumable = FileSystem.createDownloadResumable(
         audioUrl,
         filePath,
         {
           headers: {
-            'Accept': 'audio/mpeg, audio/*',
+            'Accept': 'audio/mpeg, audio/*, */*',
             'User-Agent': 'Gracefy-App/1.0'
           }
         },
         (progress) => {
-          const percent = Math.round(
-            (progress.totalBytesWritten / progress.totalBytesExpectedToWrite) * 100
-          );
-          const safePercent = isNaN(percent) || !isFinite(percent) ? 0 : Math.min(percent, 100);
-          
-          setActiveDownloads(prev => ({
-            ...prev,
-            [song.song_id]: { 
-              ...prev[song.song_id], 
-              progress: safePercent 
-            }
-          }));
+          if (progress.totalBytesExpectedToWrite > 0) {
+            const percent = Math.round(
+              (progress.totalBytesWritten / progress.totalBytesExpectedToWrite) * 100
+            );
+            const safePercent = Math.min(Math.max(percent, 0), 99); // Cap at 99 until verified
+            
+            setActiveDownloads(prev => ({
+              ...prev,
+              [song.song_id]: { 
+                ...prev[song.song_id], 
+                progress: safePercent,
+                bytesWritten: progress.totalBytesWritten,
+                totalBytes: progress.totalBytesExpectedToWrite
+              }
+            }));
+          }
         }
       );
 
-      // Store reference for cancellation
+      // Store reference for potential cancellation
       downloadTasksRef.current[song.song_id] = downloadResumable;
 
-      // Start download
+      // Execute download
       const result = await downloadResumable.downloadAsync();
+      
+      console.log('[Downloads] Download result:', result);
 
-      if (result?.uri) {
-        // Update status to verifying
-        setActiveDownloads(prev => ({
-          ...prev,
-          [song.song_id]: { 
-            ...prev[song.song_id], 
-            status: DOWNLOAD_STATUS.VERIFYING,
-            progress: 100
-          }
-        }));
-
-        // Verify file integrity
-        const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        
-        if (!fileInfo.exists) {
-          throw new Error('Faili iliyopakuliwa haipatikani');
+      // Update to verifying status
+      setActiveDownloads(prev => ({
+        ...prev,
+        [song.song_id]: { 
+          ...prev[song.song_id], 
+          progress: 99, 
+          status: DOWNLOAD_STATUS.VERIFYING 
         }
-        
-        if (fileInfo.size < MIN_FILE_SIZE) {
-          throw new Error(`Faili ni ndogo sana (${fileInfo.size} bytes). Inaweza kuwa imeharibika.`);
-        }
+      }));
 
-        console.log(`[Downloads] File verified: ${fileInfo.size} bytes`);
-
-        // Save to downloads
-        const downloadData = {
-          ...song,
-          file_path: result.uri,
-          file_size: fileInfo.size,
-          downloaded_at: new Date().toISOString(),
-        };
-
-        setDownloads(prev => {
-          const updated = { ...prev, [song.song_id]: downloadData };
-          persistDownloads(updated);
-          return updated;
-        });
-
-        // Update status to completed
-        setActiveDownloads(prev => ({
-          ...prev,
-          [song.song_id]: { progress: 100, status: DOWNLOAD_STATUS.COMPLETED, song }
-        }));
-
-        console.log('[Downloads] Completed:', song.title);
-
-        // Remove from active after delay
-        setTimeout(() => {
-          setActiveDownloads(prev => {
-            const updated = { ...prev };
-            delete updated[song.song_id];
-            return updated;
-          });
-        }, 2000);
-
-      } else {
-        throw new Error('Download hakukamilika');
+      // CRITICAL: Verify file actually exists and has valid size
+      if (!result?.uri) {
+        throw new Error('Download haikurudisha faili - jaribu tena');
       }
 
+      const fileInfo = await FileSystem.getInfoAsync(result.uri);
+      console.log('[Downloads] File verification:', {
+        exists: fileInfo.exists,
+        size: fileInfo.size,
+        uri: result.uri
+      });
+
+      if (!fileInfo.exists) {
+        throw new Error('Faili haikuhifadhiwa kwenye kifaa - jaribu tena');
+      }
+
+      if (fileInfo.size < MIN_FILE_SIZE) {
+        // File too small - likely an error response, delete it
+        await FileSystem.deleteAsync(result.uri, { idempotent: true });
+        throw new Error(`Faili ni ndogo sana (${fileInfo.size} bytes) - huenda ni tatizo la mtandao`);
+      }
+
+      // SUCCESS: File verified, save to downloads state
+      const downloadData = {
+        ...song,
+        file_path: result.uri,
+        file_size: fileInfo.size,
+        downloaded_at: new Date().toISOString(),
+        verified: true,
+      };
+
+      // Update downloads state and persist
+      setDownloads(prev => {
+        const updated = { ...prev, [song.song_id]: downloadData };
+        persistDownloads(updated);
+        return updated;
+      });
+
+      // Update to completed status
+      setActiveDownloads(prev => ({
+        ...prev,
+        [song.song_id]: { 
+          progress: 100, 
+          status: DOWNLOAD_STATUS.COMPLETED, 
+          song,
+          fileSize: fileInfo.size
+        }
+      }));
+
+      console.log('[Downloads] ✓ Verified and saved:', song.title, '- Size:', fileInfo.size);
+      showToast(`"${song.title}" imepakuliwa ✓`, 'success');
+
+      // Remove from active downloads after delay (keep showing success briefly)
+      setTimeout(() => {
+        setActiveDownloads(prev => {
+          const updated = { ...prev };
+          delete updated[song.song_id];
+          return updated;
+        });
+        delete downloadTasksRef.current[song.song_id];
+      }, 3000);
+
     } catch (error) {
-      console.error('[Downloads] Download failed:', error);
+      console.error('[Downloads] ✗ Download failed:', error.message);
       
       // Update status to failed
       setActiveDownloads(prev => ({
@@ -339,9 +375,11 @@ export const DownloadProvider = ({ children }) => {
           progress: 0, 
           status: DOWNLOAD_STATUS.FAILED, 
           song,
-          error: error.message 
+          error: error.message
         }
       }));
+
+      showToast(`Imeshindikana: ${error.message}`, 'error');
 
       // Remove from active after delay
       setTimeout(() => {
@@ -350,13 +388,12 @@ export const DownloadProvider = ({ children }) => {
           delete updated[song.song_id];
           return updated;
         });
-      }, 3000);
-
+        delete downloadTasksRef.current[song.song_id];
+      }, 5000);
     } finally {
-      delete downloadTasksRef.current[song.song_id];
       setIsProcessing(false);
     }
-  }, [downloadQueue, isProcessing]);
+  }, [isProcessing, downloadQueue, persistDownloads]);
 
   // Cancel a download
   const cancelDownload = useCallback(async (songId) => {
