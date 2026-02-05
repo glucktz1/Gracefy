@@ -603,97 +603,324 @@ async def get_content_analytics(content_type: str, content_id: str):
 async def get_enhanced_analytics(
     period: str = Query("30d", description="Time period: 7d, 30d, 90d, 365d")
 ):
-    """Get comprehensive enhanced analytics for the dashboard"""
+    """Get comprehensive enhanced analytics for the dashboard with real data"""
     db = get_db()
     from datetime import timedelta
     
     days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
-    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    now = datetime.now(timezone.utc)
+    start_date = now - timedelta(days=days)
     
-    # Overview stats
-    total_users = await db.app_users.count_documents({})
-    new_users = await db.app_users.count_documents({"created_at": {"$gte": start_date.isoformat()}})
-    total_songs = await db.songs.count_documents({})
+    # ========== OVERVIEW STATS ==========
+    # Total users (app_users + regular users)
+    total_app_users = await db.app_users.count_documents({})
+    total_system_users = await db.users.count_documents({})
+    total_users = total_app_users + total_system_users
+    
+    # New users in period
+    new_app_users = await db.app_users.count_documents({"created_at": {"$gte": start_date.isoformat()}})
+    new_system_users = await db.users.count_documents({"created_at": {"$gte": start_date.isoformat()}})
+    new_users = new_app_users + new_system_users
+    
+    # Content stats
+    total_songs = await db.songs.count_documents({"status": {"$ne": "disabled_no_audio"}})
     total_albums = await db.albums.count_documents({})
-    total_plays = await db.listening_sessions.count_documents({"counted_as_play": True})
+    total_choirs = await db.singers.count_documents({})
     
-    # Listening sessions in period
-    period_plays = await db.listening_sessions.count_documents({
+    # ========== STREAMING STATS ==========
+    # Total streams (plays that counted - 45+ seconds)
+    total_streams = await db.listening_sessions.count_documents({"counted_as_play": True})
+    
+    # Streams in period
+    period_streams = await db.listening_sessions.count_documents({
         "counted_as_play": True,
         "start_time": {"$gte": start_date.isoformat()}
     })
     
-    # Total listening time in period
+    # Unique listeners in period
+    unique_listeners_result = await db.listening_sessions.distinct("user_id", {
+        "start_time": {"$gte": start_date.isoformat()}
+    })
+    unique_listeners = len([u for u in unique_listeners_result if u])
+    
+    # Total listening time
     listen_time_pipeline = [
         {"$match": {"start_time": {"$gte": start_date.isoformat()}}},
-        {"$group": {"_id": None, "total": {"$sum": "$duration_seconds"}}}
+        {"$group": {"_id": None, "total_seconds": {"$sum": "$duration_seconds"}}}
     ]
     listen_time_result = await db.listening_sessions.aggregate(listen_time_pipeline).to_list(1)
-    total_listen_hours = round((listen_time_result[0]["total"] if listen_time_result else 0) / 3600, 1)
+    total_listen_seconds = listen_time_result[0]["total_seconds"] if listen_time_result else 0
+    total_listening_hours = round(total_listen_seconds / 3600, 2)
     
-    # Top songs
-    top_songs = await db.songs.find(
-        {"status": "active"},
-        {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "play_count": 1}
-    ).sort("play_count", -1).limit(10).to_list(10)
+    # Average session duration
+    if period_streams > 0:
+        avg_session_duration = round(total_listen_seconds / period_streams / 60, 1)  # in minutes
+    else:
+        avg_session_duration = 0
     
-    # Top albums
-    top_albums = await db.albums.find(
-        {"status": "active"},
-        {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "play_count": 1, "total_plays": 1}
-    ).sort("total_plays", -1).limit(10).to_list(10)
+    # Unique songs played
+    unique_songs = await db.listening_sessions.distinct("content_id", {
+        "content_type": "song",
+        "start_time": {"$gte": start_date.isoformat()}
+    })
+    unique_songs_played = len(unique_songs) if unique_songs else 0
     
-    # Platform distribution
-    platform_pipeline = [
-        {"$match": {"start_time": {"$gte": start_date.isoformat()}}},
-        {"$group": {"_id": "$platform", "count": {"$sum": 1}}}
+    # ========== REVENUE STATS (only if billing enabled) ==========
+    # Check if billing/monetization is enabled
+    revenue_settings = await db.revenue_settings.find_one({}, {"_id": 0})
+    billing_enabled = revenue_settings.get("billing_enabled", False) if revenue_settings else False
+    monetization_mode = revenue_settings.get("monetization_mode", "time_based") if revenue_settings else "time_based"
+    
+    gross_revenue = 0
+    platform_revenue = 0
+    choir_payouts = 0
+    premium_hours = 0
+    standard_hours = 0
+    
+    if billing_enabled and revenue_settings:
+        premium_rate = revenue_settings.get("premium_rate_per_hour", 10)
+        standard_rate = revenue_settings.get("standard_rate_per_hour", 5)
+        platform_share = revenue_settings.get("platform_share_percentage", 30) / 100
+        
+        # Calculate revenue from listening sessions
+        revenue_sessions = await db.listening_sessions.find({
+            "counted_as_play": True,
+            "start_time": {"$gte": start_date.isoformat()}
+        }, {"_id": 0, "duration_seconds": 1, "monetization_type": 1, "revenue_earned": 1}).to_list(100000)
+        
+        for session in revenue_sessions:
+            duration_hours = session.get("duration_seconds", 0) / 3600
+            mon_type = session.get("monetization_type", "standard")
+            
+            if session.get("revenue_earned"):
+                # Use pre-calculated revenue
+                gross_revenue += session["revenue_earned"]
+            else:
+                # Calculate revenue
+                if mon_type == "premium":
+                    session_revenue = duration_hours * premium_rate
+                    premium_hours += duration_hours
+                else:
+                    session_revenue = duration_hours * standard_rate
+                    standard_hours += duration_hours
+                gross_revenue += session_revenue
+        
+        platform_revenue = gross_revenue * platform_share
+        choir_payouts = gross_revenue * (1 - platform_share)
+    
+    # Revenue-eligible streams (45+ seconds)
+    revenue_streams = await db.listening_sessions.count_documents({
+        "counted_as_play": True,
+        "duration_seconds": {"$gte": 45},
+        "start_time": {"$gte": start_date.isoformat()}
+    })
+    
+    # ========== DAILY TREND ==========
+    daily_trend = []
+    for i in range(days, 0, -1):
+        day = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        day_start = f"{day}T00:00:00"
+        day_end = f"{day}T23:59:59"
+        
+        # Streams on this day
+        day_streams = await db.listening_sessions.count_documents({
+            "counted_as_play": True,
+            "start_time": {"$gte": day_start, "$lte": day_end}
+        })
+        
+        # Revenue on this day (if billing enabled)
+        day_revenue = 0
+        if billing_enabled:
+            day_sessions = await db.listening_sessions.find({
+                "counted_as_play": True,
+                "start_time": {"$gte": day_start, "$lte": day_end}
+            }, {"_id": 0, "duration_seconds": 1, "revenue_earned": 1}).to_list(10000)
+            
+            for s in day_sessions:
+                if s.get("revenue_earned"):
+                    day_revenue += s["revenue_earned"]
+                else:
+                    day_revenue += (s.get("duration_seconds", 0) / 3600) * (revenue_settings.get("standard_rate_per_hour", 5) if revenue_settings else 5)
+        
+        daily_trend.append({
+            "date": day,
+            "streams": day_streams,
+            "revenue": round(day_revenue, 2)
+        })
+    
+    # ========== TOP SONGS ==========
+    top_songs_pipeline = [
+        {"$match": {"counted_as_play": True, "content_type": "song", "start_time": {"$gte": start_date.isoformat()}}},
+        {"$group": {
+            "_id": "$content_id",
+            "plays": {"$sum": 1},
+            "total_seconds": {"$sum": "$duration_seconds"}
+        }},
+        {"$sort": {"plays": -1}},
+        {"$limit": 10}
     ]
-    platforms = await db.listening_sessions.aggregate(platform_pipeline).to_list(10)
+    top_songs_raw = await db.listening_sessions.aggregate(top_songs_pipeline).to_list(10)
     
-    # Daily plays trend
-    daily_pipeline = [
+    top_songs = []
+    for item in top_songs_raw:
+        song = await db.songs.find_one({"song_id": item["_id"]}, {"_id": 0, "title": 1, "artist_name": 1, "album_id": 1})
+        if song:
+            album = await db.albums.find_one({"album_id": song.get("album_id")}, {"_id": 0, "title": 1})
+            top_songs.append({
+                "song_id": item["_id"],
+                "title": song.get("title", "Unknown"),
+                "artist": song.get("artist_name", "Unknown"),
+                "album": album.get("title", "") if album else "",
+                "plays": item["plays"],
+                "hours": round(item["total_seconds"] / 3600, 2)
+            })
+    
+    # ========== TOP CHOIRS ==========
+    top_choirs_pipeline = [
         {"$match": {"counted_as_play": True, "start_time": {"$gte": start_date.isoformat()}}},
-        {"$addFields": {"date": {"$substr": ["$start_time", 0, 10]}}},
-        {"$group": {"_id": "$date", "plays": {"$sum": 1}}},
-        {"$sort": {"_id": 1}},
-        {"$limit": days}
+        {"$lookup": {
+            "from": "songs",
+            "localField": "content_id",
+            "foreignField": "song_id",
+            "as": "song"
+        }},
+        {"$unwind": {"path": "$song", "preserveNullAndEmptyArrays": True}},
+        {"$group": {
+            "_id": "$song.artist_name",
+            "streams": {"$sum": 1},
+            "total_seconds": {"$sum": "$duration_seconds"},
+            "listeners": {"$addToSet": "$user_id"}
+        }},
+        {"$sort": {"streams": -1}},
+        {"$limit": 10}
     ]
-    daily_plays = await db.listening_sessions.aggregate(daily_pipeline).to_list(days)
+    top_choirs_raw = await db.listening_sessions.aggregate(top_choirs_pipeline).to_list(10)
     
-    # Revenue summary
-    revenue_pipeline = [
-        {"$match": {"status": "completed", "created_at": {"$gte": start_date.isoformat()}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-    ]
-    revenue_result = await db.transactions.aggregate(revenue_pipeline).to_list(1)
-    total_revenue = revenue_result[0]["total"] if revenue_result else 0
-    transaction_count = revenue_result[0]["count"] if revenue_result else 0
+    top_choirs = []
+    for item in top_choirs_raw:
+        if item["_id"]:
+            hours = round(item["total_seconds"] / 3600, 2)
+            revenue = hours * (revenue_settings.get("standard_rate_per_hour", 5) if revenue_settings and billing_enabled else 0)
+            top_choirs.append({
+                "choir_id": item["_id"],
+                "name": item["_id"],
+                "streams": item["streams"],
+                "hours": hours,
+                "unique_listeners": len([l for l in item["listeners"] if l]),
+                "revenue": round(revenue, 2)
+            })
     
-    # Content type breakdown
-    content_type_pipeline = [
-        {"$match": {"counted_as_play": True, "start_time": {"$gte": start_date.isoformat()}}},
-        {"$group": {"_id": "$content_type", "plays": {"$sum": 1}}}
+    # ========== CATEGORY DISTRIBUTION ==========
+    categories_pipeline = [
+        {"$match": {"counted_as_play": True, "content_type": "song", "start_time": {"$gte": start_date.isoformat()}}},
+        {"$lookup": {
+            "from": "songs",
+            "localField": "content_id",
+            "foreignField": "song_id",
+            "as": "song"
+        }},
+        {"$unwind": {"path": "$song", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {
+            "from": "albums",
+            "localField": "song.album_id",
+            "foreignField": "album_id",
+            "as": "album"
+        }},
+        {"$unwind": {"path": "$album", "preserveNullAndEmptyArrays": True}},
+        {"$group": {
+            "_id": "$album.category_name",
+            "streams": {"$sum": 1}
+        }},
+        {"$sort": {"streams": -1}},
+        {"$limit": 6}
     ]
-    content_types = await db.listening_sessions.aggregate(content_type_pipeline).to_list(10)
+    categories_raw = await db.listening_sessions.aggregate(categories_pipeline).to_list(6)
+    categories = [{"name": c["_id"] or "Uncategorized", "streams": c["streams"]} for c in categories_raw]
+    
+    # ========== ALBUM PERFORMANCE ==========
+    albums_pipeline = [
+        {"$match": {"counted_as_play": True, "content_type": "song", "start_time": {"$gte": start_date.isoformat()}}},
+        {"$lookup": {
+            "from": "songs",
+            "localField": "content_id",
+            "foreignField": "song_id",
+            "as": "song"
+        }},
+        {"$unwind": "$song"},
+        {"$group": {
+            "_id": "$song.album_id",
+            "total_plays": {"$sum": 1},
+            "total_seconds": {"$sum": "$duration_seconds"}
+        }},
+        {"$sort": {"total_plays": -1}},
+        {"$limit": 10}
+    ]
+    albums_raw = await db.listening_sessions.aggregate(albums_pipeline).to_list(10)
+    
+    albums = []
+    for item in albums_raw:
+        album = await db.albums.find_one({"album_id": item["_id"]}, {"_id": 0, "title": 1, "artist_name": 1, "monetization_type": 1})
+        if album:
+            total_minutes = round(item["total_seconds"] / 60, 1)
+            total_hours = round(item["total_seconds"] / 3600, 2)
+            avg_per_play = round(total_minutes / item["total_plays"], 1) if item["total_plays"] > 0 else 0
+            
+            # Calculate revenue based on album type
+            rate = revenue_settings.get("premium_rate_per_hour", 10) if album.get("monetization_type") == "premium" else revenue_settings.get("standard_rate_per_hour", 5) if revenue_settings else 5
+            revenue = round(total_hours * rate, 2) if billing_enabled else 0
+            
+            albums.append({
+                "album_id": item["_id"],
+                "title": album.get("title", "Unknown"),
+                "artist_name": album.get("artist_name", "Unknown"),
+                "monetization_type": album.get("monetization_type", "standard"),
+                "total_plays": item["total_plays"],
+                "minutes_streamed": total_minutes,
+                "total_hours": total_hours,
+                "avg_minutes_per_play": avg_per_play,
+                "revenue": revenue
+            })
+    
+    # ========== RATES INFO ==========
+    rates = {
+        "premium_rate": revenue_settings.get("premium_rate_per_hour", 0) if revenue_settings else 0,
+        "standard_rate": revenue_settings.get("standard_rate_per_hour", 0) if revenue_settings else 0,
+        "platform_share": revenue_settings.get("platform_share_percentage", 30) if revenue_settings else 30,
+        "billing_enabled": billing_enabled,
+        "monetization_mode": monetization_mode
+    }
     
     return {
         "period": period,
         "overview": {
-            "total_users": total_users,
-            "new_users": new_users,
-            "total_songs": total_songs,
-            "total_albums": total_albums,
-            "total_plays": total_plays,
-            "period_plays": period_plays,
-            "total_listen_hours": total_listen_hours,
-            "total_revenue": total_revenue,
-            "transaction_count": transaction_count
+            "total_streams": total_streams,
+            "revenue_streams": revenue_streams,
+            "unique_listeners": unique_listeners,
+            "total_listening_hours": total_listening_hours,
+            "avg_session_duration": avg_session_duration,
+            "unique_songs_played": unique_songs_played,
+            "gross_revenue": round(gross_revenue, 2),
+            "platform_revenue": round(platform_revenue, 2),
+            "choir_payouts": round(choir_payouts, 2)
         },
+        "platform_stats": {
+            "total_albums": total_albums,
+            "total_songs": total_songs,
+            "total_choirs": total_choirs,
+            "total_users": total_users
+        },
+        "revenue_breakdown": {
+            "premium_hours": round(premium_hours, 2),
+            "standard_hours": round(standard_hours, 2),
+            "premium_revenue": round(premium_hours * (revenue_settings.get("premium_rate_per_hour", 10) if revenue_settings else 10), 2) if billing_enabled else 0,
+            "standard_revenue": round(standard_hours * (revenue_settings.get("standard_rate_per_hour", 5) if revenue_settings else 5), 2) if billing_enabled else 0
+        },
+        "daily_trend": daily_trend,
         "top_songs": top_songs,
-        "top_albums": top_albums,
-        "platforms": [{"platform": p["_id"] or "unknown", "plays": p["count"]} for p in platforms],
-        "daily_plays": [{"date": d["_id"], "plays": d["plays"]} for d in daily_plays],
-        "content_types": [{"type": c["_id"] or "unknown", "plays": c["plays"]} for c in content_types]
+        "top_choirs": top_choirs,
+        "categories": categories,
+        "albums": albums,
+        "rates": rates
     }
 
 
