@@ -514,6 +514,7 @@ function AppRouter() {
         <Route path="/withdrawals" element={<ProtectedRoute><WithdrawalsPage /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
         <Route path="/albums" element={<ProtectedRoute><AlbumsPage /></ProtectedRoute>} />
         <Route path="/leader-content" element={<ProtectedRoute><ContentManagementPage /></ProtectedRoute>} />
