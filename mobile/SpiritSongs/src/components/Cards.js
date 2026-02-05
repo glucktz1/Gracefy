@@ -144,13 +144,20 @@ export const SongListItem = ({
         </Text>
         <View style={styles.songListMeta}>
           {isDownloading && (
-            <View style={styles.downloadedTag}>
+            <View style={styles.downloadingTag}>
+              <Ionicons name="arrow-down" size={10} color={COLORS.primary} />
               <Text style={styles.downloadingTagText}>{downloadProgress || 0}%</Text>
             </View>
           )}
           {isQueued && (
-            <View style={styles.downloadedTag}>
+            <View style={styles.queuedTag}>
+              <Ionicons name="time-outline" size={10} color={COLORS.warning} />
               <Text style={styles.queuedTagText}>Foleni</Text>
+            </View>
+          )}
+          {downloaded && !isDownloading && !isQueued && (
+            <View style={styles.downloadedTag}>
+              <Ionicons name="arrow-down-circle" size={12} color={COLORS.primary} />
             </View>
           )}
           <Text style={[styles.songListArtist, (downloaded || isDownloading || isQueued) && styles.songListArtistWithTag]} numberOfLines={1}>
@@ -159,14 +166,29 @@ export const SongListItem = ({
         </View>
       </View>
       
-      {/* Three dots menu button */}
-      <TouchableOpacity 
-        style={styles.songListMore} 
-        onPress={() => onMorePress ? onMorePress(item) : (onAddPress && onAddPress(item))}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
-      </TouchableOpacity>
+      {/* Download indicator or three dots menu */}
+      <View style={styles.songListActions}>
+        {/* Show download icon if downloaded */}
+        {downloaded && !isDownloading && (
+          <View style={styles.downloadedIcon}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+          </View>
+        )}
+        {/* Show progress if downloading */}
+        {isDownloading && (
+          <View style={styles.downloadingIcon}>
+            <Text style={styles.downloadingIconText}>{downloadProgress}%</Text>
+          </View>
+        )}
+        {/* Three dots menu button */}
+        <TouchableOpacity 
+          style={styles.songListMore} 
+          onPress={() => onMorePress ? onMorePress(item) : (onAddPress && onAddPress(item))}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 };
