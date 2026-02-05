@@ -409,14 +409,37 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginLeft: 2,
   },
+  downloadingTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 6,
+    gap: 3,
+  },
   downloadingTagText: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.primary,
     fontWeight: '600',
   },
+  queuedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warning + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 6,
+    gap: 3,
+  },
   queuedTagText: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textMuted,
+    color: COLORS.warning,
+  },
+  downloadedTag: {
+    marginRight: 6,
   },
   songListArtist: {
     fontSize: FONT_SIZES.sm,
@@ -424,6 +447,25 @@ const styles = StyleSheet.create({
   },
   songListArtistWithTag: {
     flex: 1,
+  },
+  songListActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  downloadedIcon: {
+    marginRight: 4,
+  },
+  downloadingIcon: {
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 4,
+  },
+  downloadingIconText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   songListMore: {
     padding: SPACING.sm,
