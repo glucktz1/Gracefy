@@ -29,6 +29,7 @@ const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
 // Gateway logos
 const GATEWAY_LOGOS = {
+  azampay: "https://azampay.com/images/azampay-logo.svg",
   mpesa: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/M-PESA_LOGO-01.svg/512px-M-PESA_LOGO-01.svg.png",
   tigopesa: "https://www.tigo.co.tz/sites/default/files/2020-01/tigo-pesa-logo.png",
   airtel: "https://www.airtel.co.tz/assets/images/airtel-money-logo.png",
