@@ -967,6 +967,79 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },
+
+  // Downloads Tab Styles
+  downloadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  downloadHeaderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  downloadHeaderText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+  },
+  clearAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    backgroundColor: COLORS.error + '15',
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  clearAllText: {
+    color: COLORS.error,
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '500',
+  },
+  downloadedSongItem: {
+    position: 'relative',
+  },
+  offlineBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.xl + 8,
+  },
+  downloadInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.lg,
+    opacity: 0.7,
+  },
+  downloadInfoText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZES.xs,
+  },
+  emptyIconContainer: {
+    marginBottom: SPACING.md,
+  },
+  browseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.full,
+    marginTop: SPACING.md,
+  },
+  browseButtonText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
 });
 
 export default LibraryScreen;
