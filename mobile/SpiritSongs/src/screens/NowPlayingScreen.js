@@ -150,10 +150,8 @@ const NowPlayingScreen = ({ navigation }) => {
             text: 'Futa', 
             style: 'destructive',
             onPress: async () => {
-              const success = await removeDownload(currentTrack.song_id);
-              if (success) {
-                showToast(`"${currentTrack.title}" imefutwa ✓`, 'info');
-              }
+              await removeDownload(currentTrack.song_id);
+              showToast(`"${currentTrack.title}" imefutwa ✓`, 'info');
             }
           }
         ]
@@ -171,105 +169,53 @@ const NowPlayingScreen = ({ navigation }) => {
       return;
     }
 
-    // Check permission for older Android
-    const hasPermission = await requestStoragePermission();
-    if (!hasPermission) {
-      showToast('Tafadhali ruhusu kuhifadhi faili katika Settings', 'warning');
-      return;
-    }
-
-    try {
-      setIsDownloading(true);
-      setDownloadProgress(0);
-
-      let fileUrl = null;
-      let fileName = `${currentTrack.title.replace(/[^a-zA-Z0-9]/g, '_')}_${currentTrack.song_id}.mp3`;
-
-      // Try to get download URL from API first
-      if (currentTrack.song_id) {
-        try {
-          const response = await contentAPI.getSongDownloadUrl(currentTrack.song_id);
-          if (response.data?.download_url) {
-            fileUrl = getAudioUrl(response.data.download_url);
-            if (response.data.filename) {
-              fileName = response.data.filename.replace(/[^a-zA-Z0-9.]/g, '_');
-            }
-            console.log('Got download URL from API:', fileUrl);
-          }
-        } catch (e) {
-          console.log('Could not get download URL from API, using track URL');
-        }
-      }
-
-      // Fallback to track's audio_url
-      if (!fileUrl) {
-        fileUrl = currentTrack.audio_url || currentTrack.file_url;
-        if (!fileUrl) {
-          showToast('Wimbo huu hauwezi kupakuliwa - hakuna faili', 'error');
-          setIsDownloading(false);
-          return;
-        }
-        fileUrl = getAudioUrl(fileUrl);
-      }
-
-      console.log('Downloading from:', fileUrl);
-
-      // Use app's document directory (no special permissions needed)
-      const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-      
-      // Ensure directory exists
-      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-      }
-
-      const downloadPath = `${downloadDir}${fileName}`;
-
-      // Download file with progress callback
-      const downloadResumable = FileSystem.createDownloadResumable(
-        fileUrl,
-        downloadPath,
-        {
-          headers: {
-            'Accept': 'audio/mpeg, audio/*, */*',
-          }
-        },
-        (downloadProgress) => {
-          if (downloadProgress.totalBytesExpectedToWrite > 0) {
-            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-            setDownloadProgress(Math.round(progress * 100));
-          }
-        }
-      );
-
-      const result = await downloadResumable.downloadAsync();
-      
-      if (result?.uri) {
-        // Verify file was downloaded
-        const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        console.log('Download result:', { uri: result.uri, size: fileInfo.size, exists: fileInfo.exists });
-        
-        if (fileInfo.exists && fileInfo.size > 1000) {  // At least 1KB
-          // Add to download context
-          await addDownload(currentTrack, result.uri);
-          showToast(`"${currentTrack.title}" imepakuliwa ✓`, 'success');
-        } else if (fileInfo.exists && fileInfo.size > 0) {
-          // File exists but might be small - could be an error response
-          showToast('Faili imehifadhiwa lakini inaweza kuwa na tatizo', 'warning');
-        } else {
-          throw new Error('Downloaded file is empty or too small');
-        }
-      } else {
-        throw new Error('Download failed - no URI returned');
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      showToast('Imeshindikana kupakua wimbo. Jaribu tena', 'error');
-    } finally {
-      setIsDownloading(false);
-      setDownloadProgress(0);
+    // Queue the download using download context
+    const success = queueDownload(currentTrack);
+    if (success) {
+      showToast(`"${currentTrack.title}" inapakuliwa...`, 'success');
+    } else {
+      showToast('Wimbo tayari umepakuliwa au una tatizo', 'warning');
     }
   };
+
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    
+    try {
+      if (isLiked) {
+        await libraryAPI.unlikeSong(currentTrack.song_id);
+        setIsLiked(false);
+        showToast('Imeondolewa kwenye zilizopendwa', 'info');
+      } else {
+        await libraryAPI.likeSong(currentTrack.song_id);
+        setIsLiked(true);
+        showToast('Imeongezwa kwenye zilizopendwa ❤️', 'success');
+      }
+    } catch (error) {
+      console.error('Like error:', error);
+      showToast('Imeshindikana. Jaribu tena', 'error');
+    }
+  };
+
+  // Check if song is liked when track changes
+  React.useEffect(() => {
+    const checkLikeStatus = async () => {
+      if (isAuthenticated && currentTrack?.song_id) {
+        try {
+          const response = await libraryAPI.getLikedSongs();
+          const likedSongs = response.data?.songs || [];
+          const liked = likedSongs.some(s => s.song_id === currentTrack.song_id);
+          setIsLiked(liked);
+        } catch (e) {
+          console.log('Could not check like status');
+        }
+      }
+    };
+    checkLikeStatus();
+  }, [currentTrack?.song_id, isAuthenticated]);
 
   const handleAddToPlaylist = () => {
     if (!isAuthenticated) {
