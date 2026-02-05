@@ -197,25 +197,6 @@ const AlbumScreen = ({ route, navigation }) => {
     }
   }, [newPlaylistName, selectedSong]);
 
-  const handleDownloadAlbum = useCallback(async () => {
-    if (!isAuthenticated) {
-      navigation.navigate('Login');
-      return;
-    }
-    
-    if (songs.length === 0) {
-      showToast('Hakuna nyimbo za kupakua', 'info');
-      return;
-    }
-    
-    const result = await queueAlbumDownload(songs);
-    if (result.success) {
-      showToast(result.message, 'success');
-    } else {
-      showToast('Imeshindwa kupakua', 'error');
-    }
-  }, [songs, isAuthenticated, navigation, queueAlbumDownload]);
-
   const handleLikeSong = useCallback(async (song) => {
     if (!song?.song_id || !isAuthenticated) {
       if (!isAuthenticated) {
