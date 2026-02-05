@@ -20,6 +20,7 @@ import { homeAPI, libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
+import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { SongActionsSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
@@ -50,6 +51,7 @@ const AlbumScreen = ({ route, navigation }) => {
   const playerContext = usePlayer();
   const authContext = useAuth();
   const billingContext = useBilling();
+  const downloadContext = useDownloads();
   
   // Safe extraction
   const playTrack = playerContext?.playTrack ?? (() => {});
@@ -59,6 +61,13 @@ const AlbumScreen = ({ route, navigation }) => {
   const user = authContext?.user ?? null;
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
+  
+  // Download context
+  const queueAlbumDownload = downloadContext?.queueAlbumDownload ?? (() => ({ success: false }));
+  const isDownloaded = downloadContext?.isDownloaded ?? (() => false);
+  const getDownloadStatus = downloadContext?.getDownloadStatus ?? (() => DOWNLOAD_STATUS.IDLE);
+  const downloadCount = downloadContext?.downloadCount ?? 0;
+  const queueCount = downloadContext?.queueCount ?? 0;
 
   // Load data
   useEffect(() => {
