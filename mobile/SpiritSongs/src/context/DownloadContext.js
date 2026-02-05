@@ -69,12 +69,52 @@ export const DownloadProvider = ({ children }) => {
     }
   }, [downloadQueue, isProcessing]);
 
+  // Helper: Get download directory
+  const getDownloadDirectory = () => {
+    return new Directory(Paths.document, DOWNLOAD_DIR_NAME);
+  };
+
+  // Helper: Check if file exists using new API
+  const checkFileExists = async (filePath) => {
+    try {
+      const file = new File(filePath);
+      return file.exists;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Helper: Get file size using new API
+  const getFileSize = async (filePath) => {
+    try {
+      const file = new File(filePath);
+      if (file.exists) {
+        return file.size || 0;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  // Helper: Delete file using new API
+  const deleteFile = async (filePath) => {
+    try {
+      const file = new File(filePath);
+      if (file.exists) {
+        file.delete();
+      }
+    } catch (e) {
+      console.log('[Downloads] Delete error:', e);
+    }
+  };
+
   const initializeDownloads = async () => {
     try {
-      // Ensure download directory exists
-      const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
+      // Ensure download directory exists using new API
+      const downloadDir = getDownloadDirectory();
+      if (!downloadDir.exists) {
+        downloadDir.create();
         console.log('[Downloads] Created download directory');
       }
 
@@ -87,8 +127,8 @@ export const DownloadProvider = ({ children }) => {
         const verifiedDownloads = {};
         for (const [songId, data] of Object.entries(parsed)) {
           if (data.file_path) {
-            const fileInfo = await FileSystem.getInfoAsync(data.file_path);
-            if (fileInfo.exists) {
+            const exists = await checkFileExists(data.file_path);
+            if (exists) {
               verifiedDownloads[songId] = data;
             }
           }
