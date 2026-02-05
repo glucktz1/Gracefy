@@ -1241,3 +1241,89 @@ async def get_page_analytics_detail(
         "entry_sources": sources,
         "is_sample_data": False
     }
+
+
+
+@router.post("/demo/generate-listening-data")
+async def generate_demo_listening_data():
+    """Generate demo listening session data for testing analytics"""
+    db = get_db()
+    from datetime import timedelta
+    import random
+    import uuid
+    
+    # Get existing songs
+    songs = await db.songs.find(
+        {"audio_url": {"$ne": None}}, 
+        {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "album_id": 1}
+    ).to_list(100)
+    
+    if not songs:
+        return {"error": "No songs available to generate listening data"}
+    
+    # Get existing users or create demo users
+    users = await db.app_users.find({}, {"_id": 0, "user_id": 1}).to_list(50)
+    if not users:
+        # Create demo users
+        demo_users = []
+        for i in range(20):
+            user_id = f"demo_user_{uuid.uuid4().hex[:8]}"
+            demo_users.append({
+                "user_id": user_id,
+                "email": f"demo{i}@test.com",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        await db.app_users.insert_many(demo_users)
+        users = [{"user_id": u["user_id"]} for u in demo_users]
+    
+    now = datetime.now(timezone.utc)
+    sessions_created = 0
+    
+    # Generate sessions for the last 30 days
+    for day_offset in range(30):
+        day = now - timedelta(days=day_offset)
+        
+        # 10-50 sessions per day
+        sessions_per_day = random.randint(10, 50)
+        
+        for _ in range(sessions_per_day):
+            song = random.choice(songs)
+            user = random.choice(users)
+            
+            # Random time during the day
+            hour = random.randint(6, 23)
+            minute = random.randint(0, 59)
+            session_time = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            
+            # Duration: most plays 30-240 seconds, some shorter
+            if random.random() < 0.2:  # 20% short plays (not counted)
+                duration = random.randint(10, 44)
+                counted = False
+            else:  # 80% full plays
+                duration = random.randint(45, 300)
+                counted = True
+            
+            session = {
+                "session_id": f"demo_sess_{uuid.uuid4().hex[:12]}",
+                "user_id": user["user_id"],
+                "content_id": song["song_id"],
+                "content_type": "song",
+                "start_time": session_time.isoformat(),
+                "end_time": (session_time + timedelta(seconds=duration)).isoformat(),
+                "duration_seconds": duration,
+                "counted_as_play": counted,
+                "platform": random.choice(["android", "ios", "web"]),
+                "monetization_type": random.choice(["standard", "premium"]),
+                "created_at": session_time.isoformat()
+            }
+            
+            await db.listening_sessions.insert_one(session)
+            sessions_created += 1
+    
+    return {
+        "success": True,
+        "message": f"Generated {sessions_created} demo listening sessions",
+        "sessions_created": sessions_created,
+        "songs_used": len(songs),
+        "users_used": len(users)
+    }
