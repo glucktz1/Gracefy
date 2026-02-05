@@ -18,13 +18,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-// Use standard expo-file-system API
 import * as FileSystem from 'expo-file-system';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
-import { getImageUrl, getAudioUrl, contentAPI } from '../services/api';
+import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
+import { getImageUrl, getAudioUrl, contentAPI, libraryAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
 import { showToast } from '../components/Toast';
 
@@ -52,13 +52,29 @@ const NowPlayingScreen = ({ navigation }) => {
   const { isAuthenticated, user } = useAuth();
   const insets = useSafeAreaInsets();
   
+  // Download context
+  const { 
+    isDownloaded, 
+    getDownloadStatus, 
+    getDownloadProgress,
+    queueDownload,
+    removeDownload 
+  } = useDownloads();
+  
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
 
   // Billing settings from context
   const { billingEnabled, isPremium } = useBilling();
+
+  // Get download status for current track
+  const songIsDownloaded = currentTrack ? isDownloaded(currentTrack.song_id) : false;
+  const downloadStatus = currentTrack ? getDownloadStatus(currentTrack.song_id) : DOWNLOAD_STATUS.IDLE;
+  const downloadProgress = currentTrack ? getDownloadProgress(currentTrack.song_id) : 0;
+  const isDownloading = downloadStatus === DOWNLOAD_STATUS.DOWNLOADING;
 
   if (!currentTrack) {
     return (
