@@ -20,9 +20,8 @@ import { homeAPI, libraryAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
-import { useDownloads } from '../context/DownloadContext';
 import { SongListItem, PlayAllHeader } from '../components/Cards';
-import { SongActionsSheet, PlaylistPickerSheet } from '../components/SongActionsSheet';
+import { SongActionsSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
 
 const AlbumScreen = ({ route, navigation }) => {
@@ -51,7 +50,6 @@ const AlbumScreen = ({ route, navigation }) => {
   const playerContext = usePlayer();
   const authContext = useAuth();
   const billingContext = useBilling();
-  const downloadContext = useDownloads();
   
   // Safe extraction
   const playTrack = playerContext?.playTrack ?? (() => {});
@@ -61,7 +59,6 @@ const AlbumScreen = ({ route, navigation }) => {
   const user = authContext?.user ?? null;
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
-  const queueAlbumDownload = downloadContext?.queueAlbumDownload ?? (async () => ({}));
 
   // Load data
   useEffect(() => {
