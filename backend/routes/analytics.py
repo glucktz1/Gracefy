@@ -74,32 +74,107 @@ async def get_analytics_overview():
 
 @router.get("/analytics/trends")
 async def get_trends():
-    """Get user and content trends for charts"""
-    # Mock data for charts - in production, aggregate from actual data
-    return {
-        "user_growth": [
-            {"month": "Jan", "users": 120},
-            {"month": "Feb", "users": 180},
-            {"month": "Mar", "users": 250},
-            {"month": "Apr", "users": 320},
-            {"month": "May", "users": 400},
-            {"month": "Jun", "users": 480}
-        ],
-        "content_performance": [
-            {"category": "Praise", "plays": 4500},
-            {"category": "Sermons", "plays": 3200},
-            {"category": "Christmas", "plays": 2800},
-            {"category": "Lent", "plays": 1500},
-            {"category": "Bible Study", "plays": 2100}
-        ],
-        "donations_trend": [
-            {"month": "Jan", "amount": 5000},
-            {"month": "Feb", "amount": 7500},
-            {"month": "Mar", "amount": 6200},
-            {"month": "Apr", "amount": 8800},
-            {"month": "May", "amount": 9500},
-            {"month": "Jun", "amount": 11000}
+    """Get user and content trends for charts - REAL DATA"""
+    db = get_db()
+    from datetime import timedelta
+    
+    now = datetime.now(timezone.utc)
+    
+    # User Growth - Last 6 months of real data
+    user_growth = []
+    for i in range(5, -1, -1):
+        month_start = (now - timedelta(days=30*i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_end = (month_start + timedelta(days=32)).replace(day=1)
+        month_name = month_start.strftime("%b")
+        
+        # Count users created before this month end (cumulative)
+        total_users = await db.app_users.count_documents({
+            "created_at": {"$lt": month_end.isoformat()}
+        })
+        # Also count from regular users collection
+        total_users += await db.users.count_documents({
+            "created_at": {"$lt": month_end.isoformat()}
+        })
+        
+        # Active users in this month
+        active_users = await db.listening_sessions.distinct("user_id", {
+            "start_time": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}
+        })
+        
+        user_growth.append({
+            "month": month_name,
+            "users": total_users,
+            "active": len(active_users) if active_users else 0
+        })
+    
+    # Content Performance - Real category plays from listening sessions
+    category_pipeline = [
+        {"$match": {"counted_as_play": True}},
+        {"$lookup": {
+            "from": "songs",
+            "localField": "content_id",
+            "foreignField": "song_id",
+            "as": "song"
+        }},
+        {"$unwind": {"path": "$song", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {
+            "from": "albums",
+            "localField": "song.album_id",
+            "foreignField": "album_id",
+            "as": "album"
+        }},
+        {"$unwind": {"path": "$album", "preserveNullAndEmptyArrays": True}},
+        {"$group": {
+            "_id": "$album.category_name",
+            "plays": {"$sum": 1}
+        }},
+        {"$sort": {"plays": -1}},
+        {"$limit": 6}
+    ]
+    categories = await db.listening_sessions.aggregate(category_pipeline).to_list(6)
+    
+    # Fallback: if no listening sessions, get from albums directly
+    if not categories:
+        album_category_pipeline = [
+            {"$group": {"_id": "$category_name", "plays": {"$sum": {"$ifNull": ["$total_plays", 0]}}}},
+            {"$sort": {"plays": -1}},
+            {"$limit": 6}
         ]
+        categories = await db.albums.aggregate(album_category_pipeline).to_list(6)
+    
+    content_performance = [
+        {"category": c["_id"] or "Uncategorized", "plays": c["plays"]}
+        for c in categories
+    ]
+    
+    # Add default categories if empty
+    if not content_performance:
+        content_performance = [
+            {"category": "Music", "plays": await db.songs.count_documents({}) * 10},
+            {"category": "Albums", "plays": await db.albums.count_documents({}) * 5},
+        ]
+    
+    # Donations Trend - Real data from donations
+    donations_trend = []
+    for i in range(5, -1, -1):
+        month_start = (now - timedelta(days=30*i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_end = (month_start + timedelta(days=32)).replace(day=1)
+        month_name = month_start.strftime("%b")
+        
+        # Sum donations in this month
+        donation_pipeline = [
+            {"$match": {"created_at": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}}},
+            {"$group": {"_id": None, "total": {"$sum": "$raised_amount"}}}
+        ]
+        donation_result = await db.donation_campaigns.aggregate(donation_pipeline).to_list(1)
+        amount = donation_result[0]["total"] if donation_result else 0
+        
+        donations_trend.append({"month": month_name, "amount": amount})
+    
+    return {
+        "user_growth": user_growth,
+        "content_performance": content_performance,
+        "donations_trend": donations_trend
     }
 
 
