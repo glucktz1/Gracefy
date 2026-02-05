@@ -486,6 +486,33 @@ const LibraryScreen = ({ navigation, route }) => {
 
     return (
       <View style={styles.tabContent}>
+        {/* Show active downloads/queue first */}
+        {queueCount > 0 && (
+          <View style={styles.activeDownloadsSection}>
+            <Text style={styles.activeDownloadsTitle}>Zinapakuliwa...</Text>
+            {Object.entries(activeDownloads).map(([songId, downloadInfo]) => (
+              <View key={songId} style={styles.activeDownloadItem}>
+                <View style={styles.activeDownloadInfo}>
+                  <Text style={styles.activeDownloadName} numberOfLines={1}>
+                    {downloadInfo?.song?.title || 'Inapakua...'}
+                  </Text>
+                  <View style={styles.progressBarContainer}>
+                    <View 
+                      style={[
+                        styles.progressBarFill, 
+                        { width: `${downloadInfo?.progress || 0}%` }
+                      ]} 
+                    />
+                  </View>
+                </View>
+                <Text style={styles.activeDownloadPercent}>
+                  {downloadInfo?.progress || 0}%
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {downloadedSongs.length > 0 ? (
           <>
             {/* Header with storage info */}
