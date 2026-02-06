@@ -558,17 +558,8 @@ const LibraryScreen = ({ navigation, route }) => {
 
             <PlayAllHeader
               songCount={downloadedSongs.length}
-              onPlayAll={() => {
-                if (downloadedSongs.length > 0) {
-                  handlePlayDownloadedSong(downloadedSongs[0]);
-                }
-              }}
-              onShuffle={() => {
-                const shuffled = [...downloadedSongs].sort(() => Math.random() - 0.5);
-                if (shuffled.length > 0) {
-                  handlePlayDownloadedSong(shuffled[0]);
-                }
-              }}
+              onPlayAll={handlePlayAllDownloads}
+              onShuffle={handleShuffleDownloads}
             />
 
             {downloadedSongs.map((song, index) => (
@@ -578,7 +569,7 @@ const LibraryScreen = ({ navigation, route }) => {
                   index={index}
                   isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
                   isDownloaded={true}
-                  onPress={() => handlePlayDownloadedSong(song)}
+                  onPress={() => handlePlayDownloadedSong(song, index)}
                   onMorePress={() => handleSongOptions(song)}
                 />
                 {/* Offline badge */}
