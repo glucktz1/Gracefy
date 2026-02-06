@@ -383,6 +383,7 @@ const AlbumScreen = ({ route, navigation }) => {
                 index={index}
                 isPlaying={currentTrack?.song_id === song?.song_id && isPlaying}
                 isCurrentSong={currentTrack?.song_id === song?.song_id}
+                albumThumbnail={item?.thumbnail || item?.thumbnail_url}
                 onPress={() => handlePlaySong(song)}
                 onMorePress={() => handleSongMore(song)}
               />
