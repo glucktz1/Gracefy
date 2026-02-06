@@ -86,8 +86,7 @@
           }
         }
       ],
-      "expo-task-manager",
-      "react-native-track-player"
+      "expo-task-manager"
     ],
     "owner": "gracefy22",
     "extra": {
