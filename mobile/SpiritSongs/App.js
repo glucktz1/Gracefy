@@ -7,17 +7,27 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import TrackPlayer from 'react-native-track-player';
-import { PlaybackService } from './src/services/trackPlayerService';
-
-// Register the playback service for background audio
-TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 // Context Providers
 import { AuthProvider } from './src/context/AuthContext';
 import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
+
+// Register TrackPlayer service lazily to avoid expo config issues
+let trackPlayerRegistered = false;
+const registerTrackPlayer = async () => {
+  if (trackPlayerRegistered) return;
+  try {
+    const TrackPlayer = require('react-native-track-player').default;
+    const { PlaybackService } = require('./src/services/trackPlayerService');
+    TrackPlayer.registerPlaybackService(() => PlaybackService);
+    trackPlayerRegistered = true;
+    console.log('[App] TrackPlayer service registered');
+  } catch (e) {
+    console.log('[App] TrackPlayer registration error:', e.message);
+  }
+};
 
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
