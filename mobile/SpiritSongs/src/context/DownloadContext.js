@@ -585,7 +585,7 @@ export const DownloadProvider = ({ children }) => {
     if (!download) return;
 
     if (download.file_path) {
-      deleteFile(download.file_path);
+      await deleteFile(download.file_path);
     }
 
     setDownloads(prev => {
@@ -600,7 +600,7 @@ export const DownloadProvider = ({ children }) => {
   const clearAllDownloads = useCallback(async () => {
     for (const download of Object.values(downloads)) {
       if (download.file_path) {
-        deleteFile(download.file_path);
+        await deleteFile(download.file_path);
       }
     }
 
@@ -611,7 +611,6 @@ export const DownloadProvider = ({ children }) => {
 
   const getDownloadedSongs = useCallback(() => {
     return Object.values(downloads)
-      .filter(d => fileExists(d.file_path)) // Only return files that exist
       .sort((a, b) => new Date(b.downloaded_at) - new Date(a.downloaded_at));
   }, [downloads]);
 
