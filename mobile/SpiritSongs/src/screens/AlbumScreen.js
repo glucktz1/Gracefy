@@ -130,12 +130,24 @@ const AlbumScreen = ({ route, navigation }) => {
   const handlePlaySong = useCallback((song) => {
     if (!song) return;
     try {
-      playTrack(song, songs);
+      // Add album thumbnail to each song if it doesn't have one
+      const albumThumbnail = item?.thumbnail || item?.thumbnail_url;
+      const songsWithThumbnails = songs.map(s => ({
+        ...s,
+        album_thumbnail: s.thumbnail || s.thumbnail_url || albumThumbnail,
+        thumbnail: s.thumbnail || s.thumbnail_url || albumThumbnail
+      }));
+      const songWithThumbnail = {
+        ...song,
+        album_thumbnail: song.thumbnail || song.thumbnail_url || albumThumbnail,
+        thumbnail: song.thumbnail || song.thumbnail_url || albumThumbnail
+      };
+      playTrack(songWithThumbnail, songsWithThumbnails);
     } catch (error) {
       console.error('Error playing song:', error);
       showToast('Imeshindwa kucheza', 'error');
     }
-  }, [playTrack, songs]);
+  }, [playTrack, songs, item]);
 
   const handlePlayAll = useCallback(() => {
     if (!songs?.length) return;
@@ -147,12 +159,17 @@ const AlbumScreen = ({ route, navigation }) => {
 
   const handleShuffle = useCallback(() => {
     if (!songs?.length) return;
-    const shuffled = [...songs].sort(() => Math.random() - 0.5);
+    const albumThumbnail = item?.thumbnail || item?.thumbnail_url;
+    const shuffled = [...songs].map(s => ({
+      ...s,
+      album_thumbnail: s.thumbnail || s.thumbnail_url || albumThumbnail,
+      thumbnail: s.thumbnail || s.thumbnail_url || albumThumbnail
+    })).sort(() => Math.random() - 0.5);
     const firstSong = shuffled[0];
     if (firstSong) {
       playTrack(firstSong, shuffled);
     }
-  }, [songs, playTrack]);
+  }, [songs, playTrack, item]);
 
   // Handle download all songs in album
   const handleDownloadAlbum = useCallback(() => {
