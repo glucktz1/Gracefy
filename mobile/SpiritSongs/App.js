@@ -7,6 +7,11 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import TrackPlayer from 'react-native-track-player';
+import { PlaybackService } from './src/services/trackPlayerService';
+
+// Register the playback service for background audio
+TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 // Context Providers
 import { AuthProvider } from './src/context/AuthContext';
