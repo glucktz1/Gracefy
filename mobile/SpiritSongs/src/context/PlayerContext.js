@@ -13,8 +13,6 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as TaskManager from 'expo-task-manager';
 import { getAudioUrl, getImageUrl, playerAPI } from '../services/api';
 
 const PlayerContext = createContext(null);
