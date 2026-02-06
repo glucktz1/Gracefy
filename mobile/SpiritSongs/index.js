@@ -10,14 +10,29 @@
  */
 
 import { registerRootComponent } from 'expo';
-import TrackPlayer from 'react-native-track-player';
 
+// Dynamically import TrackPlayer to avoid expo config issues
+let trackPlayerRegistered = false;
+
+const registerTrackPlayerService = async () => {
+  if (trackPlayerRegistered) return;
+  
+  try {
+    const TrackPlayer = require('react-native-track-player').default;
+    const { PlaybackService } = require('./src/services/PlaybackService');
+    
+    TrackPlayer.registerPlaybackService(() => PlaybackService);
+    trackPlayerRegistered = true;
+    console.log('[index.js] TrackPlayer service registered');
+  } catch (e) {
+    console.log('[index.js] TrackPlayer registration error:', e.message);
+  }
+};
+
+// Register TrackPlayer service
+registerTrackPlayerService();
+
+// Import and register the app
 import App from './App';
-import { PlaybackService } from './src/services/PlaybackService';
-
-// Register the playback service BEFORE registering the app
-// This is critical for background audio to work
-TrackPlayer.registerPlaybackService(() => PlaybackService);
-
-// Register the main app component
 registerRootComponent(App);
+
