@@ -378,7 +378,6 @@ export const DownloadProvider = ({ children }) => {
       
       let audioUrl = song.audio_url;
       let expectedSize = 0;
-      let serverChecksum = null;
       
       // Get authorized URL from API
       if (!audioUrl?.startsWith('http')) {
@@ -387,7 +386,6 @@ export const DownloadProvider = ({ children }) => {
           const data = response?.data;
           audioUrl = data?.direct_url || data?.download_url || data?.audio_url;
           expectedSize = data?.file_size || 0;
-          serverChecksum = data?.checksum || null;
         } catch (e) {
           console.error('[Downloads] Auth failed:', e);
         }
@@ -413,65 +411,56 @@ export const DownloadProvider = ({ children }) => {
       deleteFile(tempPath);
       deleteFile(finalPath);
 
-      // ===== PHASE 3: CHUNKED DOWNLOAD =====
+      // ===== PHASE 3: DOWNLOAD WITH PROGRESS (XMLHttpRequest) =====
       updateStatus(DOWNLOAD_STATUS.DOWNLOADING, 1);
 
-      const abortController = new AbortController();
-      abortControllers.current[songId] = abortController;
+      const audioData = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', audioUrl, true);
+        xhr.responseType = 'arraybuffer';
+        
+        // Store reference for cancellation
+        abortControllers.current[songId] = { 
+          abort: () => xhr.abort() 
+        };
 
-      const response = await fetch(audioUrl, {
-        signal: abortController.signal,
-        headers: {
-          'Accept': 'audio/mpeg, audio/*, */*',
-          'User-Agent': 'Gracefy-App/1.0',
-          'Cache-Control': 'no-cache'
-        }
+        xhr.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.min(Math.round((event.loaded / event.total) * 95), 95);
+            updateStatus(DOWNLOAD_STATUS.DOWNLOADING, progress, {
+              bytesWritten: event.loaded,
+              totalBytes: event.total
+            });
+          } else if (event.loaded > 0) {
+            // Unknown total, estimate progress
+            const estimatedProgress = Math.min(Math.round(event.loaded / 5000000 * 50), 50);
+            updateStatus(DOWNLOAD_STATUS.DOWNLOADING, estimatedProgress, {
+              bytesWritten: event.loaded,
+              totalBytes: expectedSize || 0
+            });
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(new Uint8Array(xhr.response));
+          } else {
+            reject(new Error(`Server error: ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error - angalia mtandao'));
+        xhr.ontimeout = () => reject(new Error('Timeout - mtandao polepole'));
+        xhr.onabort = () => reject(new Error('Imesitishwa'));
+
+        xhr.timeout = 300000; // 5 minute timeout
+        xhr.send();
       });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const contentLength = response.headers.get('content-length');
-      const totalBytes = contentLength ? parseInt(contentLength, 10) : expectedSize;
-
-      console.log('[Downloads] Expected size:', totalBytes, 'bytes');
-
-      // Read stream with progress
-      const reader = response.body.getReader();
-      const chunks = [];
-      let receivedBytes = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        chunks.push(value);
-        receivedBytes += value.length;
-
-        // Update progress (cap at 95% until verified)
-        const progress = totalBytes > 0 
-          ? Math.min(Math.round((receivedBytes / totalBytes) * 95), 95)
-          : Math.min(Math.round(receivedBytes / 1000000 * 30), 95); // Estimate for unknown size
-        
-        updateStatus(DOWNLOAD_STATUS.DOWNLOADING, progress, {
-          bytesWritten: receivedBytes,
-          totalBytes
-        });
-      }
-
-      console.log('[Downloads] Received:', receivedBytes, 'bytes');
+      console.log('[Downloads] Received:', audioData.length, 'bytes');
 
       // ===== PHASE 4: VERIFICATION =====
       updateStatus(DOWNLOAD_STATUS.VERIFYING, 96);
-
-      // Combine chunks
-      const audioData = new Uint8Array(receivedBytes);
-      let offset = 0;
-      for (const chunk of chunks) {
-        audioData.set(chunk, offset);
-        offset += chunk.length;
-      }
 
       // Validate size
       if (audioData.length < MIN_FILE_SIZE) {
@@ -481,12 +470,6 @@ export const DownloadProvider = ({ children }) => {
       // Calculate checksum
       const localChecksum = calculateChecksum(audioData);
       console.log('[Downloads] Checksum:', localChecksum);
-
-      // Verify against server checksum if available
-      if (serverChecksum && serverChecksum !== localChecksum) {
-        console.warn('[Downloads] Checksum mismatch! Server:', serverChecksum, 'Local:', localChecksum);
-        // Don't fail, but log warning - server might not send accurate checksum
-      }
 
       // ===== PHASE 5: ATOMIC COMMIT =====
       updateStatus(DOWNLOAD_STATUS.COMMITTING, 97);
