@@ -8,11 +8,11 @@
  * 4. Database Sync - Only update state after file verified on disk
  * 5. Observer Pattern - Real-time file presence monitoring
  * 
- * Uses Expo SDK 54+ new File System API exclusively
+ * Uses stable expo-file-system APIs for file operations
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { File, Paths, Directory } from 'expo-file-system/next';
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { contentAPI } from '../services/api';
 import { showToast } from '../components/Toast';
@@ -20,11 +20,10 @@ import { showToast } from '../components/Toast';
 const DownloadContext = createContext(null);
 
 // Constants
-const STORAGE_KEY = '@gracefy_downloads_v5';
-const DOWNLOAD_DIR_NAME = 'gracefy_downloads';
-const TEMP_DIR_NAME = 'gracefy_temp';
+const STORAGE_KEY = '@gracefy_downloads_v6';
+const DOWNLOAD_DIR = FileSystem.documentDirectory + 'gracefy_downloads/';
+const TEMP_DIR = FileSystem.documentDirectory + 'gracefy_temp/';
 const MIN_FILE_SIZE = 10000; // 10KB minimum for valid audio
-const CHUNK_SIZE = 64 * 1024; // 64KB chunks for progress updates
 
 export const DOWNLOAD_STATUS = {
   IDLE: 'idle',
@@ -37,7 +36,17 @@ export const DOWNLOAD_STATUS = {
   FAILED: 'failed',
 };
 
-// Simple hash function for checksum (FNV-1a)
+// Convert Uint8Array to base64
+const uint8ArrayToBase64 = (bytes) => {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+};
+
+// Simple hash function for checksum
 const calculateChecksum = (data) => {
   let hash = 2166136261;
   for (let i = 0; i < data.length; i++) {
