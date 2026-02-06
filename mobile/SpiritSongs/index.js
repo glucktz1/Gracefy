@@ -1,11 +1,23 @@
+/**
+ * Custom App Entry Point
+ * 
+ * This file replaces the default Expo entry point to enable:
+ * - Background audio playback
+ * - Lock screen controls
+ * - Media notification
+ * 
+ * Using react-native-track-player with Expo
+ */
+
 import { registerRootComponent } from 'expo';
+import TrackPlayer from 'react-native-track-player';
 
 import App from './App';
+import { PlaybackService } from './src/services/PlaybackService';
 
-// Note: TrackPlayer service registration moved to App.js
-// to avoid expo config read issues during EAS build
+// Register the playback service BEFORE registering the app
+// This is critical for background audio to work
+TrackPlayer.registerPlaybackService(() => PlaybackService);
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
+// Register the main app component
 registerRootComponent(App);
