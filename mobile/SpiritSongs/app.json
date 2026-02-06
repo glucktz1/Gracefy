@@ -81,11 +81,13 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "minSdkVersion": 24
           }
         }
       ],
-      "expo-task-manager"
+      "expo-task-manager",
+      "react-native-track-player"
     ],
     "owner": "gracefy22",
     "extra": {
