@@ -194,6 +194,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Register TrackPlayer service on mount
+    registerTrackPlayer();
     checkOnboardingStatus();
   }, []);
 
