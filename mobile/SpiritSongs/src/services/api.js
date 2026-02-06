@@ -167,14 +167,40 @@ export const churchAPI = {
 
 // ============ PLAYER API ============
 export const playerAPI = {
+  // Track play after 45+ seconds (for play counting and revenue)
   trackPlay: (songId, options = {}) => api.post('/listening/track-play', { 
     song_id: songId,
     duration: options.duration || 0,
     platform: options.platform || 'app',
     album_id: options.album_id
   }),
+  
+  // Real-time stream tracking (for live analytics)
+  startStream: (songId, deviceId, options = {}) => api.post('/listening/start-stream', {
+    song_id: songId,
+    device_id: deviceId,
+    platform: options.platform || 'android',
+    album_id: options.album_id
+  }),
+  
+  heartbeat: (streamId, position = 0) => api.post('/listening/heartbeat', {
+    stream_id: streamId,
+    position: position
+  }),
+  
+  endStream: (streamId, duration = 0) => api.post('/listening/end-stream', {
+    stream_id: streamId,
+    duration: duration
+  }),
+  
+  // Legacy session endpoints (kept for compatibility)
   startSession: (songId) => api.post('/sessions/start', { song_id: songId }),
   endSession: (sessionId, duration) => api.post(`/sessions/${sessionId}/end`, { duration }),
+  
+  // Like/unlike
+  likeSong: (songId) => api.post('/user/favorites/add', { id: songId, type: 'song' }),
+  unlikeSong: (songId) => api.post('/user/favorites/remove', { id: songId, type: 'song' }),
+  checkLiked: (songId) => api.get(`/user/favorites/check?type=song&id=${songId}`),
 };
 
 // ============ BIBLE API ============
