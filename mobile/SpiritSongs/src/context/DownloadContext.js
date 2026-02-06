@@ -394,18 +394,19 @@ export const DownloadProvider = ({ children }) => {
       console.log('[Downloads] Authorized URL:', audioUrl.substring(0, 80) + '...');
 
       // ===== PHASE 2: PREPARE DIRECTORIES =====
-      if (!ensureDirectories()) {
+      const dirsReady = await ensureDirectories();
+      if (!dirsReady) {
         throw new Error('Haiwezi kutengeneza folder');
       }
 
       const safeTitle = (song.title || 'song').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
       const fileName = `${safeTitle}_${songId}.mp3`;
-      const tempPath = `${getTempDirPath()}/${fileName}.tmp`;
-      const finalPath = `${getDownloadDirPath()}/${fileName}`;
+      const tempPath = TEMP_DIR + fileName + '.tmp';
+      const finalPath = DOWNLOAD_DIR + fileName;
 
       // Clean up any existing files
-      deleteFile(tempPath);
-      deleteFile(finalPath);
+      await deleteFile(tempPath);
+      await deleteFile(finalPath);
 
       // ===== PHASE 3: DOWNLOAD WITH PROGRESS (XMLHttpRequest) =====
       updateStatus(DOWNLOAD_STATUS.DOWNLOADING, 1);
@@ -422,13 +423,12 @@ export const DownloadProvider = ({ children }) => {
 
         xhr.onprogress = (event) => {
           if (event.lengthComputable) {
-            const progress = Math.min(Math.round((event.loaded / event.total) * 95), 95);
+            const progress = Math.min(Math.round((event.loaded / event.total) * 90), 90);
             updateStatus(DOWNLOAD_STATUS.DOWNLOADING, progress, {
               bytesWritten: event.loaded,
               totalBytes: event.total
             });
           } else if (event.loaded > 0) {
-            // Unknown total, estimate progress
             const estimatedProgress = Math.min(Math.round(event.loaded / 5000000 * 50), 50);
             updateStatus(DOWNLOAD_STATUS.DOWNLOADING, estimatedProgress, {
               bytesWritten: event.loaded,
@@ -456,7 +456,7 @@ export const DownloadProvider = ({ children }) => {
       console.log('[Downloads] Received:', audioData.length, 'bytes');
 
       // ===== PHASE 4: VERIFICATION =====
-      updateStatus(DOWNLOAD_STATUS.VERIFYING, 96);
+      updateStatus(DOWNLOAD_STATUS.VERIFYING, 92);
 
       // Validate size
       if (audioData.length < MIN_FILE_SIZE) {
@@ -468,45 +468,50 @@ export const DownloadProvider = ({ children }) => {
       console.log('[Downloads] Checksum:', localChecksum);
 
       // ===== PHASE 5: ATOMIC COMMIT =====
-      updateStatus(DOWNLOAD_STATUS.COMMITTING, 97);
+      updateStatus(DOWNLOAD_STATUS.COMMITTING, 94);
+
+      // Convert to base64 for writing
+      console.log('[Downloads] Converting to base64...');
+      const base64Data = uint8ArrayToBase64(audioData);
+      console.log('[Downloads] Base64 length:', base64Data.length);
 
       // Step 1: Write to temp file
-      const tempFile = new File(tempPath);
-      tempFile.write(audioData);
-
-      if (!tempFile.exists) {
-        throw new Error('Haiwezi kuandika faili ya muda');
+      updateStatus(DOWNLOAD_STATUS.COMMITTING, 96);
+      const writeSuccess = await writeFile(tempPath, base64Data);
+      
+      if (!writeSuccess) {
+        throw new Error('Haiwezi kuandika faili');
       }
 
-      const tempSize = tempFile.size || 0;
-      console.log('[Downloads] Temp file size:', tempSize);
+      // Verify temp file
+      const tempExists = await fileExists(tempPath);
+      const tempSize = await getFileSize(tempPath);
+      console.log('[Downloads] Temp file:', tempExists, 'size:', tempSize);
 
-      if (tempSize < MIN_FILE_SIZE) {
-        deleteFile(tempPath);
-        throw new Error('Faili ya muda ni ndogo sana');
+      if (!tempExists || tempSize < MIN_FILE_SIZE) {
+        await deleteFile(tempPath);
+        throw new Error('Faili ya muda haikuandikwa vizuri');
       }
 
       // Step 2: Atomic move to final location
       updateStatus(DOWNLOAD_STATUS.COMMITTING, 98);
       
-      const moveSuccess = moveFile(tempPath, finalPath);
+      const moveSuccess = await moveFile(tempPath, finalPath);
       if (!moveSuccess) {
+        await deleteFile(tempPath);
         throw new Error('Haiwezi kuhamisha faili');
       }
 
       // Step 3: Final verification
       updateStatus(DOWNLOAD_STATUS.VERIFYING, 99);
       
-      if (!fileExists(finalPath)) {
-        throw new Error('Faili haipo baada ya kuhamisha');
-      }
+      const finalExists = await fileExists(finalPath);
+      const finalSize = await getFileSize(finalPath);
+      console.log('[Downloads] Final file:', finalExists, 'size:', finalSize);
 
-      const finalSize = getFileSize(finalPath);
-      console.log('[Downloads] Final file size:', finalSize);
-
-      if (finalSize < MIN_FILE_SIZE) {
-        deleteFile(finalPath);
-        throw new Error('Faili ya mwisho ni ndogo sana');
+      if (!finalExists || finalSize < MIN_FILE_SIZE) {
+        await deleteFile(finalPath);
+        throw new Error('Faili ya mwisho haikuhifadhiwa vizuri');
       }
 
       // ===== PHASE 6: DATABASE SYNC =====
@@ -544,8 +549,8 @@ export const DownloadProvider = ({ children }) => {
       
       // Cleanup temp file
       const safeTitle = (song.title || 'song').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
-      const tempPath = `${getTempDirPath()}/${safeTitle}_${songId}.mp3.tmp`;
-      deleteFile(tempPath);
+      const tempPath = TEMP_DIR + safeTitle + '_' + songId + '.mp3.tmp';
+      await deleteFile(tempPath);
 
       updateStatus(DOWNLOAD_STATUS.FAILED, 0, { error: error.message });
       showToast(`Imeshindikana: ${error.message}`, 'error');
