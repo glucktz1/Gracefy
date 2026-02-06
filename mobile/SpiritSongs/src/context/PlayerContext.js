@@ -742,6 +742,9 @@ export const PlayerProvider = ({ children }) => {
 
   // Stop playback completely
   const stopPlayback = async () => {
+    // End current stream for analytics
+    await endCurrentStream();
+    
     if (soundRef.current) {
       try {
         await soundRef.current.stopAsync();
