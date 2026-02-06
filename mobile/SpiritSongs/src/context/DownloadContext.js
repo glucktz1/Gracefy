@@ -277,15 +277,11 @@ export const DownloadProvider = ({ children }) => {
   // ==================== STATUS HELPERS ====================
   
   const isDownloaded = useCallback((songId) => {
-    const download = downloads[songId];
-    if (!download) return false;
-    
-    // Verify file still exists (defensive check)
-    return fileExists(download.file_path);
+    return !!downloads[songId];
   }, [downloads]);
 
   const getDownloadStatus = useCallback((songId) => {
-    if (downloads[songId] && fileExists(downloads[songId].file_path)) {
+    if (downloads[songId]) {
       return DOWNLOAD_STATUS.COMPLETED;
     }
     if (activeDownloads[songId]) {
@@ -303,11 +299,7 @@ export const DownloadProvider = ({ children }) => {
   }, [downloads, activeDownloads]);
 
   const getDownloadedFilePath = useCallback((songId) => {
-    const download = downloads[songId];
-    if (download?.file_path && fileExists(download.file_path)) {
-      return download.file_path;
-    }
-    return null;
+    return downloads[songId]?.file_path || null;
   }, [downloads]);
 
   // ==================== QUEUE MANAGEMENT ====================
