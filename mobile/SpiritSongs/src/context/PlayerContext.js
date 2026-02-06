@@ -17,9 +17,6 @@ import { getAudioUrl, getImageUrl, playerAPI } from '../services/api';
 
 const PlayerContext = createContext(null);
 
-// Background task name
-const AUDIO_BACKGROUND_TASK = 'AUDIO_BACKGROUND_TASK';
-
 // Configure notifications for lock screen
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
