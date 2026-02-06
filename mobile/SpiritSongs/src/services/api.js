@@ -43,6 +43,8 @@ api.interceptors.response.use(
 // Helper to get full audio URL
 export const getAudioUrl = (path) => {
   if (!path) return null;
+  // Local file (downloaded songs) - return as-is
+  if (path.startsWith('file://')) return path;
   // Already a full URL (CDN or external)
   if (path.startsWith('http')) return path;
   // Internal file URL - needs full backend URL
