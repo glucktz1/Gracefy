@@ -404,9 +404,16 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // Toggle play/pause
+  // Toggle play/pause - FIXED to handle stopped state
   const togglePlay = async () => {
-    if (!soundRef.current) return;
+    if (!soundRef.current) {
+      // If no sound but we have a current track, reload it
+      if (currentTrack) {
+        console.log('[PlayerContext] No sound loaded, reloading current track');
+        await loadAndPlayTrack(currentTrack);
+      }
+      return;
+    }
 
     try {
       const status = await soundRef.current.getStatusAsync();
@@ -414,11 +421,25 @@ export const PlayerProvider = ({ children }) => {
         if (status.isPlaying) {
           await soundRef.current.pauseAsync();
         } else {
+          // If track finished (position at end), restart from beginning
+          if (status.positionMillis >= status.durationMillis - 500) {
+            await soundRef.current.setPositionAsync(0);
+          }
           await soundRef.current.playAsync();
+        }
+      } else {
+        // Sound not loaded, reload the track
+        if (currentTrack) {
+          console.log('[PlayerContext] Sound not loaded, reloading');
+          await loadAndPlayTrack(currentTrack);
         }
       }
     } catch (e) {
       console.error('[PlayerContext] Error toggling play:', e);
+      // Try to reload on error
+      if (currentTrack) {
+        await loadAndPlayTrack(currentTrack);
+      }
     }
   };
 
