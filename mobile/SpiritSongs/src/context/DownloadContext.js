@@ -10,7 +10,8 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import * as FileSystem from 'expo-file-system';
+// Use legacy API for createDownloadResumable (stable in SDK 54)
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { contentAPI } from '../services/api';
 import { showToast } from '../components/Toast';
