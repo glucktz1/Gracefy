@@ -426,25 +426,48 @@ const LibraryScreen = ({ navigation, route }) => {
 
   // Downloads Tab Content - Spotify-like offline songs section
   const renderDownloadsTab = () => {
-    const handlePlayDownloadedSong = (song) => {
-      // Play from local file path
-      const localPath = getDownloadedFilePath(song.song_id);
-      if (localPath) {
-        // Create a copy of the song with local file path
-        const offlineSong = {
-          ...song,
-          audio_url: localPath, // Use local file
-          is_offline: true
-        };
-        playTrack(offlineSong, downloadedSongs.map(s => ({
-          ...s,
-          audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
-          is_offline: true
-        })));
-      } else {
-        // Fallback to original URL
-        playTrack(song, downloadedSongs);
-      }
+    const handlePlayDownloadedSong = (song, index = 0) => {
+      // Get all downloaded songs with local file paths
+      const offlinePlaylist = downloadedSongs.map(s => ({
+        ...s,
+        audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
+        is_offline: true
+      }));
+      
+      // Find the correct index
+      const songIndex = offlinePlaylist.findIndex(s => s.song_id === song.song_id);
+      const finalIndex = songIndex >= 0 ? songIndex : index;
+      
+      // Play the song with the offline playlist
+      playTrack(offlinePlaylist[finalIndex], offlinePlaylist, finalIndex);
+    };
+
+    const handlePlayAllDownloads = () => {
+      if (downloadedSongs.length === 0) return;
+      
+      // Create offline playlist with local file paths
+      const offlinePlaylist = downloadedSongs.map(s => ({
+        ...s,
+        audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
+        is_offline: true
+      }));
+      
+      // Play first song
+      playTrack(offlinePlaylist[0], offlinePlaylist, 0);
+    };
+
+    const handleShuffleDownloads = () => {
+      if (downloadedSongs.length === 0) return;
+      
+      // Create and shuffle offline playlist
+      const offlinePlaylist = downloadedSongs.map(s => ({
+        ...s,
+        audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
+        is_offline: true
+      })).sort(() => Math.random() - 0.5);
+      
+      // Play first shuffled song
+      playTrack(offlinePlaylist[0], offlinePlaylist, 0);
     };
 
     const handleRemoveDownload = (song) => {
