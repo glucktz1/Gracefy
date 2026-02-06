@@ -156,15 +156,18 @@ export const DownloadProvider = ({ children }) => {
   const startFileObserver = useCallback(() => {
     if (fileObserverInterval.current) return;
     
-    fileObserverInterval.current = setInterval(() => {
+    fileObserverInterval.current = setInterval(async () => {
       let needsUpdate = false;
       const updatedDownloads = { ...downloads };
       
       for (const [songId, data] of Object.entries(downloads)) {
-        if (data.file_path && !fileExists(data.file_path)) {
-          console.log('[Downloads] Observer: File vanished -', data.title);
-          delete updatedDownloads[songId];
-          needsUpdate = true;
+        if (data.file_path) {
+          const exists = await fileExists(data.file_path);
+          if (!exists) {
+            console.log('[Downloads] Observer: File vanished -', data.title);
+            delete updatedDownloads[songId];
+            needsUpdate = true;
+          }
         }
       }
       
@@ -212,7 +215,7 @@ export const DownloadProvider = ({ children }) => {
 
   const initializeDownloads = async () => {
     try {
-      ensureDirectories();
+      await ensureDirectories();
 
       const savedDownloads = await AsyncStorage.getItem(STORAGE_KEY);
       if (savedDownloads) {
@@ -221,17 +224,19 @@ export const DownloadProvider = ({ children }) => {
         // Verify each file still exists on disk
         const verified = {};
         for (const [songId, data] of Object.entries(parsed)) {
-          if (data.file_path && fileExists(data.file_path)) {
-            // Double-check file size matches
-            const actualSize = getFileSize(data.file_path);
-            if (actualSize > MIN_FILE_SIZE) {
-              verified[songId] = { ...data, verified_size: actualSize };
+          if (data.file_path) {
+            const exists = await fileExists(data.file_path);
+            if (exists) {
+              const size = await getFileSize(data.file_path);
+              if (size > MIN_FILE_SIZE) {
+                verified[songId] = { ...data, verified_size: size };
+              } else {
+                console.log('[Downloads] File too small, removing:', data.title);
+                await deleteFile(data.file_path);
+              }
             } else {
-              console.log('[Downloads] File too small, removing:', data.title);
-              deleteFile(data.file_path);
+              console.log('[Downloads] File missing, removing from index:', data.title);
             }
-          } else {
-            console.log('[Downloads] File missing, removing from index:', data.title);
           }
         }
         
@@ -240,7 +245,7 @@ export const DownloadProvider = ({ children }) => {
       }
       
       // Clean temp directory
-      cleanTempDirectory();
+      await cleanTempDirectory();
       
       setInitialized(true);
     } catch (error) {
@@ -249,13 +254,12 @@ export const DownloadProvider = ({ children }) => {
     }
   };
 
-  const cleanTempDirectory = () => {
+  const cleanTempDirectory = async () => {
     try {
-      const tempDir = new Directory(Paths.document, TEMP_DIR_NAME);
-      if (tempDir.exists) {
-        // Delete and recreate to clean all temp files
-        tempDir.delete();
-        tempDir.create();
+      const tempInfo = await FileSystem.getInfoAsync(TEMP_DIR);
+      if (tempInfo.exists) {
+        await FileSystem.deleteAsync(TEMP_DIR, { idempotent: true });
+        await FileSystem.makeDirectoryAsync(TEMP_DIR, { intermediates: true });
       }
     } catch (e) {
       console.log('[Downloads] Temp cleanup error:', e.message);
