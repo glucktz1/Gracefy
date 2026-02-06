@@ -470,7 +470,192 @@ async def get_listening_history(request: Request):
     return {"history": history}
 
 
-@router.post("/listening/track-play")
+# ============== REAL-TIME STREAM TRACKING ==============
+# These endpoints track active streams from all devices and platforms
+
+@router.post("/listening/start-stream")
+async def start_stream(request: Request, data: dict):
+    """
+    Called immediately when playback starts on any device/platform.
+    Creates an active stream record for real-time analytics.
+    
+    Body:
+    - song_id: ID of the song being played
+    - device_id: Unique device identifier (generated client-side)
+    - platform: "android" | "ios" | "web" | "pwa"
+    - album_id: Optional album ID
+    """
+    db = get_db()
+    user = await get_user_from_token(request)
+    
+    song_id = data.get("song_id")
+    device_id = data.get("device_id", f"unknown_{uuid.uuid4().hex[:8]}")
+    platform = data.get("platform", "unknown")
+    album_id = data.get("album_id")
+    
+    if not song_id:
+        raise HTTPException(status_code=400, detail="song_id required")
+    
+    user_id = user["user_id"] if user else f"anonymous_{device_id}"
+    
+    # Create unique stream ID combining user and device
+    stream_id = f"stream_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    
+    # Get song and choir info
+    song = await db.songs.find_one(
+        {"song_id": song_id}, 
+        {"_id": 0, "title": 1, "artist_name": 1, "choir_id": 1, "album_id": 1}
+    )
+    
+    choir_id = None
+    if song and song.get("choir_id"):
+        choir_id = song["choir_id"]
+    elif album_id or (song and song.get("album_id")):
+        album = await db.albums.find_one(
+            {"album_id": album_id or song.get("album_id")}, 
+            {"_id": 0, "singer_id": 1}
+        )
+        if album:
+            choir_id = album.get("singer_id")
+    
+    # Create active stream record
+    stream = {
+        "stream_id": stream_id,
+        "user_id": user_id,
+        "device_id": device_id,
+        "song_id": song_id,
+        "song_title": song.get("title") if song else None,
+        "artist_name": song.get("artist_name") if song else None,
+        "album_id": album_id or (song.get("album_id") if song else None),
+        "choir_id": choir_id,
+        "platform": platform,
+        "start_time": now.isoformat(),
+        "last_heartbeat": now.isoformat(),
+        "is_active": True,
+        "created_at": now.isoformat()
+    }
+    
+    # Store in active_streams collection (for real-time tracking)
+    await db.active_streams.insert_one(stream)
+    
+    logger.info(f"Stream started: {stream_id} - {song.get('title') if song else song_id} by {user_id} on {platform}/{device_id}")
+    
+    return {
+        "stream_id": stream_id,
+        "message": "Stream started"
+    }
+
+
+@router.post("/listening/heartbeat")
+async def stream_heartbeat(request: Request, data: dict):
+    """
+    Called periodically (every 30s) to keep stream active.
+    Updates last_heartbeat timestamp.
+    """
+    db = get_db()
+    
+    stream_id = data.get("stream_id")
+    position = data.get("position", 0)  # Current position in seconds
+    
+    if not stream_id:
+        raise HTTPException(status_code=400, detail="stream_id required")
+    
+    now = datetime.now(timezone.utc)
+    
+    result = await db.active_streams.update_one(
+        {"stream_id": stream_id},
+        {"$set": {
+            "last_heartbeat": now.isoformat(),
+            "position_seconds": position
+        }}
+    )
+    
+    return {
+        "success": result.modified_count > 0,
+        "stream_id": stream_id
+    }
+
+
+@router.post("/listening/end-stream")
+async def end_stream(request: Request, data: dict):
+    """
+    Called when playback stops or user navigates away.
+    Marks stream as inactive and records final duration.
+    """
+    db = get_db()
+    
+    stream_id = data.get("stream_id")
+    duration = data.get("duration", 0)  # Total duration listened in seconds
+    
+    if not stream_id:
+        raise HTTPException(status_code=400, detail="stream_id required")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Update active stream
+    stream = await db.active_streams.find_one_and_update(
+        {"stream_id": stream_id},
+        {"$set": {
+            "is_active": False,
+            "end_time": now.isoformat(),
+            "duration_seconds": duration
+        }},
+        return_document=True
+    )
+    
+    if stream:
+        logger.info(f"Stream ended: {stream_id} - {duration}s")
+    
+    return {
+        "stream_id": stream_id,
+        "duration": duration,
+        "counted": duration >= 45
+    }
+
+
+@router.get("/listening/active-streams")
+async def get_active_streams():
+    """
+    Get all currently active streams (for admin dashboard).
+    Streams are considered active if heartbeat within last 2 minutes.
+    """
+    db = get_db()
+    from datetime import timedelta
+    
+    now = datetime.now(timezone.utc)
+    two_min_ago = (now - timedelta(minutes=2)).isoformat()
+    
+    # Get active streams with recent heartbeat
+    active = await db.active_streams.find(
+        {
+            "is_active": True,
+            "last_heartbeat": {"$gte": two_min_ago}
+        },
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Count unique listeners and devices
+    unique_users = len(set(s["user_id"] for s in active))
+    unique_devices = len(set(s["device_id"] for s in active))
+    
+    # Platform breakdown
+    platforms = {}
+    for s in active:
+        p = s.get("platform", "unknown")
+        platforms[p] = platforms.get(p, 0) + 1
+    
+    return {
+        "timestamp": now.isoformat(),
+        "total_streams": len(active),
+        "unique_listeners": unique_users,
+        "unique_devices": unique_devices,
+        "platforms": platforms,
+        "streams": active[:20]  # Return first 20 for display
+    }
+
+
+
 async def track_play(request: Request, data: dict):
     """
     Track song play for listening history and revenue.
