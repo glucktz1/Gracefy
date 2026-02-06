@@ -1,189 +1,196 @@
 <analysis>**original_problem_statement:**
-The user initially requested fixes for a SpiritSongs app, which led to the redevelopment of core features (download, like, playlist). The scope expanded to include a comprehensive monetization and analytics system for the admin panel.
+The user initially requested fixes for a SpiritSongs app. The scope expanded to a full rework of the admin panel (analytics, payments) and the mobile app's core features.
 
-Most recently, the user requested the following:
-1.  **Fix Admin Dashboard:** The admin dashboard and analytics pages were showing incorrect or mock data. This included total customers, user growth graphs, content performance, and all stream/revenue metrics.
-2.  **Fix Revenue Calculation:** The revenue section was not working correctly and needed to calculate earnings based on real data and only when billing is enabled.
-3.  **Implement Background Audio:** Ensure the mobile app continues playing audio when the screen is locked or the app is minimized.
-4.  **Replace Payment Gateway:** In the admin settings, replace the M-Pesa payment gateway with Azam Pay and add fields for the necessary credentials.
-5.  **Fix Song Downloads (Recurring):** The song download feature in the mobile app was reported as broken again.
-6.  **Remove Downloads:** After another failed attempt to fix downloads, the user requested to **completely remove** the entire song download module and all related code from the app.
-7.  **Re-implement Downloads:** Immediately after the removal, the user requested the creation of a **new, proper download functionality** similar to Spotify, allowing downloads of single songs or lists, with a dedicated section in the user's profile for offline access.
+Most recently, the user reported a series of critical issues:
+1.  **Admin Dashboard Data:** The dashboard showed incorrect live stats (active streams, listeners, plays).
+2.  **Choir Management Stats:** The choir management panel showed zero albums, songs, and plays for artists.
+3.  **Admin User Creation:** A feature was requested to allow an admin to create new users with specific roles (e.g., choir admin).
+4.  **Mobile App Critical Bugs (Premium Features):**
+    *   **App Crash:** The app crashes when maximizing the mini-player.
+    *   **Broken Downloads:** The song download feature is fundamentally broken. It indicates a song is downloaded, but the file is not saved, not visible in the downloads list, and the downloaded status is not reflected correctly in the UI. The user reported specific errors like  and .
+    *   **Broken Like Feature:** Liking a song does not work, and there is no way to access liked songs.
+    *   **Broken Playlists:** It's impossible to add songs to an existing playlist.
+5.  **New Feature Requests:**
+    *   Ensure songs in lists inherit their album's thumbnail image.
+    *   Enhance the Church UI on the user side to show church images, location/directions, announcements, and prayer schedules.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The project is a full-stack application with a React Native mobile app, a React web admin panel, and a Python/Flask backend using MongoDB.
-
--   **Backend:** A major data migration was completed. All active songs (73) and album images (10) are now served from a functional Bunny.net CDN. Endpoints for the admin dashboard and analytics (, ) have been rewritten to use real database aggregations instead of mock data. Revenue calculation logic now correctly checks for the global billing status. New endpoints were added to manage Azam Pay credentials. A demo data generator was also added for testing purposes.
--   **Admin Panel:** The UI for payment settings was updated to replace M-Pesa with Azam Pay, including the required input fields. The Dashboard and Analytics pages were overhauled to connect to the new, data-rich backend endpoints, with updated charts for user growth and live stats. The CDN Management page now correctly reports the number of files on the CDN.
--   **Mobile App:** The previous song download functionality, including the , UI elements in , , , and other components, has been **completely removed** from the codebase as per the user's request. The agent has just started re-implementing the new download feature by creating a new, empty  file. A fix for background audio playback was implemented but has not been included in a build yet.
+-   **Backend:** The analytics endpoints were investigated, and a large amount of demo data (~14,000 listening sessions) was cleared from the  to ensure the dashboard reflects real activity. The choir management endpoints () were rewritten to correctly aggregate and return song, album, and play counts. A new endpoint () was added to support admin user creation.
+-   **Admin Panel:** A new page () was created for managing system users, complete with a route and a link in the sidebar navigation.
+-   **Mobile App:** The song download feature has been the focus of an extensive and unsuccessful debugging cycle. The  was completely rewritten multiple times to address a cascade of issues: first to fix basic logic, then to remove the deprecated  API from , then to replace  with  to fix a streaming error (), and finally to handle a file write error by converting data to . Despite these efforts and multiple builds (up to v1.0.99), the feature remains broken. Other reported bugs (player crash, likes, playlists) were also addressed in code, but their status is unverified as subsequent builds continued to fail or reveal new problems.
 
 **Last working item**:
--   **Last item agent was working:** Re-implementing the song download functionality from scratch, following a Spotify-like design. The user requested this immediately after asking for the previous download implementation to be deleted. The agent's first action was creating a new, blank file at .
--   **Status:** IN PROGRESS
+-   **Last item agent was working:** The agent attempted to fix a file writing error in the download function. The  was correctly fetching song data as an ArrayBuffer, but the  API's  method failed. The agent refactored the context to convert the data to a  string before writing. After implementing this change, the agent tried to trigger a new build (v1.1.0), but the  command itself failed.
+-   **Status:** BLOCKED
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. This is a critical, user-facing feature that requires a new APK build and thorough testing of the entire download, storage, and offline playback flow.
+-   **Which testing method agent to use?** Frontend testing agent. This is a critical, recurring, and complex feature that has blocked all other mobile app progress. A successful build must be followed by a full regression test of the download, playback, like, and playlist features.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Admin dashboard and analytics pages need user verification. (P1)
--   Issue 2: Mobile app does not continue playing audio when locked. (P1)
+-   Issue 1: **(P0)** Song download functionality is critically and repeatedly broken. The agent is currently blocked by a failing EAS build command.
+-   Issue 2: **(P0)** Mobile app crashes when the mini-player is maximized.
+-   Issue 3: **(P1)** Adding songs to an existing playlist does not work.
+-   Issue 4: **(P1)** The Like song feature is broken, and liked songs are not accessible in the Library.
+-   Issue 5: **(P2)** Admin dashboard analytics need re-verification from the user after demo data cleanup.
+-   Issue 6: **(P2)** Choir management stats need re-verification from the user after backend endpoint fixes.
 
 **Issues Detail:**
--   **Issue 1:** Admin dashboard and analytics pages need user verification.
-    -   **Attempted fixes:** The backend endpoints (, ) were completely rewritten to provide real, aggregated data from the database. The frontend  was updated to use these new endpoints and display charts for user growth and active users. The agent generated demo data to populate the dashboard. However, the agent could not log in to take a screenshot for visual confirmation.
+-   **Issue 1: Song download functionality is critically broken**
+    -   **Attempted fixes:** The feature has been through multiple rewrites.
+        1.  Initial implementation and integration across app screens.
+        2.  Build v1.0.95 failed due to the  error.
+        3.  The agent rewrote the context to use the new  API.
+        4.  Build v1.0.98 failed with  because  streaming isn't supported in React Native.
+        5.  The agent rewrote the download stream to use .
+        6.  Build v1.0.99 failed because the  method couldn't handle the  from the XHR response.
+        7.  The agent refactored again to convert the response to  before writing.
+        8.  The subsequent  command failed, blocking all further progress.
     -   **Next debug checklist:**
-        1.  Guide the user to the admin dashboard () and analytics pages.
-        2.  Ask the user to confirm if the data for Total Users, Active Users, Total Streams, and Revenue looks correct and is no longer showing zero or mock values.
-    -   **Why fix this issue and what will be achieved with the fix?** This provides the user with critical business insights and confirms the backend data pipeline is working correctly.
-    -   **Status:** USER VERIFICATION PENDING
+        1.  Diagnose and fix the  error. This is the immediate blocker. Check for environment issues, invalid  configurations, or problems with the EAS CLI session.
+        2.  Once a build can be triggered, create a build with the latest  write fix.
+        3.  If that build fails, simplify the  to its most basic form (download a file, save it, verify existence) to isolate the problem, ignoring checksums and other advanced features for now.
+        4.  Use the  if the build failure is persistent and not obvious.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a core premium feature and its failure is the primary source of user frustration, blocking all other mobile app validation and development.
+    -   **Status:** BLOCKED
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Frontend (Visual confirmation by user).
+    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Blocked on other issue:** Itself. The build process is failing.
 
--   **Issue 2:** Mobile app does not continue playing audio when locked.
-    -   **Attempted fixes:** The agent added the  plugin to  with  and updated  to potentially support a foreground service.
-    -   **Next debug checklist:**
-        1.  Incorporate this fix into the next mobile app build (which will be for the new download feature).
-        2.  After the build is complete, test on an APK by playing a song and then locking the device screen or minimizing the app.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a standard and expected feature for any music streaming app, providing a seamless user experience.
+-   **Issue 2: Mobile app crashes when mini-player is maximized**
+    -   **Attempted fixes:** The agent identified that  was using undefined variables from the download context. A fix was included in build v1.0.93, but since later builds had other critical failures, it's unconfirmed if the fix was effective.
+    -   **Next debug checklist:** This should be tested as part of the full regression test once a stable build is available.
+    -   **Why fix this issue and what will be achieved with the fix?** Fixes a major crash, improving app stability and user experience.
     -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Frontend (requires a new APK build).
-    -   **Blocked on other issue:** None. Can be bundled with the next build.
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend
+
+-   **Issue 3: Adding songs to existing playlist fails**
+    -   **Attempted fixes:** The agent verified that the frontend modal () and the backend endpoint seemed correct. No code changes were made.
+    -   **Next debug checklist:** Once a stable build is available, test the feature and monitor network requests and backend logs to see where the process fails.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a key feature for user engagement and content curation.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Both
+
+-   **Issue 4: Like feature is broken**
+    -   **Attempted fixes:** A fix was included in build v1.0.93. The agent also fixed an issue in  where the  was passed the wrong prop ( instead of ), which prevented liked songs from rendering correctly.
+    -   **Next debug checklist:** Test as part of the full regression test on a stable build.
+    -   **Why fix this issue and what will be achieved with the fix?** Another key feature for user engagement.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Both
 
 **In progress Task List**:
--   **Task 1:** Re-implement Spotify-like download functionality. (P0)
-    -   **Where to resume:** The file  has just been created. The next steps are:
-        1.  Flesh out  with logic for initiating downloads (), tracking progress, and managing downloaded files.
-        2.  Update  to add a Download option back into the three-dot menu.
-        3.  Update  to add a download button for the entire album/playlist.
-        4.  Create a new Downloads section/grid on the  or  to display offline songs.
-        5.  Ensure downloaded songs are marked visually to prevent re-downloading.
-        6.  Update  to wrap the application in the new .
-    -   **What will be achieved with this?** A robust, user-friendly offline mode for the app, which is a critical feature for a music service.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Frontend (requires a new APK build).
-    -   **Blocked on something:** None.
+None. All efforts are currently blocked by the mobile app's build failure.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) Trigger a new mobile build () that includes both the new download feature and the background audio fix.
-    -   (P1) Guide the user through testing the new build and verifying the fixed admin dashboard.
+    -   **(P1)** Enhance Church UI on user side (show image, location, announcements, prayer schedule).
+    -   **(P1)** Ensure songs in lists inherit Album Images/Thumbnails.
+    -   **(P2)** Guide user to verify the admin dashboard analytics are now correct.
+    -   **(P2)** Guide user to verify the choir management stats are now correct.
 -   **Future Tasks:**
-    -   (P2) Admin Panel: Implement choir-specific dashboards to track their earnings.
-    -   (P2) Admin Panel: Add a sandbox/test mode for Azam Pay transactions.
-    -   (P2) Performance: Investigate and optimize the mobile app's slow startup time.
-    -   (P3) Feature: Implement offline Bible reading mode.
-    -   (P3) Feature: Implement push notifications.
-    -   (P3) Admin Panel: Create a cron job for periodic revenue calculations.
-    -   (P3) Admin Panel: Implement a withdrawal request management system for choirs.
+    -   Admin Panel: Implement choir-specific dashboards.
+    -   Admin Panel: Add a sandbox/test mode for Azam Pay transactions.
+    -   Performance: Investigate and optimize the mobile app's slow startup time.
+    -   Feature: Implement offline Bible reading mode.
+    -   Feature: Implement push notifications.
+    -   Admin Panel: Create a cron job for periodic revenue calculations.
+    -   Admin Panel: Implement a withdrawal request management system for choirs.
 
 **Completed work in this session**
--   **CDN & Data Health:**
-    -   Fixed Bunny CDN authentication and billing issues, making it fully operational.
-    -   Created a backend data audit/migration suite in .
-    -   Successfully migrated all active songs and album images to use CDN URLs, and disabled songs with missing data.
--   **Admin Dashboard & Analytics Rework:**
-    -   Fixed all key analytics endpoints in  to use real database aggregations.
-    -   Corrected the revenue calculation logic to respect billing status.
-    -   Updated the  frontend to display the live, accurate data with new charts.
-    -   Added a demo data generator () for testing.
--   **Payment Gateway Integration:**
-    -   Replaced M-Pesa with Azam Pay in the admin .
-    -   Added backend endpoints in  to store and retrieve Azam Pay credentials.
--   **Code Removal:**
-    -   As per user request, systematically deleted the entire song download feature from the mobile app codebase to prepare for a fresh start.
+-   **Backend - Analytics:** Cleaned up ~14,000 demo listening session records from the  ( collection). The  endpoint now reflects real user activity.
+-   **Backend - Choir Management:** Rewrote the  and  endpoints to use database aggregation, ensuring correct album, song, and play counts are returned.
+-   **Backend - User Management:** Added  endpoint to allow admins to create new users with specified roles.
+-   **Frontend - Admin User Management:** Created the  page (), added it to the main router in , and linked it in the sidebar navigation.
+-   **Mobile - Download Feature (ATTEMPTS):** The entire download feature was re-implemented and refactored multiple times, attempting to fix a cascade of critical bugs. This involved updating from deprecated  APIs to the modern , and switching from  to  for downloads.
 
 **Earlier issues found/mentioned but not fixed**
--   Slow app loading/startup performance remains an unaddressed, recurring user complaint.
--   The hero section does not display images correctly. While album art is now on CDN, a proper pipeline for these specific images is still needed.
+-   Slow app loading/startup performance.
+-   The hero section in the mobile app does not display images correctly.
 
 **Known issue recurrence from previous fork**
--   The song download functionality has been a persistent source of problems, leading to multiple failed fixes, a complete removal, and now a complete reimplementation.
+-   The song download functionality is the main recurring issue. It has been a constant source of failure across multiple forks and attempts, leading to user frustration.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Backend:** Python (Flask), MongoDB data aggregation pipelines for analytics.
--   **Frontend:** React, Recharts for data visualization.
--   **Mobile:** React Native, Expo,  (to be re-implemented).
--   **Infrastructure:** Bunny.net CDN for all media assets, Expo Application Services (EAS) for builds.
--   **3rd Party API:** Azam Pay (prepared for integration).
+-   **Mobile:** React Native, Expo (SDK 50+),  (File, Directory, Paths API),  for handling binary data downloads.
+-   **Backend:** Python (FastAPI), MongoDB (data aggregation pipelines).
+-   **Database:** The application is confirmed to be using , not .
 
 **key DB schema**
--   No schema changes were made, but the data within the  and  collections was significantly cleaned and updated.  and  fields now point to CDN links. The  and  collections are now correctly referenced by the analytics backend.
-
-**changes in tech stack**
--   None.
+-   No schema changes. Data in the  collection (in ) was cleared.
 
 **All files of reference**
--    (To be implemented)
--    (To be modified)
--    (To be modified)
--    (To be modified)
--    (Contains untested background audio fix)
--    (Contains build properties for background audio)
--    (For user verification)
--    (Reference for dashboard data source)
+-   **/app/mobile/SpiritSongs/src/context/DownloadContext.js**: The epicenter of the current problems. It has been rewritten multiple times.
+-   **/app/mobile/SpiritSongs/src/screens/LibraryScreen.js**: Contains logic for displaying downloaded and liked songs.
+-   **/app/mobile/SpiritSongs/src/screens/NowPlayingScreen.js**: Implicated in app crashes.
+-   **/app/backend/routes/analytics.py**: Contains logic for dashboard stats.
+-   **/app/backend/routes/choirs.py**: Contains logic for choir stats.
+-   **/app/frontend/src/pages/AdminUsersPage.jsx**: Newly created page for admin user management.
 
 **Areas that need refactoring**:
--   The mobile app's state management related to core features like downloads has been brittle. A more robust and modular approach should be considered during the re-implementation to avoid future breakage.
+-   The ** is extremely brittle**. Despite multiple rewrites, it continues to fail. It should be simplified to its core functionality and tested incrementally before adding advanced features like checksums or observer patterns.
 
 **key api endpoints**
 -   **New:**
     -   
-    -   
-    -   
-    -   
-    -   
 -   **Modified:**
+    -   
     -   
     -   
 
 **Critical Info for New Agent**
--   The user has shown frustration with the download feature, culminating in a request to delete it and start over. The new implementation must be robust and thoroughly tested.
--   Use the user's screenshot as a visual guide for the new download UI. All downloads must fetch files from the direct CDN URL ().
--   The backend for the admin dashboard/analytics is now providing real data. Your first interactions with the user should involve confirming these pages look correct to them.
--   A fix for background audio playback has been coded but not built or tested. It should be included in the next build along with the new download feature.
--   The user is now on a new EAS account () and the project has been re-initialized under it. Use the token  for all future builds.
+-   **Your immediate priority is to fix the mobile app build.** The  command is failing, which blocks all testing and progress. This is the P0 task.
+-   The user is highly frustrated with the recurring download feature failures. They have provided specific technical guidance (atomic writes, checksums), which the previous agent attempted to implement. The complexity of this implementation may be the source of the recent failures.
+-   After fixing the build, the next step is to ensure the download feature is **actually working**, even in a simplified state. The cascade of errors ( ->  -> file write) indicates fundamental issues with the environment/API usage.
+-   Once a stable build with a working download feature is achieved, a full regression test of all reported mobile bugs (player crash, like, add to playlist) is mandatory. Use the .
+-   Do not start work on new features (Church UI, song thumbnails) until the critical mobile bugs are resolved and verified by the user.
 
 **documents and test reports created in this job**
--   
+-    (updated with completed admin tasks)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Asks to fix the mobile app download issue, which was initially working but broke after redevelopment.
-2.  **Agent:** Investigated the download flow from frontend to backend, confirming endpoints and data were correct.
-3.  **Agent:** Simplified the download logic in  and triggered a new build (v1.0.88) to test the fix.
-4.  **Agent:** Announced that build v1.0.88 is ready and summarized the fixes.
-5.  **User:** Requests to **completely delete** the song download module and all its related code from the app.
-6.  **Agent:** Systematically removed all download-related code from the mobile app across multiple files and components.
-7.  **User:** Immediately requests to create a **new, proper download functionality** similar to Spotify, providing a screenshot as a reference. (COMPLETION STATUS: In Progress)
-8.  **Agent:** Acknowledged the request and began implementation by creating a new .
-9.  **User:** (Previous pending request) Ensure the admin dashboard shows correct data for customers, growth, and content performance, and that the revenue section works perfectly. (COMPLETION STATUS: User Verification Pending)
-10. **User:** (Previous pending request) In the system settings, replace Mpesa with Azam Pay. (COMPLETION STATUS: Completed)
+1.  **User:** Reports download works, but with several critical bugs: app crashes on maximizing player, downloads don't save, downloaded songs aren't highlighted, like is broken, and can't add to playlists. (Status: In Progress)
+2.  **Agent:** Investigated and implemented fixes for all five issues, triggering build v1.0.93.
+3.  **User:** Reports downloads are not showing up in the library grid, and liked songs are not accessible. (Status: In Progress)
+4.  **Agent:** Found bugs in  (wrong prop names, state not updating reactively), fixed them, and triggered build v1.0.94.
+5.  **User:** Reports that the download state is out of sync with the actual file system and provides detailed technical guidance on implementing a robust download system with checksum validation and state synchronization. (Status: In Progress)
+6.  **Agent:** Re-architected  to a Gold Standard version with checksums, atomic writes, and an observer pattern, triggering build v1.0.95.
+7.  **User:** Reports build v1.0.95 fails with a deprecated  error. (Status: In Progress)
+8.  **Agent:** Rewrote  again to use the modern  API and triggered build v1.0.96.
+9.  **User:** Reports the same  error persists, expressing frustration and providing more detailed technical guidance. (Status: In Progress)
+10. **Agent:** Found a lingering import of the old API in  and rewrote  from scratch to be certain no deprecated methods remained, triggering build v1.0.97. The user then provides even more detail on the desired download architecture.
+11. **User:** Build v1.0.98 fails with . (Status: In Progress)
+12. **Agent:** Replaced  with  to fix the streaming issue and triggered build v1.0.99.
+13. **User:** Build v1.0.99 fails with a file write error. (Status: In Progress)
+14. **Agent:** Re-implemented the file write logic to use  encoding and attempted to trigger build v1.1.0, but the build command itself failed.
+15. **User:** Provides new feature requests: ensure songs inherit album images and enhance the Church UI. (Status: Not Started)
 
 **Project Health Check:**
 -   **Broken:**
-    -   None. The previously broken download feature was intentionally removed.
+    -   Song Download functionality (critically broken, build is failing).
+    -   App crashes on maximizing mini-player.
+    -   Like song functionality.
+    -   Add to playlist functionality.
 -   **Mocked:**
-    -   Hero section images in the mobile app still use placeholders.
+    -   Hero section images in the mobile app.
 
 **3rd Party Integrations**
--   **Bunny.net CDN:** Fully configured and operational for storing and serving all audio and image assets.
--   **Expo (EAS Build):** Used for building the React Native application. New account and token are in use.
--   **Azam Pay:** Frontend UI and backend endpoints are in place to store credentials. No live integration has been implemented.
+-   **Bunny.net CDN:** Operational.
+-   **Expo (EAS Build):** Used for building the React Native app. The build command itself is currently failing.
+-   **Azam Pay:** UI and backend credential storage are ready, but no live integration.
 
 **Testing status**
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** None currently, as the regressed feature was removed.
-
-**Credentials to test flow:**
--   **EAS Token:**  (for account )
+-   **Known regressions:** The entire download feature has regressed into a non-functional and un-buildable state.
 
 **What agent forgot to execute**
--   The agent coded a fix for background audio playback but never got to trigger a build to test and confirm it works. This task remains incomplete.
--   The agent was unable to get a visual confirmation (screenshot) of the revamped admin dashboard after fixing the backend data sources, as it required login. This is pending user verification.</analysis>
+-   The agent got stuck in a loop trying to fix the download feature and was unable to address the user's latest requests to enhance the Church UI and fix song thumbnails.
+-   Verification from the user for the fixed admin dashboard and choir management statistics is still pending.</analysis>

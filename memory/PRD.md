@@ -180,7 +180,7 @@ BUNNY_CDN_URL=https://gracefy-cdn.b-cdn.net
 
 ### Frontend (.env)
 ```
-REACT_APP_BACKEND_URL=https://audio-library-18.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://gospel-app-2.preview.emergentagent.com
 ```
 
 ## EAS Build Credentials
