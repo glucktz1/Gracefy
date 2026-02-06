@@ -401,6 +401,9 @@ export const PlayerProvider = ({ children }) => {
       }
     }
 
+    // End previous stream if exists
+    await endCurrentStream();
+
     console.log('[PlayerContext] Loading track:', track.title);
     setIsLoading(true);
     setCurrentTrack(track);
@@ -425,6 +428,9 @@ export const PlayerProvider = ({ children }) => {
 
       console.log('[PlayerContext] Audio URL:', audioUrl.substring(0, 80));
 
+      // Start stream tracking for analytics
+      await startStreamTracking(track);
+
       // Create and load sound
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
@@ -440,7 +446,7 @@ export const PlayerProvider = ({ children }) => {
       setIsPlaying(true);
       setIsLoading(false);
 
-      // Start play tracking
+      // Start play tracking (for 45+ second counts)
       startPlayTracking(track.song_id);
 
       // Show media notification for lock screen
@@ -461,6 +467,67 @@ export const PlayerProvider = ({ children }) => {
       console.error('[PlayerContext] Error loading track:', e);
       setIsLoading(false);
       setIsPlaying(false);
+    }
+  };
+
+  // Start stream tracking for real-time analytics
+  const startStreamTracking = async (track) => {
+    try {
+      const response = await playerAPI.startStream(
+        track.song_id,
+        deviceIdRef.current,
+        {
+          platform: Platform.OS,
+          album_id: track.album_id
+        }
+      );
+      
+      if (response?.data?.stream_id) {
+        currentStreamIdRef.current = response.data.stream_id;
+        console.log('[PlayerContext] Stream started:', response.data.stream_id);
+        
+        // Start heartbeat interval (every 30 seconds)
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
+        
+        heartbeatIntervalRef.current = setInterval(async () => {
+          if (currentStreamIdRef.current) {
+            try {
+              const currentPosition = Math.floor((position || 0) / 1000);
+              await playerAPI.heartbeat(currentStreamIdRef.current, currentPosition);
+            } catch (e) {
+              // Ignore heartbeat errors
+            }
+          }
+        }, 30000);
+      }
+    } catch (e) {
+      console.log('[PlayerContext] Stream tracking error:', e.message);
+      // Don't fail playback if stream tracking fails
+    }
+  };
+
+  // End current stream
+  const endCurrentStream = async () => {
+    // Clear heartbeat interval
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    
+    // End the stream
+    if (currentStreamIdRef.current) {
+      try {
+        const listenDuration = playStartTimeRef.current 
+          ? Math.floor((Date.now() - playStartTimeRef.current) / 1000)
+          : 0;
+        await playerAPI.endStream(currentStreamIdRef.current, listenDuration);
+        console.log('[PlayerContext] Stream ended:', currentStreamIdRef.current);
+      } catch (e) {
+        // Ignore end stream errors
+      }
+      currentStreamIdRef.current = null;
     }
   };
 
