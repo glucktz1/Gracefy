@@ -109,6 +109,11 @@ export const PlayerProvider = ({ children }) => {
   
   // Media notification ID
   const notificationIdRef = useRef(null);
+  
+  // Stream tracking for analytics
+  const currentStreamIdRef = useRef(null);
+  const deviceIdRef = useRef(`${Platform.OS}_${Math.random().toString(36).substring(2, 10)}`);
+  const heartbeatIntervalRef = useRef(null);
 
   // Keep refs and global state in sync
   useEffect(() => { 
