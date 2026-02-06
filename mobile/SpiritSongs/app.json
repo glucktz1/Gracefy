@@ -33,8 +33,6 @@
       "edgeToEdgeEnabled": true,
       "package": "com.spiritsongs.app",
       "versionCode": 114,
-      "compileSdkVersion": 36,
-      "targetSdkVersion": 36,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
