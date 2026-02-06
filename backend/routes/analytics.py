@@ -934,25 +934,50 @@ async def get_realtime_analytics():
     from datetime import timedelta
     
     now = datetime.now(timezone.utc)
+    two_min_ago = (now - timedelta(minutes=2)).isoformat()
     five_min_ago = (now - timedelta(minutes=5)).isoformat()
     one_hour_ago = (now - timedelta(hours=1)).isoformat()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     
-    # Active streams (sessions without end_time in last 5 minutes)
-    active_streams = await db.listening_sessions.count_documents({
-        "start_time": {"$gte": five_min_ago}
-    })
+    # Active streams from active_streams collection (real-time, heartbeat-based)
+    active_streams_data = await db.active_streams.find(
+        {
+            "is_active": True,
+            "last_heartbeat": {"$gte": two_min_ago}
+        },
+        {"_id": 0, "user_id": 1, "device_id": 1, "platform": 1, "song_title": 1, "artist_name": 1}
+    ).to_list(1000)
     
-    # Unique active listeners
-    active_pipeline = [
-        {"$match": {"start_time": {"$gte": five_min_ago}}},
-        {"$group": {"_id": "$user_id"}},
-        {"$count": "count"}
-    ]
-    active_result = await db.listening_sessions.aggregate(active_pipeline).to_list(1)
-    active_listeners = active_result[0]["count"] if active_result else 0
+    active_streams = len(active_streams_data)
     
-    # Plays today
+    # Count unique listeners (by user_id) and unique devices
+    unique_users = set()
+    unique_devices = set()
+    platforms = {}
+    
+    for s in active_streams_data:
+        unique_users.add(s.get("user_id"))
+        unique_devices.add(s.get("device_id"))
+        p = s.get("platform", "unknown")
+        platforms[p] = platforms.get(p, 0) + 1
+    
+    active_listeners = len(unique_users)
+    
+    # Fallback to listening_sessions if no active_streams data
+    if active_streams == 0:
+        active_streams = await db.listening_sessions.count_documents({
+            "start_time": {"$gte": five_min_ago}
+        })
+        
+        active_pipeline = [
+            {"$match": {"start_time": {"$gte": five_min_ago}}},
+            {"$group": {"_id": "$user_id"}},
+            {"$count": "count"}
+        ]
+        active_result = await db.listening_sessions.aggregate(active_pipeline).to_list(1)
+        active_listeners = active_result[0]["count"] if active_result else 0
+    
+    # Plays today (completed plays of 45+ seconds)
     plays_today = await db.listening_sessions.count_documents({
         "counted_as_play": True,
         "start_time": {"$gte": today_start}
@@ -972,16 +997,22 @@ async def get_realtime_analytics():
     ]
     hourly_plays = await db.listening_sessions.aggregate(hourly_pipeline).to_list(60)
     
-    # Currently playing (most recent plays)
-    recent_plays = await db.listening_sessions.find(
-        {"start_time": {"$gte": five_min_ago}},
-        {"_id": 0, "content_type": 1, "content_id": 1, "platform": 1}
-    ).sort("start_time", -1).limit(10).to_list(10)
+    # Currently playing (from active streams)
+    recent_plays = []
+    for s in active_streams_data[:10]:
+        recent_plays.append({
+            "song_title": s.get("song_title"),
+            "artist_name": s.get("artist_name"),
+            "platform": s.get("platform"),
+            "user_id": s.get("user_id", "")[:8] + "..."  # Truncate for privacy
+        })
     
     return {
         "timestamp": now.isoformat(),
         "active_streams": active_streams,
         "active_listeners": active_listeners,
+        "unique_devices": len(unique_devices),
+        "platforms": platforms,
         "plays_today": plays_today,
         "new_users_today": new_users_today,
         "hourly_trend": [{"time": h["_id"], "plays": h["plays"]} for h in hourly_plays],
