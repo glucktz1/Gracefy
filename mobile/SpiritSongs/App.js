@@ -14,21 +14,6 @@ import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
 
-// Register TrackPlayer service lazily to avoid expo config issues
-let trackPlayerRegistered = false;
-const registerTrackPlayer = async () => {
-  if (trackPlayerRegistered) return;
-  try {
-    const TrackPlayer = require('react-native-track-player').default;
-    const { PlaybackService } = require('./src/services/trackPlayerService');
-    TrackPlayer.registerPlaybackService(() => PlaybackService);
-    trackPlayerRegistered = true;
-    console.log('[App] TrackPlayer service registered');
-  } catch (e) {
-    console.log('[App] TrackPlayer registration error:', e.message);
-  }
-};
-
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
 
