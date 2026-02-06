@@ -68,22 +68,19 @@ export const DownloadProvider = ({ children }) => {
 
   // ==================== DIRECTORY MANAGEMENT ====================
   
-  const getDownloadDirPath = () => `${Paths.document}/${DOWNLOAD_DIR_NAME}`;
-  const getTempDirPath = () => `${Paths.document}/${TEMP_DIR_NAME}`;
-
-  const ensureDirectories = () => {
+  const ensureDirectories = async () => {
     try {
       // Main download directory
-      const downloadDir = new Directory(Paths.document, DOWNLOAD_DIR_NAME);
-      if (!downloadDir.exists) {
-        downloadDir.create();
+      const downloadDirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
+      if (!downloadDirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
         console.log('[Downloads] Created download directory');
       }
       
       // Temp directory for atomic writes
-      const tempDir = new Directory(Paths.document, TEMP_DIR_NAME);
-      if (!tempDir.exists) {
-        tempDir.create();
+      const tempDirInfo = await FileSystem.getInfoAsync(TEMP_DIR);
+      if (!tempDirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(TEMP_DIR, { intermediates: true });
         console.log('[Downloads] Created temp directory');
       }
       
@@ -94,34 +91,31 @@ export const DownloadProvider = ({ children }) => {
     }
   };
 
-  // ==================== FILE OPERATIONS (New API) ====================
+  // ==================== FILE OPERATIONS ====================
   
-  const fileExists = (filePath) => {
+  const fileExists = async (filePath) => {
     try {
-      const file = new File(filePath);
-      return file.exists === true;
+      const info = await FileSystem.getInfoAsync(filePath);
+      return info.exists === true;
     } catch (e) {
       return false;
     }
   };
 
-  const getFileSize = (filePath) => {
+  const getFileSize = async (filePath) => {
     try {
-      const file = new File(filePath);
-      if (file.exists) {
-        return file.size || 0;
-      }
-      return 0;
+      const info = await FileSystem.getInfoAsync(filePath, { size: true });
+      return info.exists ? (info.size || 0) : 0;
     } catch (e) {
       return 0;
     }
   };
 
-  const deleteFile = (filePath) => {
+  const deleteFile = async (filePath) => {
     try {
-      const file = new File(filePath);
-      if (file.exists) {
-        file.delete();
+      const info = await FileSystem.getInfoAsync(filePath);
+      if (info.exists) {
+        await FileSystem.deleteAsync(filePath, { idempotent: true });
         return true;
       }
       return false;
@@ -131,28 +125,25 @@ export const DownloadProvider = ({ children }) => {
     }
   };
 
-  const moveFile = (sourcePath, destPath) => {
+  const writeFile = async (filePath, base64Data) => {
     try {
-      const sourceFile = new File(sourcePath);
-      if (!sourceFile.exists) {
-        return false;
-      }
-      
-      // Read source file
-      const data = sourceFile.bytes();
-      
-      // Write to destination
-      const destFile = new File(destPath);
-      destFile.write(data);
-      
-      // Verify destination exists
-      if (destFile.exists) {
-        // Delete source
-        sourceFile.delete();
-        return true;
-      }
-      
+      await FileSystem.writeAsStringAsync(filePath, base64Data, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+      return true;
+    } catch (e) {
+      console.error('[Downloads] Write error:', e.message);
       return false;
+    }
+  };
+
+  const moveFile = async (sourcePath, destPath) => {
+    try {
+      await FileSystem.moveAsync({
+        from: sourcePath,
+        to: destPath
+      });
+      return true;
     } catch (e) {
       console.error('[Downloads] Move error:', e.message);
       return false;
