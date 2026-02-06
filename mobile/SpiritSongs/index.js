@@ -1,9 +1,11 @@
 import { registerRootComponent } from 'expo';
+import TrackPlayer from 'react-native-track-player';
 
 import App from './App';
+import { PlaybackService } from './src/services/trackPlayerService';
 
-// NOTE: TrackPlayer.registerPlaybackService is called inside App.js useEffect
-// to avoid "expo config" read failures during EAS build
+// Register the playback service for background audio
+TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 // It also ensures that whether you load the app in Expo Go or in a native build,
