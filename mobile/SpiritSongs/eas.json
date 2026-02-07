@@ -17,7 +17,7 @@
       "developmentClient": false,
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug",
+        "gradleCommand": ":app:assembleRelease",
         "withoutCredentials": true
       }
     },
