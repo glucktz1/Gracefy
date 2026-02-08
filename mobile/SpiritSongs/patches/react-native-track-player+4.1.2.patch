@@ -1,14 +1,15 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index 1234567..abcdefg 100644
+index afa6b0f..454dd58 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -761,8 +761,7 @@ class MusicService : HeadlessJsTaskService() {
+@@ -760,10 +760,6 @@ class MusicService : HeadlessJsTaskService() {
          return HeadlessJsTaskConfig(TASK_KEY, Arguments.createMap(), 0, true)
      }
  
 -    @MainThread
 -    override fun onBind(intent: Intent): IBinder {
-+    fun onBind(intent: Intent): IBinder {
-         return binder
-     }
+-        return binder
+-    }
  
+     @MainThread
+     override fun onTaskRemoved(rootIntent: Intent?) {
