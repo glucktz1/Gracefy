@@ -1,11 +1,16 @@
 /**
- * PlayerContext - Using react-native-track-player for reliable background playback
+ * PlayerContext - Complete Rewrite for Background Playback
+ * 
+ * Built from scratch using react-native-track-player v5
  * 
  * Features:
- * - Background/lock screen playback with notification controls
- * - Lock screen artwork and controls (like Spotify)
- * - Automatic next track when song ends
- * - Single playback (no double audio)
+ * - Background playback (app minimized/killed)
+ * - Lock screen controls with artwork
+ * - Notification media controls
+ * - Bluetooth/headphone controls
+ * - Auto-next track
+ * - Queue management
+ * - Stream tracking for analytics
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
@@ -19,37 +24,61 @@ import TrackPlayer, {
   useProgress,
   useActiveTrack,
 } from 'react-native-track-player';
-import { Platform, AppState } from 'react-native';
+import { Platform } from 'react-native';
 import { getAudioUrl, getImageUrl, playerAPI } from '../services/api';
 
+// Create context
 const PlayerContext = createContext(null);
 
-// External audio callback for stopping other audio sources
+// External audio callback (for Bible TTS to stop music)
 let stopExternalAudioCallback = null;
 export const setStopExternalAudioCallback = (cb) => { stopExternalAudioCallback = cb; };
 export const clearStopExternalAudioCallback = () => { stopExternalAudioCallback = null; };
 
+/**
+ * Hook to access player functions and state
+ */
 export const usePlayer = () => {
   const context = useContext(PlayerContext);
   if (!context) {
+    // Return safe defaults if used outside provider
     return {
-      currentTrack: null, queue: [], queueIndex: 0, isPlaying: false,
-      isLoading: false, position: 0, duration: 0, shuffle: false,
-      repeat: 'all', isLiked: false,
-      playTrack: async () => {}, togglePlay: async () => {},
-      togglePlayPause: async () => {}, skipNext: async () => {},
-      skipPrevious: async () => {}, seekTo: async () => {},
-      toggleShuffle: () => {}, toggleRepeat: () => {},
-      toggleLike: async () => {}, addToQueue: () => {},
-      playQueue: async () => {}, clearQueue: () => {},
-      setAutoPlay: () => {}, stopPlayback: async () => {},
+      currentTrack: null,
+      queue: [],
+      queueIndex: 0,
+      isPlaying: false,
+      isLoading: false,
+      position: 0,
+      duration: 0,
+      shuffle: false,
+      repeat: 'all',
+      isLiked: false,
+      playTrack: async () => {},
+      togglePlay: async () => {},
+      togglePlayPause: async () => {},
+      skipNext: async () => {},
+      skipPrevious: async () => {},
+      seekTo: async () => {},
+      toggleShuffle: () => {},
+      toggleRepeat: () => {},
+      toggleLike: async () => {},
+      addToQueue: () => {},
+      playQueue: async () => {},
+      clearQueue: () => {},
+      setAutoPlay: () => {},
+      stopPlayback: async () => {},
+      pausePlayback: async () => {},
+      resumePlayback: async () => {},
     };
   }
   return context;
 };
 
+/**
+ * Player Provider Component
+ */
 export const PlayerProvider = ({ children }) => {
-  // State
+  // ============ STATE ============
   const [currentTrack, setCurrentTrack] = useState(null);
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
@@ -57,63 +86,63 @@ export const PlayerProvider = ({ children }) => {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('all');
   const [isLiked, setIsLiked] = useState(false);
-  const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
-  // Use track player hooks
+  // ============ HOOKS FROM TRACK PLAYER ============
   const playbackState = usePlaybackState();
-  const progress = useProgress(1000);
+  const progress = useProgress(500); // Update every 500ms
   const activeTrack = useActiveTrack();
 
-  // Refs
+  // ============ REFS ============
   const queueRef = useRef([]);
   const repeatRef = useRef('all');
-  const isInitializedRef = useRef(false);
+  const setupCompleteRef = useRef(false);
   
-  // Stream tracking
-  const deviceIdRef = useRef(`${Platform.OS}_${Math.random().toString(36).substr(2, 8)}`);
+  // Analytics tracking
+  const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
   const streamIdRef = useRef(null);
   const heartbeatRef = useRef(null);
   const playStartTimeRef = useRef(null);
   const playTrackedRef = useRef(false);
   const playTrackingTimerRef = useRef(null);
 
-  // Derived state
+  // ============ DERIVED STATE ============
   const isPlaying = playbackState.state === State.Playing;
-  const position = progress.position * 1000; // Convert to ms
-  const duration = progress.duration * 1000; // Convert to ms
+  const position = (progress.position || 0) * 1000; // Convert to milliseconds
+  const duration = (progress.duration || 0) * 1000; // Convert to milliseconds
 
-  // Sync refs
+  // ============ SYNC REFS ============
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
 
-  // ==================== SETUP TRACK PLAYER ====================
-  const setupPlayer = async () => {
-    if (isInitializedRef.current) return;
-    
+  // ============ SETUP PLAYER ============
+  const setupPlayer = useCallback(async () => {
+    if (setupCompleteRef.current) return true;
+
     try {
-      console.log('[Player] Setting up TrackPlayer...');
-      
-      // Check if already set up
-      try {
-        await TrackPlayer.getActiveTrack();
-        console.log('[Player] TrackPlayer already initialized');
-        isInitializedRef.current = true;
-        setIsPlayerReady(true);
-        return;
-      } catch {
-        // Not initialized, continue setup
+      console.log('[Player] Initializing TrackPlayer...');
+
+      // Check if already initialized
+      const currentTrack = await TrackPlayer.getActiveTrack().catch(() => null);
+      if (currentTrack !== null) {
+        console.log('[Player] Already initialized');
+        setupCompleteRef.current = true;
+        setIsReady(true);
+        return true;
       }
 
+      // Setup player with configuration
       await TrackPlayer.setupPlayer({
-        maxCacheSize: 1024 * 50, // 50 MB cache
         autoHandleInterruptions: true,
       });
 
+      // Configure player options for background playback
       await TrackPlayer.updateOptions({
+        // Android: Continue playback when app is killed
         android: {
           appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
         },
+        // Capabilities shown in notification/lock screen
         capabilities: [
           Capability.Play,
           Capability.Pause,
@@ -122,139 +151,129 @@ export const PlayerProvider = ({ children }) => {
           Capability.Stop,
           Capability.SeekTo,
         ],
+        // Compact notification capabilities
         compactCapabilities: [
           Capability.Play,
           Capability.Pause,
           Capability.SkipToNext,
-          Capability.SkipToPrevious,
         ],
-        notificationCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-        ],
-        progressUpdateEventInterval: 1,
+        // Progress bar in notification
+        progressUpdateEventInterval: 2,
       });
 
-      // Set initial repeat mode
+      // Set default repeat mode to queue (repeat all)
       await TrackPlayer.setRepeatMode(RepeatMode.Queue);
 
-      isInitializedRef.current = true;
-      setIsPlayerReady(true);
-      console.log('[Player] TrackPlayer setup complete');
+      setupCompleteRef.current = true;
+      setIsReady(true);
+      console.log('[Player] Setup complete');
+      return true;
     } catch (error) {
-      console.error('[Player] Setup error:', error);
+      console.error('[Player] Setup failed:', error);
+      return false;
     }
-  };
+  }, []);
 
-  // Initialize on mount
+  // ============ INITIALIZE ON MOUNT ============
   useEffect(() => {
     setupPlayer();
 
-    // Listen for track change events
-    const trackChangeSub = TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      async (event) => {
-        if (event.track) {
-          console.log('[Player] Active track changed:', event.track.title);
-          // Update current track from our queue
-          const trackIndex = queueRef.current.findIndex(t => 
-            t.song_id === event.track.id || t.title === event.track.title
-          );
-          if (trackIndex >= 0) {
-            setQueueIndex(trackIndex);
-            setCurrentTrack(queueRef.current[trackIndex]);
-            
-            // Check liked status
-            try {
-              const res = await playerAPI.checkLiked(queueRef.current[trackIndex].song_id);
-              setIsLiked(res?.data?.liked || false);
-            } catch (e) { setIsLiked(false); }
-          }
+    // Listen for queue end to handle repeat
+    const queueEndedSub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
+      console.log('[Player] Queue ended');
+      if (repeatRef.current === 'all' && queueRef.current.length > 0) {
+        try {
+          await TrackPlayer.skip(0);
+          await TrackPlayer.play();
+        } catch (e) {
+          console.error('[Player] Restart queue error:', e);
         }
       }
-    );
+    });
 
-    // Listen for queue end
-    const queueEndSub = TrackPlayer.addEventListener(
-      Event.PlaybackQueueEnded,
-      async (event) => {
-        console.log('[Player] Queue ended');
-        // If repeat all, restart queue
-        if (repeatRef.current === 'all' && queueRef.current.length > 0) {
-          try {
-            await TrackPlayer.skip(0);
-            await TrackPlayer.play();
-          } catch (e) {
-            console.error('[Player] Restart queue error:', e);
-          }
-        }
-      }
-    );
-
+    // Cleanup
     return () => {
-      trackChangeSub.remove();
-      queueEndSub.remove();
+      queueEndedSub.remove();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
     };
-  }, []);
+  }, [setupPlayer]);
 
-  // Sync active track with our state
+  // ============ SYNC ACTIVE TRACK ============
   useEffect(() => {
     if (activeTrack && queue.length > 0) {
       const idx = queue.findIndex(t => 
-        t.song_id === activeTrack.id || t.title === activeTrack.title
+        t.song_id === activeTrack.id || 
+        t.song_id === activeTrack.songId ||
+        t.title === activeTrack.title
       );
-      if (idx >= 0 && idx !== queueIndex) {
-        setQueueIndex(idx);
-        setCurrentTrack(queue[idx]);
+      
+      if (idx >= 0) {
+        if (idx !== queueIndex) {
+          setQueueIndex(idx);
+        }
+        if (!currentTrack || currentTrack.song_id !== queue[idx].song_id) {
+          setCurrentTrack(queue[idx]);
+          checkLikedStatus(queue[idx].song_id);
+        }
       }
     }
   }, [activeTrack, queue]);
 
-  // ==================== STREAM TRACKING ====================
+  // ============ ANALYTICS: STREAM TRACKING ============
   const startStreamTracking = async (track) => {
-    await endStream();
+    await endStreamTracking();
+    
     try {
       const res = await playerAPI.startStream(track.song_id, deviceIdRef.current, {
         platform: Platform.OS,
         album_id: track.album_id
       });
+      
       if (res?.data?.stream_id) {
         streamIdRef.current = res.data.stream_id;
+        
+        // Heartbeat every 30 seconds
         heartbeatRef.current = setInterval(async () => {
           if (streamIdRef.current) {
-            try { 
-              await playerAPI.heartbeat(streamIdRef.current, Math.floor(progress.position)); 
+            try {
+              await playerAPI.heartbeat(streamIdRef.current, Math.floor(progress.position));
             } catch (e) {}
           }
         }, 30000);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.log('[Player] Stream tracking error:', e.message);
+    }
   };
 
-  const endStream = async () => {
+  const endStreamTracking = async () => {
     if (heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
     }
+    
     if (streamIdRef.current) {
       try {
-        const dur = playStartTimeRef.current ? Math.floor((Date.now() - playStartTimeRef.current) / 1000) : 0;
-        await playerAPI.endStream(streamIdRef.current, dur);
+        const duration = playStartTimeRef.current 
+          ? Math.floor((Date.now() - playStartTimeRef.current) / 1000) 
+          : 0;
+        await playerAPI.endStream(streamIdRef.current, duration);
       } catch (e) {}
       streamIdRef.current = null;
     }
   };
 
-  // ==================== PLAY TRACKING ====================
+  // ============ ANALYTICS: PLAY TRACKING ============
   const startPlayTracking = (songId) => {
-    if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
+    if (playTrackingTimerRef.current) {
+      clearTimeout(playTrackingTimerRef.current);
+    }
+    
     playStartTimeRef.current = Date.now();
     playTrackedRef.current = false;
 
+    // Track play after 45 seconds
     playTrackingTimerRef.current = setTimeout(async () => {
       if (!playTrackedRef.current) {
         playTrackedRef.current = true;
@@ -265,31 +284,43 @@ export const PlayerProvider = ({ children }) => {
     }, 45000);
   };
 
-  // ==================== CONVERT TRACK FORMAT ====================
-  const convertToTrackPlayerFormat = (track) => {
-    const audioUrl = getAudioUrl(track.audio_url || track.file_path);
-    const artworkUrl = getImageUrl(track.thumbnail || track.cover_url || track.album_thumbnail);
-    
-    return {
-      id: track.song_id,
-      url: audioUrl,
-      title: track.title || 'Unknown',
-      artist: track.artist_name || 'Unknown Artist',
-      album: track.album_title || '',
-      artwork: artworkUrl || 'https://via.placeholder.com/300',
-      duration: track.duration || 0,
-    };
+  // ============ CHECK LIKED STATUS ============
+  const checkLikedStatus = async (songId) => {
+    try {
+      const res = await playerAPI.checkLiked(songId);
+      setIsLiked(res?.data?.liked || false);
+    } catch (e) {
+      setIsLiked(false);
+    }
   };
 
-  // ==================== PUBLIC API ====================
-  
+  // ============ CONVERT TRACK FORMAT ============
+  const toTrackPlayerFormat = (track) => ({
+    id: track.song_id,
+    songId: track.song_id, // Keep reference to original ID
+    url: getAudioUrl(track.audio_url || track.file_path),
+    title: track.title || 'Unknown Title',
+    artist: track.artist_name || 'Unknown Artist',
+    album: track.album_title || '',
+    artwork: getImageUrl(track.thumbnail || track.cover_url || track.album_thumbnail) || 'https://via.placeholder.com/300',
+    duration: track.duration || 0,
+  });
+
+  // ============ PUBLIC API ============
+
+  /**
+   * Play a track with optional queue
+   */
   const playTrack = async (track, newQueue = null, startIndex = null) => {
-    if (!isPlayerReady) {
-      console.log('[Player] Not ready yet');
-      await setupPlayer();
+    if (!track) return;
+
+    // Ensure player is ready
+    if (!setupCompleteRef.current) {
+      const ready = await setupPlayer();
+      if (!ready) return;
     }
 
-    // Stop external audio
+    // Stop external audio (e.g., Bible TTS)
     if (stopExternalAudioCallback) {
       try { await stopExternalAudioCallback(); } catch (e) {}
     }
@@ -299,53 +330,56 @@ export const PlayerProvider = ({ children }) => {
 
     try {
       // End previous stream
-      await endStream();
+      await endStreamTracking();
 
-      // Reset the player
+      // Reset player queue
       await TrackPlayer.reset();
 
-      // Set up queue
-      let tracksToAdd = [];
+      // Determine queue and index
+      let tracksToPlay = [];
       let playIndex = 0;
 
       if (newQueue && Array.isArray(newQueue) && newQueue.length > 0) {
+        // New queue provided
         setQueue(newQueue);
         queueRef.current = newQueue;
-        
-        playIndex = startIndex ?? newQueue.findIndex(s => s.song_id === track.song_id);
+        playIndex = startIndex ?? newQueue.findIndex(t => t.song_id === track.song_id);
         if (playIndex < 0) playIndex = 0;
-        
-        tracksToAdd = newQueue.map(convertToTrackPlayerFormat);
+        tracksToPlay = newQueue.map(toTrackPlayerFormat);
       } else if (queue.length > 0) {
-        tracksToAdd = queue.map(convertToTrackPlayerFormat);
-        playIndex = queue.findIndex(s => s.song_id === track.song_id);
+        // Use existing queue
+        playIndex = queue.findIndex(t => t.song_id === track.song_id);
         if (playIndex < 0) playIndex = 0;
+        tracksToPlay = queue.map(toTrackPlayerFormat);
       } else {
-        tracksToAdd = [convertToTrackPlayerFormat(track)];
+        // Single track
         setQueue([track]);
         queueRef.current = [track];
+        tracksToPlay = [toTrackPlayerFormat(track)];
         playIndex = 0;
       }
 
-      // Add tracks and play
-      await TrackPlayer.add(tracksToAdd);
-      await TrackPlayer.skip(playIndex);
+      // Add tracks to player
+      await TrackPlayer.add(tracksToPlay);
+
+      // Skip to the correct track and play
+      if (playIndex > 0) {
+        await TrackPlayer.skip(playIndex);
+      }
       await TrackPlayer.play();
 
+      // Update state
       setQueueIndex(playIndex);
       setCurrentTrack(track);
-      
-      // Start tracking
+
+      // Start analytics tracking
       startPlayTracking(track.song_id);
       startStreamTracking(track);
 
       // Check liked status
-      try {
-        const res = await playerAPI.checkLiked(track.song_id);
-        setIsLiked(res?.data?.liked || false);
-      } catch (e) { setIsLiked(false); }
+      checkLikedStatus(track.song_id);
 
-      console.log('[Player] ✓ Playing:', track.title);
+      console.log('[Player] Playing successfully');
     } catch (error) {
       console.error('[Player] Play error:', error);
     } finally {
@@ -353,9 +387,12 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Toggle play/pause
+   */
   const togglePlay = async () => {
-    if (!isPlayerReady) return;
-    
+    if (!setupCompleteRef.current) return;
+
     try {
       if (isPlaying) {
         await TrackPlayer.pause();
@@ -363,21 +400,23 @@ export const PlayerProvider = ({ children }) => {
         await TrackPlayer.play();
       }
     } catch (error) {
-      console.error('[Player] Toggle play error:', error);
+      console.error('[Player] Toggle error:', error);
     }
   };
 
+  /**
+   * Skip to next track
+   */
   const skipNext = async () => {
-    if (!isPlayerReady) return;
-    
+    if (!setupCompleteRef.current) return;
+
     try {
+      const queue = await TrackPlayer.getQueue();
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const queueLength = (await TrackPlayer.getQueue()).length;
-      
-      if (currentIndex !== null && currentIndex < queueLength - 1) {
+
+      if (currentIndex !== null && currentIndex < queue.length - 1) {
         await TrackPlayer.skipToNext();
-      } else if (repeat === 'all' && queueLength > 0) {
-        // Loop to first track
+      } else if (repeat === 'all' && queue.length > 0) {
         await TrackPlayer.skip(0);
         await TrackPlayer.play();
       }
@@ -386,22 +425,24 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Skip to previous track
+   */
   const skipPrevious = async () => {
-    if (!isPlayerReady) return;
-    
+    if (!setupCompleteRef.current) return;
+
     try {
       // If more than 3 seconds in, restart current track
       if (progress.position > 3) {
         await TrackPlayer.seekTo(0);
         return;
       }
-      
+
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
       if (currentIndex !== null && currentIndex > 0) {
         await TrackPlayer.skipToPrevious();
-      } else if (repeat === 'all' && queue.length > 0) {
-        // Loop to last track
-        await TrackPlayer.skip(queue.length - 1);
+      } else if (repeat === 'all' && queueRef.current.length > 0) {
+        await TrackPlayer.skip(queueRef.current.length - 1);
         await TrackPlayer.play();
       }
     } catch (error) {
@@ -409,9 +450,12 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Seek to position (in milliseconds)
+   */
   const seekTo = async (ms) => {
-    if (!isPlayerReady) return;
-    
+    if (!setupCompleteRef.current) return;
+
     try {
       await TrackPlayer.seekTo(ms / 1000); // Convert to seconds
     } catch (error) {
@@ -419,28 +463,43 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  const toggleShuffle = () => setShuffle(p => !p);
+  /**
+   * Toggle shuffle mode
+   */
+  const toggleShuffle = () => {
+    setShuffle(prev => !prev);
+    // Note: Shuffle implementation would require reordering the queue
+  };
 
+  /**
+   * Toggle repeat mode (off -> all -> one -> off)
+   */
   const toggleRepeat = async () => {
-    const newRepeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
+    const modes = ['off', 'all', 'one'];
+    const currentIndex = modes.indexOf(repeat);
+    const newRepeat = modes[(currentIndex + 1) % modes.length];
+    
     setRepeat(newRepeat);
     repeatRef.current = newRepeat;
-    
+
     try {
-      if (newRepeat === 'one') {
-        await TrackPlayer.setRepeatMode(RepeatMode.Track);
-      } else if (newRepeat === 'all') {
-        await TrackPlayer.setRepeatMode(RepeatMode.Queue);
-      } else {
-        await TrackPlayer.setRepeatMode(RepeatMode.Off);
-      }
-    } catch (e) {
-      console.error('[Player] Set repeat mode error:', e);
+      const trackPlayerMode = 
+        newRepeat === 'one' ? RepeatMode.Track :
+        newRepeat === 'all' ? RepeatMode.Queue :
+        RepeatMode.Off;
+      
+      await TrackPlayer.setRepeatMode(trackPlayerMode);
+    } catch (error) {
+      console.error('[Player] Set repeat error:', error);
     }
   };
 
+  /**
+   * Toggle like status for current track
+   */
   const toggleLike = async () => {
     if (!currentTrack?.song_id) return;
+
     try {
       if (isLiked) {
         await playerAPI.unlikeSong(currentTrack.song_id);
@@ -449,69 +508,139 @@ export const PlayerProvider = ({ children }) => {
         await playerAPI.likeSong(currentTrack.song_id);
         setIsLiked(true);
       }
-    } catch (e) {
-      console.error('[Player] Toggle like error:', e);
+    } catch (error) {
+      console.error('[Player] Toggle like error:', error);
     }
   };
 
+  /**
+   * Add track to end of queue
+   */
   const addToQueue = async (track) => {
     if (!track) return;
-    
+
     setQueue(prev => [...prev, track]);
-    
-    if (isPlayerReady) {
+    queueRef.current = [...queueRef.current, track];
+
+    if (setupCompleteRef.current) {
       try {
-        await TrackPlayer.add(convertToTrackPlayerFormat(track));
-      } catch (e) {
-        console.error('[Player] Add to queue error:', e);
+        await TrackPlayer.add(toTrackPlayerFormat(track));
+      } catch (error) {
+        console.error('[Player] Add to queue error:', error);
       }
     }
   };
 
+  /**
+   * Play a new queue from specific index
+   */
   const playQueue = async (newQueue, index = 0) => {
     if (!newQueue?.length) return;
     await playTrack(newQueue[index], newQueue, index);
   };
 
+  /**
+   * Clear the queue
+   */
   const clearQueue = async () => {
     setQueue([]);
     queueRef.current = [];
     setQueueIndex(0);
-    
-    if (isPlayerReady) {
+    setCurrentTrack(null);
+
+    if (setupCompleteRef.current) {
       try {
         await TrackPlayer.reset();
-      } catch (e) {}
+      } catch (error) {
+        console.error('[Player] Clear queue error:', error);
+      }
     }
   };
 
+  /**
+   * Set auto-play enabled (placeholder)
+   */
   const setAutoPlay = (enabled) => {
-    setAutoPlayEnabled(enabled);
+    // Auto-play is handled by TrackPlayer automatically
   };
 
+  /**
+   * Stop playback completely
+   */
   const stopPlayback = async () => {
-    await endStream();
+    await endStreamTracking();
     
-    if (isPlayerReady) {
+    if (playTrackingTimerRef.current) {
+      clearTimeout(playTrackingTimerRef.current);
+    }
+
+    if (setupCompleteRef.current) {
       try {
         await TrackPlayer.reset();
-      } catch (e) {}
+      } catch (error) {}
     }
-    
+
     setCurrentTrack(null);
     setQueueIndex(0);
-    if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
+  };
+
+  /**
+   * Pause playback (for external use like Bible TTS)
+   */
+  const pausePlayback = async () => {
+    if (setupCompleteRef.current && isPlaying) {
+      try {
+        await TrackPlayer.pause();
+      } catch (error) {}
+    }
+  };
+
+  /**
+   * Resume playback (for external use)
+   */
+  const resumePlayback = async () => {
+    if (setupCompleteRef.current && !isPlaying && currentTrack) {
+      try {
+        await TrackPlayer.play();
+      } catch (error) {}
+    }
+  };
+
+  // ============ CONTEXT VALUE ============
+  const contextValue = {
+    // State
+    currentTrack,
+    queue,
+    queueIndex,
+    isPlaying,
+    isLoading,
+    position,
+    duration,
+    shuffle,
+    repeat,
+    isLiked,
+    
+    // Actions
+    playTrack,
+    togglePlay,
+    togglePlayPause: togglePlay,
+    skipNext,
+    skipPrevious,
+    seekTo,
+    toggleShuffle,
+    toggleRepeat,
+    toggleLike,
+    addToQueue,
+    playQueue,
+    clearQueue,
+    setAutoPlay,
+    stopPlayback,
+    pausePlayback,
+    resumePlayback,
   };
 
   return (
-    <PlayerContext.Provider value={{
-      currentTrack, queue, queueIndex, isPlaying, isLoading,
-      position, duration, shuffle, repeat, isLiked,
-      playTrack, togglePlay, togglePlayPause: togglePlay,
-      skipNext, skipPrevious, seekTo, toggleShuffle, toggleRepeat,
-      toggleLike, addToQueue, playQueue, clearQueue,
-      setAutoPlay, stopPlayback,
-    }}>
+    <PlayerContext.Provider value={contextValue}>
       {children}
     </PlayerContext.Provider>
   );
