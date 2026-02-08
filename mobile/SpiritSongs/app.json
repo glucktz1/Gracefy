@@ -87,11 +87,6 @@
       ],
       "expo-task-manager"
     ],
-    "owner": "gracefy22",
-    "extra": {
-      "eas": {
-        "projectId": "48784da1-ad7f-40d1-b7c7-691bde00316c"
-      }
-    }
+    "owner": "glucktz20"
   }
 }
