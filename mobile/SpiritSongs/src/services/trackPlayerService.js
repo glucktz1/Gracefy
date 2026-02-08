@@ -1,88 +1,72 @@
 /**
- * Track Player Service - Handles background playback events
- * This runs as a separate service even when the app UI is not visible
+ * Track Player Service - Background Playback Event Handler
+ * 
+ * This service runs independently and handles:
+ * - Lock screen controls (play/pause/skip)
+ * - Notification controls
+ * - Bluetooth/headphone controls
+ * - Background playback continuation
  */
-import TrackPlayer, { Event, State } from 'react-native-track-player';
+import TrackPlayer, { Event } from 'react-native-track-player';
 
 module.exports = async function() {
-  // Handle remote play event (from lock screen, notification, bluetooth)
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log('[TrackPlayer] RemotePlay event');
-    try {
-      await TrackPlayer.play();
-    } catch (e) {
-      console.error('[TrackPlayer] RemotePlay error:', e);
-    }
+  // Remote play (lock screen, notification, bluetooth)
+  TrackPlayer.addEventListener(Event.RemotePlay, () => {
+    TrackPlayer.play();
   });
 
-  // Handle remote pause event
-  TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log('[TrackPlayer] RemotePause event');
-    try {
-      await TrackPlayer.pause();
-    } catch (e) {
-      console.error('[TrackPlayer] RemotePause error:', e);
-    }
+  // Remote pause
+  TrackPlayer.addEventListener(Event.RemotePause, () => {
+    TrackPlayer.pause();
   });
 
-  // Handle remote stop event
-  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log('[TrackPlayer] RemoteStop event');
-    try {
-      await TrackPlayer.stop();
-    } catch (e) {
-      console.error('[TrackPlayer] RemoteStop error:', e);
-    }
+  // Remote stop
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    TrackPlayer.stop();
   });
 
-  // Handle skip to next
-  TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log('[TrackPlayer] RemoteNext event');
-    try {
-      await TrackPlayer.skipToNext();
-    } catch (e) {
-      console.error('[TrackPlayer] RemoteNext error:', e);
-    }
+  // Remote next
+  TrackPlayer.addEventListener(Event.RemoteNext, () => {
+    TrackPlayer.skipToNext();
   });
 
-  // Handle skip to previous
-  TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log('[TrackPlayer] RemotePrevious event');
-    try {
-      await TrackPlayer.skipToPrevious();
-    } catch (e) {
-      console.error('[TrackPlayer] RemotePrevious error:', e);
-    }
+  // Remote previous
+  TrackPlayer.addEventListener(Event.RemotePrevious, () => {
+    TrackPlayer.skipToPrevious();
   });
 
-  // Handle seek
-  TrackPlayer.addEventListener(Event.RemoteSeek, async (event) => {
-    console.log('[TrackPlayer] RemoteSeek event:', event.position);
-    try {
-      await TrackPlayer.seekTo(event.position);
-    } catch (e) {
-      console.error('[TrackPlayer] RemoteSeek error:', e);
-    }
+  // Remote seek (scrubbing on lock screen)
+  TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {
+    TrackPlayer.seekTo(event.position);
   });
 
-  // Handle playback queue ended - auto-restart queue if repeat all
+  // Remote jump forward
+  TrackPlayer.addEventListener(Event.RemoteJumpForward, async (event) => {
+    const position = await TrackPlayer.getProgress().then(p => p.position);
+    await TrackPlayer.seekTo(position + event.interval);
+  });
+
+  // Remote jump backward
+  TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (event) => {
+    const position = await TrackPlayer.getProgress().then(p => p.position);
+    await TrackPlayer.seekTo(Math.max(0, position - event.interval));
+  });
+
+  // Playback queue ended - loop if repeat all
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
-    console.log('[TrackPlayer] PlaybackQueueEnded event');
-    // Queue ended, will be handled by PlayerContext for repeat logic
+    // This is handled in PlayerContext for repeat logic
+    console.log('[TrackPlayerService] Queue ended at track:', event.track);
   });
 
-  // Handle playback error
-  TrackPlayer.addEventListener(Event.PlaybackError, async (event) => {
-    console.error('[TrackPlayer] PlaybackError:', event.message, event.code);
+  // Playback error
+  TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
+    console.error('[TrackPlayerService] Playback error:', event.message);
   });
 
-  // Handle track change
-  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
-    console.log('[TrackPlayer] Track changed:', event.track?.title);
-  });
-
-  // Handle playback state change
-  TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
-    console.log('[TrackPlayer] State changed:', event.state);
+  // Track changed
+  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (event) => {
+    if (event.track) {
+      console.log('[TrackPlayerService] Now playing:', event.track.title);
+    }
   });
 };
