@@ -113,8 +113,10 @@ const TabNavigator = () => {
 // App Content with Navigation and Mini Player
 const AppContent = () => {
   const { currentTrack } = usePlayer();
+  const { guestPlayCount, shouldPromptLogin, dismissLoginPrompt, isAuthenticated } = useAuth();
   const navigationRef = React.useRef();
   const [currentRoute, setCurrentRoute] = useState('');
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const insets = useSafeAreaInsets();
 
   // Hide mini player on NowPlaying screen
@@ -123,6 +125,32 @@ const AppContent = () => {
   // Calculate bottom offset for mini player (directly above tab bar, minimal gap)
   const tabBarHeight = 60 + Math.max(insets.bottom, 8);
   const miniPlayerBottom = tabBarHeight + 4; // 4px gap above tab bar
+
+  // Setup callback for showing login modal from PlayerContext
+  useEffect(() => {
+    setShowLoginPromptCallback(() => {
+      setShowLoginModal(true);
+    });
+    return () => {
+      clearShowLoginPromptCallback();
+    };
+  }, []);
+
+  // Also show modal when shouldPromptLogin becomes true
+  useEffect(() => {
+    if (shouldPromptLogin && !isAuthenticated) {
+      setShowLoginModal(true);
+    }
+  }, [shouldPromptLogin, isAuthenticated]);
+
+  const handleCloseLoginModal = useCallback(() => {
+    setShowLoginModal(false);
+    dismissLoginPrompt();
+  }, [dismissLoginPrompt]);
+
+  const handleLoginSuccess = useCallback(() => {
+    setShowLoginModal(false);
+  }, []);
 
   return (
     <NavigationContainer 
