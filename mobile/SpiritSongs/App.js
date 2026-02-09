@@ -117,7 +117,13 @@ const TabNavigator = () => {
 // App Content with Navigation and Mini Player
 const AppContent = () => {
   const { currentTrack, pausePlayback, resumePlayback } = usePlayer();
-  const { guestPlayCount, shouldPromptLogin, dismissLoginPrompt, isAuthenticated, user } = useAuth();
+  const { 
+    shouldPromptLogin, 
+    dismissLoginPrompt, 
+    isAuthenticated, 
+    isAppLocked,
+    user 
+  } = useAuth();
   const navigationRef = React.useRef();
   const [currentRoute, setCurrentRoute] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
