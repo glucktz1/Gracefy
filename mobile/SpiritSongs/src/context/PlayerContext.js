@@ -85,6 +85,9 @@ export const usePlayer = () => {
  * Player Provider Component
  */
 export const PlayerProvider = ({ children }) => {
+  // ============ AUTH CONTEXT ============
+  const { isAuthenticated, incrementGuestPlayCount } = useAuth();
+
   // ============ STATE ============
   const [currentTrack, setCurrentTrack] = useState(null);
   const [queue, setQueue] = useState([]);
