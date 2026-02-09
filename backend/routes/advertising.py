@@ -12,7 +12,7 @@ import logging
 import uuid
 
 from core.database import get_db
-from core.dependencies import get_current_user, require_roles
+from core.dependencies import get_current_admin_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/advertising", tags=["advertising"])
