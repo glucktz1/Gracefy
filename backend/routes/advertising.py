@@ -360,7 +360,7 @@ async def delete_ad(ad_id: str, current_user: dict = Depends(get_current_admin_u
 
 
 @router.post("/ads/{ad_id}/toggle")
-async def toggle_ad_status(ad_id: str, current_user: dict = Depends(get_current_user)):
+async def toggle_ad_status(ad_id: str, current_user: dict = Depends(get_current_admin_user)):
     """Toggle advertisement active status"""
     db = get_db()
     
