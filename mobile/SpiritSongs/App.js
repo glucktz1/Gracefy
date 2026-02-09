@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, StatusBar, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -9,13 +9,14 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Context Providers
-import { AuthProvider } from './src/context/AuthContext';
-import { PlayerProvider, usePlayer } from './src/context/PlayerContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { PlayerProvider, usePlayer, setShowLoginPromptCallback, clearShowLoginPromptCallback } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
 
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
+import GuestPlayLimitModal from './src/components/GuestPlayLimitModal';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
