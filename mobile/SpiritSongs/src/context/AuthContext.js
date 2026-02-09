@@ -5,6 +5,9 @@ import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
+// Guest play limit - number of songs before requiring login
+const GUEST_PLAY_LIMIT = 3;
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -14,11 +17,16 @@ export const useAuth = () => {
       user: null,
       isLoading: false,
       isAuthenticated: false,
+      guestPlayCount: 0,
+      shouldPromptLogin: false,
       login: async () => ({ success: false }),
       logout: async () => {},
       register: async () => ({ success: false }),
       updateProfile: async () => ({ success: false }),
       refreshUser: async () => {},
+      incrementGuestPlayCount: () => false,
+      resetGuestPlayCount: () => {},
+      dismissLoginPrompt: () => {},
     };
   }
   return context;
