@@ -1096,6 +1096,37 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginLeft: SPACING.sm,
   },
+  choirSection: {
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.md,
+  },
+  choirDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginBottom: SPACING.lg,
+  },
+  choirTitle: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  choirButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  choirButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  choirButtonText: {
+    fontSize: FONT_SIZES.sm,
+    color: '#10B981',
+    marginLeft: SPACING.xs,
+    fontWeight: '500',
+  },
   terms: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textSecondary,
