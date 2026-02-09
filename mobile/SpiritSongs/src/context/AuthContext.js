@@ -36,6 +36,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [guestPlayCount, setGuestPlayCount] = useState(0);
+  const [shouldPromptLogin, setShouldPromptLogin] = useState(false);
 
   // Restore auth state from storage on mount
   const restoreAuthState = useCallback(async () => {
