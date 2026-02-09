@@ -833,6 +833,28 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.partnerText}>Shiriki nasi kama msanii au kanisa</Text>
           </TouchableOpacity>
 
+          {/* Choir Portal Link */}
+          <View style={styles.choirSection}>
+            <View style={styles.choirDivider} />
+            <Text style={styles.choirTitle}>Una kwaya? / Are you a choir?</Text>
+            <View style={styles.choirButtons}>
+              <TouchableOpacity 
+                style={styles.choirButton} 
+                onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/choir-login`)}
+              >
+                <Ionicons name="log-in-outline" size={18} color="#10B981" />
+                <Text style={styles.choirButtonText}>Choir Login</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.choirButton} 
+                onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/choir-register`)}
+              >
+                <Ionicons name="person-add-outline" size={18} color="#10B981" />
+                <Text style={styles.choirButtonText}>Register Choir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Terms */}
           <Text style={styles.terms}>
             Kwa kuendelea, unakubali{' '}
