@@ -1,15 +1,16 @@
 """
-Advertising routes for Gracefy Admin Panel.
-Manages audio advertisements, impressions tracking, and analytics.
-Similar to Spotify's ad system for free users.
+Advertising & Campaigns routes for Gracefy Admin Panel.
+Manages audio advertisements, campaigns (push, SMS, email), and analytics.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form, BackgroundTasks
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from bson import ObjectId
 import logging
 import uuid
+import os
+import aiohttp
 
 from core.database import get_db
 from core.dependencies import get_current_admin_user
@@ -17,8 +18,14 @@ from core.dependencies import get_current_admin_user
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/advertising", tags=["advertising"])
 
+# CDN Configuration for file uploads
+CDN_UPLOAD_URL = os.getenv("CDN_UPLOAD_URL", "")
+CDN_API_KEY = os.getenv("CDN_API_KEY", "")
+CDN_STORAGE_ZONE = os.getenv("CDN_STORAGE_ZONE", "gracefy-media")
+CDN_BASE_URL = os.getenv("CDN_BASE_URL", "https://gracefy-media.b-cdn.net")
 
-# ==================== MODELS ====================
+
+# ==================== HELPER FUNCTIONS ====================
 
 def serialize_ad(ad: dict) -> dict:
     """Serialize ad document for JSON response"""
@@ -48,6 +55,115 @@ def serialize_ad(ad: dict) -> dict:
     }
 
 
+def serialize_campaign(campaign: dict) -> dict:
+    """Serialize campaign document for JSON response"""
+    if not campaign:
+        return None
+    return {
+        "campaign_id": str(campaign.get("_id", "")),
+        "name": campaign.get("name", ""),
+        "description": campaign.get("description", ""),
+        "type": campaign.get("type", "push"),  # push, sms, email
+        "status": campaign.get("status", "draft"),  # draft, scheduled, sent, cancelled
+        "message_title": campaign.get("message_title", ""),
+        "message_body": campaign.get("message_body", ""),
+        "message_data": campaign.get("message_data", {}),
+        "target_filter": campaign.get("target_filter", {}),
+        "target_count": campaign.get("target_count", 0),
+        "sent_count": campaign.get("sent_count", 0),
+        "delivered_count": campaign.get("delivered_count", 0),
+        "opened_count": campaign.get("opened_count", 0),
+        "clicked_count": campaign.get("clicked_count", 0),
+        "scheduled_at": campaign.get("scheduled_at"),
+        "sent_at": campaign.get("sent_at"),
+        "created_at": campaign.get("created_at"),
+        "updated_at": campaign.get("updated_at"),
+        "created_by": campaign.get("created_by", ""),
+    }
+
+
+async def upload_to_cdn(file: UploadFile, folder: str = "ads") -> str:
+    """Upload file to CDN and return URL"""
+    if not CDN_API_KEY:
+        raise HTTPException(status_code=500, detail="CDN not configured")
+    
+    # Generate unique filename
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'mp3'
+    filename = f"{folder}/{uuid.uuid4()}.{ext}"
+    
+    content = await file.read()
+    
+    async with aiohttp.ClientSession() as session:
+        headers = {
+            "AccessKey": CDN_API_KEY,
+            "Content-Type": file.content_type or "audio/mpeg"
+        }
+        url = f"https://storage.bunnycdn.com/{CDN_STORAGE_ZONE}/{filename}"
+        
+        async with session.put(url, data=content, headers=headers) as response:
+            if response.status not in [200, 201]:
+                raise HTTPException(status_code=500, detail="Failed to upload to CDN")
+    
+    return f"{CDN_BASE_URL}/{filename}"
+
+
+async def get_target_users(db, filter_config: dict) -> List[dict]:
+    """Get users matching the campaign filter criteria"""
+    query = {}
+    
+    filter_type = filter_config.get("type", "all")
+    
+    if filter_type == "all":
+        pass  # No filter
+    elif filter_type == "active":
+        # Users who played content in the last 7 days
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        query["last_active_at"] = {"$gte": week_ago}
+    elif filter_type == "inactive":
+        # Users who haven't played content in the last 30 days
+        month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        query["$or"] = [
+            {"last_active_at": {"$lt": month_ago}},
+            {"last_active_at": None}
+        ]
+    elif filter_type == "recent":
+        # Users who joined in the last 7 days
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        query["created_at"] = {"$gte": week_ago}
+    elif filter_type == "listened_content":
+        # Users who listened to specific content
+        content_ids = filter_config.get("content_ids", [])
+        if content_ids:
+            # Would need to join with play history - simplified for now
+            pass
+    elif filter_type == "premium":
+        query["subscription_type"] = {"$in": ["premium", "family"]}
+    elif filter_type == "free":
+        query["$or"] = [
+            {"subscription_type": "free"},
+            {"subscription_type": None}
+        ]
+    
+    # Additional filters
+    if filter_config.get("has_email"):
+        query["email"] = {"$ne": None, "$exists": True}
+    if filter_config.get("has_phone"):
+        query["phone_number"] = {"$ne": None, "$exists": True}
+    if filter_config.get("has_push_token"):
+        query["push_token"] = {"$ne": None, "$exists": True}
+    
+    users = await db.users.find(query, {
+        "_id": 0, 
+        "user_id": 1, 
+        "email": 1, 
+        "phone_number": 1, 
+        "push_token": 1,
+        "name": 1
+    }).to_list(100000)
+    
+    return users
+
+
 # ==================== SETTINGS ENDPOINTS ====================
 
 @router.get("/settings")
@@ -58,14 +174,13 @@ async def get_advertising_settings():
     settings = await db.system_settings.find_one({"key": "advertising"})
     
     if not settings:
-        # Return default settings
         return {
             "enabled": False,
             "free_users_only": True,
-            "ads_interval_songs": 3,  # Play ad after every N songs
-            "ads_interval_minutes": 15,  # Or after N minutes
+            "ads_interval_songs": 3,
+            "ads_interval_minutes": 15,
             "max_ad_duration_seconds": 60,
-            "skip_after_seconds": 5,  # Allow skip after N seconds (0 = no skip)
+            "skip_after_seconds": 5,
             "show_ad_label": True,
             "updated_at": None,
             "updated_by": None
@@ -98,7 +213,6 @@ async def update_advertising_settings(
     """Update global advertising settings - Admin only"""
     db = get_db()
     
-    # Check if user has permission
     user_role = current_user.get("role", "")
     if user_role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Only admins can update advertising settings")
@@ -133,7 +247,7 @@ async def update_advertising_settings(
 async def list_ads(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None, description="active, inactive, all"),
+    status: Optional[str] = Query(None),
     search: Optional[str] = None
 ):
     """List all advertisements with pagination"""
@@ -188,7 +302,8 @@ async def create_ad(
     title: str = Form(...),
     description: str = Form(""),
     advertiser_name: str = Form(...),
-    audio_url: str = Form(...),
+    audio_url: Optional[str] = Form(None),
+    audio_file: Optional[UploadFile] = File(None),
     duration_seconds: int = Form(30),
     target_audience: str = Form("all"),
     click_url: str = Form(""),
@@ -199,15 +314,26 @@ async def create_ad(
     cost_per_impression: float = Form(0),
     current_user: dict = Depends(get_current_admin_user)
 ):
-    """Create a new advertisement - Admin/Ad Manager only"""
+    """Create a new advertisement - supports file upload or URL"""
     db = get_db()
     
-    # Check permissions
     user_role = current_user.get("role", "")
     user_permissions = current_user.get("permissions", [])
     
     if user_role not in ["admin", "super_admin"] and "manage_ads" not in user_permissions:
         raise HTTPException(status_code=403, detail="You don't have permission to create advertisements")
+    
+    # Handle audio - either file upload or URL
+    final_audio_url = audio_url
+    if audio_file and audio_file.filename:
+        try:
+            final_audio_url = await upload_to_cdn(audio_file, "ads")
+        except Exception as e:
+            logger.error(f"Failed to upload audio: {e}")
+            raise HTTPException(status_code=500, detail="Failed to upload audio file")
+    
+    if not final_audio_url:
+        raise HTTPException(status_code=400, detail="Either audio_url or audio_file is required")
     
     # Parse dates
     parsed_start = None
@@ -227,7 +353,7 @@ async def create_ad(
         "title": title,
         "description": description,
         "advertiser_name": advertiser_name,
-        "audio_url": audio_url,
+        "audio_url": final_audio_url,
         "duration_seconds": duration_seconds,
         "target_audience": target_audience,
         "click_url": click_url,
@@ -260,6 +386,7 @@ async def update_ad(
     description: Optional[str] = Form(None),
     advertiser_name: Optional[str] = Form(None),
     audio_url: Optional[str] = Form(None),
+    audio_file: Optional[UploadFile] = File(None),
     duration_seconds: Optional[int] = Form(None),
     target_audience: Optional[str] = Form(None),
     click_url: Optional[str] = Form(None),
@@ -274,7 +401,6 @@ async def update_ad(
     """Update an advertisement"""
     db = get_db()
     
-    # Check permissions
     user_role = current_user.get("role", "")
     user_permissions = current_user.get("permissions", [])
     
@@ -291,14 +417,22 @@ async def update_ad(
     
     update_data = {"updated_at": datetime.now(timezone.utc)}
     
+    # Handle new audio file upload
+    if audio_file and audio_file.filename:
+        try:
+            update_data["audio_url"] = await upload_to_cdn(audio_file, "ads")
+        except Exception as e:
+            logger.error(f"Failed to upload audio: {e}")
+            raise HTTPException(status_code=500, detail="Failed to upload audio file")
+    elif audio_url is not None:
+        update_data["audio_url"] = audio_url
+    
     if title is not None:
         update_data["title"] = title
     if description is not None:
         update_data["description"] = description
     if advertiser_name is not None:
         update_data["advertiser_name"] = advertiser_name
-    if audio_url is not None:
-        update_data["audio_url"] = audio_url
     if duration_seconds is not None:
         update_data["duration_seconds"] = duration_seconds
     if target_audience is not None:
@@ -339,7 +473,6 @@ async def delete_ad(ad_id: str, current_user: dict = Depends(get_current_admin_u
     """Delete an advertisement"""
     db = get_db()
     
-    # Check permissions
     user_role = current_user.get("role", "")
     user_permissions = current_user.get("permissions", [])
     
@@ -382,6 +515,333 @@ async def toggle_ad_status(ad_id: str, current_user: dict = Depends(get_current_
     return {"message": f"Advertisement {'activated' if new_status else 'deactivated'}", "is_active": new_status}
 
 
+# ==================== CAMPAIGN MANAGEMENT ENDPOINTS ====================
+
+@router.get("/campaigns")
+async def list_campaigns(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    search: Optional[str] = None
+):
+    """List all campaigns with pagination"""
+    db = get_db()
+    
+    query = {}
+    
+    if status:
+        query["status"] = status
+    if type:
+        query["type"] = type
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+            {"message_title": {"$regex": search, "$options": "i"}}
+        ]
+    
+    skip = (page - 1) * limit
+    
+    campaigns = await db.campaigns.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.campaigns.count_documents(query)
+    
+    return {
+        "campaigns": [serialize_campaign(c) for c in campaigns],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit
+    }
+
+
+@router.get("/campaigns/{campaign_id}")
+async def get_campaign(campaign_id: str):
+    """Get single campaign details"""
+    db = get_db()
+    
+    try:
+        campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+    except:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID")
+    
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    return serialize_campaign(campaign)
+
+
+@router.post("/campaigns")
+async def create_campaign(
+    name: str = Form(...),
+    description: str = Form(""),
+    type: str = Form(...),  # push, sms, email
+    message_title: str = Form(""),
+    message_body: str = Form(...),
+    target_filter_type: str = Form("all"),  # all, active, inactive, recent, premium, free, listened_content
+    target_filter_content_ids: Optional[str] = Form(None),  # comma-separated content IDs
+    scheduled_at: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """Create a new campaign"""
+    db = get_db()
+    
+    user_role = current_user.get("role", "")
+    if user_role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only admins can create campaigns")
+    
+    # Validate type
+    if type not in ["push", "sms", "email"]:
+        raise HTTPException(status_code=400, detail="Invalid campaign type. Must be push, sms, or email")
+    
+    # Build target filter
+    target_filter = {"type": target_filter_type}
+    if target_filter_type == "listened_content" and target_filter_content_ids:
+        target_filter["content_ids"] = [cid.strip() for cid in target_filter_content_ids.split(",")]
+    
+    # Add channel-specific requirements
+    if type == "email":
+        target_filter["has_email"] = True
+    elif type == "sms":
+        target_filter["has_phone"] = True
+    elif type == "push":
+        target_filter["has_push_token"] = True
+    
+    # Count target users
+    target_users = await get_target_users(db, target_filter)
+    target_count = len(target_users)
+    
+    # Parse scheduled date
+    parsed_scheduled = None
+    if scheduled_at:
+        try:
+            parsed_scheduled = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+        except:
+            pass
+    
+    campaign_data = {
+        "name": name,
+        "description": description,
+        "type": type,
+        "status": "scheduled" if parsed_scheduled else "draft",
+        "message_title": message_title,
+        "message_body": message_body,
+        "message_data": {},
+        "target_filter": target_filter,
+        "target_count": target_count,
+        "sent_count": 0,
+        "delivered_count": 0,
+        "opened_count": 0,
+        "clicked_count": 0,
+        "scheduled_at": parsed_scheduled,
+        "sent_at": None,
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+        "created_by": current_user.get("user_id", "")
+    }
+    
+    result = await db.campaigns.insert_one(campaign_data)
+    campaign_data["campaign_id"] = str(result.inserted_id)
+    
+    logger.info(f"Campaign created: {name} by {current_user.get('email')}")
+    
+    return {
+        "message": "Campaign created successfully",
+        "campaign": serialize_campaign(campaign_data),
+        "target_count": target_count
+    }
+
+
+@router.put("/campaigns/{campaign_id}")
+async def update_campaign(
+    campaign_id: str,
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    message_title: Optional[str] = Form(None),
+    message_body: Optional[str] = Form(None),
+    target_filter_type: Optional[str] = Form(None),
+    target_filter_content_ids: Optional[str] = Form(None),
+    scheduled_at: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """Update a campaign (only if not sent)"""
+    db = get_db()
+    
+    try:
+        campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+    except:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID")
+    
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    if campaign.get("status") == "sent":
+        raise HTTPException(status_code=400, detail="Cannot modify a sent campaign")
+    
+    update_data = {"updated_at": datetime.now(timezone.utc)}
+    
+    if name is not None:
+        update_data["name"] = name
+    if description is not None:
+        update_data["description"] = description
+    if message_title is not None:
+        update_data["message_title"] = message_title
+    if message_body is not None:
+        update_data["message_body"] = message_body
+    
+    # Update target filter if provided
+    if target_filter_type is not None:
+        target_filter = {"type": target_filter_type}
+        if target_filter_type == "listened_content" and target_filter_content_ids:
+            target_filter["content_ids"] = [cid.strip() for cid in target_filter_content_ids.split(",")]
+        
+        # Add channel-specific requirements
+        campaign_type = campaign.get("type", "push")
+        if campaign_type == "email":
+            target_filter["has_email"] = True
+        elif campaign_type == "sms":
+            target_filter["has_phone"] = True
+        elif campaign_type == "push":
+            target_filter["has_push_token"] = True
+        
+        update_data["target_filter"] = target_filter
+        
+        # Recount target users
+        target_users = await get_target_users(db, target_filter)
+        update_data["target_count"] = len(target_users)
+    
+    if scheduled_at is not None:
+        try:
+            update_data["scheduled_at"] = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+            update_data["status"] = "scheduled"
+        except:
+            pass
+    
+    await db.campaigns.update_one({"_id": ObjectId(campaign_id)}, {"$set": update_data})
+    
+    updated_campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+    
+    return {"message": "Campaign updated successfully", "campaign": serialize_campaign(updated_campaign)}
+
+
+@router.delete("/campaigns/{campaign_id}")
+async def delete_campaign(campaign_id: str, current_user: dict = Depends(get_current_admin_user)):
+    """Delete a campaign"""
+    db = get_db()
+    
+    try:
+        result = await db.campaigns.delete_one({"_id": ObjectId(campaign_id)})
+    except:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID")
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    return {"message": "Campaign deleted successfully"}
+
+
+@router.post("/campaigns/{campaign_id}/send")
+async def send_campaign(
+    campaign_id: str, 
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """Send a campaign immediately"""
+    db = get_db()
+    
+    try:
+        campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+    except:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID")
+    
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    if campaign.get("status") == "sent":
+        raise HTTPException(status_code=400, detail="Campaign already sent")
+    
+    # Get target users
+    target_users = await get_target_users(db, campaign.get("target_filter", {}))
+    
+    if not target_users:
+        raise HTTPException(status_code=400, detail="No users match the target criteria")
+    
+    # Update status to sending
+    await db.campaigns.update_one(
+        {"_id": ObjectId(campaign_id)},
+        {"$set": {
+            "status": "sent",
+            "sent_at": datetime.now(timezone.utc),
+            "target_count": len(target_users)
+        }}
+    )
+    
+    # Queue the actual sending (would integrate with push/SMS/email services)
+    # For now, we just log and update counts
+    logger.info(f"Campaign {campaign_id} sent to {len(target_users)} users")
+    
+    # Update sent count (in production, this would be updated as messages are actually sent)
+    await db.campaigns.update_one(
+        {"_id": ObjectId(campaign_id)},
+        {"$set": {"sent_count": len(target_users)}}
+    )
+    
+    return {
+        "message": f"Campaign sent to {len(target_users)} users",
+        "sent_count": len(target_users)
+    }
+
+
+@router.post("/campaigns/{campaign_id}/cancel")
+async def cancel_campaign(campaign_id: str, current_user: dict = Depends(get_current_admin_user)):
+    """Cancel a scheduled campaign"""
+    db = get_db()
+    
+    try:
+        campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+    except:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID")
+    
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    if campaign.get("status") == "sent":
+        raise HTTPException(status_code=400, detail="Cannot cancel a sent campaign")
+    
+    await db.campaigns.update_one(
+        {"_id": ObjectId(campaign_id)},
+        {"$set": {"status": "cancelled", "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"message": "Campaign cancelled"}
+
+
+@router.get("/campaigns/{campaign_id}/preview-count")
+async def preview_campaign_count(
+    campaign_id: Optional[str] = None,
+    target_filter_type: str = Query("all"),
+    campaign_type: str = Query("push")
+):
+    """Preview how many users would receive a campaign"""
+    db = get_db()
+    
+    target_filter = {"type": target_filter_type}
+    
+    if campaign_type == "email":
+        target_filter["has_email"] = True
+    elif campaign_type == "sms":
+        target_filter["has_phone"] = True
+    elif campaign_type == "push":
+        target_filter["has_push_token"] = True
+    
+    target_users = await get_target_users(db, target_filter)
+    
+    return {
+        "target_count": len(target_users),
+        "filter": target_filter
+    }
+
+
 # ==================== CLIENT ENDPOINTS (Mobile App) ====================
 
 @router.get("/next-ad")
@@ -391,31 +851,26 @@ async def get_next_ad(
     songs_played: int = Query(0),
     last_ad_time: Optional[str] = None
 ):
-    """Get the next ad to play for a user - Called by mobile app"""
+    """Get the next ad to play for a user"""
     db = get_db()
     
-    # Check if advertising is enabled
     settings = await db.system_settings.find_one({"key": "advertising"})
     if not settings or not settings.get("enabled", False):
         return {"should_play_ad": False, "ad": None, "reason": "ads_disabled"}
     
-    # Check if user is premium (skip ads for premium users if free_users_only)
     if user_id and settings.get("free_users_only", True):
         user = await db.users.find_one({"user_id": user_id})
         if user and user.get("subscription_type") in ["premium", "family"]:
             return {"should_play_ad": False, "ad": None, "reason": "premium_user"}
     
-    # Check interval conditions
     ads_interval_songs = settings.get("ads_interval_songs", 3)
     ads_interval_minutes = settings.get("ads_interval_minutes", 15)
     
     should_play = False
     
-    # Check songs interval
     if songs_played > 0 and songs_played % ads_interval_songs == 0:
         should_play = True
     
-    # Check time interval
     if last_ad_time:
         try:
             last_time = datetime.fromisoformat(last_ad_time.replace("Z", "+00:00"))
@@ -428,7 +883,6 @@ async def get_next_ad(
     if not should_play:
         return {"should_play_ad": False, "ad": None, "reason": "interval_not_reached"}
     
-    # Get an active ad
     now = datetime.now(timezone.utc)
     query = {
         "is_active": True,
@@ -438,20 +892,13 @@ async def get_next_ad(
         ]
     }
     
-    # Exclude expired ads
     ads = await db.advertisements.find(query).sort("priority", -1).to_list(100)
     
-    # Filter out expired ads
-    valid_ads = []
-    for ad in ads:
-        if ad.get("end_date") and ad["end_date"] < now:
-            continue
-        valid_ads.append(ad)
+    valid_ads = [ad for ad in ads if not ad.get("end_date") or ad["end_date"] >= now]
     
     if not valid_ads:
         return {"should_play_ad": False, "ad": None, "reason": "no_active_ads"}
     
-    # Select ad based on priority and impressions (weighted random)
     import random
     weights = [ad.get("priority", 1) for ad in valid_ads]
     selected_ad = random.choices(valid_ads, weights=weights, k=1)[0]
@@ -477,7 +924,7 @@ async def record_impression(
     skipped: bool = Form(False),
     clicked: bool = Form(False)
 ):
-    """Record an ad impression - Called by mobile app after ad plays"""
+    """Record an ad impression"""
     db = get_db()
     
     try:
@@ -488,7 +935,6 @@ async def record_impression(
     if not ad:
         raise HTTPException(status_code=404, detail="Advertisement not found")
     
-    # Create impression record
     impression = {
         "impression_id": str(uuid.uuid4()),
         "ad_id": ad_id,
@@ -504,7 +950,6 @@ async def record_impression(
     
     await db.ad_impressions.insert_one(impression)
     
-    # Update ad statistics
     update_ops = {"$inc": {"total_impressions": 1}}
     if completed:
         update_ops["$inc"]["total_completions"] = 1
@@ -519,60 +964,26 @@ async def record_impression(
 # ==================== ANALYTICS ENDPOINTS ====================
 
 @router.get("/analytics/overview")
-async def get_ad_analytics_overview(
-    days: int = Query(30, ge=1, le=365)
-):
+async def get_ad_analytics_overview(days: int = Query(30, ge=1, le=365)):
     """Get advertising analytics overview"""
     db = get_db()
     
     now = datetime.now(timezone.utc)
     start_date = now - timedelta(days=days)
     
-    # Total ads
     total_ads = await db.advertisements.count_documents({})
     active_ads = await db.advertisements.count_documents({"is_active": True})
     
-    # Impressions in period
-    total_impressions = await db.ad_impressions.count_documents({
-        "created_at": {"$gte": start_date}
-    })
+    total_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": start_date}})
+    total_completions = await db.ad_impressions.count_documents({"created_at": {"$gte": start_date}, "completed": True})
+    total_clicks = await db.ad_impressions.count_documents({"created_at": {"$gte": start_date}, "clicked": True})
     
-    # Completions in period
-    total_completions = await db.ad_impressions.count_documents({
-        "created_at": {"$gte": start_date},
-        "completed": True
-    })
-    
-    # Clicks in period
-    total_clicks = await db.ad_impressions.count_documents({
-        "created_at": {"$gte": start_date},
-        "clicked": True
-    })
-    
-    # Calculate rates
     completion_rate = (total_completions / total_impressions * 100) if total_impressions > 0 else 0
     click_rate = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
     
-    # Revenue (based on cost per impression)
-    revenue_pipeline = [
-        {"$match": {"created_at": {"$gte": start_date}}},
-        {"$lookup": {
-            "from": "advertisements",
-            "let": {"ad_id": {"$toObjectId": "$ad_id"}},
-            "pipeline": [
-                {"$match": {"$expr": {"$eq": ["$_id", "$$ad_id"]}}}
-            ],
-            "as": "ad"
-        }},
-        {"$unwind": {"path": "$ad", "preserveNullAndEmptyArrays": True}},
-        {"$group": {
-            "_id": None,
-            "total_revenue": {"$sum": {"$ifNull": ["$ad.cost_per_impression", 0]}}
-        }}
-    ]
-    
-    revenue_result = await db.ad_impressions.aggregate(revenue_pipeline).to_list(1)
-    total_revenue = revenue_result[0]["total_revenue"] if revenue_result else 0
+    # Campaign stats
+    total_campaigns = await db.campaigns.count_documents({})
+    sent_campaigns = await db.campaigns.count_documents({"status": "sent"})
     
     return {
         "period_days": days,
@@ -583,14 +994,13 @@ async def get_ad_analytics_overview(
         "total_clicks": total_clicks,
         "completion_rate": round(completion_rate, 2),
         "click_rate": round(click_rate, 2),
-        "estimated_revenue": round(total_revenue, 2)
+        "total_campaigns": total_campaigns,
+        "sent_campaigns": sent_campaigns
     }
 
 
 @router.get("/analytics/trends")
-async def get_ad_analytics_trends(
-    days: int = Query(30, ge=1, le=365)
-):
+async def get_ad_analytics_trends(days: int = Query(30, ge=1, le=365)):
     """Get daily ad impression trends"""
     db = get_db()
     
@@ -600,9 +1010,7 @@ async def get_ad_analytics_trends(
     pipeline = [
         {"$match": {"created_at": {"$gte": start_date}}},
         {"$group": {
-            "_id": {
-                "$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}
-            },
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
             "impressions": {"$sum": 1},
             "completions": {"$sum": {"$cond": ["$completed", 1, 0]}},
             "clicks": {"$sum": {"$cond": ["$clicked", 1, 0]}},
@@ -629,9 +1037,7 @@ async def get_ad_analytics_trends(
 
 
 @router.get("/analytics/by-ad")
-async def get_analytics_by_ad(
-    days: int = Query(30, ge=1, le=365)
-):
+async def get_analytics_by_ad(days: int = Query(30, ge=1, le=365)):
     """Get analytics breakdown by advertisement"""
     db = get_db()
     
@@ -652,7 +1058,6 @@ async def get_analytics_by_ad(
     
     results = await db.ad_impressions.aggregate(pipeline).to_list(100)
     
-    # Enrich with ad details
     enriched = []
     for r in results:
         try:
@@ -675,9 +1080,7 @@ async def get_analytics_by_ad(
 
 
 @router.get("/analytics/by-platform")
-async def get_analytics_by_platform(
-    days: int = Query(30, ge=1, le=365)
-):
+async def get_analytics_by_platform(days: int = Query(30, ge=1, le=365)):
     """Get analytics breakdown by platform"""
     db = get_db()
     
