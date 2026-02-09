@@ -242,6 +242,26 @@ export const userAPI = {
   getDailyPlays: () => api.get('/user/daily-plays'),
 };
 
+// ============ ADVERTISING API ============
+export const advertisingAPI = {
+  // Get next ad to play (called by player)
+  getNextAd: (params) => api.get('/advertising/next-ad', { params }),
+  // Record ad impression (called after ad plays)
+  recordImpression: (data) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+    return api.post('/advertising/impression', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  // Get advertising settings
+  getSettings: () => api.get('/advertising/settings'),
+};
+
 // ============ BILLING/SUBSCRIPTION API ============
 export const billingAPI = {
   getPlans: () => api.get('/monetization/plans'),
