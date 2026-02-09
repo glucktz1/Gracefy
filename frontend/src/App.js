@@ -140,7 +140,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
         { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
         { path: "/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
-        { path: "/advertising", icon: Megaphone, label: "Advertising", permissions: ["platform_settings", "manage_ads"] },
+        { path: "/advertising", icon: Megaphone, label: "Advertising & Campaigns", permissions: ["platform_settings", "manage_ads"] },
       ]
     },
     // Choir and Singers Group
