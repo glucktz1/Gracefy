@@ -234,6 +234,9 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     checkAuth,
+    incrementGuestPlayCount,
+    resetGuestPlayCount,
+    dismissLoginPrompt,
   };
 
   return (
