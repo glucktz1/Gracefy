@@ -116,12 +116,20 @@ const TabNavigator = () => {
 
 // App Content with Navigation and Mini Player
 const AppContent = () => {
-  const { currentTrack } = usePlayer();
-  const { guestPlayCount, shouldPromptLogin, dismissLoginPrompt, isAuthenticated } = useAuth();
+  const { currentTrack, pausePlayback, resumePlayback } = usePlayer();
+  const { guestPlayCount, shouldPromptLogin, dismissLoginPrompt, isAuthenticated, user } = useAuth();
   const navigationRef = React.useRef();
   const [currentRoute, setCurrentRoute] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const insets = useSafeAreaInsets();
+
+  // Ad state
+  const [showAd, setShowAd] = useState(false);
+  const [currentAd, setCurrentAd] = useState(null);
+  const [adSettings, setAdSettings] = useState(null);
+  const [songsPlayedCount, setSongsPlayedCount] = useState(0);
+  const [lastAdTime, setLastAdTime] = useState(null);
+  const deviceIdRef = useRef(`mobile_${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
 
   // Hide mini player on NowPlaying screen
   const showMiniPlayer = currentTrack && currentRoute !== 'NowPlaying';
@@ -129,6 +137,71 @@ const AppContent = () => {
   // Calculate bottom offset for mini player (directly above tab bar, minimal gap)
   const tabBarHeight = 60 + Math.max(insets.bottom, 8);
   const miniPlayerBottom = tabBarHeight + 4; // 4px gap above tab bar
+
+  // Load ad settings on mount
+  useEffect(() => {
+    loadAdSettings();
+  }, []);
+
+  // Check for ad when song changes
+  useEffect(() => {
+    if (currentTrack && !isAuthenticated) {
+      // Increment songs played for free users
+      const newCount = songsPlayedCount + 1;
+      setSongsPlayedCount(newCount);
+      checkAndShowAd(newCount);
+    }
+  }, [currentTrack?.song_id]);
+
+  const loadAdSettings = async () => {
+    try {
+      const response = await advertisingAPI.getSettings();
+      setAdSettings(response.data);
+    } catch (e) {
+      console.log('[App] Failed to load ad settings');
+    }
+  };
+
+  const checkAndShowAd = async (playCount) => {
+    if (!adSettings?.enabled) return;
+    if (isAuthenticated && adSettings?.free_users_only) return;
+
+    try {
+      const response = await advertisingAPI.getNextAd({
+        user_id: user?.user_id,
+        platform: 'mobile',
+        songs_played: playCount,
+        last_ad_time: lastAdTime?.toISOString()
+      });
+
+      if (response.data?.should_play_ad && response.data?.ad) {
+        // Pause current music
+        await pausePlayback();
+        
+        setCurrentAd(response.data.ad);
+        setAdSettings(prev => ({ ...prev, ...response.data.settings }));
+        setShowAd(true);
+      }
+    } catch (e) {
+      console.log('[App] Ad check error:', e.message);
+    }
+  };
+
+  const handleAdComplete = useCallback(async () => {
+    setShowAd(false);
+    setCurrentAd(null);
+    setLastAdTime(new Date());
+    // Resume music after ad
+    await resumePlayback();
+  }, [resumePlayback]);
+
+  const handleAdSkip = useCallback(async () => {
+    setShowAd(false);
+    setCurrentAd(null);
+    setLastAdTime(new Date());
+    // Resume music after skip
+    await resumePlayback();
+  }, [resumePlayback]);
 
   // Setup callback for showing login modal from PlayerContext
   useEffect(() => {
