@@ -161,6 +161,12 @@ export const AuthProvider = ({ children }) => {
       
       setUser(userData);
       setIsAuthenticated(true);
+      
+      // Reset guest play count on successful login
+      setGuestPlayCount(0);
+      setShouldPromptLogin(false);
+      await SecureStore.deleteItemAsync('guest_play_count');
+      
       console.log('Login successful:', userData?.email || userData?.user_id);
     } catch (e) {
       console.log('Error during login:', e);
@@ -182,10 +188,49 @@ export const AuthProvider = ({ children }) => {
     await restoreAuthState();
   }, [restoreAuthState]);
 
+  // Increment guest play count - returns true if should show login prompt
+  const incrementGuestPlayCount = useCallback(async () => {
+    if (isAuthenticated) {
+      return false; // Logged in users don't have limits
+    }
+    
+    const newCount = guestPlayCount + 1;
+    setGuestPlayCount(newCount);
+    
+    try {
+      await SecureStore.setItemAsync('guest_play_count', newCount.toString());
+    } catch (e) {
+      console.log('Error saving play count:', e);
+    }
+    
+    if (newCount >= GUEST_PLAY_LIMIT) {
+      setShouldPromptLogin(true);
+      return true;
+    }
+    
+    return false;
+  }, [isAuthenticated, guestPlayCount]);
+
+  // Reset guest play count (after login)
+  const resetGuestPlayCount = useCallback(async () => {
+    setGuestPlayCount(0);
+    setShouldPromptLogin(false);
+    try {
+      await SecureStore.deleteItemAsync('guest_play_count');
+    } catch (e) {}
+  }, []);
+
+  // Dismiss login prompt temporarily (user clicks "later")
+  const dismissLoginPrompt = useCallback(() => {
+    setShouldPromptLogin(false);
+  }, []);
+
   const value = {
     user,
     isLoading,
     isAuthenticated,
+    guestPlayCount,
+    shouldPromptLogin,
     login,
     logout,
     checkAuth,
