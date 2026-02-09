@@ -57,13 +57,14 @@ const SongCategoriesPage = lazy(() => import("@/pages/SongCategoriesPage"));
 const TransactionsPage = lazy(() => import("@/pages/TransactionsPage"));
 const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
 const AdvertisingPage = lazy(() => import("@/pages/AdvertisingPage"));
+const FeedbackPage = lazy(() => import("@/pages/FeedbackPage"));
 
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   Mic2, Video, Radio, Heart, MessageSquare,
   CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe,
-  ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud, Tags, Megaphone
+  ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud, Tags, Megaphone, MessageCircle
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
