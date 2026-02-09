@@ -1,12 +1,15 @@
 /**
- * GuestPlayLimitModal - Prompts guest users to login after 3 songs
+ * GuestPlayLimitModal - Prompts guest users to login
  * 
- * Features:
- * - Friendly but enforceful prompt
- * - Google login option
- * - Email/password login
- * - Register option
- * - Choir join/login link
+ * Triggers:
+ * - After 3 songs played
+ * - After 3 songs skipped
+ * - After 10 minutes of listening
+ * 
+ * Behavior:
+ * - First prompt: "Kufurahia huduma hii jisajili au ingia kwenye Gracefy"
+ * - Second prompt: Friendly reminder
+ * - Third prompt: Lock app - "Tafadhali jisajili au ingia sasa"
  */
 
 import React, { useState } from 'react';
@@ -33,7 +36,7 @@ import { authAPI, API_BASE_URL } from '../services/api';
 
 const GOOGLE_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/google";
 
-const GuestPlayLimitModal = ({ visible, onClose, onSuccess, songsPlayed = 3 }) => {
+const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
   const [mode, setMode] = useState('main'); // 'main', 'login', 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,7 +47,15 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess, songsPlayed = 3 }) =
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { 
+    login, 
+    isAppLocked, 
+    loginPromptMessage, 
+    promptAttempts,
+    guestPlayCount,
+    guestSkipCount,
+    guestListenMinutes
+  } = useAuth();
 
   const handleGoogleLogin = async () => {
     try {
@@ -146,13 +157,23 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess, songsPlayed = 3 }) =
     Linking.openURL(`${API_BASE_URL.replace('/api', '')}/choir-register`);
   };
 
-  const resetForm = () => {
-    setEmail('');
-    setPassword('');
-    setName('');
-    setConfirmPassword('');
-    setError('');
-    setMode('main');
+  // Get display message based on state
+  const getDisplayMessage = () => {
+    if (loginPromptMessage) {
+      return loginPromptMessage;
+    }
+    return 'Kufurahia huduma hii jisajili au ingia kwenye Gracefy';
+  };
+
+  // Get stats message
+  const getStatsMessage = () => {
+    const parts = [];
+    if (guestPlayCount > 0) parts.push(`nyimbo ${guestPlayCount}`);
+    if (guestSkipCount > 0) parts.push(`skip ${guestSkipCount}`);
+    if (guestListenMinutes >= 1) parts.push(`dakika ${Math.floor(guestListenMinutes)}`);
+    
+    if (parts.length === 0) return null;
+    return `Umesikiliza ${parts.join(', ')} bure`;
   };
 
   const renderMainContent = () => (
@@ -160,36 +181,51 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess, songsPlayed = 3 }) =
       {/* Illustration */}
       <View style={styles.illustrationContainer}>
         <LinearGradient
-          colors={['#3498DB', '#1abc9c']}
+          colors={isAppLocked ? ['#E74C3C', '#C0392B'] : ['#3498DB', '#1abc9c']}
           style={styles.illustrationGradient}
         >
-          <Ionicons name="musical-notes" size={48} color="#fff" />
+          <Ionicons 
+            name={isAppLocked ? 'lock-closed' : 'musical-notes'} 
+            size={48} 
+            color="#fff" 
+          />
         </LinearGradient>
       </View>
 
       {/* Title */}
-      <Text style={styles.title}>Unapenda muziki wetu! 🎵</Text>
+      <Text style={[styles.title, isAppLocked && styles.lockedTitle]}>
+        {isAppLocked ? 'Jisajili Kuendelea' : 'Karibu Gracefy! 🎵'}
+      </Text>
       
-      {/* Message */}
+      {/* Main Message */}
       <Text style={styles.message}>
-        Umesikiliza nyimbo {songsPlayed} bure. Ingia au jisajili kuendelea kusikiliza bila kikomo!
+        {getDisplayMessage()}
       </Text>
 
+      {/* Stats Message */}
+      {getStatsMessage() && (
+        <Text style={styles.statsMessage}>
+          {getStatsMessage()}
+        </Text>
+      )}
+
       {/* Benefits */}
-      <View style={styles.benefitsContainer}>
-        <View style={styles.benefitItem}>
-          <Ionicons name="infinite" size={20} color={COLORS.primary} />
-          <Text style={styles.benefitText}>Sikiliza bila kikomo</Text>
+      {!isAppLocked && (
+        <View style={styles.benefitsContainer}>
+          <View style={styles.benefitItem}>
+            <Ionicons name="infinite" size={20} color={COLORS.primary} />
+            <Text style={styles.benefitText}>Sikiliza bila kikomo</Text>
+          </View>
+          <View style={styles.benefitItem}>
+            <Ionicons name="heart" size={20} color="#E74C3C" />
+            <Text style={styles.benefitText}>Hifadhi nyimbo unazopenda</Text>
+          </View>
+          <View style={styles.benefitItem}>
+            <Ionicons name="list" size={20} color="#9B59B6" />
+            <Text style={styles.benefitText}>Tengeneza playlist zako</Text>
+          </View>
         </View>
-        <View style={styles.benefitItem}>
-          <Ionicons name="heart" size={20} color="#E74C3C" />
-          <Text style={styles.benefitText}>Hifadhi nyimbo unazopenda</Text>
-        </View>
-        <View style={styles.benefitItem}>
-          <Ionicons name="list" size={20} color="#9B59B6" />
-          <Text style={styles.benefitText}>Tengeneza playlist zako</Text>
-        </View>
-      </View>
+      )}
 
       {/* Google Login Button */}
       <TouchableOpacity
@@ -230,10 +266,24 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess, songsPlayed = 3 }) =
         <Text style={styles.secondaryButtonText}>Sina akaunti? Jisajili</Text>
       </TouchableOpacity>
 
-      {/* Skip for now (limited) */}
-      <TouchableOpacity style={styles.skipButton} onPress={onClose}>
-        <Text style={styles.skipButtonText}>Baadaye</Text>
-      </TouchableOpacity>
+      {/* Skip button - only if not locked */}
+      {!isAppLocked && (
+        <TouchableOpacity style={styles.skipButton} onPress={onClose}>
+          <Text style={styles.skipButtonText}>
+            Baadaye ({3 - promptAttempts} {promptAttempts === 2 ? 'mara iliyobaki' : 'mara zilizobaki'})
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Lock warning */}
+      {isAppLocked && (
+        <View style={styles.lockWarning}>
+          <Ionicons name="warning" size={16} color="#E74C3C" />
+          <Text style={styles.lockWarningText}>
+            Lazima ujiajili au uingie kuendelea kutumia app
+          </Text>
+        </View>
+      )}
     </>
   );
 
@@ -378,7 +428,7 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess, songsPlayed = 3 }) =
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={isAppLocked ? undefined : onClose}
     >
       <BlurView intensity={20} style={styles.overlay}>
         <KeyboardAvoidingView
@@ -459,12 +509,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
+  lockedTitle: {
+    color: '#E74C3C',
+  },
   message: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: SPACING.sm,
+  },
+  statsMessage: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    textAlign: 'center',
     marginBottom: SPACING.lg,
+    fontStyle: 'italic',
   },
   benefitsContainer: {
     marginBottom: SPACING.xl,
@@ -546,6 +606,21 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
+  lockWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+    borderRadius: BORDER_RADIUS.md,
+    gap: 8,
+  },
+  lockWarningText: {
+    fontSize: FONT_SIZES.sm,
+    color: '#E74C3C',
+    textAlign: 'center',
+  },
   backButton: {
     position: 'absolute',
     top: 0,
@@ -598,7 +673,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
-  // Choir section styles
   choirSection: {
     marginTop: SPACING.lg,
     paddingTop: SPACING.md,
