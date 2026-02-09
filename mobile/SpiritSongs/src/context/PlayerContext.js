@@ -11,6 +11,7 @@
  * - Auto-next track
  * - Queue management
  * - Stream tracking for analytics
+ * - Guest play limit (3 songs before login prompt)
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
@@ -26,6 +27,7 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { Platform } from 'react-native';
 import { getAudioUrl, getImageUrl, playerAPI } from '../services/api';
+import { useAuth } from './AuthContext';
 
 // Create context
 const PlayerContext = createContext(null);
@@ -34,6 +36,11 @@ const PlayerContext = createContext(null);
 let stopExternalAudioCallback = null;
 export const setStopExternalAudioCallback = (cb) => { stopExternalAudioCallback = cb; };
 export const clearStopExternalAudioCallback = () => { stopExternalAudioCallback = null; };
+
+// Callback for showing login prompt
+let showLoginPromptCallback = null;
+export const setShowLoginPromptCallback = (cb) => { showLoginPromptCallback = cb; };
+export const clearShowLoginPromptCallback = () => { showLoginPromptCallback = null; };
 
 /**
  * Hook to access player functions and state
