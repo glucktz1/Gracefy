@@ -1,32 +1,42 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
-// Guest play limit - number of songs before requiring login
-const GUEST_PLAY_LIMIT = 3;
+// Guest limits configuration
+const GUEST_PLAY_LIMIT = 3;           // Songs played
+const GUEST_SKIP_LIMIT = 3;           // Songs skipped
+const GUEST_TIME_LIMIT_MINUTES = 10;  // Minutes of listening
+const MAX_PROMPT_ATTEMPTS = 3;        // Lock after this many dismissals
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    // Return safe defaults instead of throwing
     console.warn('useAuth called outside AuthProvider - returning defaults');
     return {
       user: null,
       isLoading: false,
       isAuthenticated: false,
       guestPlayCount: 0,
+      guestSkipCount: 0,
+      guestListenMinutes: 0,
+      promptAttempts: 0,
       shouldPromptLogin: false,
+      isAppLocked: false,
+      loginPromptMessage: '',
       login: async () => ({ success: false }),
       logout: async () => {},
       register: async () => ({ success: false }),
       updateProfile: async () => ({ success: false }),
       refreshUser: async () => {},
       incrementGuestPlayCount: () => false,
-      resetGuestPlayCount: () => {},
+      incrementGuestSkipCount: () => false,
+      updateGuestListenTime: () => {},
+      resetGuestStats: () => {},
       dismissLoginPrompt: () => {},
+      checkGuestLimits: () => ({ shouldPrompt: false, isLocked: false }),
     };
   }
   return context;
@@ -36,8 +46,19 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Guest tracking state
   const [guestPlayCount, setGuestPlayCount] = useState(0);
+  const [guestSkipCount, setGuestSkipCount] = useState(0);
+  const [guestListenMinutes, setGuestListenMinutes] = useState(0);
+  const [promptAttempts, setPromptAttempts] = useState(0);
   const [shouldPromptLogin, setShouldPromptLogin] = useState(false);
+  const [isAppLocked, setIsAppLocked] = useState(false);
+  const [loginPromptMessage, setLoginPromptMessage] = useState('');
+
+  // Timer for tracking listen time
+  const listenStartTimeRef = useRef(null);
+  const listenTimerRef = useRef(null);
 
   // Restore auth state from storage on mount
   const restoreAuthState = useCallback(async () => {
@@ -45,127 +66,117 @@ export const AuthProvider = ({ children }) => {
       const token = await SecureStore.getItemAsync('auth_token');
       const cachedUserData = await SecureStore.getItemAsync('user_data');
       const savedPlayCount = await SecureStore.getItemAsync('guest_play_count');
+      const savedSkipCount = await SecureStore.getItemAsync('guest_skip_count');
+      const savedListenMinutes = await SecureStore.getItemAsync('guest_listen_minutes');
+      const savedPromptAttempts = await SecureStore.getItemAsync('guest_prompt_attempts');
       
       console.log('Restoring auth state - Token exists:', !!token, 'Cached user:', !!cachedUserData);
       
-      // Restore guest play count
-      if (savedPlayCount) {
-        setGuestPlayCount(parseInt(savedPlayCount, 10) || 0);
+      // Restore guest stats
+      if (savedPlayCount) setGuestPlayCount(parseInt(savedPlayCount, 10) || 0);
+      if (savedSkipCount) setGuestSkipCount(parseInt(savedSkipCount, 10) || 0);
+      if (savedListenMinutes) setGuestListenMinutes(parseFloat(savedListenMinutes) || 0);
+      if (savedPromptAttempts) {
+        const attempts = parseInt(savedPromptAttempts, 10) || 0;
+        setPromptAttempts(attempts);
+        if (attempts >= MAX_PROMPT_ATTEMPTS) {
+          setIsAppLocked(true);
+          setLoginPromptMessage('Tafadhali jisajili au ingia sasa');
+        }
       }
       
       if (!token) {
-        // No token - user is not logged in
         setUser(null);
         setIsAuthenticated(false);
         setIsLoading(false);
         return;
       }
-      
-      // Token exists - restore user from cache immediately for instant UI
+
       if (cachedUserData) {
         try {
           const userData = JSON.parse(cachedUserData);
           setUser(userData);
           setIsAuthenticated(true);
-          console.log('Restored user from cache:', userData.user_id || userData.email);
-        } catch (parseError) {
+          console.log('Restored user from cache:', userData.email);
+        } catch (e) {
           console.log('Failed to parse cached user data');
         }
       }
-      
-      // Then validate token with server in background (don't block UI)
-      validateTokenWithServer(token);
-      
-    } catch (e) {
-      console.log('Error restoring auth state:', e);
+
+      try {
+        const response = await authAPI.getProfile();
+        if (response.data) {
+          const freshUserData = response.data.user || response.data;
+          setUser(freshUserData);
+          setIsAuthenticated(true);
+          await SecureStore.setItemAsync('user_data', JSON.stringify(freshUserData));
+          console.log('Refreshed user data from API');
+        }
+      } catch (error) {
+        console.log('Failed to refresh user from API:', error.message);
+        if (error.response?.status === 401) {
+          await clearAuthData();
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring auth state:', error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Validate token with server - updates user data if successful, clears only on explicit 401
-  const validateTokenWithServer = async (token) => {
-    try {
-      const response = await authAPI.getMe();
-      if (response.data) {
-        setUser(response.data);
-        setIsAuthenticated(true);
-        // Update cache with fresh data
-        await SecureStore.setItemAsync('user_data', JSON.stringify(response.data));
-        console.log('Token validated successfully');
+  useEffect(() => {
+    restoreAuthState();
+    
+    // Start listen time tracking
+    startListenTimeTracking();
+    
+    return () => {
+      if (listenTimerRef.current) {
+        clearInterval(listenTimerRef.current);
       }
-    } catch (error) {
-      const status = error?.response?.status;
-      console.log('Token validation failed - Status:', status);
-      
-      // Only clear auth on explicit 401 Unauthorized (token invalid/expired)
-      if (status === 401) {
-        console.log('Token invalid/expired - clearing auth');
-        await clearAuthData();
+    };
+  }, [restoreAuthState]);
+
+  // Track listen time for guest users
+  const startListenTimeTracking = () => {
+    listenStartTimeRef.current = Date.now();
+    
+    // Check every minute
+    listenTimerRef.current = setInterval(async () => {
+      if (!isAuthenticated) {
+        const minutesListened = (Date.now() - listenStartTimeRef.current) / 60000;
+        const totalMinutes = guestListenMinutes + minutesListened;
+        
+        if (totalMinutes >= GUEST_TIME_LIMIT_MINUTES) {
+          checkAndTriggerPrompt('time');
+        }
       }
-      // For network errors, server errors (5xx), or 404 - keep user logged in with cached data
-      // User can continue using the app offline or until server is back
-    }
+    }, 60000); // Check every minute
   };
 
-  // Clear all auth data
   const clearAuthData = async () => {
     try {
       await SecureStore.deleteItemAsync('auth_token');
-      await SecureStore.deleteItemAsync('user_id');
       await SecureStore.deleteItemAsync('user_data');
-    } catch (e) {
-      console.log('Error clearing auth data:', e);
-    }
+    } catch (e) {}
     setUser(null);
     setIsAuthenticated(false);
   };
 
-  // Initialize on mount
-  useEffect(() => {
-    restoreAuthState();
-  }, [restoreAuthState]);
-
-  // Handle app state changes (coming back from background)
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextAppState) => {
-      if (nextAppState === 'active') {
-        // App came to foreground - check if we have a token and validate
-        const token = await SecureStore.getItemAsync('auth_token');
-        if (token && !isAuthenticated) {
-          // We have a token but not authenticated - restore
-          restoreAuthState();
-        }
-      }
-    });
-
-    return () => {
-      subscription?.remove();
-    };
-  }, [isAuthenticated, restoreAuthState]);
-
   const login = async (token, userData) => {
     try {
-      // Store token first
       await SecureStore.setItemAsync('auth_token', token);
-      
-      // Store user ID if available
-      if (userData?.user_id) {
-        await SecureStore.setItemAsync('user_id', userData.user_id);
-      }
-      
-      // Store full user data for offline access
       if (userData) {
         await SecureStore.setItemAsync('user_data', JSON.stringify(userData));
       }
-      
       setUser(userData);
       setIsAuthenticated(true);
       
-      // Reset guest play count on successful login
-      setGuestPlayCount(0);
+      // Reset all guest stats on successful login
+      await resetGuestStats();
+      setIsAppLocked(false);
       setShouldPromptLogin(false);
-      await SecureStore.deleteItemAsync('guest_play_count');
       
       console.log('Login successful:', userData?.email || userData?.user_id);
     } catch (e) {
@@ -177,9 +188,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await authAPI.logout();
-    } catch (e) {
-      // Ignore logout API errors - still clear local state
-    }
+    } catch (e) {}
     await clearAuthData();
     console.log('Logged out');
   };
@@ -188,55 +197,162 @@ export const AuthProvider = ({ children }) => {
     await restoreAuthState();
   }, [restoreAuthState]);
 
-  // Increment guest play count - returns true if should show login prompt
-  const incrementGuestPlayCount = useCallback(async () => {
-    if (isAuthenticated) {
-      return false; // Logged in users don't have limits
+  // Get appropriate message based on prompt attempts
+  const getPromptMessage = (attempt) => {
+    if (attempt === 0) {
+      return 'Kufurahia huduma hii jisajili au ingia kwenye Gracefy';
+    } else if (attempt === 1) {
+      return 'Jisajili sasa kupata muziki zaidi na vipengele vyote!';
+    } else if (attempt >= 2) {
+      return 'Tafadhali jisajili au ingia sasa';
     }
+    return 'Kufurahia huduma hii jisajili au ingia kwenye Gracefy';
+  };
+
+  // Check and trigger login prompt
+  const checkAndTriggerPrompt = useCallback(async (reason = 'play') => {
+    if (isAuthenticated) return { shouldPrompt: false, isLocked: false };
+    
+    const currentAttempts = promptAttempts;
+    
+    if (currentAttempts >= MAX_PROMPT_ATTEMPTS) {
+      setIsAppLocked(true);
+      setLoginPromptMessage('Tafadhali jisajili au ingia sasa');
+      setShouldPromptLogin(true);
+      return { shouldPrompt: true, isLocked: true };
+    }
+    
+    setLoginPromptMessage(getPromptMessage(currentAttempts));
+    setShouldPromptLogin(true);
+    return { shouldPrompt: true, isLocked: false };
+  }, [isAuthenticated, promptAttempts]);
+
+  // Increment play count - returns true if should show prompt
+  const incrementGuestPlayCount = useCallback(async () => {
+    if (isAuthenticated) return false;
     
     const newCount = guestPlayCount + 1;
     setGuestPlayCount(newCount);
     
     try {
       await SecureStore.setItemAsync('guest_play_count', newCount.toString());
-    } catch (e) {
-      console.log('Error saving play count:', e);
-    }
+    } catch (e) {}
     
     if (newCount >= GUEST_PLAY_LIMIT) {
-      setShouldPromptLogin(true);
+      checkAndTriggerPrompt('play');
       return true;
     }
     
     return false;
-  }, [isAuthenticated, guestPlayCount]);
+  }, [isAuthenticated, guestPlayCount, checkAndTriggerPrompt]);
 
-  // Reset guest play count (after login)
-  const resetGuestPlayCount = useCallback(async () => {
+  // Increment skip count - returns true if should show prompt
+  const incrementGuestSkipCount = useCallback(async () => {
+    if (isAuthenticated) return false;
+    
+    const newCount = guestSkipCount + 1;
+    setGuestSkipCount(newCount);
+    
+    try {
+      await SecureStore.setItemAsync('guest_skip_count', newCount.toString());
+    } catch (e) {}
+    
+    if (newCount >= GUEST_SKIP_LIMIT) {
+      checkAndTriggerPrompt('skip');
+      return true;
+    }
+    
+    return false;
+  }, [isAuthenticated, guestSkipCount, checkAndTriggerPrompt]);
+
+  // Update guest listen time
+  const updateGuestListenTime = useCallback(async (additionalMinutes) => {
+    if (isAuthenticated) return;
+    
+    const newMinutes = guestListenMinutes + additionalMinutes;
+    setGuestListenMinutes(newMinutes);
+    
+    try {
+      await SecureStore.setItemAsync('guest_listen_minutes', newMinutes.toString());
+    } catch (e) {}
+    
+    if (newMinutes >= GUEST_TIME_LIMIT_MINUTES) {
+      checkAndTriggerPrompt('time');
+    }
+  }, [isAuthenticated, guestListenMinutes, checkAndTriggerPrompt]);
+
+  // Reset all guest stats (after login)
+  const resetGuestStats = useCallback(async () => {
     setGuestPlayCount(0);
+    setGuestSkipCount(0);
+    setGuestListenMinutes(0);
+    setPromptAttempts(0);
     setShouldPromptLogin(false);
+    setIsAppLocked(false);
+    listenStartTimeRef.current = Date.now();
+    
     try {
       await SecureStore.deleteItemAsync('guest_play_count');
+      await SecureStore.deleteItemAsync('guest_skip_count');
+      await SecureStore.deleteItemAsync('guest_listen_minutes');
+      await SecureStore.deleteItemAsync('guest_prompt_attempts');
     } catch (e) {}
   }, []);
 
-  // Dismiss login prompt temporarily (user clicks "later")
-  const dismissLoginPrompt = useCallback(() => {
+  // Dismiss login prompt (user clicked "later")
+  const dismissLoginPrompt = useCallback(async () => {
+    const newAttempts = promptAttempts + 1;
+    setPromptAttempts(newAttempts);
     setShouldPromptLogin(false);
-  }, []);
+    
+    try {
+      await SecureStore.setItemAsync('guest_prompt_attempts', newAttempts.toString());
+    } catch (e) {}
+    
+    // Check if should lock
+    if (newAttempts >= MAX_PROMPT_ATTEMPTS) {
+      setIsAppLocked(true);
+      setLoginPromptMessage('Tafadhali jisajili au ingia sasa');
+      setShouldPromptLogin(true);
+    }
+  }, [promptAttempts]);
+
+  // Check all guest limits
+  const checkGuestLimits = useCallback(() => {
+    if (isAuthenticated) {
+      return { shouldPrompt: false, isLocked: false };
+    }
+    
+    const hasReachedLimit = 
+      guestPlayCount >= GUEST_PLAY_LIMIT ||
+      guestSkipCount >= GUEST_SKIP_LIMIT ||
+      guestListenMinutes >= GUEST_TIME_LIMIT_MINUTES;
+    
+    const isLocked = promptAttempts >= MAX_PROMPT_ATTEMPTS;
+    
+    return { shouldPrompt: hasReachedLimit, isLocked };
+  }, [isAuthenticated, guestPlayCount, guestSkipCount, guestListenMinutes, promptAttempts]);
 
   const value = {
     user,
     isLoading,
     isAuthenticated,
     guestPlayCount,
+    guestSkipCount,
+    guestListenMinutes,
+    promptAttempts,
     shouldPromptLogin,
+    isAppLocked,
+    loginPromptMessage,
     login,
     logout,
     checkAuth,
     incrementGuestPlayCount,
-    resetGuestPlayCount,
+    incrementGuestSkipCount,
+    updateGuestListenTime,
+    resetGuestStats,
     dismissLoginPrompt,
+    checkGuestLimits,
   };
 
   return (
