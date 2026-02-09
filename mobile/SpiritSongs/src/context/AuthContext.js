@@ -44,8 +44,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = await SecureStore.getItemAsync('auth_token');
       const cachedUserData = await SecureStore.getItemAsync('user_data');
+      const savedPlayCount = await SecureStore.getItemAsync('guest_play_count');
       
       console.log('Restoring auth state - Token exists:', !!token, 'Cached user:', !!cachedUserData);
+      
+      // Restore guest play count
+      if (savedPlayCount) {
+        setGuestPlayCount(parseInt(savedPlayCount, 10) || 0);
+      }
       
       if (!token) {
         // No token - user is not logged in
