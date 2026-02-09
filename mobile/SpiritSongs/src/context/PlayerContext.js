@@ -324,6 +324,16 @@ export const PlayerProvider = ({ children }) => {
   const playTrack = async (track, newQueue = null, startIndex = null) => {
     if (!track) return;
 
+    // ============ GUEST PLAY LIMIT CHECK ============
+    // Check if guest user has reached their play limit
+    if (!isAuthenticated) {
+      const shouldPrompt = await incrementGuestPlayCount();
+      if (shouldPrompt && showLoginPromptCallback) {
+        showLoginPromptCallback();
+        // Still allow playing, but show prompt
+      }
+    }
+
     // Ensure player is ready
     if (!setupCompleteRef.current) {
       const ready = await setupPlayer();
