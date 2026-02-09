@@ -269,7 +269,7 @@ async def update_ad(
     end_date: Optional[str] = Form(None),
     budget: Optional[float] = Form(None),
     cost_per_impression: Optional[float] = Form(None),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin_user)
 ):
     """Update an advertisement"""
     db = get_db()
