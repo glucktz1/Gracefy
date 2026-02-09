@@ -180,7 +180,7 @@ BUNNY_CDN_URL=https://gracefy-cdn.b-cdn.net
 
 ### Frontend (.env)
 ```
-REACT_APP_BACKEND_URL=https://melody-repair-2.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://music-campaigns.preview.emergentagent.com
 ```
 
 ## EAS Build Credentials
