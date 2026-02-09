@@ -197,6 +197,14 @@ const AppContent = () => {
             />
           </View>
         )}
+
+        {/* Guest Play Limit Modal */}
+        <GuestPlayLimitModal
+          visible={showLoginModal}
+          onClose={handleCloseLoginModal}
+          onSuccess={handleLoginSuccess}
+          songsPlayed={guestPlayCount}
+        />
       </View>
     </NavigationContainer>
   );
