@@ -335,7 +335,7 @@ async def update_ad(
 
 
 @router.delete("/ads/{ad_id}")
-async def delete_ad(ad_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_ad(ad_id: str, current_user: dict = Depends(get_current_admin_user)):
     """Delete an advertisement"""
     db = get_db()
     
