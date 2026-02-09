@@ -93,7 +93,7 @@ async def update_advertising_settings(
     max_ad_duration_seconds: int = Form(60),
     skip_after_seconds: int = Form(5),
     show_ad_label: bool = Form(True),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin_user)
 ):
     """Update global advertising settings - Admin only"""
     db = get_db()
