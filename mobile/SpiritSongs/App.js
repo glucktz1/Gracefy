@@ -283,10 +283,9 @@ const AppContent = () => {
 
         {/* Guest Play Limit Modal */}
         <GuestPlayLimitModal
-          visible={showLoginModal}
+          visible={showLoginModal || isAppLocked}
           onClose={handleCloseLoginModal}
           onSuccess={handleLoginSuccess}
-          songsPlayed={guestPlayCount}
         />
 
         {/* Ad Player Modal */}
