@@ -20,6 +20,7 @@ from .monetization import router as monetization_router
 from .categories import router as categories_router
 from .browse import router as browse_router
 from .cdn_management import router as cdn_management_router
+from .feedback import router as feedback_router
 
 __all__ = [
     'auth_router',
@@ -39,4 +40,5 @@ __all__ = [
     'categories_router',
     'browse_router',
     'cdn_management_router',
+    'feedback_router',
 ]
