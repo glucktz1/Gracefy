@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, View, StatusBar, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,6 +17,10 @@ import { DownloadProvider } from './src/context/DownloadContext';
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
 import GuestPlayLimitModal from './src/components/GuestPlayLimitModal';
+import AdPlayer from './src/components/AdPlayer';
+
+// API
+import { advertisingAPI } from './src/services/api';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
