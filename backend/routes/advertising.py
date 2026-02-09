@@ -197,7 +197,7 @@ async def create_ad(
     end_date: Optional[str] = Form(None),
     budget: float = Form(0),
     cost_per_impression: float = Form(0),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_admin_user)
 ):
     """Create a new advertisement - Admin/Ad Manager only"""
     db = get_db()
