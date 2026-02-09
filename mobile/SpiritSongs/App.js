@@ -282,6 +282,17 @@ const AppContent = () => {
           onSuccess={handleLoginSuccess}
           songsPlayed={guestPlayCount}
         />
+
+        {/* Ad Player Modal */}
+        <AdPlayer
+          visible={showAd}
+          ad={currentAd}
+          settings={adSettings}
+          onComplete={handleAdComplete}
+          onSkip={handleAdSkip}
+          deviceId={deviceIdRef.current}
+          userId={user?.user_id}
+        />
       </View>
     </NavigationContainer>
   );
