@@ -629,6 +629,12 @@ const styles = StyleSheet.create({
     color: '#E74C3C',
     textAlign: 'center',
   },
+  helpText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
   backButton: {
     position: 'absolute',
     top: 0,
