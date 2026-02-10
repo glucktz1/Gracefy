@@ -14,11 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../services/api';
+import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { API_BASE_URL } from '../services/api';
 
 export default function ChatScreen({ navigation }) {
-  const { user, token } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user;
+  const token = authContext?.token;
+  
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -27,7 +31,7 @@ export default function ChatScreen({ navigation }) {
   const [showSatisfaction, setShowSatisfaction] = useState(false);
   const flatListRef = useRef(null);
 
-  // Initialize chat
+  // Initialize chat on mount
   useEffect(() => {
     initializeChat();
   }, []);
@@ -35,9 +39,8 @@ export default function ChatScreen({ navigation }) {
   const initializeChat = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/chat/support', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_BASE_URL}/chat/support`, { headers });
       
       if (response.data && response.data.success) {
         setConversationId(response.data.conversation_id);
@@ -76,8 +79,9 @@ export default function ChatScreen({ navigation }) {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       
-      // Use the new support message endpoint
-      const response = await api.post('/chat/support/message', 
+      // Use the support message endpoint
+      const response = await axios.post(
+        `${API_BASE_URL}/chat/support/message`, 
         { message: messageText },
         { headers }
       );
@@ -121,7 +125,7 @@ export default function ChatScreen({ navigation }) {
     
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await api.post(`/chat/support/handover/${conversationId}`, {}, { headers });
+      await axios.post(`${API_BASE_URL}/chat/support/handover/${conversationId}`, {}, { headers });
       
       Alert.alert(
         'Ombi Limepokelewa',
@@ -135,11 +139,15 @@ export default function ChatScreen({ navigation }) {
   };
 
   const submitSatisfaction = async (rating) => {
-    if (!conversationId) return;
+    if (!conversationId) {
+      setShowSatisfaction(false);
+      return;
+    }
     
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await api.post(`/chat/support/satisfaction/${conversationId}`, 
+      await axios.post(
+        `${API_BASE_URL}/chat/support/satisfaction/${conversationId}`, 
         { rating },
         { headers }
       );
@@ -147,10 +155,13 @@ export default function ChatScreen({ navigation }) {
       Alert.alert('Asante!', 'Maoni yako yamepokelewa.');
     } catch (error) {
       console.error('Satisfaction error:', error);
+      setShowSatisfaction(false);
     }
   };
 
   const renderMessage = ({ item }) => {
+    if (!item) return null;
+    
     const isUser = item.sender === 'user';
     const isSystem = item.sender === 'system';
     
@@ -175,10 +186,10 @@ export default function ChatScreen({ navigation }) {
             isUser && styles.messageTextUser,
             isSystem && styles.messageTextSystem
           ]}>
-            {item.message}
+            {item.message || ''}
           </Text>
           <Text style={styles.messageTime}>
-            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
           </Text>
         </View>
         {isUser && (
@@ -253,13 +264,17 @@ export default function ChatScreen({ navigation }) {
             <FlatList
               ref={flatListRef}
               data={messages}
-              keyExtractor={(item, index) => item.id || `msg-${index}`}
+              keyExtractor={(item, index) => item?.id || `msg-${index}`}
               renderItem={renderMessage}
               contentContainerStyle={styles.messagesList}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={() => {
-                if (flatListRef.current && messages.length > 0) {
-                  flatListRef.current.scrollToEnd({ animated: true });
+                try {
+                  if (flatListRef.current && messages.length > 0) {
+                    flatListRef.current.scrollToEnd({ animated: true });
+                  }
+                } catch (e) {
+                  console.log('Scroll error:', e);
                 }
               }}
               ListEmptyComponent={
