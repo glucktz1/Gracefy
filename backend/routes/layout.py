@@ -603,16 +603,24 @@ async def create_home_filter(data: dict):
     """Create a new home filter category"""
     db = get_db()
     
+    filter_id = f"filter_{uuid.uuid4().hex[:12]}"
+    
     filter_cat = {
-        "song_category_id": f"songcat_{uuid.uuid4().hex[:12]}",
+        "song_category_id": filter_id,
+        "filter_id": filter_id,  # Alias for frontend compatibility
         "name": data.get("name"),
-        "name_sw": data.get("name_sw"),
-        "description": data.get("description"),
+        "name_en": data.get("name_en", data.get("name")),
+        "name_sw": data.get("name_sw", data.get("name")),
+        "description": data.get("description", ""),
+        "filter_type": data.get("filter_type", "song_category"),
+        "category_id": data.get("category_id", ""),
+        "content_type": data.get("content_type", ""),
         "color": data.get("color", "#6366f1"),
-        "icon": data.get("icon"),
+        "icon": data.get("icon", "music"),
         "sort_order": data.get("sort_order", 0),
         "is_system": False,
-        "status": "active",
+        "is_active": data.get("is_active", True),
+        "status": "active" if data.get("is_active", True) else "inactive",
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
