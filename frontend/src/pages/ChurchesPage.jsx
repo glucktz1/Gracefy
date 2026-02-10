@@ -155,11 +155,12 @@ export default function ChurchesPage() {
       reader.onloadend = async () => {
         const base64 = reader.result;
         
-        // Upload to server
-        const response = await axios.post(`${API}/upload`, {
+        // Upload to server using base64 endpoint
+        const response = await axios.post(`${API}/upload/base64`, {
           file: base64,
           filename: `church_${type}_${Date.now()}.${file.name.split('.').pop()}`,
-          content_type: file.type
+          content_type: file.type,
+          folder: "churches"
         });
         
         const imageUrl = response.data.url;
