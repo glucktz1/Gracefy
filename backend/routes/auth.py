@@ -823,12 +823,29 @@ async def forgot_password_reset(data: dict):
 
 # ============== GOOGLE AUTH (Mobile App) ==============
 
+@router.get("/user/auth/google-start")
+async def google_auth_start(redirect_uri: str = None, platform: str = "mobile"):
+    """Start Google OAuth flow - returns the auth URL to open in browser"""
+    # Use the backend callback URL as the redirect for Emergent
+    backend_callback = f"{os.environ.get('BACKEND_URL', 'https://music-campaigns.preview.emergentagent.com')}/api/user/auth/google-callback"
+    
+    # Store the mobile redirect for later use
+    auth_url = f"https://demobackend.emergentagent.com/auth/v1/env/oauth/google?redirect_uri={backend_callback}&platform={platform}"
+    
+    if redirect_uri:
+        # Encode the mobile redirect for passing through
+        auth_url += f"&mobile_redirect={redirect_uri}"
+    
+    return {"auth_url": auth_url}
+
 @router.get("/user/auth/google-callback")
 async def google_auth_callback(request: Request):
     """Handle Google OAuth callback for mobile app"""
     db = get_db()
     
     session_id = request.query_params.get("session_id")
+    mobile_redirect = request.query_params.get("mobile_redirect")
+    
     if not session_id:
         raise HTTPException(status_code=400, detail="Session ID required")
     
@@ -882,6 +899,12 @@ async def google_auth_callback(request: Request):
         "created_at": datetime.now(timezone.utc).isoformat(),
         "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
     })
+    
+    # If mobile redirect is provided, redirect there with token
+    if mobile_redirect:
+        from fastapi.responses import RedirectResponse
+        redirect_url = f"{mobile_redirect}?token={token}&session_id={session_id}"
+        return RedirectResponse(url=redirect_url)
     
     return {"user": user, "token": token}
 
