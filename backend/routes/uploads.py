@@ -164,6 +164,86 @@ async def upload_to_cdn(
     }
 
 
+@router.post("/upload/base64")
+async def upload_base64_image(data: dict):
+    """Upload image from base64 data - used for church images etc."""
+    db = get_db()
+    
+    base64_data = data.get("file", data.get("data", ""))
+    filename = data.get("filename", f"image_{uuid.uuid4().hex[:12]}.jpg")
+    content_type = data.get("content_type", "image/jpeg")
+    folder = data.get("folder", "images")
+    
+    if not base64_data:
+        raise HTTPException(status_code=400, detail="No image data provided")
+    
+    # Remove data URL prefix if present
+    if "base64," in base64_data:
+        base64_data = base64_data.split("base64,")[1]
+    
+    try:
+        import base64
+        content = base64.b64decode(base64_data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 data: {str(e)}")
+    
+    file_id = f"file_{uuid.uuid4().hex[:12]}"
+    ext = os.path.splitext(filename)[1].lower() or ".jpg"
+    cdn_filename = f"{file_id}{ext}"
+    
+    cdn_url = None
+    
+    # Try CDN upload
+    if is_cdn_enabled():
+        try:
+            import httpx
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{cdn_filename}"
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    storage_url,
+                    content=content,
+                    headers={
+                        "AccessKey": BUNNY_API_KEY,
+                        "Content-Type": content_type
+                    },
+                    timeout=60.0
+                )
+                
+                if response.status_code in [200, 201]:
+                    cdn_url = f"{BUNNY_CDN_URL}/{folder}/{cdn_filename}"
+                    logger.info(f"Base64 image uploaded to CDN: {cdn_url}")
+        except Exception as e:
+            logger.error(f"CDN upload failed: {e}")
+    
+    # Store file record
+    file_doc = {
+        "file_id": file_id,
+        "filename": cdn_filename,
+        "original_name": filename,
+        "folder": folder,
+        "content_type": content_type,
+        "size_bytes": len(content),
+        "cdn_url": cdn_url,
+        "storage_type": "cdn" if cdn_url else "local",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # If no CDN, store as base64 for small files
+    if not cdn_url and len(content) < 5 * 1024 * 1024:
+        file_doc["data_base64"] = base64_data
+    
+    await db.files.insert_one(file_doc)
+    
+    return {
+        "file_id": file_id,
+        "filename": cdn_filename,
+        "url": cdn_url or f"/api/files/{file_id}",
+        "cdn_url": cdn_url,
+        "size_bytes": len(content)
+    }
+
+
 @router.post("/upload/multiple")
 async def upload_multiple_files(
     files: List[UploadFile] = File(...),
