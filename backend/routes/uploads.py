@@ -169,16 +169,22 @@ async def upload_base64_image(data: dict):
     """Upload image from base64 data - used for church images etc."""
     db = get_db()
     
-    base64_data = data.get("file", data.get("data", ""))
+    # Accept multiple key names for flexibility
+    base64_data = data.get("file_data") or data.get("file") or data.get("data") or data.get("image") or ""
     filename = data.get("filename", f"image_{uuid.uuid4().hex[:12]}.jpg")
     content_type = data.get("content_type", "image/jpeg")
     folder = data.get("folder", "images")
     
     if not base64_data:
-        raise HTTPException(status_code=400, detail="No image data provided")
+        raise HTTPException(status_code=400, detail="No image data provided. Use 'file_data', 'file', 'data', or 'image' key.")
     
     # Remove data URL prefix if present
     if "base64," in base64_data:
+        # Extract content type from data URL if not provided
+        if base64_data.startswith("data:"):
+            mime_part = base64_data.split(";")[0]
+            if mime_part:
+                content_type = mime_part.replace("data:", "")
         base64_data = base64_data.split("base64,")[1]
     
     try:
