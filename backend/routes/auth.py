@@ -10,6 +10,7 @@ import hashlib
 import random
 import logging
 import httpx
+import os
 
 from core.database import get_db
 from core.cache import cache
