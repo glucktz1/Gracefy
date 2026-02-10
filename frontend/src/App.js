@@ -541,6 +541,7 @@ function AppRouter() {
         <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
         <Route path="/chat-support" element={<ProtectedRoute><ChatManagementPage /></ProtectedRoute>} />
         <Route path="/knowledge-bank" element={<ProtectedRoute><KnowledgeBankPage /></ProtectedRoute>} />
+        <Route path="/app-control" element={<ProtectedRoute><AppControlPage /></ProtectedRoute>} />
         <Route path="/churches" element={<ProtectedRoute><ChurchesPage /></ProtectedRoute>} />
         <Route path="/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
         <Route path="/seminars" element={<ProtectedRoute><SeminarsPage /></ProtectedRoute>} />
