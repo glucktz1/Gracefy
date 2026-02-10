@@ -96,6 +96,7 @@ export default function TeachingsPage() {
   
   // File upload
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const thumbnailInputRef = useRef(null);
