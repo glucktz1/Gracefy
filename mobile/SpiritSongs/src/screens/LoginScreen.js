@@ -110,18 +110,21 @@ const LoginScreen = ({ navigation }) => {
     try {
       setGoogleLoading(true);
       
-      // For mobile, we use the backend's Google OAuth endpoint
-      // which will redirect back to the app with a session_id
-      const callbackUrl = `${API_BASE_URL}/user/auth/google-callback`;
-      const mobileRedirect = Linking.createURL('auth');
+      // Get the redirect URI for this app
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'gracefy',
+        path: 'auth'
+      });
       
-      // Build the OAuth URL - pass both callback and mobile redirect
-      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(callbackUrl)}&mobile_redirect=${encodeURIComponent(mobileRedirect)}&platform=mobile`;
+      console.log('Redirect URI:', redirectUri);
+      
+      // Build the OAuth URL with the mobile redirect
+      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`;
       
       console.log('Opening Google Auth:', authUrl);
       
-      // Open auth in browser with the mobile scheme as the return URL
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'gracefy://');
+      // Open auth in browser
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       
       console.log('Auth result:', result);
       
@@ -131,27 +134,39 @@ const LoginScreen = ({ navigation }) => {
         
         // Extract session_id from callback URL
         let sessionId = null;
+        let token = null;
         
-        // Try different URL parameter formats
-        const urlObj = new URL(url.replace('gracefy://', 'https://temp.com/'));
-        sessionId = urlObj.searchParams.get('session_id');
-        
-        if (!sessionId && url.includes('session_id=')) {
-          sessionId = url.split('session_id=')[1]?.split('&')[0]?.split('#')[0];
+        try {
+          // Parse URL parameters
+          const urlParts = url.split('?');
+          if (urlParts.length > 1) {
+            const params = new URLSearchParams(urlParts[1].split('#')[0]);
+            sessionId = params.get('session_id');
+            token = params.get('token');
+          }
+          
+          // Fallback: try regex extraction
+          if (!sessionId && url.includes('session_id=')) {
+            const match = url.match(/session_id=([^&&#]+)/);
+            sessionId = match ? match[1] : null;
+          }
+          
+          if (!token && url.includes('token=')) {
+            const match = url.match(/token=([^&&#]+)/);
+            token = match ? match[1] : null;
+          }
+        } catch (parseError) {
+          console.error('URL parse error:', parseError);
         }
         
-        console.log('Extracted Session ID:', sessionId);
+        console.log('Extracted Session ID:', sessionId, 'Token:', token);
         
         if (sessionId) {
           await handleGoogleCallback(sessionId);
+        } else if (token) {
+          await handleGoogleCallback(null, token);
         } else {
-          // Try to get token directly if present
-          const token = urlObj.searchParams.get('token');
-          if (token) {
-            await handleGoogleCallback(null, token);
-          } else {
-            Alert.alert('Kosa', 'Hakuna session ID. Jaribu tena.');
-          }
+          Alert.alert('Kosa', 'Hakuna taarifa za kuingia. Jaribu tena.');
         }
       } else if (result.type === 'cancel') {
         console.log('User cancelled auth');
@@ -160,7 +175,7 @@ const LoginScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Google login error:', error);
-      Alert.alert('Kosa', 'Imeshindikana kufungua Google login. ' + (error.message || 'Jaribu tena'));
+      Alert.alert('Kosa', 'Imeshindikana kufungua Google login. Jaribu tena baadaye.');
     } finally {
       setGoogleLoading(false);
     }
