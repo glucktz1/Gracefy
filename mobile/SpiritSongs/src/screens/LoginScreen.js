@@ -157,13 +157,14 @@ const LoginScreen = ({ navigation }) => {
     try {
       setGoogleLoading(true);
       
-      // Create redirect URI - MUST match what's registered
+      // Use the same auth flow as web - redirect to Emergent Auth
+      // The backend callback will handle the mobile redirect
       const redirectUri = 'gracefy://auth';
       
-      // Build the same auth URL used by web
-      // The key is using Emergent's auth service with our backend callback
-      const backendCallback = encodeURIComponent(`${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(redirectUri)}`);
-      const authUrl = `${EMERGENT_AUTH_URL}?redirect_uri=${backendCallback}`;
+      // Build auth URL with proper encoding
+      const authUrl = `https://auth.emergentagent.com/?redirect_uri=${encodeURIComponent(
+        `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(redirectUri)}`
+      )}`;
       
       console.log('Opening Google auth URL:', authUrl);
       
