@@ -841,14 +841,127 @@ async def google_auth_start(redirect_uri: str = None, platform: str = "mobile"):
 
 @router.get("/user/auth/google-callback")
 async def google_auth_callback(request: Request):
-    """Handle Google OAuth callback for mobile app"""
-    db = get_db()
+    """
+    Handle Google OAuth callback for mobile app.
+    auth.emergentagent.com redirects here with session_id in hash fragment.
+    This page extracts session_id from hash and processes login.
+    """
+    from fastapi.responses import HTMLResponse
     
+    mobile_redirect = request.query_params.get("mobile_redirect", "gracefy://auth")
     session_id = request.query_params.get("session_id")
-    mobile_redirect = request.query_params.get("mobile_redirect")
+    
+    # If session_id is provided as query param, process directly
+    if session_id:
+        return await process_mobile_google_login(session_id, mobile_redirect)
+    
+    # Otherwise, return HTML that extracts session_id from hash and redirects
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Gracefy - Inasindika...</title>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                color: white;
+            }}
+            .container {{
+                text-align: center;
+                padding: 20px;
+            }}
+            .spinner {{
+                width: 50px;
+                height: 50px;
+                border: 3px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                border-top-color: #8b5cf6;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+            }}
+            @keyframes spin {{
+                to {{ transform: rotate(360deg); }}
+            }}
+            .error {{
+                color: #ef4444;
+                display: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="spinner"></div>
+            <p id="status">Inakamilisha uingiaji...</p>
+            <p class="error" id="error"></p>
+        </div>
+        <script>
+            (function() {{
+                const hash = window.location.hash;
+                const mobile_redirect = "{mobile_redirect}";
+                
+                // Extract session_id from hash
+                const match = hash.match(/session_id=([^&]+)/);
+                
+                if (match && match[1]) {{
+                    const sessionId = match[1];
+                    // Call backend to process login
+                    fetch('/api/user/auth/mobile-login', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ session_id: sessionId }})
+                    }})
+                    .then(r => r.json())
+                    .then(data => {{
+                        if (data.token) {{
+                            // Redirect to mobile app with token
+                            const redirectUrl = mobile_redirect + '?token=' + data.token + '&user_id=' + data.user_id;
+                            document.getElementById('status').textContent = 'Inakuelekeza kwenye app...';
+                            window.location.href = redirectUrl;
+                        }} else {{
+                            throw new Error(data.detail || 'Login failed');
+                        }}
+                    }})
+                    .catch(err => {{
+                        document.getElementById('status').style.display = 'none';
+                        document.getElementById('error').style.display = 'block';
+                        document.getElementById('error').textContent = 'Kosa: ' + err.message;
+                    }});
+                }} else {{
+                    document.getElementById('status').style.display = 'none';
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = 'Session ID haikupatikana. Tafadhali jaribu tena.';
+                }}
+            }})();
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+
+@router.post("/user/auth/mobile-login")
+async def mobile_google_login(request: Request):
+    """Process mobile Google login with session_id"""
+    data = await request.json()
+    session_id = data.get("session_id")
     
     if not session_id:
         raise HTTPException(status_code=400, detail="Session ID required")
+    
+    return await process_mobile_google_login(session_id, None)
+
+
+async def process_mobile_google_login(session_id: str, mobile_redirect: str = None):
+    """Common function to process mobile Google login"""
+    db = get_db()
     
     # Get user data from Emergent auth
     async with httpx.AsyncClient() as client_http:
@@ -866,7 +979,7 @@ async def google_auth_callback(request: Request):
     name = user_data.get("name", "")
     picture = user_data.get("picture")
     
-    # Find or create user
+    # Find or create user in app_users collection
     existing_user = await db.app_users.find_one({"email": email})
     
     if existing_user:
@@ -875,10 +988,10 @@ async def google_auth_callback(request: Request):
             {"email": email},
             {"$set": {"name": name, "picture": picture, "google_connected": True}}
         )
-        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
     else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
         user = {
-            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "user_id": user_id,
             "email": email,
             "name": name,
             "picture": picture,
@@ -889,8 +1002,6 @@ async def google_auth_callback(request: Request):
             "status": "active"
         }
         await db.app_users.insert_one(user)
-        user_id = user["user_id"]
-        user.pop("_id", None)
     
     # Generate token
     token = f"tok_{uuid.uuid4().hex}"
@@ -904,10 +1015,10 @@ async def google_auth_callback(request: Request):
     # If mobile redirect is provided, redirect there with token
     if mobile_redirect:
         from fastapi.responses import RedirectResponse
-        redirect_url = f"{mobile_redirect}?token={token}&session_id={session_id}"
+        redirect_url = f"{mobile_redirect}?token={token}&user_id={user_id}"
         return RedirectResponse(url=redirect_url)
     
-    return {"user": user, "token": token}
+    return {"token": token, "user_id": user_id, "email": email, "name": name}
 
 
 @router.post("/user/auth/google-callback")
