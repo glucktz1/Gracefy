@@ -332,8 +332,8 @@ const HomeScreen = ({ navigation }) => {
     } else if (linkType === 'bible') {
       navigation.navigate('Bible');
     } else if (linkType === 'url' && linkTarget) {
-      // External URL - could use Linking.openURL
-      console.log('External link:', linkTarget);
+      // External URL - open in browser
+      Linking.openURL(linkTarget).catch(() => {});
     } else if (linkType === 'screen' && linkTarget) {
       // Navigate to specific screen
       navigation.navigate(linkTarget);
@@ -377,11 +377,6 @@ const HomeScreen = ({ navigation }) => {
         church_name: leader.church_name
       } 
     });
-  };
-
-  // Toggle debug info display
-  const toggleDebug = () => {
-    setDebugInfo(prev => ({ ...prev, show: !prev.show }));
   };
 
   // Render section items based on layout_style
