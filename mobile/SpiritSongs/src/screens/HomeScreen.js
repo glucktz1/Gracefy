@@ -110,7 +110,6 @@ const HomeScreen = ({ navigation }) => {
     
     try {
       setLoading(true);
-      console.log('[HomeScreen] Starting data load...');
       
       const [
         sectionsRes, 
@@ -125,9 +124,9 @@ const HomeScreen = ({ navigation }) => {
         mafundishoRes,
         filtersRes,
       ] = await Promise.all([
-        homeAPI.getSections().catch((e) => { errors.push(`Sections: ${e.message}`); return { data: { sections: [] } }; }),
-        homeAPI.getHeroContent().catch((e) => { errors.push(`Hero: ${e.message}`); return { data: { items: [] } }; }),
-        homeAPI.getSpecialMixes().catch((e) => { errors.push(`Mixes: ${e.message}`); return { data: { mixes: [] } }; }),
+        homeAPI.getSections().catch(() => ({ data: { sections: [] } })),
+        homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
+        homeAPI.getSpecialMixes().catch(() => ({ data: { mixes: [] } })),
         contentAPI.getAlbums().catch((e) => { errors.push(`Albums: ${e.message}`); return { data: { albums: [] } }; }),
         contentAPI.getAllSongs().catch((e) => { errors.push(`Songs: ${e.message}`); return { data: { songs: [] } }; }),
         libraryAPI.getPlaylists().catch((e) => { errors.push(`Playlists: ${e.message}`); return { data: [] }; }),
