@@ -190,9 +190,27 @@ REACT_APP_BACKEND_URL=https://songfix-spirit.preview.emergentagent.com
 ## Known Issues
 1. Some songs (10) still have internal `/api/files/` URLs - need migration
 2. 3 songs have no audio URL - disabled
-3. Hero section images may not display properly
+3. ~~Hero section images may not display properly~~ (FIXED - Feb 10, 2026)
+
+## Latest Updates (Feb 10, 2026)
+
+### Backend Fixes for Mobile App
+- [x] Fixed Hero Section images - backend now returns base64/CDN images properly
+- [x] Fixed base64 upload endpoint - accepts multiple key names (file_data, file, data, image)
+- [x] Fixed Chat AI - uses Emergent LLM (Gemini 3 Flash), responds in user's language
+- [x] All 26 backend API tests PASSED
+
+### Mobile Issues (Requires Build Testing)
+- [ ] Google Login on mobile - backend auth ready, mobile flow needs verification
+- [ ] ChatScreen crash - API working, mobile screen may have rendering issue
+- [ ] Hero Section on mobile - backend returns correct data, mobile display TBD
+
+### Admin Panel
+- [x] Churches image upload working with /api/upload/base64
+- [x] Layout Manager hero banners working with /api/upload
 
 ## Testing Notes
 - Use "Generate Data" button in analytics to create demo listening sessions
 - Revenue only calculates when billing is enabled in subscription_settings
 - CDN stats now count from songs/albums collections, not legacy files collection
+- Hero banners have 9 duplicate entries with large base64 images - consider cleanup
