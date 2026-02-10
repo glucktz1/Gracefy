@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Import API_BASE_URL directly
-const API_URL = 'https://music-campaigns.preview.emergentagent.com/api';
+const API_URL = 'https://songfix-spirit.preview.emergentagent.com/api';
 
 export default function ChatScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
