@@ -258,11 +258,8 @@ const HomeScreen = ({ navigation }) => {
       s.section_type === 'seasonal' && s.filter_category === 'christmas'
     );
     if (christmasSection?.content_items?.length > 0) {
-      console.log('[loadLayoutSections] Found christmas section with', christmasSection.content_items.length, 'items');
       setChristmasSongs(christmasSection.content_items);
     } else if (albums.length > 2) {
-      // Fallback: use different albums, normalize fields
-      console.log('[loadLayoutSections] Using album fallback for christmas');
       const christmasFallback = albums.slice(2, 6).map(a => ({
         ...a,
         title: a.name || a.title,
@@ -280,8 +277,6 @@ const HomeScreen = ({ navigation }) => {
     if (mostListenedSection?.content_items?.length > 0) {
       setMostListenedAlbums(mostListenedSection.content_items);
     } else {
-      // Fallback to regular albums
-      console.log('[loadLayoutSections] Using album fallback for most listened');
       setMostListenedAlbums(albums.slice(0, 6));
     }
 
@@ -294,8 +289,6 @@ const HomeScreen = ({ navigation }) => {
     if (hotSection?.content_items?.length > 0) {
       setHotNewReleases(hotSection.content_items);
     } else {
-      // Fallback to recent albums
-      console.log('[loadLayoutSections] Using album fallback for hot releases');
       setHotNewReleases(albums.slice(0, 6));
     }
   };
