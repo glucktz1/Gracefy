@@ -20,8 +20,11 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { authAPI, API_BASE_URL } from '../services/api';
 
-// Warm up browser for faster auth
+// Complete any pending auth sessions
 WebBrowser.maybeCompleteAuthSession();
+
+// Use the SAME auth URL as web - this is the key!
+const EMERGENT_AUTH_URL = "https://auth.emergentagent.com/";
 
 const LoginScreen = ({ navigation }) => {
   const [authMode, setAuthMode] = useState('login');
@@ -38,12 +41,12 @@ const LoginScreen = ({ navigation }) => {
 
   const { login } = useAuth();
 
-  // Handle deep link for Google OAuth callback
+  // Handle deep link for OAuth callback
   useEffect(() => {
     const handleUrl = async (event) => {
       const url = event.url;
       console.log('Deep link received:', url);
-      if (url) {
+      if (url && url.includes('gracefy://')) {
         await processCallbackUrl(url);
       }
     };
@@ -52,7 +55,7 @@ const LoginScreen = ({ navigation }) => {
     
     // Check if app was opened with a URL
     Linking.getInitialURL().then((url) => {
-      if (url) {
+      if (url && url.includes('gracefy://')) {
         console.log('Initial URL:', url);
         processCallbackUrl(url);
       }
@@ -65,60 +68,85 @@ const LoginScreen = ({ navigation }) => {
 
   const processCallbackUrl = async (url) => {
     try {
-      // Extract token or session_id from URL
+      console.log('Processing callback URL:', url);
+      
+      // Extract parameters from URL
       let token = null;
       let sessionId = null;
+      let error = null;
 
-      if (url.includes('token=')) {
+      // Parse URL parameters
+      const queryString = url.split('?')[1] || url.split('#')[1] || '';
+      const params = new URLSearchParams(queryString);
+      
+      token = params.get('token');
+      sessionId = params.get('session_id');
+      error = params.get('error');
+
+      // Fallback regex extraction
+      if (!token && url.includes('token=')) {
         const match = url.match(/token=([^&&#]+)/);
         token = match ? match[1] : null;
       }
-      if (url.includes('session_id=')) {
+      if (!sessionId && url.includes('session_id=')) {
         const match = url.match(/session_id=([^&&#]+)/);
         sessionId = match ? match[1] : null;
       }
 
-      console.log('Extracted - Token:', token, 'SessionId:', sessionId);
+      console.log('Extracted - Token:', token?.substring(0, 20), 'SessionId:', sessionId);
+
+      if (error) {
+        Alert.alert('Kosa', 'Imeshindikana kuingia na Google: ' + error);
+        return;
+      }
 
       if (token) {
-        await handleGoogleCallback(sessionId, token);
+        await handleGoogleToken(token);
       } else if (sessionId) {
-        await handleGoogleCallback(sessionId);
+        await handleGoogleSession(sessionId);
       }
     } catch (error) {
       console.error('Process callback error:', error);
+      Alert.alert('Kosa', 'Imeshindikana kusoma data ya Google');
     }
   };
 
-  const handleGoogleCallback = async (sessionId, directToken = null) => {
+  const handleGoogleToken = async (token) => {
     try {
       setGoogleLoading(true);
       
-      if (directToken) {
-        // If we have a direct token, use it
-        const userResponse = await authAPI.getMe(directToken);
-        if (userResponse.data) {
-          await login(directToken, userResponse.data);
-          Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
-            { text: 'Sawa', onPress: () => navigation.goBack() }
-          ]);
-        }
-      } else if (sessionId) {
-        // Exchange session_id for token
-        const response = await authAPI.googleCallback(sessionId);
-        if (response.data?.token) {
-          await login(response.data.token, response.data.user);
-          Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
-            { text: 'Sawa', onPress: () => navigation.goBack() }
-          ]);
-        } else {
-          throw new Error('No token received');
-        }
-      } else {
-        throw new Error('No session ID or token');
+      // Get user data with token
+      const response = await authAPI.getMe(token);
+      if (response.data) {
+        await login(token, response.data);
+        Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
+          { text: 'Sawa', onPress: () => navigation.goBack() }
+        ]);
       }
     } catch (error) {
-      console.error('Google auth error:', error);
+      console.error('Get user error:', error);
+      Alert.alert('Kosa', 'Imeshindikana kupata data ya mtumiaji');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleSession = async (sessionId) => {
+    try {
+      setGoogleLoading(true);
+      
+      // Exchange session_id for token
+      const response = await authAPI.googleCallback(sessionId);
+      if (response.data?.token) {
+        await login(response.data.token, response.data.user);
+        Alert.alert('Karibu!', 'Umefanikiwa kuingia na Google', [
+          { text: 'Sawa', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        throw new Error('No token received');
+      }
+    } catch (error) {
+      console.error('Google callback error:', error);
       Alert.alert('Kosa', 'Imeshindikana kuingia na Google. Jaribu tena.');
     } finally {
       setGoogleLoading(false);
@@ -129,39 +157,27 @@ const LoginScreen = ({ navigation }) => {
     try {
       setGoogleLoading(true);
       
-      // Create redirect URI for the app
+      // Create redirect URI - MUST match what's registered
       const redirectUri = 'gracefy://auth';
       
-      // Get the auth URL from backend
-      const startResponse = await authAPI.googleStart(redirectUri);
-      const authUrl = startResponse.data?.auth_url;
+      // Build the same auth URL used by web
+      // The key is using Emergent's auth service with our backend callback
+      const backendCallback = encodeURIComponent(`${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(redirectUri)}`);
+      const authUrl = `${EMERGENT_AUTH_URL}?redirect_uri=${backendCallback}`;
       
-      if (!authUrl) {
-        // Fallback to direct Emergent URL
-        const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(redirectUri)}`;
-        const fallbackUrl = `https://demobackend.emergentagent.com/auth/v1/env/oauth/google?redirect_uri=${encodeURIComponent(backendCallback)}&platform=mobile`;
-        
-        console.log('Using fallback URL:', fallbackUrl);
-        const result = await WebBrowser.openAuthSessionAsync(fallbackUrl, redirectUri);
-        console.log('Browser result:', result);
-        
-        if (result.type === 'success' && result.url) {
-          await processCallbackUrl(result.url);
-        }
-        return;
-      }
+      console.log('Opening Google auth URL:', authUrl);
       
-      console.log('Opening auth URL:', authUrl);
-      
-      // Open auth in browser
+      // Open the browser for auth
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       
-      console.log('Auth result:', result);
+      console.log('Auth result:', JSON.stringify(result));
       
       if (result.type === 'success' && result.url) {
         await processCallbackUrl(result.url);
       } else if (result.type === 'cancel') {
-        console.log('User cancelled auth');
+        console.log('User cancelled Google login');
+      } else if (result.type === 'dismiss') {
+        console.log('Browser dismissed');
       }
     } catch (error) {
       console.error('Google login error:', error);
