@@ -86,10 +86,14 @@ export const authAPI = {
   forgotPasswordReset: (email, otp, newPassword) => api.post('/auth/forgot-password/reset', { email, otp, new_password: newPassword }),
   
   // Google OAuth - uses session_id from Emergent OAuth
+  googleStart: (redirectUri) => api.get(`/user/auth/google-start?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`),
   googleCallback: (sessionId) => api.post('/user/auth/google-callback', { session_id: sessionId }),
   
   // Session
-  getMe: () => api.get('/user/me'),
+  getMe: (token) => {
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    return api.get('/user/me', { headers });
+  },
   logout: () => api.post('/auth/logout'),
 };
 
