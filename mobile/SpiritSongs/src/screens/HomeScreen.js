@@ -168,22 +168,18 @@ const HomeScreen = ({ navigation }) => {
 
       // Hero content
       const heroData = heroRes.data || { items: [] };
-      stats.hero = heroData.items?.length || 0;
       setHeroContent(heroData);
 
       // Special mixes
       const mixes = mixesRes.data?.mixes || mixesRes.data || [];
-      stats.mixes = mixes.length;
       setSpecialMixes(mixes);
 
       // Albums
       const albums = albumsRes.data?.albums || albumsRes.data || [];
-      stats.albums = albums.length;
       setRecentAlbums(albums);
 
       // Songs
       const songs = songsRes.data?.songs || [];
-      stats.songs = songs.length;
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
           const album = albums.find(a => a.album_id === song.album_id);
@@ -197,7 +193,6 @@ const HomeScreen = ({ navigation }) => {
 
       // User playlists
       const playlists = playlistsRes.data || [];
-      stats.playlists = Array.isArray(playlists) ? playlists.length : 0;
       setUserPlaylists(Array.isArray(playlists) ? playlists : []);
 
       // Liked songs
