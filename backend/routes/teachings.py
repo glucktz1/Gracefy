@@ -450,13 +450,13 @@ async def upload_teaching_audio(
     """Upload audio file for a lesson - prioritizes CDN, falls back to chunked storage"""
     db = get_db()
     
-    # Read file content
+    # Read file content in chunks for large files
     content = await file.read()
     file_size = len(content)
     
-    # Check file size (max 50MB)
-    if file_size > 50 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large. Maximum 50MB")
+    # Check file size (max 500MB for long teachings - 30+ minutes)
+    if file_size > 500 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum 500MB for teachings")
     
     # Generate unique file ID and filename
     file_id = f"file_{uuid.uuid4().hex[:12]}"
@@ -466,6 +466,9 @@ async def upload_teaching_audio(
     
     cdn_url = None
     storage_type = "direct"
+    
+    # Calculate appropriate timeout based on file size (1 minute per 10MB, min 2 min, max 30 min)
+    timeout_seconds = max(120, min(1800, (file_size // (10 * 1024 * 1024)) * 60))
     
     # Try CDN upload first (best for large files)
     if is_cdn_enabled():
@@ -483,7 +486,7 @@ async def upload_teaching_audio(
                         "AccessKey": BUNNY_API_KEY,
                         "Content-Type": content_type
                     },
-                    timeout=120.0  # 2 minutes for large files
+                    timeout=float(timeout_seconds)  # Dynamic timeout based on file size
                 )
                 
                 if response.status_code in [200, 201]:
