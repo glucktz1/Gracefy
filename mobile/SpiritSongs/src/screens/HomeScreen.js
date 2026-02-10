@@ -237,11 +237,8 @@ const HomeScreen = ({ navigation }) => {
       s.section_type === 'seasonal' && s.filter_category === 'lent'
     );
     if (lentSection?.content_items?.length > 0) {
-      console.log('[loadLayoutSections] Found lent section with', lentSection.content_items.length, 'items');
       setLentSongs(lentSection.content_items);
     } else if (albums.length > 0) {
-      // Fallback: use first 4 albums as lent songs placeholder, normalize fields
-      console.log('[loadLayoutSections] Using album fallback for lent');
       const lentFallback = albums.slice(0, 4).map(a => ({
         ...a,
         title: a.name || a.title,
