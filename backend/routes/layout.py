@@ -503,7 +503,6 @@ async def get_hero_content():
     Get hero content for the mobile app carousel.
     Returns featured albums or custom banners based on hero config.
     Each item includes link_type and link_target for navigation.
-    Note: Large base64 thumbnails are stripped for performance - use external image_url.
     """
     db = get_db()
     
@@ -519,11 +518,21 @@ async def get_hero_content():
         "items": []
     }
     
-    # Helper function to clean large base64 data
-    def clean_base64(url):
-        if url and isinstance(url, str) and url.startswith('data:') and len(url) > 5000:
-            return None  # Will use placeholder
-        return url
+    # Helper function to get best available image URL
+    def get_best_image(item, *field_names):
+        """Return the best available image URL from given fields"""
+        for field in field_names:
+            url = item.get(field)
+            if url:
+                # Prefer CDN/HTTP URLs
+                if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
+                    return url
+        # Fallback to base64 (keep it for display)
+        for field in field_names:
+            url = item.get(field)
+            if url and isinstance(url, str) and url.startswith('data:'):
+                return url
+        return None
     
     if hero_type == "album_carousel" or hero_type == "static_banner":
         # Get featured albums
@@ -534,29 +543,39 @@ async def get_hero_content():
         ).sort("created_at", -1).limit(6).to_list(6)
         
         for album in albums:
-            # Prefer URL over base64 for performance
-            thumbnail = clean_base64(album.get("thumbnail_url")) or clean_base64(album.get("thumbnail"))
-            album["thumbnail"] = thumbnail
+            # Get best available thumbnail
+            album["thumbnail"] = get_best_image(album, "thumbnail_url", "thumbnail")
             album["artist_name"] = album.get("artist_name") or album.get("choir_name") or "Unknown"
             # Add navigation metadata for album items
             album["link_type"] = "album"
             album["link_target"] = album.get("album_id")
         
         response["items"] = albums
-    else:
+    
+    if hero_type == "dynamic_content":
         # Get custom banners - they already have link_type and link_target
         banners = await db.hero_banners.find(
             {"is_active": True},
             {"_id": 0}
         ).sort("order", 1).to_list(10)
         
-        # Process banners - strip large base64 thumbnails for performance
+        # Process banners - get best available image
         for banner in banners:
-            # Clean all image fields
-            banner["image_url"] = clean_base64(banner.get("image_url"))
-            banner["thumbnail"] = clean_base64(banner.get("thumbnail"))
-            # Use first available image
-            banner["thumbnail"] = banner.get("thumbnail") or banner.get("image_url")
+            # Get best thumbnail from available fields
+            thumbnail = get_best_image(banner, "image_url", "thumbnail")
+            banner["thumbnail"] = thumbnail
+            banner["image_url"] = thumbnail
+            
+            # If banner links to album, fetch album thumbnail as fallback
+            if not thumbnail and banner.get("link_type") == "album" and banner.get("link_id"):
+                linked_album = await db.albums.find_one(
+                    {"album_id": banner["link_id"]},
+                    {"_id": 0, "thumbnail": 1, "thumbnail_url": 1}
+                )
+                if linked_album:
+                    album_thumb = get_best_image(linked_album, "thumbnail_url", "thumbnail")
+                    banner["thumbnail"] = album_thumb
+                    banner["image_url"] = album_thumb
         
         response["items"] = banners
     
