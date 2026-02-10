@@ -278,4 +278,24 @@ export const billingAPI = {
   getUserTransactions: () => api.get('/user/transactions'),
 };
 
+// ============ FEEDBACK API ============
+export const feedbackAPI = {
+  // Submit feedback from mobile app
+  submit: (data) => api.post('/feedback/submit', data),
+};
+
+// ============ CHAT/SUPPORT API ============
+export const chatAPI = {
+  // Get chat conversations
+  getConversations: () => api.get('/chat/conversations'),
+  // Get messages in a conversation
+  getMessages: (conversationId) => api.get(`/chat/conversations/${conversationId}/messages`),
+  // Send a message
+  sendMessage: (conversationId, message) => api.post(`/chat/conversations/${conversationId}/messages`, { message }),
+  // Start new conversation (support chat)
+  startSupportChat: () => api.post('/chat/support/start'),
+  // Get or create support conversation
+  getSupportChat: () => api.get('/chat/support'),
+};
+
 export default api;
