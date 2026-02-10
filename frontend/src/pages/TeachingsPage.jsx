@@ -362,6 +362,7 @@ export default function TeachingsPage() {
     }
 
     setUploadingFile(true);
+    setUploadProgress(0);
     try {
       let audioUrl = editingLesson?.audio_url || "";
       let audioFileId = editingLesson?.audio_file_id || "";
@@ -374,7 +375,17 @@ export default function TeachingsPage() {
         formData.append("topic_id", selectedTopic.topic_id);
         if (editingLesson) formData.append("lesson_id", editingLesson.lesson_id);
         
-        const uploadRes = await axios.post(`${API}/teachings/upload-audio`, formData);
+        // Calculate timeout based on file size (1 min per 10MB, min 2 min, max 30 min)
+        const fileSizeMB = audioFile.size / (1024 * 1024);
+        const timeoutMs = Math.max(120000, Math.min(1800000, fileSizeMB * 6000 + 60000));
+        
+        const uploadRes = await axios.post(`${API}/teachings/upload-audio`, formData, {
+          timeout: timeoutMs,
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          }
+        });
         audioUrl = uploadRes.data.url;
         audioFileId = uploadRes.data.file_id;
       }
