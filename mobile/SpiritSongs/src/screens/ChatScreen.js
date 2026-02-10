@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,40 +14,64 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
-import { API_BASE_URL } from '../services/api';
+
+// Import API_BASE_URL directly
+const API_URL = 'https://music-campaigns.preview.emergentagent.com/api';
 
 export default function ChatScreen({ navigation }) {
-  const authContext = useContext(AuthContext);
-  const user = authContext?.user;
-  const token = authContext?.token;
-  
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [showSatisfaction, setShowSatisfaction] = useState(false);
+  const [token, setToken] = useState(null);
   const flatListRef = useRef(null);
 
-  // Initialize chat on mount
+  // Get token on mount
+  useEffect(() => {
+    const getToken = async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem('userToken');
+        setToken(storedToken);
+      } catch (e) {
+        console.log('Error getting token:', e);
+      }
+    };
+    getToken();
+  }, []);
+
+  // Initialize chat after token is loaded
   useEffect(() => {
     initializeChat();
-  }, []);
+  }, [token]);
 
   const initializeChat = async () => {
     setLoading(true);
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await axios.get(`${API_BASE_URL}/chat/support`, { headers });
+      const response = await axios.get(`${API_URL}/chat/support`, { 
+        headers,
+        timeout: 10000 
+      });
       
       if (response.data && response.data.success) {
         setConversationId(response.data.conversation_id);
-        setMessages(response.data.messages || []);
+        const msgs = response.data.messages || [];
+        setMessages(msgs);
+      } else {
+        // Show welcome message
+        setMessages([{
+          id: 'welcome',
+          message: 'Karibu kwenye Msaada wa SpiritSongs! Ninawezaje kukusaidia leo?',
+          sender: 'ai',
+          timestamp: new Date().toISOString(),
+        }]);
       }
     } catch (error) {
-      console.error('Chat init error:', error);
+      console.log('Chat init error:', error?.message || error);
       // Show welcome message on error
       setMessages([{
         id: 'welcome',
@@ -61,16 +85,16 @@ export default function ChatScreen({ navigation }) {
   };
 
   const sendMessage = async () => {
-    if (!inputText.trim() || sending) return;
+    const text = inputText?.trim();
+    if (!text || sending) return;
 
-    const messageText = inputText.trim();
     setInputText('');
     setSending(true);
 
     // Add user message optimistically
     const tempUserMessage = {
       id: `user-${Date.now()}`,
-      message: messageText,
+      message: text,
       sender: 'user',
       timestamp: new Date().toISOString(),
     };
@@ -79,11 +103,10 @@ export default function ChatScreen({ navigation }) {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       
-      // Use the support message endpoint
       const response = await axios.post(
-        `${API_BASE_URL}/chat/support/message`, 
-        { message: messageText },
-        { headers }
+        `${API_URL}/chat/support/message`, 
+        { message: text },
+        { headers, timeout: 30000 }
       );
       
       if (response.data && response.data.success) {
@@ -92,7 +115,7 @@ export default function ChatScreen({ navigation }) {
         }
         
         // Add AI response
-        if (response.data.ai_response) {
+        if (response.data.ai_response && response.data.ai_response.message) {
           const aiMessage = {
             id: response.data.ai_response.id || `ai-${Date.now()}`,
             message: response.data.ai_response.message,
@@ -103,7 +126,7 @@ export default function ChatScreen({ navigation }) {
         }
       }
     } catch (error) {
-      console.error('Send message error:', error);
+      console.log('Send message error:', error?.message || error);
       // Add fallback response on error
       const fallbackMessage = {
         id: `fallback-${Date.now()}`,
@@ -125,7 +148,7 @@ export default function ChatScreen({ navigation }) {
     
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await axios.post(`${API_BASE_URL}/chat/support/handover/${conversationId}`, {}, { headers });
+      await axios.post(`${API_URL}/chat/support/handover/${conversationId}`, {}, { headers, timeout: 10000 });
       
       Alert.alert(
         'Ombi Limepokelewa',
@@ -133,44 +156,44 @@ export default function ChatScreen({ navigation }) {
         [{ text: 'Sawa' }]
       );
     } catch (error) {
-      console.error('Handover error:', error);
+      console.log('Handover error:', error?.message || error);
       Alert.alert('Kosa', 'Imeshindikana kutuma ombi. Jaribu tena.');
     }
   };
 
   const submitSatisfaction = async (rating) => {
-    if (!conversationId) {
-      setShowSatisfaction(false);
-      return;
-    }
+    setShowSatisfaction(false);
+    
+    if (!conversationId) return;
     
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.post(
-        `${API_BASE_URL}/chat/support/satisfaction/${conversationId}`, 
+        `${API_URL}/chat/support/satisfaction/${conversationId}`, 
         { rating },
-        { headers }
+        { headers, timeout: 10000 }
       );
-      setShowSatisfaction(false);
       Alert.alert('Asante!', 'Maoni yako yamepokelewa.');
     } catch (error) {
-      console.error('Satisfaction error:', error);
-      setShowSatisfaction(false);
+      console.log('Satisfaction error:', error?.message || error);
     }
   };
 
-  const renderMessage = ({ item }) => {
-    if (!item) return null;
+  const renderMessage = ({ item, index }) => {
+    if (!item || !item.message) return null;
     
     const isUser = item.sender === 'user';
     const isSystem = item.sender === 'system';
     
     return (
-      <View style={[
-        styles.messageRow, 
-        isUser && styles.messageRowUser,
-        isSystem && styles.messageRowSystem
-      ]}>
+      <View 
+        key={item.id || index}
+        style={[
+          styles.messageRow, 
+          isUser && styles.messageRowUser,
+          isSystem && styles.messageRowSystem
+        ]}
+      >
         {!isUser && !isSystem && (
           <View style={styles.avatarSupport}>
             <Ionicons name="sparkles" size={16} color="#8b5cf6" />
@@ -186,11 +209,13 @@ export default function ChatScreen({ navigation }) {
             isUser && styles.messageTextUser,
             isSystem && styles.messageTextSystem
           ]}>
-            {item.message || ''}
+            {item.message}
           </Text>
-          <Text style={styles.messageTime}>
-            {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-          </Text>
+          {item.timestamp && (
+            <Text style={styles.messageTime}>
+              {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          )}
         </View>
         {isUser && (
           <View style={styles.avatarUser}>
@@ -200,27 +225,6 @@ export default function ChatScreen({ navigation }) {
       </View>
     );
   };
-
-  const renderSatisfactionModal = () => (
-    <View style={styles.satisfactionOverlay}>
-      <View style={styles.satisfactionModal}>
-        <Text style={styles.satisfactionTitle}>Je, umeridhika na msaada?</Text>
-        <View style={styles.satisfactionStars}>
-          {[1, 2, 3, 4, 5].map(star => (
-            <TouchableOpacity key={star} onPress={() => submitSatisfaction(star)}>
-              <Ionicons name="star" size={32} color="#fbbf24" style={styles.star} />
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity 
-          style={styles.satisfactionClose}
-          onPress={() => setShowSatisfaction(false)}
-        >
-          <Text style={styles.satisfactionCloseText}>Baadaye</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -250,7 +254,7 @@ export default function ChatScreen({ navigation }) {
 
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+        style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {loading ? (
@@ -259,7 +263,7 @@ export default function ChatScreen({ navigation }) {
             <Text style={styles.loadingText}>Inapakia mazungumzo...</Text>
           </View>
         ) : (
-          <>
+          <View style={styles.chatContainer}>
             {/* Messages List */}
             <FlatList
               ref={flatListRef}
@@ -269,12 +273,10 @@ export default function ChatScreen({ navigation }) {
               contentContainerStyle={styles.messagesList}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={() => {
-                try {
-                  if (flatListRef.current && messages.length > 0) {
-                    flatListRef.current.scrollToEnd({ animated: true });
-                  }
-                } catch (e) {
-                  console.log('Scroll error:', e);
+                if (flatListRef.current && messages.length > 0) {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
                 }
               }}
               ListEmptyComponent={
@@ -320,9 +322,9 @@ export default function ChatScreen({ navigation }) {
                 editable={!sending}
               />
               <TouchableOpacity
-                style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
+                style={[styles.sendButton, (!inputText?.trim() || sending) && styles.sendButtonDisabled]}
                 onPress={sendMessage}
-                disabled={!inputText.trim() || sending}
+                disabled={!inputText?.trim() || sending}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -332,7 +334,7 @@ export default function ChatScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* End Chat & Rate */}
+            {/* Rate Button */}
             {messages.length > 2 && (
               <TouchableOpacity 
                 style={styles.rateButton}
@@ -342,12 +344,31 @@ export default function ChatScreen({ navigation }) {
                 <Text style={styles.rateButtonText}>Tathmini Mazungumzo</Text>
               </TouchableOpacity>
             )}
-          </>
+          </View>
         )}
       </KeyboardAvoidingView>
 
       {/* Satisfaction Modal */}
-      {showSatisfaction && renderSatisfactionModal()}
+      {showSatisfaction && (
+        <View style={styles.satisfactionOverlay}>
+          <View style={styles.satisfactionModal}>
+            <Text style={styles.satisfactionTitle}>Je, umeridhika na msaada?</Text>
+            <View style={styles.satisfactionStars}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <TouchableOpacity key={star} onPress={() => submitSatisfaction(star)}>
+                  <Ionicons name="star" size={32} color="#fbbf24" style={styles.star} />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity 
+              style={styles.satisfactionClose}
+              onPress={() => setShowSatisfaction(false)}
+            >
+              <Text style={styles.satisfactionCloseText}>Baadaye</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -356,6 +377,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0a0a1a',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  chatContainer: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -372,7 +399,6 @@ const styles = StyleSheet.create({
   headerCenter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   headerAvatar: {
     width: 40,
@@ -381,6 +407,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
   headerTitle: {
     fontSize: 16,
@@ -408,6 +435,7 @@ const styles = StyleSheet.create({
   messagesList: {
     padding: 16,
     paddingBottom: 8,
+    flexGrow: 1,
   },
   messageRow: {
     flexDirection: 'row',
@@ -489,7 +517,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    gap: 8,
     flexWrap: 'wrap',
   },
   quickActionChip: {
@@ -499,6 +526,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
+    marginRight: 8,
+    marginBottom: 8,
   },
   quickActionText: {
     fontSize: 12,
@@ -511,7 +540,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
-    gap: 12,
   },
   input: {
     flex: 1,
@@ -524,6 +552,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    marginRight: 12,
   },
   sendButton: {
     width: 44,
@@ -541,11 +570,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    gap: 6,
   },
   rateButtonText: {
     fontSize: 12,
     color: '#8b5cf6',
+    marginLeft: 6,
   },
   satisfactionOverlay: {
     position: 'absolute',
@@ -573,7 +602,6 @@ const styles = StyleSheet.create({
   },
   satisfactionStars: {
     flexDirection: 'row',
-    gap: 8,
     marginBottom: 20,
   },
   star: {
