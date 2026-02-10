@@ -577,19 +577,21 @@ async def get_home_filters():
     
     # Get all song categories
     all_categories = await db.song_categories.find(
-        {"status": "active"},
+        {"status": {"$in": ["active", "inactive", None]}},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(50)
     
     # Get filter config
     filter_config = await db.home_filter_config.find_one({"config_id": "main"}, {"_id": 0})
     
-    if filter_config:
-        enabled_ids = set(filter_config.get("enabled_filter_ids", []))
-        for cat in all_categories:
-            cat["enabled"] = cat.get("song_category_id") in enabled_ids
-    else:
-        for cat in all_categories:
+    # Add filter_id alias and is_active field for frontend compatibility
+    for cat in all_categories:
+        cat["filter_id"] = cat.get("song_category_id") or cat.get("filter_id")
+        cat["is_active"] = cat.get("status", "active") == "active"
+        if filter_config:
+            enabled_ids = set(filter_config.get("enabled_filter_ids", []))
+            cat["enabled"] = cat.get("song_category_id") in enabled_ids or cat.get("filter_id") in enabled_ids
+        else:
             cat["enabled"] = True
     
     result = {"filters": all_categories, "config": filter_config}
