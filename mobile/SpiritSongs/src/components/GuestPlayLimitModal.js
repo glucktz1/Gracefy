@@ -34,7 +34,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { authAPI, API_BASE_URL } from '../services/api';
 
-const GOOGLE_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/google";
+const GOOGLE_AUTH_URL = "https://auth.emergentagent.com";
 
 const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
   const [mode, setMode] = useState('main'); // 'main', 'login', 'register'
@@ -62,32 +62,38 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       setGoogleLoading(true);
       setError('');
       
-      const callbackUrl = `${API_BASE_URL}/user/auth/google-callback`;
-      const mobileRedirect = Linking.createURL('auth');
-      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(callbackUrl)}&mobile_redirect=${encodeURIComponent(mobileRedirect)}&platform=mobile`;
+      // Use the same auth flow as web - redirect through Emergent Auth
+      const mobileRedirect = 'gracefy://auth';
+      const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
+      const authUrl = `${GOOGLE_AUTH_URL}/?redirect=${encodeURIComponent(backendCallback)}`;
       
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'gracefy://');
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect);
       
       if (result.type === 'success' && result.url) {
         const url = result.url;
-        let sessionId = null;
+        let token = null;
+        let userId = null;
         
+        // Extract token from callback URL
         try {
           const urlObj = new URL(url.replace('gracefy://', 'https://temp.com/'));
-          sessionId = urlObj.searchParams.get('session_id');
+          token = urlObj.searchParams.get('token');
+          userId = urlObj.searchParams.get('user_id');
         } catch {}
         
-        if (!sessionId && url.includes('session_id=')) {
-          sessionId = url.split('session_id=')[1]?.split('&')[0]?.split('#')[0];
+        // Fallback parsing
+        if (!token && url.includes('token=')) {
+          token = url.split('token=')[1]?.split('&')[0]?.split('#')[0];
         }
         
-        if (sessionId) {
-          const response = await authAPI.googleCallback(sessionId);
-          if (response.data?.token) {
-            await login(response.data.token, response.data.user);
-            onSuccess?.();
-            onClose();
-          }
+        if (token) {
+          // Fetch user data with token
+          const userResponse = await authAPI.getMe(token);
+          await login(token, userResponse.data?.user || { user_id: userId });
+          onSuccess?.();
+          onClose();
+        } else {
+          setError('Imeshindikana kupata token. Jaribu tena.');
         }
       }
     } catch (error) {
