@@ -281,12 +281,14 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
         </TouchableOpacity>
       )}
 
-      {/* Lock warning */}
+      {/* Lock warning with help text */}
       {isAppLocked && (
         <View style={styles.lockWarning}>
-          <Ionicons name="warning" size={16} color="#E74C3C" />
           <Text style={styles.lockWarningText}>
-            Lazima ujiajili au uingie kuendelea kutumia app
+            Jisajili au ingia ili kuendelea kutumia app
+          </Text>
+          <Text style={styles.helpText}>
+            Una tatizo? Wasiliana nasi: support@gracefy.com
           </Text>
         </View>
       )}
