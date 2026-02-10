@@ -267,9 +267,30 @@ async def admin_get_conversations(
         cursor = db.conversations.find(query).sort("updated_at", -1).skip(skip).limit(limit)
         conversations = await cursor.to_list(length=limit)
         
+        # Enrich conversations with user info
+        enriched_conversations = []
+        for conv in conversations:
+            serialized = serialize_conversation(conv)
+            
+            # Try to get user info
+            if conv.get("user_id"):
+                try:
+                    user = await db.users.find_one(
+                        {"_id": ObjectId(conv["user_id"])},
+                        {"name": 1, "email": 1, "phone": 1}
+                    )
+                    if user:
+                        serialized["user_name"] = user.get("name", "")
+                        serialized["user_email"] = user.get("email", "")
+                        serialized["user_phone"] = user.get("phone", "")
+                except:
+                    pass
+            
+            enriched_conversations.append(serialized)
+        
         return {
             "success": True,
-            "conversations": [serialize_conversation(c) for c in conversations],
+            "conversations": enriched_conversations,
             "total": total,
             "page": page,
             "total_pages": (total + limit - 1) // limit
