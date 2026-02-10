@@ -151,6 +151,8 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/feedback", icon: MessageCircle, label: "Feedback Manager", permissions: ["platform_settings", "content_moderation"] },
     // Chat & Support - Standalone Section
     { path: "/chat-support", icon: Headphones, label: "Chat & Support", permissions: ["platform_settings", "content_moderation"] },
+    // Knowledge Bank - AI Support Knowledge Base
+    { path: "/knowledge-bank", icon: Brain, label: "Knowledge Bank", permissions: ["platform_settings"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
