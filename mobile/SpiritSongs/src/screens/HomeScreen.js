@@ -105,9 +105,6 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const loadData = async () => {
-    const errors = [];
-    const stats = {};
-    
     try {
       setLoading(true);
       
