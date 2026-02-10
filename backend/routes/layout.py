@@ -636,11 +636,24 @@ async def update_home_filter(filter_id: str, data: dict):
     """Update a home filter category"""
     db = get_db()
     
+    # Remove fields that shouldn't be updated
     data.pop("_id", None)
     data.pop("song_category_id", None)
+    data.pop("filter_id", None)
     
+    # Handle is_active -> status conversion
+    if "is_active" in data:
+        data["status"] = "active" if data.get("is_active") else "inactive"
+    
+    # Update timestamp
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Try both field names for compatibility
     result = await db.song_categories.update_one(
-        {"song_category_id": filter_id},
+        {"$or": [
+            {"song_category_id": filter_id},
+            {"filter_id": filter_id}
+        ]},
         {"$set": data}
     )
     
