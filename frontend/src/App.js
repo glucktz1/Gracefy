@@ -148,6 +148,8 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/advertising", icon: Megaphone, label: "Advertising & Campaigns", permissions: ["manage_ads", "manage_campaigns", "platform_settings"] },
     // Feedback Manager - Standalone Section
     { path: "/feedback", icon: MessageCircle, label: "Feedback Manager", permissions: ["platform_settings", "content_moderation"] },
+    // Chat & Support - Standalone Section
+    { path: "/chat-support", icon: Headphones, label: "Chat & Support", permissions: ["platform_settings", "content_moderation"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
