@@ -272,6 +272,8 @@ const AppContent = () => {
           <Stack.Screen name="SeeAll" component={SeeAllScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Feedback" component={FeedbackScreen} />
+          <Stack.Screen name="Chat" component={ChatScreen} />
         </Stack.Navigator>
 
         {/* Mini Player - Positioned directly above tab bar */}
