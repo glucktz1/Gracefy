@@ -1010,10 +1010,21 @@ export default function TeachingsPage() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {uploadingFile && uploadProgress > 0 && (
+              <div className="w-full sm:w-48 mr-auto">
+                <div className="text-xs text-zinc-400 mb-1">Inapakia: {uploadProgress}%</div>
+                <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 transition-all duration-300" 
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <Button variant="outline" onClick={() => setIsLessonModalOpen(false)} className="border-zinc-700">Ghairi</Button>
             <Button onClick={handleSaveLesson} disabled={uploadingFile} className="bg-green-600 hover:bg-green-700">
-              {uploadingFile ? "Inapakia..." : editingLesson ? "Hifadhi" : "Unda Sehemu"}
+              {uploadingFile ? `Inapakia ${uploadProgress}%...` : editingLesson ? "Hifadhi" : "Unda Sehemu"}
             </Button>
           </DialogFooter>
         </DialogContent>
