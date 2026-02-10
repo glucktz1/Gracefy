@@ -47,9 +47,17 @@ async def upload_file(
     
     # Read file content
     content = await file.read()
+    file_size = len(content)
+    
+    # Check file size limit (500MB max for audio/video)
+    if file_size > 500 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum 500MB")
     
     # Determine content type
     content_type = file.content_type or "application/octet-stream"
+    
+    # Calculate dynamic timeout based on file size (1 min per 10MB, min 1 min, max 30 min)
+    timeout_seconds = max(60, min(1800, (file_size // (10 * 1024 * 1024)) * 60 + 60))
     
     # Try CDN upload if enabled
     cdn_url = None
@@ -68,7 +76,7 @@ async def upload_file(
                         "AccessKey": BUNNY_API_KEY,
                         "Content-Type": content_type
                     },
-                    timeout=60.0
+                    timeout=float(timeout_seconds)
                 )
                 
                 if response.status_code in [200, 201]:
