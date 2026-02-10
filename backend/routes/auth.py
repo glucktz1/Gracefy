@@ -1031,21 +1031,6 @@ async def google_auth_callback_post(request: Request):
         raise HTTPException(status_code=400, detail="Session ID required")
     
     return await process_mobile_google_login(session_id, None)
-        }
-        await db.app_users.insert_one(user)
-        user_id = user["user_id"]
-        user.pop("_id", None)
-    
-    # Generate token
-    token = f"tok_{uuid.uuid4().hex}"
-    await db.user_tokens.insert_one({
-        "token": token,
-        "user_id": user_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
-    })
-    
-    return {"user": user, "token": token}
 
 
 @router.get("/user/auth/me")
