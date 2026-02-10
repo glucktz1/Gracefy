@@ -16,9 +16,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { authAPI, API_BASE_URL } from '../services/api';
+
+// Warm up browser for faster auth
+WebBrowser.maybeCompleteAuthSession();
 
 // Emergent OAuth URL - same as admin panel
 const GOOGLE_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/google";
