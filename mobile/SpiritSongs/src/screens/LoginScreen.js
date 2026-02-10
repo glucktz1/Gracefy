@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { authAPI, API_BASE_URL } from '../services/api';
@@ -24,11 +23,8 @@ import { authAPI, API_BASE_URL } from '../services/api';
 // Warm up browser for faster auth
 WebBrowser.maybeCompleteAuthSession();
 
-// Emergent OAuth URL - same as admin panel
-const GOOGLE_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/google";
-
 const LoginScreen = ({ navigation }) => {
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'phone', 'otp', 'forgot', 'forgot-otp', 'reset'
+  const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -46,23 +42,19 @@ const LoginScreen = ({ navigation }) => {
   useEffect(() => {
     const handleUrl = async (event) => {
       const url = event.url;
-      if (url && url.includes('session_id=')) {
-        const sessionId = url.split('session_id=')[1]?.split('&')[0];
-        if (sessionId) {
-          await handleGoogleCallback(sessionId);
-        }
+      console.log('Deep link received:', url);
+      if (url) {
+        await processCallbackUrl(url);
       }
     };
 
     const subscription = Linking.addEventListener('url', handleUrl);
     
-    // Check if app was opened via URL
+    // Check if app was opened with a URL
     Linking.getInitialURL().then((url) => {
-      if (url && url.includes('session_id=')) {
-        const sessionId = url.split('session_id=')[1]?.split('&')[0];
-        if (sessionId) {
-          handleGoogleCallback(sessionId);
-        }
+      if (url) {
+        console.log('Initial URL:', url);
+        processCallbackUrl(url);
       }
     });
 
@@ -70,6 +62,33 @@ const LoginScreen = ({ navigation }) => {
       subscription.remove();
     };
   }, []);
+
+  const processCallbackUrl = async (url) => {
+    try {
+      // Extract token or session_id from URL
+      let token = null;
+      let sessionId = null;
+
+      if (url.includes('token=')) {
+        const match = url.match(/token=([^&&#]+)/);
+        token = match ? match[1] : null;
+      }
+      if (url.includes('session_id=')) {
+        const match = url.match(/session_id=([^&&#]+)/);
+        sessionId = match ? match[1] : null;
+      }
+
+      console.log('Extracted - Token:', token, 'SessionId:', sessionId);
+
+      if (token) {
+        await handleGoogleCallback(sessionId, token);
+      } else if (sessionId) {
+        await handleGoogleCallback(sessionId);
+      }
+    } catch (error) {
+      console.error('Process callback error:', error);
+    }
+  };
 
   const handleGoogleCallback = async (sessionId, directToken = null) => {
     try {
@@ -110,18 +129,29 @@ const LoginScreen = ({ navigation }) => {
     try {
       setGoogleLoading(true);
       
-      // Get the redirect URI for this app
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'gracefy',
-        path: 'auth'
-      });
+      // Create redirect URI for the app
+      const redirectUri = 'gracefy://auth';
       
-      console.log('Redirect URI:', redirectUri);
+      // Get the auth URL from backend
+      const startResponse = await authAPI.googleStart(redirectUri);
+      const authUrl = startResponse.data?.auth_url;
       
-      // Build the OAuth URL with the mobile redirect
-      const authUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`;
+      if (!authUrl) {
+        // Fallback to direct Emergent URL
+        const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(redirectUri)}`;
+        const fallbackUrl = `https://demobackend.emergentagent.com/auth/v1/env/oauth/google?redirect_uri=${encodeURIComponent(backendCallback)}&platform=mobile`;
+        
+        console.log('Using fallback URL:', fallbackUrl);
+        const result = await WebBrowser.openAuthSessionAsync(fallbackUrl, redirectUri);
+        console.log('Browser result:', result);
+        
+        if (result.type === 'success' && result.url) {
+          await processCallbackUrl(result.url);
+        }
+        return;
+      }
       
-      console.log('Opening Google Auth:', authUrl);
+      console.log('Opening auth URL:', authUrl);
       
       // Open auth in browser
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
@@ -129,49 +159,9 @@ const LoginScreen = ({ navigation }) => {
       console.log('Auth result:', result);
       
       if (result.type === 'success' && result.url) {
-        const url = result.url;
-        console.log('Callback URL:', url);
-        
-        // Extract session_id from callback URL
-        let sessionId = null;
-        let token = null;
-        
-        try {
-          // Parse URL parameters
-          const urlParts = url.split('?');
-          if (urlParts.length > 1) {
-            const params = new URLSearchParams(urlParts[1].split('#')[0]);
-            sessionId = params.get('session_id');
-            token = params.get('token');
-          }
-          
-          // Fallback: try regex extraction
-          if (!sessionId && url.includes('session_id=')) {
-            const match = url.match(/session_id=([^&&#]+)/);
-            sessionId = match ? match[1] : null;
-          }
-          
-          if (!token && url.includes('token=')) {
-            const match = url.match(/token=([^&&#]+)/);
-            token = match ? match[1] : null;
-          }
-        } catch (parseError) {
-          console.error('URL parse error:', parseError);
-        }
-        
-        console.log('Extracted Session ID:', sessionId, 'Token:', token);
-        
-        if (sessionId) {
-          await handleGoogleCallback(sessionId);
-        } else if (token) {
-          await handleGoogleCallback(null, token);
-        } else {
-          Alert.alert('Kosa', 'Hakuna taarifa za kuingia. Jaribu tena.');
-        }
+        await processCallbackUrl(result.url);
       } else if (result.type === 'cancel') {
         console.log('User cancelled auth');
-      } else if (result.type === 'dismiss') {
-        console.log('Browser dismissed');
       }
     } catch (error) {
       console.error('Google login error:', error);
@@ -181,14 +171,13 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleEmailLogin = async () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Kosa', 'Tafadhali jaza email na password');
       return;
     }
-
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await authAPI.login(email, password);
       if (response.data?.token) {
         await login(response.data.token, response.data.user);
@@ -197,89 +186,62 @@ const LoginScreen = ({ navigation }) => {
         ]);
       }
     } catch (error) {
-      console.error('Login error:', error);
-      const message = error.response?.data?.detail || 'Email au password si sahihi';
-      Alert.alert('Kosa', message);
+      Alert.alert('Kosa', error.response?.data?.detail || 'Imeshindikana kuingia');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRegister = async () => {
-    if (!name || !email || !password) {
-      Alert.alert('Kosa', 'Tafadhali jaza jina, email na password');
+    if (!email || !password || !name) {
+      Alert.alert('Kosa', 'Tafadhali jaza taarifa zote');
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert('Kosa', 'Password hazifanani');
       return;
     }
-
-    if (password.length < 6) {
-      Alert.alert('Kosa', 'Password iwe na herufi 6 au zaidi');
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await authAPI.register({
-        email,
-        password,
-        name,
-        phone: phone || undefined,
-      });
+      const response = await authAPI.register(name, email, password);
       if (response.data?.token) {
         await login(response.data.token, response.data.user);
-        const trialMsg = response.data.trial_started 
-          ? `\n\nUmepata siku ${response.data.trial_days} za majaribio bure!`
-          : '';
-        Alert.alert('Karibu!', `Akaunti yako imeundwa${trialMsg}`, [
+        Alert.alert('Karibu!', 'Akaunti imefunguliwa', [
           { text: 'Sawa', onPress: () => navigation.goBack() }
         ]);
       }
     } catch (error) {
-      console.error('Register error:', error);
-      const message = error.response?.data?.detail || 'Imeshindikana kuunda akaunti';
-      Alert.alert('Kosa', message);
+      Alert.alert('Kosa', error.response?.data?.detail || 'Imeshindikana kusajili');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSendOTP = async () => {
-    const phoneNum = phone.startsWith('+') ? phone : `+255${phone.replace(/^0/, '')}`;
-    
-    if (!phone || phone.length < 9) {
-      Alert.alert('Kosa', 'Tafadhali weka nambari ya simu sahihi');
+    if (!phone) {
+      Alert.alert('Kosa', 'Tafadhali weka nambari ya simu');
       return;
     }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      await authAPI.sendOTP(phoneNum);
+      await authAPI.sendOTP(phone);
+      Alert.alert('Imefanikiwa', 'OTP imetumwa kwenye simu yako');
       setAuthMode('otp');
-      Alert.alert('Imefanikiwa', 'Nambari ya OTP imetumwa kwenye simu yako');
     } catch (error) {
-      console.error('OTP error:', error);
-      const message = error.response?.data?.detail || 'Imeshindikana kutuma OTP';
-      Alert.alert('Kosa', message);
+      Alert.alert('Kosa', error.response?.data?.detail || 'Imeshindikana kutuma OTP');
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerifyOTP = async () => {
-    if (!otp || otp.length < 4) {
-      Alert.alert('Kosa', 'Tafadhali weka nambari ya OTP');
+    if (!otp) {
+      Alert.alert('Kosa', 'Tafadhali weka OTP');
       return;
     }
-
-    const phoneNum = phone.startsWith('+') ? phone : `+255${phone.replace(/^0/, '')}`;
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await authAPI.verifyOTP(phoneNum, otp);
+      const response = await authAPI.verifyOTP(phone, otp);
       if (response.data?.token) {
         await login(response.data.token, response.data.user);
         Alert.alert('Karibu!', 'Umefanikiwa kuingia', [
@@ -287,600 +249,322 @@ const LoginScreen = ({ navigation }) => {
         ]);
       }
     } catch (error) {
-      console.error('OTP verify error:', error);
-      const message = error.response?.data?.detail || 'OTP si sahihi';
-      Alert.alert('Kosa', message);
+      Alert.alert('Kosa', error.response?.data?.detail || 'OTP si sahihi');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPasswordSend = async () => {
+  const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert('Kosa', 'Tafadhali weka email yako');
+      Alert.alert('Kosa', 'Tafadhali weka email');
       return;
     }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      await authAPI.forgotPasswordSend(email);
+      await authAPI.forgotPassword(email);
+      Alert.alert('Imefanikiwa', 'OTP imetumwa kwenye email yako');
       setAuthMode('forgot-otp');
-      Alert.alert('Imefanikiwa', 'Nambari ya OTP imetumwa kwenye email yako');
     } catch (error) {
-      console.error('Forgot password error:', error);
-      const message = error.response?.data?.detail || 'Imeshindikana kutuma OTP';
-      Alert.alert('Kosa', message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPasswordVerify = async () => {
-    if (!otp || otp.length < 4) {
-      Alert.alert('Kosa', 'Tafadhali weka nambari ya OTP');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await authAPI.forgotPasswordVerify(email, otp);
-      setAuthMode('reset');
-      Alert.alert('Imefanikiwa', 'Sasa weka password mpya');
-    } catch (error) {
-      console.error('Verify OTP error:', error);
-      const message = error.response?.data?.detail || 'OTP si sahihi';
-      Alert.alert('Kosa', message);
+      Alert.alert('Kosa', error.response?.data?.detail || 'Imeshindikana kutuma OTP');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResetPassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      Alert.alert('Kosa', 'Password iwe na herufi 6 au zaidi');
+    if (!otp || !newPassword) {
+      Alert.alert('Kosa', 'Tafadhali jaza OTP na password mpya');
       return;
     }
-
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Kosa', 'Password hazifanani');
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      await authAPI.forgotPasswordReset(email, otp, newPassword);
-      Alert.alert('Imefanikiwa', 'Password imebadilishwa. Sasa unaweza kuingia.', [
-        { text: 'Sawa', onPress: () => setAuthMode('login') }
-      ]);
+      await authAPI.resetPassword(email, otp, newPassword);
+      Alert.alert('Imefanikiwa', 'Password imebadilishwa. Ingia tena.');
+      setAuthMode('login');
       setOtp('');
       setNewPassword('');
-      setConfirmPassword('');
     } catch (error) {
-      console.error('Reset password error:', error);
-      const message = error.response?.data?.detail || 'Imeshindikana kubadilisha password';
-      Alert.alert('Kosa', message);
+      Alert.alert('Kosa', error.response?.data?.detail || 'Imeshindikana kubadilisha password');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePartnerWithUs = () => {
-    Linking.openURL('mailto:partners@gracefy.com?subject=Ombi%20la%20Ushirikiano&body=Jina:%0ANambari%20ya%20Simu:%0AJina%20la%20Kanisa/Kwaya:%0AMaelezo%20Zaidi:');
+  const renderForm = () => {
+    switch (authMode) {
+      case 'register':
+        return (
+          <>
+            <Text style={styles.title}>Fungua Akaunti</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Jina lako"
+                placeholderTextColor={COLORS.textSecondary}
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={COLORS.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={COLORS.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Thibitisha Password"
+                placeholderTextColor={COLORS.textSecondary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showPassword}
+              />
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleRegister} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Sajili</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAuthMode('login')}>
+              <Text style={styles.linkText}>Una akaunti? Ingia</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'phone':
+        return (
+          <>
+            <Text style={styles.title}>Ingia na Simu</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Nambari ya simu (07...)"
+                placeholderTextColor={COLORS.textSecondary}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleSendOTP} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Tuma OTP</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAuthMode('login')}>
+              <Text style={styles.linkText}>Ingia na Email</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'otp':
+        return (
+          <>
+            <Text style={styles.title}>Weka OTP</Text>
+            <Text style={styles.subtitle}>Tumetuma OTP kwenye {phone}</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="keypad-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Weka OTP"
+                placeholderTextColor={COLORS.textSecondary}
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleVerifyOTP} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Thibitisha</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAuthMode('phone')}>
+              <Text style={styles.linkText}>Rudi nyuma</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'forgot':
+        return (
+          <>
+            <Text style={styles.title}>Umesahau Password?</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email yako"
+                placeholderTextColor={COLORS.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleForgotPassword} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Tuma OTP</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAuthMode('login')}>
+              <Text style={styles.linkText}>Rudi kwenye Login</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'forgot-otp':
+      case 'reset':
+        return (
+          <>
+            <Text style={styles.title}>Badilisha Password</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="keypad-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="OTP"
+                placeholderTextColor={COLORS.textSecondary}
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password mpya"
+                placeholderTextColor={COLORS.textSecondary}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry={!showPassword}
+              />
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleResetPassword} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Badilisha</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAuthMode('login')}>
+              <Text style={styles.linkText}>Rudi kwenye Login</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      default: // login
+        return (
+          <>
+            <Text style={styles.title}>Karibu Tena!</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={COLORS.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={COLORS.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => setAuthMode('forgot')}>
+              <Text style={styles.forgotText}>Umesahau password?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Ingia</Text>}
+            </TouchableOpacity>
+            
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>au</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.googleButton} 
+              onPress={handleGoogleLogin} 
+              disabled={googleLoading}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color="#fff" />
+                  <Text style={styles.googleButtonText}>Ingia na Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.phoneButton} onPress={() => setAuthMode('phone')}>
+              <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.phoneButtonText}>Ingia na Simu</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={() => setAuthMode('register')}>
+              <Text style={styles.linkText}>Huna akaunti? Sajili sasa</Text>
+            </TouchableOpacity>
+          </>
+        );
+    }
   };
 
-  const renderLoginForm = () => (
-    <>
-      <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={COLORS.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={COLORS.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons 
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-            size={20} 
-            color={COLORS.textSecondary} 
-          />
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.forgotPassword}
-        onPress={() => setAuthMode('forgot')}
-      >
-        <Text style={styles.forgotPasswordText}>Umesahau password?</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleEmailLogin}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Ingia</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => setAuthMode('phone')}
-      >
-        <Ionicons name="phone-portrait-outline" size={20} color={COLORS.primary} />
-        <Text style={styles.secondaryButtonText}>Ingia kwa nambari ya simu</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderRegisterForm = () => (
-    <>
-      <View style={styles.inputContainer}>
-        <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Jina lako kamili *"
-          placeholderTextColor={COLORS.textMuted}
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Email *"
-          placeholderTextColor={COLORS.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Nambari ya simu (si lazima)"
-          placeholderTextColor={COLORS.textMuted}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Password *"
-          placeholderTextColor={COLORS.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Rudia Password *"
-          placeholderTextColor={COLORS.textMuted}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry={!showPassword}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons 
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-            size={20} 
-            color={COLORS.textSecondary} 
-          />
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleRegister}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Jisajili</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => setAuthMode('phone')}
-      >
-        <Ionicons name="phone-portrait-outline" size={20} color={COLORS.primary} />
-        <Text style={styles.secondaryButtonText}>Jisajili kwa nambari ya simu</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderPhoneForm = () => (
-    <>
-      <Text style={styles.formTitle}>Ingia kwa Simu</Text>
-      <Text style={styles.formSubtitle}>
-        Tutakutumia nambari ya OTP kwenye simu yako
-      </Text>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <Text style={styles.phonePrefix}>+255</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="712 345 678"
-          placeholderTextColor={COLORS.textMuted}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          maxLength={10}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleSendOTP}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Tuma OTP</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => setAuthMode('login')}
-      >
-        <Ionicons name="arrow-back" size={20} color={COLORS.textSecondary} />
-        <Text style={styles.backButtonText}>Rudi kuingia kwa email</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderOTPForm = () => (
-    <>
-      <Text style={styles.formTitle}>Weka OTP</Text>
-      <Text style={styles.formSubtitle}>
-        Weka nambari iliyotumwa kwenye +255{phone}
-      </Text>
-
-      <View style={styles.otpContainer}>
-        <TextInput
-          style={styles.otpInput}
-          placeholder="• • • • • •"
-          placeholderTextColor={COLORS.textMuted}
-          value={otp}
-          onChangeText={setOtp}
-          keyboardType="number-pad"
-          maxLength={6}
-          textAlign="center"
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleVerifyOTP}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Thibitisha</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.resendButton}
-        onPress={handleSendOTP}
-        disabled={loading}
-      >
-        <Text style={styles.resendText}>Haukupata? Tuma tena</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => { setAuthMode('phone'); setOtp(''); }}
-      >
-        <Ionicons name="arrow-back" size={20} color={COLORS.textSecondary} />
-        <Text style={styles.backButtonText}>Badilisha nambari</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderForgotForm = () => (
-    <>
-      <Text style={styles.formTitle}>Umesahau Password?</Text>
-      <Text style={styles.formSubtitle}>
-        Weka email yako na tutakutumia OTP kubadilisha password
-      </Text>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={COLORS.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleForgotPasswordSend}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Tuma OTP</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => setAuthMode('login')}
-      >
-        <Ionicons name="arrow-back" size={20} color={COLORS.textSecondary} />
-        <Text style={styles.backButtonText}>Rudi kuingia</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderForgotOTPForm = () => (
-    <>
-      <Text style={styles.formTitle}>Weka OTP</Text>
-      <Text style={styles.formSubtitle}>
-        Weka nambari iliyotumwa kwenye {email}
-      </Text>
-
-      <View style={styles.otpContainer}>
-        <TextInput
-          style={styles.otpInput}
-          placeholder="• • • • • •"
-          placeholderTextColor={COLORS.textMuted}
-          value={otp}
-          onChangeText={setOtp}
-          keyboardType="number-pad"
-          maxLength={6}
-          textAlign="center"
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleForgotPasswordVerify}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Thibitisha</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => { setAuthMode('forgot'); setOtp(''); }}
-      >
-        <Ionicons name="arrow-back" size={20} color={COLORS.textSecondary} />
-        <Text style={styles.backButtonText}>Rudi</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderResetForm = () => (
-    <>
-      <Text style={styles.formTitle}>Password Mpya</Text>
-      <Text style={styles.formSubtitle}>
-        Weka password yako mpya
-      </Text>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Password mpya"
-          placeholderTextColor={COLORS.textMuted}
-          value={newPassword}
-          onChangeText={setNewPassword}
-          secureTextEntry={!showPassword}
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-        <TextInput
-          style={styles.input}
-          placeholder="Rudia password mpya"
-          placeholderTextColor={COLORS.textMuted}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry={!showPassword}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons 
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-            size={20} 
-            color={COLORS.textSecondary} 
-          />
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleResetPassword}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.submitButtonText}>Badilisha Password</Text>
-        )}
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderGoogleButton = () => (
-    <TouchableOpacity 
-      style={[styles.googleButton, googleLoading && styles.submitButtonDisabled]}
-      onPress={handleGoogleLogin}
-      disabled={googleLoading}
-    >
-      {googleLoading ? (
-        <ActivityIndicator color={COLORS.text} />
-      ) : (
-        <>
-          <Ionicons name="logo-google" size={24} color="#EA4335" />
-          <Text style={styles.googleButtonText}>Endelea na Google</Text>
-        </>
-      )}
-    </TouchableOpacity>
-  );
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#0a0a1a', '#1a1a2e', '#0a0a1a']}
+        style={StyleSheet.absoluteFill}
+      />
+      
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="close" size={28} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={['#3498DB', '#1abc9c']}
-              style={styles.logoGradient}
-            >
-              <Ionicons name="musical-notes" size={48} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.logoText}>Gracefy</Text>
-            <Text style={styles.logoSubtext}>Muziki wa Kikristo</Text>
-          </View>
-
-          {/* Tab Switcher - Only for login/register */}
-          {(authMode === 'login' || authMode === 'register') && (
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[styles.tab, authMode === 'login' && styles.tabActive]}
-                onPress={() => setAuthMode('login')}
-              >
-                <Text style={[styles.tabText, authMode === 'login' && styles.tabTextActive]}>Ingia</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, authMode === 'register' && styles.tabActive]}
-                onPress={() => setAuthMode('register')}
-              >
-                <Text style={[styles.tabText, authMode === 'register' && styles.tabTextActive]}>Jisajili</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Form */}
-          <View style={styles.form}>
-            {authMode === 'login' && renderLoginForm()}
-            {authMode === 'register' && renderRegisterForm()}
-            {authMode === 'phone' && renderPhoneForm()}
-            {authMode === 'otp' && renderOTPForm()}
-            {authMode === 'forgot' && renderForgotForm()}
-            {authMode === 'forgot-otp' && renderForgotOTPForm()}
-            {authMode === 'reset' && renderResetForm()}
-          </View>
-
-          {/* Social Login - Only for login/register */}
-          {(authMode === 'login' || authMode === 'register') && (
-            <>
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>au</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {renderGoogleButton()}
-            </>
-          )}
-
-          {/* Partner With Us */}
-          <TouchableOpacity 
-            style={styles.partnerButton}
-            onPress={handlePartnerWithUs}
-          >
-            <Ionicons name="people-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.partnerText}>Shiriki nasi kama msanii au kanisa</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-
-          {/* Choir Portal Link */}
-          <View style={styles.choirSection}>
-            <View style={styles.choirDivider} />
-            <Text style={styles.choirTitle}>Una kwaya? / Are you a choir?</Text>
-            <View style={styles.choirButtons}>
-              <TouchableOpacity 
-                style={styles.choirButton} 
-                onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/choir-login`)}
-              >
-                <Ionicons name="log-in-outline" size={18} color="#10B981" />
-                <Text style={styles.choirButtonText}>Choir Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.choirButton} 
-                onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/choir-register`)}
-              >
-                <Ionicons name="person-add-outline" size={18} color="#10B981" />
-                <Text style={styles.choirButtonText}>Register Choir</Text>
-              </TouchableOpacity>
+          
+          <View style={styles.logoContainer}>
+            <View style={styles.logo}>
+              <Ionicons name="musical-notes" size={48} color={COLORS.primary} />
             </View>
+            <Text style={styles.appName}>SpiritSongs</Text>
           </View>
-
-          {/* Terms */}
-          <Text style={styles.terms}>
-            Kwa kuendelea, unakubali{' '}
-            <Text style={styles.termsLink}>Masharti ya Huduma</Text>
-            {' '}na{' '}
-            <Text style={styles.termsLink}>Sera ya Faragha</Text>
-          </Text>
+          
+          <View style={styles.formContainer}>
+            {renderForm()}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -890,184 +574,83 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  keyboardView: {
-    flex: 1,
+    backgroundColor: '#0a0a1a',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xxl,
+    padding: SPACING.lg,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingVertical: SPACING.md,
-  },
-  closeButton: {
-    padding: SPACING.xs,
+  backButton: {
+    marginBottom: SPACING.md,
   },
   logoContainer: {
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
-  logoGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  logoSubtext: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.full,
-    padding: 4,
-    marginBottom: SPACING.xl,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    borderRadius: BORDER_RADIUS.full,
-  },
-  tabActive: {
-    backgroundColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  tabTextActive: {
-    color: COLORS.background,
-  },
-  form: {
-    marginBottom: SPACING.lg,
-  },
-  formTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    textAlign: 'center',
     marginBottom: SPACING.sm,
   },
-  formSubtitle: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+  appName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  formContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: SPACING.sm,
     textAlign: 'center',
-    marginBottom: SPACING.xl,
-    lineHeight: 22,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  inputIcon: {
-    marginRight: SPACING.sm,
-  },
-  phonePrefix: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-    marginRight: SPACING.xs,
-    fontWeight: '500',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   input: {
     flex: 1,
-    height: 52,
+    height: 50,
+    color: '#fff',
+    marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    color: COLORS.text,
   },
-  otpContainer: {
-    marginBottom: SPACING.lg,
-  },
-  otpInput: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
-    height: 60,
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    letterSpacing: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.lg,
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: SPACING.lg,
-  },
-  forgotPasswordText: {
-    fontSize: FONT_SIZES.sm,
+  forgotText: {
     color: COLORS.primary,
-    fontWeight: '500',
+    textAlign: 'right',
+    marginBottom: SPACING.lg,
   },
-  submitButton: {
+  primaryButton: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: BORDER_RADIUS.full,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.background,
-  },
-  secondaryButton: {
-    flexDirection: 'row',
+    borderRadius: BORDER_RADIUS.md,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    marginTop: SPACING.md,
+    marginBottom: SPACING.md,
   },
-  secondaryButtonText: {
+  primaryButtonText: {
+    color: '#fff',
     fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    marginLeft: SPACING.sm,
-    fontWeight: '500',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    marginTop: SPACING.lg,
-  },
-  backButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    marginLeft: SPACING.sm,
-  },
-  resendButton: {
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  resendText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
@@ -1077,84 +660,48 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   dividerText: {
-    paddingHorizontal: SPACING.md,
-    fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
+    marginHorizontal: SPACING.md,
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.card,
-    paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#db4437',
+    borderRadius: BORDER_RADIUS.md,
+    height: 50,
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: 10,
   },
   googleButtonText: {
+    color: '#fff',
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
-    marginLeft: SPACING.md,
   },
-  partnerButton: {
+  phoneButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.lg,
-    marginTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  partnerText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    marginLeft: SPACING.sm,
-  },
-  choirSection: {
-    marginTop: SPACING.lg,
-    paddingTop: SPACING.md,
-  },
-  choirDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
+    height: 50,
     marginBottom: SPACING.lg,
+    gap: 10,
   },
-  choirTitle: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  choirButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  choirButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  choirButtonText: {
-    fontSize: FONT_SIZES.sm,
-    color: '#10B981',
-    marginLeft: SPACING.xs,
-    fontWeight: '500',
-  },
-  terms: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: SPACING.md,
-  },
-  termsLink: {
+  phoneButtonText: {
     color: COLORS.primary,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
+  linkText: {
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginTop: SPACING.md,
   },
 });
 
