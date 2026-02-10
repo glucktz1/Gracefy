@@ -503,6 +503,7 @@ async def get_hero_content():
     Get hero content for the mobile app carousel.
     Returns featured albums or custom banners based on hero config.
     Each item includes link_type and link_target for navigation.
+    IMPORTANT: Only returns CDN URLs for performance - never base64 images.
     """
     db = get_db()
     
@@ -518,33 +519,28 @@ async def get_hero_content():
         "items": []
     }
     
-    # Helper function to get best available image URL
-    def get_best_image(item, *field_names):
-        """Return the best available image URL from given fields"""
+    # Helper function to get CDN URL only (skip base64 for performance)
+    def get_cdn_image(item, *field_names):
+        """Return CDN URL only - skip base64 images for performance"""
         for field in field_names:
             url = item.get(field)
-            if url:
-                # Prefer CDN/HTTP URLs
-                if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
+            if url and isinstance(url, str):
+                # Only return HTTP/HTTPS URLs (CDN)
+                if url.startswith('http://') or url.startswith('https://'):
                     return url
-        # Fallback to base64 (keep it for display)
-        for field in field_names:
-            url = item.get(field)
-            if url and isinstance(url, str) and url.startswith('data:'):
-                return url
         return None
     
     if hero_type == "album_carousel" or hero_type == "static_banner":
-        # Get featured albums
+        # Get featured albums - only fetch small fields
         albums = await db.albums.find(
             {"status": "active"},
-            {"_id": 0, "album_id": 1, "title": 1, "thumbnail": 1, "thumbnail_url": 1, 
+            {"_id": 0, "album_id": 1, "title": 1, "thumbnail_url": 1, 
              "artist_name": 1, "choir_name": 1, "description": 1, "release_date": 1}
         ).sort("created_at", -1).limit(6).to_list(6)
         
         for album in albums:
-            # Get best available thumbnail
-            album["thumbnail"] = get_best_image(album, "thumbnail_url", "thumbnail")
+            # Only use CDN thumbnail
+            album["thumbnail"] = get_cdn_image(album, "thumbnail_url")
             album["artist_name"] = album.get("artist_name") or album.get("choir_name") or "Unknown"
             # Add navigation metadata for album items
             album["link_type"] = "album"
@@ -553,29 +549,29 @@ async def get_hero_content():
         response["items"] = albums
     
     if hero_type == "dynamic_content":
-        # Get custom banners - they already have link_type and link_target
+        # Get custom banners - exclude large base64 fields
         banners = await db.hero_banners.find(
             {"is_active": True},
-            {"_id": 0}
+            {"_id": 0, "banner_id": 1, "type": 1, "title": 1, "subtitle": 1,
+             "link_type": 1, "link_id": 1, "external_url": 1, "is_active": 1, 
+             "order": 1, "created_at": 1}
         ).sort("order", 1).to_list(10)
         
-        # Process banners - get best available image
+        # Process banners - always fetch album thumbnail for linked albums
         for banner in banners:
-            # Get best thumbnail from available fields
-            thumbnail = get_best_image(banner, "image_url", "thumbnail")
-            banner["thumbnail"] = thumbnail
-            banner["image_url"] = thumbnail
+            thumbnail = None
             
-            # If banner links to album, fetch album thumbnail as fallback
-            if not thumbnail and banner.get("link_type") == "album" and banner.get("link_id"):
+            # If banner links to album, fetch album's CDN thumbnail
+            if banner.get("link_type") == "album" and banner.get("link_id"):
                 linked_album = await db.albums.find_one(
                     {"album_id": banner["link_id"]},
-                    {"_id": 0, "thumbnail": 1, "thumbnail_url": 1}
+                    {"_id": 0, "thumbnail_url": 1, "title": 1}
                 )
                 if linked_album:
-                    album_thumb = get_best_image(linked_album, "thumbnail_url", "thumbnail")
-                    banner["thumbnail"] = album_thumb
-                    banner["image_url"] = album_thumb
+                    thumbnail = get_cdn_image(linked_album, "thumbnail_url")
+            
+            banner["thumbnail"] = thumbnail
+            banner["image_url"] = thumbnail
         
         response["items"] = banners
     
