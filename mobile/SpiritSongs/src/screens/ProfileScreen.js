@@ -595,7 +595,7 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.menuIconContainer}>
               <Ionicons name="chatbubbles" size={20} color={COLORS.primary} />
             </View>
-            <Text style={styles.menuItemText}>Ongea na Msaada</Text>
+            <Text style={styles.menuItemText}>Pata Msaada</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
@@ -607,14 +607,6 @@ const ProfileScreen = ({ navigation }) => {
               <Ionicons name="chatbox-ellipses" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.menuItemText}>Tuma Maoni</Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="help-circle" size={20} color={COLORS.primary} />
-            </View>
-            <Text style={styles.menuItemText}>Msaada</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
