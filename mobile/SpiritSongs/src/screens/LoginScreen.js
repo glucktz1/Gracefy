@@ -157,19 +157,21 @@ const LoginScreen = ({ navigation }) => {
     try {
       setGoogleLoading(true);
       
-      // Use the same auth flow as web - redirect to Emergent Auth
-      // The backend callback will handle the mobile redirect
-      const redirectUri = 'gracefy://auth';
+      // Mobile deep link for callback
+      const mobileRedirect = 'gracefy://auth';
       
-      // Build auth URL with proper encoding
-      const authUrl = `https://auth.emergentagent.com/?redirect_uri=${encodeURIComponent(
-        `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(redirectUri)}`
-      )}`;
+      // Backend callback URL that will handle the OAuth response and redirect to mobile app
+      const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
+      
+      // Use Emergent Auth with 'redirect' parameter (same as web)
+      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
       
       console.log('Opening Google auth URL:', authUrl);
+      console.log('Backend callback:', backendCallback);
+      console.log('Mobile redirect:', mobileRedirect);
       
       // Open the browser for auth
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect);
       
       console.log('Auth result:', JSON.stringify(result));
       
