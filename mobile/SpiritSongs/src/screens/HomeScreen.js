@@ -197,22 +197,18 @@ const HomeScreen = ({ navigation }) => {
 
       // Liked songs
       const likes = likesRes.data?.songs || likesRes.data || [];
-      stats.likes = Array.isArray(likes) ? likes.length : 0;
       setLikedSongsCount(Array.isArray(likes) ? likes.length : 0);
 
       // Bible snippets
       const snippets = snippetsRes.data?.snippets || snippetsRes.data || [];
-      stats.bible = Array.isArray(snippets) ? snippets.length : 0;
       setBibleSnippets(Array.isArray(snippets) ? snippets : []);
 
       // Churches
       const churchesData = churchesRes.data?.churches || churchesRes.data || [];
-      stats.churches = Array.isArray(churchesData) ? churchesData.length : 0;
       setChurches(Array.isArray(churchesData) ? churchesData : []);
 
       // Mafundisho na Katekesi content
       const mafundisho = mafundishoRes.data?.teachings || mafundishoRes.data?.mafundisho || [];
-      stats.mafundisho = Array.isArray(mafundisho) ? mafundisho.length : 0;
       setMafundishoContent(Array.isArray(mafundisho) ? mafundisho : []);
 
       // Quick Access config
@@ -228,21 +224,14 @@ const HomeScreen = ({ navigation }) => {
       // Load additional sections from layout manager with content_items
       loadLayoutSections(activeSections, albums, mixes);
 
-      console.log('[HomeScreen] Data stats:', stats);
-      console.log('[HomeScreen] Errors:', errors);
-
     } catch (error) {
-      console.error('[HomeScreen] Critical error:', error);
-      errors.push(`Critical: ${error.message}`);
+      // Silent error handling - app will show empty sections gracefully
     } finally {
       setLoading(false);
-      setDebugInfo({ show: errors.length > 0, errors, stats });
     }
   };
 
   const loadLayoutSections = (sections, albums, mixes) => {
-    console.log('[loadLayoutSections] Processing sections, albums:', albums.length, 'mixes:', mixes.length);
-    
     // Find Lent songs section
     const lentSection = sections.find(s => 
       s.name?.toLowerCase().includes('lent') || 
