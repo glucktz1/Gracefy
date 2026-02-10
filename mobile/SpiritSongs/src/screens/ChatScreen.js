@@ -16,9 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { API_BASE_URL } from '../services/api';
 
-// Import API_BASE_URL directly
-const API_URL = 'https://songfix-spirit.preview.emergentagent.com/api';
+// Use the API URL from services/api.js
+const API_URL = API_BASE_URL;
 
 export default function ChatScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
