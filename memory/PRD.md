@@ -194,16 +194,29 @@ REACT_APP_BACKEND_URL=https://songfix-spirit.preview.emergentagent.com
 
 ## Latest Updates (Feb 10, 2026)
 
-### Backend Fixes for Mobile App
-- [x] Fixed Hero Section images - backend now returns base64/CDN images properly
-- [x] Fixed base64 upload endpoint - accepts multiple key names (file_data, file, data, image)
-- [x] Fixed Chat AI - uses Emergent LLM (Gemini 3 Flash), responds in user's language
+### Performance Optimization
+- [x] **Hero Content API optimized: 86MB → 2.6KB (32,000x faster)**
+- [x] Removed all debug info from mobile app (console.logs, debug UI)
+- [x] Fixed search endpoint path (/user/search)
+
+### Backend Fixes
+- [x] Fixed Hero Section images - only returns CDN URLs for performance
+- [x] Fixed base64 upload endpoint - accepts multiple key names
+- [x] Fixed Chat AI - uses Emergent LLM (Gemini 3 Flash)
 - [x] All 26 backend API tests PASSED
 
-### Mobile Issues (Requires Build Testing)
-- [ ] Google Login on mobile - backend auth ready, mobile flow needs verification
-- [ ] ChatScreen crash - API working, mobile screen may have rendering issue
-- [ ] Hero Section on mobile - backend returns correct data, mobile display TBD
+### Mobile App Fixes
+- [x] Fixed Google Login flow - uses `redirect` parameter (same as web)
+- [x] Fixed Guest User Lockout modal - improved UX with help text
+- [x] Removed debug UI from HomeScreen
+- [x] Fixed search API path
+
+### New Admin Features
+- [x] **App Control & Management Page** (`/app-control`)
+  - App health monitoring
+  - Crash reports viewer
+  - Guest user limits configuration
+  - App settings (maintenance mode, version control)
 
 ### Admin Panel
 - [x] Churches image upload working with /api/upload/base64
