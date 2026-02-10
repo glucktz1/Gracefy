@@ -127,23 +127,21 @@ const HomeScreen = ({ navigation }) => {
         homeAPI.getSections().catch(() => ({ data: { sections: [] } })),
         homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
         homeAPI.getSpecialMixes().catch(() => ({ data: { mixes: [] } })),
-        contentAPI.getAlbums().catch((e) => { errors.push(`Albums: ${e.message}`); return { data: { albums: [] } }; }),
-        contentAPI.getAllSongs().catch((e) => { errors.push(`Songs: ${e.message}`); return { data: { songs: [] } }; }),
-        libraryAPI.getPlaylists().catch((e) => { errors.push(`Playlists: ${e.message}`); return { data: [] }; }),
-        libraryAPI.getLikedSongs().catch((e) => { errors.push(`Likes: ${e.message}`); return { data: [] }; }),
-        bibleAPI.getFeaturedSnippets().catch((e) => { errors.push(`Bible: ${e.message}`); return { data: [] }; }),
-        churchAPI.getChurches().catch((e) => { errors.push(`Churches: ${e.message}`); return { data: { churches: [] } }; }),
-        leaderContentAPI.getMafundisho().catch((e) => { errors.push(`Mafundisho: ${e.message}`); return { data: { mafundisho: [] } }; }),
-        homeAPI.getHomeFilters().catch((e) => { errors.push(`Filters: ${e.message}`); return { data: { filters: [] } }; }),
+        contentAPI.getAlbums().catch(() => ({ data: { albums: [] } })),
+        contentAPI.getAllSongs().catch(() => ({ data: { songs: [] } })),
+        libraryAPI.getPlaylists().catch(() => ({ data: [] })),
+        libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
+        bibleAPI.getFeaturedSnippets().catch(() => ({ data: [] })),
+        churchAPI.getChurches().catch(() => ({ data: { churches: [] } })),
+        leaderContentAPI.getMafundisho().catch(() => ({ data: { mafundisho: [] } })),
+        homeAPI.getHomeFilters().catch(() => ({ data: { filters: [] } })),
       ]);
 
       // Layout sections - handle both nested and direct response
       const rawSections = sectionsRes.data?.sections || sectionsRes.data || [];
-      stats.sections = rawSections.length;
       
       // Filter active sections - check for is_active being true or not explicitly false
       const activeSections = rawSections.filter(s => s.is_active === true || s.is_active === undefined);
-      stats.activeSections = activeSections.length;
       setLayoutSections(activeSections);
 
       // Home filters from admin panel (new endpoint)
