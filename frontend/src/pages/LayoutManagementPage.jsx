@@ -541,7 +541,14 @@ const HomeFiltersTab = () => {
   const fetchFilters = async () => {
     try {
       const res = await axios.get(`${API}/layout/home-filters`, { withCredentials: true });
-      setFilters(res.data.filters || []);
+      const filtersData = res.data.filters || [];
+      // Ensure filter_id is set for all filters
+      const normalizedFilters = filtersData.map(f => ({
+        ...f,
+        filter_id: f.filter_id || f.song_category_id || `filter_${Date.now()}`,
+        is_active: f.is_active ?? (f.status === 'active' || f.status === undefined)
+      }));
+      setFilters(normalizedFilters);
     } catch (e) {
       toast.error("Failed to load filters");
     } finally {
