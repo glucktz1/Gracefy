@@ -1024,50 +1024,13 @@ async def process_mobile_google_login(session_id: str, mobile_redirect: str = No
 @router.post("/user/auth/google-callback")
 async def google_auth_callback_post(request: Request):
     """Handle Google OAuth callback (POST version)"""
-    db = get_db()
     data = await request.json()
-    
     session_id = data.get("session_id")
+    
     if not session_id:
         raise HTTPException(status_code=400, detail="Session ID required")
     
-    # Get user data from Emergent auth
-    async with httpx.AsyncClient() as client_http:
-        auth_response = await client_http.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": session_id}
-        )
-        
-        if auth_response.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid session")
-        
-        user_data = auth_response.json()
-    
-    email = user_data.get("email")
-    name = user_data.get("name", "")
-    picture = user_data.get("picture")
-    
-    # Find or create user
-    existing_user = await db.app_users.find_one({"email": email})
-    
-    if existing_user:
-        user_id = existing_user["user_id"]
-        await db.app_users.update_one(
-            {"email": email},
-            {"$set": {"name": name, "picture": picture, "google_connected": True}}
-        )
-        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
-    else:
-        user = {
-            "user_id": f"user_{uuid.uuid4().hex[:12]}",
-            "email": email,
-            "name": name,
-            "picture": picture,
-            "phone": None,
-            "subscription_type": "free",
-            "google_connected": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "status": "active"
+    return await process_mobile_google_login(session_id, None)
         }
         await db.app_users.insert_one(user)
         user_id = user["user_id"]
