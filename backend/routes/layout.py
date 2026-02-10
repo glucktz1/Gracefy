@@ -643,6 +643,45 @@ async def update_home_filter(filter_id: str, data: dict):
     return {"message": "Filter updated"}
 
 
+@router.put("/layout/home-filters/{filter_id}/toggle")
+async def toggle_home_filter(filter_id: str, data: dict):
+    """Toggle a home filter's active status"""
+    db = get_db()
+    
+    is_active = data.get("is_active", True)
+    status = "active" if is_active else "inactive"
+    
+    result = await db.song_categories.update_one(
+        {"song_category_id": filter_id},
+        {"$set": {"status": status}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Filter not found")
+    
+    await cache.delete("home_filters")
+    return {"message": f"Filter {'activated' if is_active else 'deactivated'}"}
+
+
+@router.delete("/layout/home-filters/{filter_id}")
+async def delete_home_filter(filter_id: str):
+    """Delete a home filter category"""
+    db = get_db()
+    
+    # Don't allow deleting system filters
+    filter_cat = await db.song_categories.find_one({"song_category_id": filter_id})
+    if filter_cat and filter_cat.get("is_system"):
+        raise HTTPException(status_code=400, detail="Cannot delete system filter")
+    
+    result = await db.song_categories.delete_one({"song_category_id": filter_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Filter not found")
+    
+    await cache.delete("home_filters")
+    return {"message": "Filter deleted"}
+
+
 @router.put("/layout/home-filters-config")
 async def update_home_filters_config(data: dict):
     """Update which filters are enabled on home screen"""
