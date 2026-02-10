@@ -1232,40 +1232,6 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  // Debug Banner Styles
-  debugBanner: {
-    backgroundColor: '#1a1a2e',
-    padding: SPACING.md,
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e94560',
-  },
-  debugTitle: {
-    color: '#e94560',
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  debugText: {
-    color: '#16c79a',
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  debugError: {
-    color: '#ff6b6b',
-    fontSize: 11,
-    marginTop: 4,
-  },
-  debugClose: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: 4,
-    backgroundColor: '#e94560',
-    borderRadius: 4,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
