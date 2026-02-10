@@ -14,16 +14,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { chatAPI } from '../services/api';
+import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 
 export default function ChatScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [conversationId, setConversationId] = useState(null);
+  const [showSatisfaction, setShowSatisfaction] = useState(false);
   const flatListRef = useRef(null);
 
   // Initialize chat
@@ -34,19 +35,21 @@ export default function ChatScreen({ navigation }) {
   const initializeChat = async () => {
     setLoading(true);
     try {
-      // Try to get existing support chat or create new one
-      const response = await chatAPI.getSupportChat();
-      if (response.data.success) {
+      const response = await api.get('/chat/support', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      
+      if (response.data && response.data.success) {
         setConversationId(response.data.conversation_id);
         setMessages(response.data.messages || []);
       }
     } catch (error) {
       console.error('Chat init error:', error);
-      // If no chat exists, show welcome message
+      // Show welcome message on error
       setMessages([{
         id: 'welcome',
-        message: 'Welcome to SpiritSongs Support! How can we help you today?',
-        sender: 'support',
+        message: 'Karibu kwenye Msaada wa SpiritSongs! Ninawezaje kukusaidia leo?',
+        sender: 'ai',
         timestamp: new Date().toISOString(),
       }]);
     } finally {
@@ -55,91 +58,122 @@ export default function ChatScreen({ navigation }) {
   };
 
   const sendMessage = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || sending) return;
 
     const messageText = inputText.trim();
     setInputText('');
     setSending(true);
 
-    // Add message optimistically
-    const tempMessage = {
-      id: `temp-${Date.now()}`,
+    // Add user message optimistically
+    const tempUserMessage = {
+      id: `user-${Date.now()}`,
       message: messageText,
       sender: 'user',
       timestamp: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, tempMessage]);
+    setMessages(prev => [...prev, tempUserMessage]);
 
     try {
-      if (conversationId) {
-        await chatAPI.sendMessage(conversationId, messageText);
-      } else {
-        // Start new support chat
-        const response = await chatAPI.startSupportChat();
-        if (response.data.success) {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      // Use the new support message endpoint
+      const response = await api.post('/chat/support/message', 
+        { message: messageText },
+        { headers }
+      );
+      
+      if (response.data && response.data.success) {
+        if (response.data.conversation_id) {
           setConversationId(response.data.conversation_id);
         }
+        
+        // Add AI response
+        if (response.data.ai_response) {
+          const aiMessage = {
+            id: response.data.ai_response.id || `ai-${Date.now()}`,
+            message: response.data.ai_response.message,
+            sender: 'ai',
+            timestamp: response.data.ai_response.timestamp || new Date().toISOString(),
+          };
+          setMessages(prev => [...prev, aiMessage]);
+        }
       }
-
-      // Add auto-reply (simulated support response)
-      setTimeout(() => {
-        const autoReply = {
-          id: `reply-${Date.now()}`,
-          message: getAutoReply(messageText),
-          sender: 'support',
-          timestamp: new Date().toISOString(),
-        };
-        setMessages(prev => [...prev, autoReply]);
-      }, 1500);
-
     } catch (error) {
       console.error('Send message error:', error);
-      Alert.alert('Error', 'Failed to send message. Please try again.');
+      // Add fallback response on error
+      const fallbackMessage = {
+        id: `fallback-${Date.now()}`,
+        message: 'Samahani, kuna tatizo la mtandao. Tafadhali jaribu tena.',
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, fallbackMessage]);
     } finally {
       setSending(false);
     }
   };
 
-  // Simple auto-reply logic (can be enhanced with AI later)
-  const getAutoReply = (userMessage) => {
-    const lowerMsg = userMessage.toLowerCase();
-    
-    if (lowerMsg.includes('subscription') || lowerMsg.includes('payment') || lowerMsg.includes('plan')) {
-      return "For subscription and payment inquiries, please go to Profile > Subscription Plans. If you're facing payment issues, please send us a detailed feedback through the Feedback option in settings.";
-    }
-    if (lowerMsg.includes('download') || lowerMsg.includes('offline')) {
-      return "To download songs for offline listening, tap the download icon on any song. Downloaded songs will be available in your Library under 'Downloads'.";
-    }
-    if (lowerMsg.includes('bible') || lowerMsg.includes('verse')) {
-      return "You can access the Bible section from the bottom navigation. We have full Bible text with audio reading feature available!";
-    }
-    if (lowerMsg.includes('bug') || lowerMsg.includes('error') || lowerMsg.includes('crash')) {
-      return "Sorry to hear you're experiencing issues! Please submit a detailed bug report through Settings > Send Feedback with the 'Bug Report' option selected.";
-    }
-    if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
-      return "Hello! Welcome to SpiritSongs Support. How can I assist you today?";
+  const requestHumanAgent = async () => {
+    if (!conversationId) {
+      Alert.alert('Taarifa', 'Tafadhali anza mazungumzo kwanza.');
+      return;
     }
     
-    return "Thank you for reaching out! Our support team will review your message and get back to you soon. For faster assistance, you can also email us at support@spiritsongs.app";
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await api.post(`/chat/support/handover/${conversationId}`, {}, { headers });
+      
+      Alert.alert(
+        'Ombi Limepokelewa',
+        'Timu yetu ya msaada itakujibu hivi karibuni.',
+        [{ text: 'Sawa' }]
+      );
+    } catch (error) {
+      console.error('Handover error:', error);
+      Alert.alert('Kosa', 'Imeshindikana kutuma ombi. Jaribu tena.');
+    }
+  };
+
+  const submitSatisfaction = async (rating) => {
+    if (!conversationId) return;
+    
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await api.post(`/chat/support/satisfaction/${conversationId}`, 
+        { rating },
+        { headers }
+      );
+      setShowSatisfaction(false);
+      Alert.alert('Asante!', 'Maoni yako yamepokelewa.');
+    } catch (error) {
+      console.error('Satisfaction error:', error);
+    }
   };
 
   const renderMessage = ({ item }) => {
     const isUser = item.sender === 'user';
+    const isSystem = item.sender === 'system';
     
     return (
-      <View style={[styles.messageRow, isUser && styles.messageRowUser]}>
-        {!isUser && (
+      <View style={[
+        styles.messageRow, 
+        isUser && styles.messageRowUser,
+        isSystem && styles.messageRowSystem
+      ]}>
+        {!isUser && !isSystem && (
           <View style={styles.avatarSupport}>
-            <Ionicons name="headset" size={16} color="#8b5cf6" />
+            <Ionicons name="sparkles" size={16} color="#8b5cf6" />
           </View>
         )}
         <View style={[
           styles.messageBubble,
-          isUser ? styles.messageBubbleUser : styles.messageBubbleSupport
+          isUser ? styles.messageBubbleUser : 
+          isSystem ? styles.messageBubbleSystem : styles.messageBubbleAI
         ]}>
           <Text style={[
             styles.messageText,
-            isUser && styles.messageTextUser
+            isUser && styles.messageTextUser,
+            isSystem && styles.messageTextSystem
           ]}>
             {item.message}
           </Text>
@@ -156,6 +190,27 @@ export default function ChatScreen({ navigation }) {
     );
   };
 
+  const renderSatisfactionModal = () => (
+    <View style={styles.satisfactionOverlay}>
+      <View style={styles.satisfactionModal}>
+        <Text style={styles.satisfactionTitle}>Je, umeridhika na msaada?</Text>
+        <View style={styles.satisfactionStars}>
+          {[1, 2, 3, 4, 5].map(star => (
+            <TouchableOpacity key={star} onPress={() => submitSatisfaction(star)}>
+              <Ionicons name="star" size={32} color="#fbbf24" style={styles.star} />
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity 
+          style={styles.satisfactionClose}
+          onPress={() => setShowSatisfaction(false)}
+        >
+          <Text style={styles.satisfactionCloseText}>Baadaye</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -170,14 +225,16 @@ export default function ChatScreen({ navigation }) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.headerAvatar}>
-            <Ionicons name="headset" size={20} color="#8b5cf6" />
+            <Ionicons name="sparkles" size={20} color="#8b5cf6" />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Support Chat</Text>
-            <Text style={styles.headerSubtitle}>We're here to help</Text>
+            <Text style={styles.headerTitle}>Msaada wa AI</Text>
+            <Text style={styles.headerSubtitle}>Tupo hapa kukusaidia</Text>
           </View>
         </View>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={requestHumanAgent} style={styles.humanButton}>
+          <Ionicons name="person" size={20} color="#8b5cf6" />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView 
@@ -188,7 +245,7 @@ export default function ChatScreen({ navigation }) {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#8b5cf6" />
-            <Text style={styles.loadingText}>Loading chat...</Text>
+            <Text style={styles.loadingText}>Inapakia mazungumzo...</Text>
           </View>
         ) : (
           <>
@@ -196,15 +253,19 @@ export default function ChatScreen({ navigation }) {
             <FlatList
               ref={flatListRef}
               data={messages}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item, index) => item.id || `msg-${index}`}
               renderItem={renderMessage}
               contentContainerStyle={styles.messagesList}
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+              onContentSizeChange={() => {
+                if (flatListRef.current && messages.length > 0) {
+                  flatListRef.current.scrollToEnd({ animated: true });
+                }
+              }}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="chatbubbles-outline" size={48} color="#666" />
-                  <Text style={styles.emptyText}>Start a conversation</Text>
+                  <Text style={styles.emptyText}>Anza mazungumzo</Text>
                 </View>
               }
             />
@@ -213,21 +274,21 @@ export default function ChatScreen({ navigation }) {
             <View style={styles.quickActions}>
               <TouchableOpacity 
                 style={styles.quickActionChip}
-                onPress={() => setInputText('I need help with subscription')}
+                onPress={() => setInputText('Ninahitaji msaada wa subscription')}
               >
-                <Text style={styles.quickActionText}>Subscription Help</Text>
+                <Text style={styles.quickActionText}>Subscription</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.quickActionChip}
-                onPress={() => setInputText('How do I download songs?')}
+                onPress={() => setInputText('Jinsi ya kupakua nyimbo?')}
               >
-                <Text style={styles.quickActionText}>Download Songs</Text>
+                <Text style={styles.quickActionText}>Downloads</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.quickActionChip}
-                onPress={() => setInputText('Report a bug')}
+                onPress={() => setInputText('Naomba msaada wa mtu')}
               >
-                <Text style={styles.quickActionText}>Report Bug</Text>
+                <Text style={styles.quickActionText}>Mtu wa Msaada</Text>
               </TouchableOpacity>
             </View>
 
@@ -235,12 +296,13 @@ export default function ChatScreen({ navigation }) {
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Type your message..."
+                placeholder="Andika ujumbe..."
                 placeholderTextColor="#666"
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
                 maxLength={1000}
+                editable={!sending}
               />
               <TouchableOpacity
                 style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
@@ -254,9 +316,23 @@ export default function ChatScreen({ navigation }) {
                 )}
               </TouchableOpacity>
             </View>
+
+            {/* End Chat & Rate */}
+            {messages.length > 2 && (
+              <TouchableOpacity 
+                style={styles.rateButton}
+                onPress={() => setShowSatisfaction(true)}
+              >
+                <Ionicons name="star-outline" size={16} color="#8b5cf6" />
+                <Text style={styles.rateButtonText}>Tathmini Mazungumzo</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </KeyboardAvoidingView>
+
+      {/* Satisfaction Modal */}
+      {showSatisfaction && renderSatisfactionModal()}
     </SafeAreaView>
   );
 }
@@ -300,6 +376,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#22c55e',
   },
+  humanButton: {
+    padding: 8,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 20,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -320,6 +401,9 @@ const styles = StyleSheet.create({
   },
   messageRowUser: {
     justifyContent: 'flex-end',
+  },
+  messageRowSystem: {
+    justifyContent: 'center',
   },
   avatarSupport: {
     width: 28,
@@ -344,13 +428,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
   },
-  messageBubbleSupport: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  messageBubbleAI: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     borderBottomLeftRadius: 4,
   },
   messageBubbleUser: {
     backgroundColor: '#8b5cf6',
     borderBottomRightRadius: 4,
+  },
+  messageBubbleSystem: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    maxWidth: '90%',
   },
   messageText: {
     fontSize: 15,
@@ -359,6 +447,11 @@ const styles = StyleSheet.create({
   },
   messageTextUser: {
     color: '#fff',
+  },
+  messageTextSystem: {
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   messageTime: {
     fontSize: 10,
@@ -382,6 +475,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 8,
+    flexWrap: 'wrap',
   },
   quickActionChip: {
     paddingHorizontal: 12,
@@ -426,5 +520,55 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 6,
+  },
+  rateButtonText: {
+    fontSize: 12,
+    color: '#8b5cf6',
+  },
+  satisfactionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  satisfactionModal: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '80%',
+  },
+  satisfactionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  satisfactionStars: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  star: {
+    padding: 4,
+  },
+  satisfactionClose: {
+    padding: 8,
+  },
+  satisfactionCloseText: {
+    color: '#666',
+    fontSize: 14,
   },
 });
