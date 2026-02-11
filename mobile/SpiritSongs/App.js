@@ -234,8 +234,10 @@ const AppContent = () => {
   }, [dismissLoginPrompt]);
 
   const handleLoginSuccess = useCallback(() => {
+    // Close the modal and dismiss any pending prompts
     setShowLoginModal(false);
-  }, []);
+    dismissLoginPrompt();
+  }, [dismissLoginPrompt]);
 
   return (
     <NavigationContainer 
