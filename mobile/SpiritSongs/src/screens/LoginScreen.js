@@ -166,25 +166,15 @@ const LoginScreen = ({ navigation }) => {
       // Use Emergent Auth with 'redirect' parameter (same as web)
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
       
-      // Try WebBrowser first, fallback to Linking if it fails
-      let result;
-      try {
-        result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect, {
-          showInRecents: true,
-          preferEphemeralSession: false,
-        });
-      } catch (webBrowserError) {
-        // Fallback to Linking.openURL for older devices
+      // Use Linking.openURL to open in external browser
+      // This avoids WebView issues with Google account picker
+      const canOpen = await Linking.canOpenURL(authUrl);
+      if (canOpen) {
         await Linking.openURL(authUrl);
-        return; // User will have to manually return to app
-      }
-      
-      if (result.type === 'success' && result.url) {
-        await processCallbackUrl(result.url);
-      } else if (result.type === 'cancel') {
-        // User cancelled - no action needed
-      } else if (result.type === 'dismiss') {
-        // Browser dismissed - no action needed
+        // The user will be redirected back via the gracefy:// deep link
+        // The deep link handler in App.js will complete the login
+      } else {
+        Alert.alert('Kosa', 'Imeshindikana kufungua browser.');
       }
     } catch (error) {
       Alert.alert('Kosa', 'Imeshindikana kufungua Google login. Jaribu tena baadaye.');
