@@ -437,16 +437,25 @@ async def record_play(data: dict):
     play_count_updated = False
     
     if content_type == "song":
+        # Update song play_count
         result = await db.songs.update_one(
             {"song_id": content_id},
-            {"$inc": {"play_count": 1}}
+            {"$inc": {"play_count": 1, "plays": 1}}
         )
         play_count_updated = result.modified_count > 0
+        
+        # Also update the album's total_plays
+        song = await db.songs.find_one({"song_id": content_id}, {"_id": 0, "album_id": 1})
+        if song and song.get("album_id"):
+            await db.albums.update_one(
+                {"album_id": song["album_id"]},
+                {"$inc": {"play_count": 1, "total_plays": 1}}
+            )
         
     elif content_type == "teaching_lesson":
         result = await db.teaching_lessons.update_one(
             {"lesson_id": content_id},
-            {"$inc": {"play_count": 1}}
+            {"$inc": {"play_count": 1, "plays": 1}}
         )
         play_count_updated = result.modified_count > 0
         # Also update the teaching's total play count
@@ -454,20 +463,20 @@ async def record_play(data: dict):
         if lesson:
             await db.teachings.update_one(
                 {"teaching_id": lesson.get("teaching_id")},
-                {"$inc": {"play_count": 1}}
+                {"$inc": {"play_count": 1, "total_plays": 1}}
             )
             
     elif content_type == "album":
         result = await db.albums.update_one(
             {"album_id": content_id},
-            {"$inc": {"play_count": 1}}
+            {"$inc": {"play_count": 1, "total_plays": 1}}
         )
         play_count_updated = result.modified_count > 0
         
     elif content_type == "bible_tts":
         result = await db.bible_snippets.update_one(
             {"snippet_id": content_id},
-            {"$inc": {"play_count": 1}}
+            {"$inc": {"play_count": 1, "plays": 1}}
         )
         play_count_updated = result.modified_count > 0
     
