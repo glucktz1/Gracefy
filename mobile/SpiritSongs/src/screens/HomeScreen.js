@@ -331,6 +331,23 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  const handleCategoryFilter = (category) => {
+    setActiveCategory(category.id);
+    
+    // If 'all' is selected, just update visual state
+    if (category.id === 'all') {
+      return;
+    }
+    
+    // Navigate to SeeAll screen with category filter
+    navigation.navigate('SeeAll', { 
+      type: 'albums',
+      title: category.name,
+      category: category.id,
+      categoryName: category.name
+    });
+  };
+
   const handleAddToPlaylist = (song) => {
     setSelectedSong(song);
     setShowPlaylistModal(true);
