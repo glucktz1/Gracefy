@@ -34,6 +34,9 @@ const SearchScreen = ({ navigation }) => {
   // Safe extraction
   const playTrack = playerContext?.playTrack ?? (() => {});
   const currentTrack = playerContext?.currentTrack ?? null;
+  
+  // Ref for search debounce
+  const searchTimeoutRef = useRef(null);
 
   // Load initial data
   useEffect(() => {
