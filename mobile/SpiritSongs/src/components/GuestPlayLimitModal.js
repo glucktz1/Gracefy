@@ -12,7 +12,7 @@
  * - Third prompt: Lock app - "Tafadhali jisajili au ingia sasa"
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,9 @@ import * as WebBrowser from 'expo-web-browser';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { authAPI, API_BASE_URL } from '../services/api';
+
+// Ensure any auth sessions can be completed
+WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_AUTH_URL = "https://auth.emergentagent.com";
 
