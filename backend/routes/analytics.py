@@ -553,19 +553,31 @@ async def end_listening_session(data: dict):
             if content_type == "song":
                 await db.songs.update_one(
                     {"song_id": content_id},
-                    {"$inc": {"play_count": 1}}
+                    {"$inc": {"play_count": 1, "plays": 1}}
                 )
+                # Also update the album's total_plays
+                song = await db.songs.find_one({"song_id": content_id}, {"_id": 0, "album_id": 1})
+                if song and song.get("album_id"):
+                    await db.albums.update_one(
+                        {"album_id": song["album_id"]},
+                        {"$inc": {"play_count": 1, "total_plays": 1}}
+                    )
             elif content_type == "teaching_lesson":
                 await db.teaching_lessons.update_one(
                     {"lesson_id": content_id},
-                    {"$inc": {"play_count": 1}}
+                    {"$inc": {"play_count": 1, "plays": 1}}
                 )
                 lesson = await db.teaching_lessons.find_one({"lesson_id": content_id})
                 if lesson:
                     await db.teachings.update_one(
                         {"teaching_id": lesson.get("teaching_id")},
-                        {"$inc": {"play_count": 1}}
+                        {"$inc": {"play_count": 1, "total_plays": 1}}
                     )
+            elif content_type == "album":
+                await db.albums.update_one(
+                    {"album_id": content_id},
+                    {"$inc": {"play_count": 1, "total_plays": 1}}
+                )
     
     return {
         "session_id": session_id,
