@@ -260,6 +260,56 @@ async def update_trial_settings(data: dict):
     return {"message": "Trial settings updated"}
 
 
+# ============== REVENUE SETTINGS ==============
+
+@router.get("/admin/revenue-settings")
+async def get_revenue_settings():
+    """Get revenue calculation settings"""
+    db = get_db()
+    
+    settings = await db.revenue_settings.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    
+    # Default settings if none exist
+    if not settings:
+        settings = {
+            "monetization_mode": "time_based",
+            "premium_rate_per_hour": 10.0,
+            "standard_rate_per_hour": 5.0,
+            "platform_share_percentage": 30,
+            "choir_share_percentage": 70,
+            "minimum_play_seconds": 45,
+            "currency": "TZS"
+        }
+    
+    return settings
+
+
+@router.post("/admin/revenue-settings")
+async def save_revenue_settings(data: dict):
+    """Save revenue calculation settings"""
+    db = get_db()
+    
+    settings = {
+        "monetization_mode": data.get("monetization_mode", "time_based"),
+        "premium_rate_per_hour": float(data.get("premium_rate_per_hour", 10.0)),
+        "standard_rate_per_hour": float(data.get("standard_rate_per_hour", 5.0)),
+        "platform_share_percentage": int(data.get("platform_share_percentage", 30)),
+        "choir_share_percentage": int(data.get("choir_share_percentage", 70)),
+        "minimum_play_seconds": int(data.get("minimum_play_seconds", 45)),
+        "currency": data.get("currency", "TZS"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.revenue_settings.insert_one(settings)
+    settings.pop("_id", None)
+    
+    # Clear cache
+    await cache.delete("analytics:*")
+    
+    return settings
+
+
 @router.get("/monetization/trial-stats")
 async def get_trial_stats():
     """Get trial usage statistics"""
