@@ -192,35 +192,29 @@ REACT_APP_BACKEND_URL=https://songfix-spirit.preview.emergentagent.com
 2. 3 songs have no audio URL - disabled
 3. ~~Hero section images may not display properly~~ (FIXED - Feb 10, 2026)
 
-## Latest Updates (Feb 10, 2026)
+## Latest Updates (Feb 11, 2026)
+
+### Play Count & Revenue Fixes
+- [x] Fixed play count recording to update both `play_count` and `plays` fields
+- [x] When a song is played, album's `total_plays` is also incremented
+- [x] Added `/api/admin/recalculate-play-counts` endpoint to fix historical data
+- [x] Added `/api/admin/revenue-settings` endpoint for revenue configuration
+- [x] Revenue now calculated from listening sessions with proper settings
+
+### Mobile App Fixes  
+- [x] Fixed special mixes play button - now has `onPress` handler
+- [x] Fixed category filters - navigate to filtered view when tapped
+- [x] Added auto-search with 500ms debounce to SearchScreen
+- [x] Google login now uses external browser via `Linking.openURL`
+- [x] Added deep link handler in App.js for auth callbacks
 
 ### Performance Optimization
-- [x] **Hero Content API optimized: 86MB → 2.6KB (32,000x faster)**
-- [x] Removed all debug info from mobile app (console.logs, debug UI)
-- [x] Fixed search endpoint path (/user/search)
-
-### Backend Fixes
-- [x] Fixed Hero Section images - only returns CDN URLs for performance
-- [x] Fixed base64 upload endpoint - accepts multiple key names
-- [x] Fixed Chat AI - uses Emergent LLM (Gemini 3 Flash)
-- [x] All 26 backend API tests PASSED
-
-### Mobile App Fixes
-- [x] Fixed Google Login flow - uses `redirect` parameter (same as web)
-- [x] Fixed Guest User Lockout modal - improved UX with help text
-- [x] Removed debug UI from HomeScreen
-- [x] Fixed search API path
-
-### New Admin Features
-- [x] **App Control & Management Page** (`/app-control`)
-  - App health monitoring
-  - Crash reports viewer
-  - Guest user limits configuration
-  - App settings (maintenance mode, version control)
+- [x] **Hero Content API: 86MB → 2.6KB (32,000x faster)**
+- [x] Removed all debug info from mobile app
 
 ### Admin Panel
-- [x] Churches image upload working with /api/upload/base64
-- [x] Layout Manager hero banners working with /api/upload
+- [x] Added App Control & Management page
+- [x] Revenue settings now accessible via API
 
 ## Testing Notes
 - Use "Generate Data" button in analytics to create demo listening sessions
