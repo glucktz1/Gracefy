@@ -43,6 +43,32 @@ const SearchScreen = ({ navigation }) => {
     loadInitialData();
   }, []);
 
+  // Auto-search with debounce when query changes
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // If query is empty, clear results immediately
+    if (!query.trim()) {
+      setResults({ songs: [], albums: [] });
+      return;
+    }
+    
+    // Debounce search - wait 500ms after user stops typing
+    searchTimeoutRef.current = setTimeout(() => {
+      handleSearch();
+    }, 500);
+    
+    // Cleanup
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [query, handleSearch]);
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
