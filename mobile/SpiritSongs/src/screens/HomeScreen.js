@@ -844,7 +844,7 @@ const HomeScreen = ({ navigation }) => {
                   styles.categoryFilterChip,
                   activeCategory === category.id && styles.categoryFilterChipActive
                 ]}
-                onPress={() => setActiveCategory(category.id)}
+                onPress={() => handleCategoryFilter(category)}
               >
                 {category.icon && (
                   <Ionicons 
