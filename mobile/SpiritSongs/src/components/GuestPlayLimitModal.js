@@ -87,9 +87,10 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
         }
         
         if (token) {
-          // Fetch user data with token
+          // Fetch user data with token - response is user object directly
           const userResponse = await authAPI.getMe(token);
-          await login(token, userResponse.data?.user || { user_id: userId });
+          const userData = userResponse.data || { user_id: userId };
+          await login(token, userData);
           onSuccess?.();
           onClose();
         } else {
