@@ -124,7 +124,8 @@ const AppContent = () => {
     dismissLoginPrompt, 
     isAuthenticated, 
     isAppLocked,
-    user 
+    user,
+    login: authLogin
   } = useAuth();
   const navigationRef = React.useRef();
   const [currentRoute, setCurrentRoute] = useState('');
@@ -145,6 +146,55 @@ const AppContent = () => {
   // Calculate bottom offset for mini player (directly above tab bar, minimal gap)
   const tabBarHeight = 60 + Math.max(insets.bottom, 8);
   const miniPlayerBottom = tabBarHeight + 4; // 4px gap above tab bar
+
+  // Handle deep links for Google OAuth callback
+  useEffect(() => {
+    const handleDeepLink = async (event) => {
+      const url = event.url || event;
+      if (url && url.startsWith('gracefy://auth')) {
+        try {
+          // Parse token from URL
+          let token = null;
+          let userId = null;
+          
+          try {
+            const urlObj = new URL(url.replace('gracefy://', 'https://temp.com/'));
+            token = urlObj.searchParams.get('token');
+            userId = urlObj.searchParams.get('user_id');
+          } catch (e) {}
+          
+          // Fallback parsing
+          if (!token && url.includes('token=')) {
+            token = url.split('token=')[1]?.split('&')[0]?.split('#')[0];
+          }
+          
+          if (token) {
+            // Fetch user data and login
+            const userResponse = await authAPI.getMe(token);
+            const userData = userResponse.data || { user_id: userId };
+            await authLogin(token, userData);
+            setShowLoginModal(false);
+          }
+        } catch (error) {
+          Alert.alert('Kosa', 'Imeshindikana kukamilisha uingiaji. Jaribu tena.');
+        }
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    // Check if app was opened via deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [authLogin]);
 
   // Load ad settings on mount
   useEffect(() => {
