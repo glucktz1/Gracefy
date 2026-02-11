@@ -229,15 +229,17 @@ const AppContent = () => {
   }, [shouldPromptLogin, isAuthenticated]);
 
   const handleCloseLoginModal = useCallback(() => {
-    setShowLoginModal(false);
-    dismissLoginPrompt();
-  }, [dismissLoginPrompt]);
+    // Only dismiss if NOT locked - if locked, user must login
+    if (!isAppLocked) {
+      setShowLoginModal(false);
+      dismissLoginPrompt();
+    }
+  }, [dismissLoginPrompt, isAppLocked]);
 
   const handleLoginSuccess = useCallback(() => {
-    // Close the modal and dismiss any pending prompts
+    // Just close the modal - AuthContext's login() already resets isAppLocked
     setShowLoginModal(false);
-    dismissLoginPrompt();
-  }, [dismissLoginPrompt]);
+  }, []);
 
   return (
     <NavigationContainer 
