@@ -166,24 +166,27 @@ const LoginScreen = ({ navigation }) => {
       // Use Emergent Auth with 'redirect' parameter (same as web)
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
       
-      console.log('Opening Google auth URL:', authUrl);
-      console.log('Backend callback:', backendCallback);
-      console.log('Mobile redirect:', mobileRedirect);
-      
-      // Open the browser for auth
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect);
-      
-      console.log('Auth result:', JSON.stringify(result));
+      // Try WebBrowser first, fallback to Linking if it fails
+      let result;
+      try {
+        result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect, {
+          showInRecents: true,
+          preferEphemeralSession: false,
+        });
+      } catch (webBrowserError) {
+        // Fallback to Linking.openURL for older devices
+        await Linking.openURL(authUrl);
+        return; // User will have to manually return to app
+      }
       
       if (result.type === 'success' && result.url) {
         await processCallbackUrl(result.url);
       } else if (result.type === 'cancel') {
-        console.log('User cancelled Google login');
+        // User cancelled - no action needed
       } else if (result.type === 'dismiss') {
-        console.log('Browser dismissed');
+        // Browser dismissed - no action needed
       }
     } catch (error) {
-      console.error('Google login error:', error);
       Alert.alert('Kosa', 'Imeshindikana kufungua Google login. Jaribu tena baadaye.');
     } finally {
       setGoogleLoading(false);
