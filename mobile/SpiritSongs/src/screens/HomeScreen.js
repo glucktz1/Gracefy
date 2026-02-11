@@ -310,6 +310,27 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('Playlist', { mix });
   };
 
+  const handlePlayMix = async (mix) => {
+    // Play the mix directly - get songs and start playing
+    try {
+      if (mix.songs && mix.songs.length > 0) {
+        // Mix already has songs loaded
+        const firstSong = mix.songs[0];
+        playTrack(firstSong, mix.songs, 0);
+      } else if (mix.mix_id) {
+        // Need to fetch songs from API
+        const response = await homeAPI.getMixSongs(mix.mix_id);
+        const songs = response?.data?.songs || [];
+        if (songs.length > 0) {
+          playTrack(songs[0], songs, 0);
+        }
+      }
+    } catch (error) {
+      // If playing fails, just navigate to the mix screen
+      navigation.navigate('Playlist', { mix });
+    }
+  };
+
   const handleAddToPlaylist = (song) => {
     setSelectedSong(song);
     setShowPlaylistModal(true);
