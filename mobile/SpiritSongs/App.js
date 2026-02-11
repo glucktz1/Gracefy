@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, View, StatusBar, Platform } from 'react-native';
+import { StyleSheet, View, StatusBar, Platform, Linking, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -20,7 +20,7 @@ import GuestPlayLimitModal from './src/components/GuestPlayLimitModal';
 import AdPlayer from './src/components/AdPlayer';
 
 // API
-import { advertisingAPI } from './src/services/api';
+import { advertisingAPI, authAPI } from './src/services/api';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
