@@ -113,13 +113,25 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       setLoading(true);
       setError('');
       const response = await authAPI.login(email, password);
+      
       if (response.data?.token) {
+        // Clear form first
+        setEmail('');
+        setPassword('');
+        setMode('main');
+        
+        // Then login
         await login(response.data.token, response.data.user);
+        
+        // Notify success and close
         onSuccess?.();
         onClose();
+      } else {
+        setError('Jibu halikuwa sahihi. Jaribu tena.');
       }
     } catch (error) {
-      setError(error.response?.data?.detail || 'Email au password si sahihi');
+      const errorMessage = error.response?.data?.detail || error.message || 'Email au password si sahihi';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -143,13 +155,27 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       setLoading(true);
       setError('');
       const response = await authAPI.register({ email, password, name });
+      
       if (response.data?.token) {
+        // Clear form first
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setMode('main');
+        
+        // Then login
         await login(response.data.token, response.data.user);
+        
+        // Notify success and close
         onSuccess?.();
         onClose();
+      } else {
+        setError('Jibu halikuwa sahihi. Jaribu tena.');
       }
     } catch (error) {
-      setError(error.response?.data?.detail || 'Imeshindikana kuunda akaunti');
+      const errorMessage = error.response?.data?.detail || error.message || 'Imeshindikana kuunda akaunti';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
