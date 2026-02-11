@@ -74,50 +74,15 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       // Use Emergent Auth with 'redirect' parameter (same as web)
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
       
-      // Try WebBrowser first, fallback to Linking if it fails
-      let result;
-      try {
-        result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect, {
-          showInRecents: true,
-          preferEphemeralSession: false,
-        });
-      } catch (webBrowserError) {
-        // Fallback to Linking.openURL for older devices
+      // Use Linking.openURL to open in external browser
+      // This avoids WebView issues with Google account picker
+      const canOpen = await Linking.canOpenURL(authUrl);
+      if (canOpen) {
         await Linking.openURL(authUrl);
-        return; // User will have to manually return to app
-      }
-      
-      if (result.type === 'success' && result.url) {
-        const url = result.url;
-        let token = null;
-        let userId = null;
-        
-        // Extract token from callback URL
-        try {
-          const urlObj = new URL(url.replace('gracefy://', 'https://temp.com/'));
-          token = urlObj.searchParams.get('token');
-          userId = urlObj.searchParams.get('user_id');
-        } catch (parseError) {
-          // URL parsing failed
-        }
-        
-        // Fallback parsing
-        if (!token && url.includes('token=')) {
-          token = url.split('token=')[1]?.split('&')[0]?.split('#')[0];
-        }
-        
-        if (token) {
-          // Fetch user data with token - response is user object directly
-          const userResponse = await authAPI.getMe(token);
-          const userData = userResponse.data || { user_id: userId };
-          await login(token, userData);
-          onSuccess?.();
-          onClose();
-        } else {
-          setError('Imeshindikana kupata token. Jaribu tena.');
-        }
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
-        // User cancelled - no error needed
+        // The user will be redirected back via the gracefy:// deep link
+        // We need to listen for that
+      } else {
+        setError('Imeshindikana kufungua browser.');
       }
     } catch (error) {
       setError('Imeshindikana kuingia na Google. Jaribu tena.');
