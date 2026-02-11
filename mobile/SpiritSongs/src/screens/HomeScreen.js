@@ -965,7 +965,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Mchanganyiko Maalumu</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Mchanganyiko Maalumu' })}>
+              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'mixes', title: 'Mchanganyiko Maalumu' })}>
                 <Text style={styles.seeAll}>Ona zote</Text>
               </TouchableOpacity>
             </View>
@@ -981,12 +981,15 @@ const HomeScreen = ({ navigation }) => {
                     style={styles.largeMixImage}
                   />
                   <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
-                    <Text style={styles.largeMixTitle} numberOfLines={1}>{mix.title}</Text>
+                    <Text style={styles.largeMixTitle} numberOfLines={1}>{mix.title || mix.name}</Text>
                     <Text style={styles.largeMixSubtitle} numberOfLines={1}>
                       {mix.songs_count || mix.songs?.length || 0} nyimbo
                     </Text>
                   </LinearGradient>
-                  <TouchableOpacity style={styles.mixPlayButton}>
+                  <TouchableOpacity 
+                    style={styles.mixPlayButton}
+                    onPress={() => handlePlayMix(mix)}
+                  >
                     <Ionicons name="play" size={24} color={COLORS.background} />
                   </TouchableOpacity>
                 </TouchableOpacity>
