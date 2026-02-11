@@ -1379,3 +1379,111 @@ async def generate_demo_listening_data():
         "songs_used": len(songs),
         "users_used": len(users)
     }
+
+
+
+@router.post("/admin/recalculate-play-counts")
+async def recalculate_play_counts():
+    """
+    Recalculate all play counts from listening_sessions collection.
+    This fixes any discrepancies between session counts and stored play_counts.
+    """
+    db = get_db()
+    
+    # Get all songs and their play counts from listening_sessions
+    song_plays_pipeline = [
+        {"$match": {"content_type": "song", "counted_as_play": True}},
+        {"$group": {"_id": "$content_id", "total_plays": {"$sum": 1}}}
+    ]
+    song_plays = await db.listening_sessions.aggregate(song_plays_pipeline).to_list(10000)
+    
+    songs_updated = 0
+    for item in song_plays:
+        song_id = item["_id"]
+        plays = item["total_plays"]
+        result = await db.songs.update_one(
+            {"song_id": song_id},
+            {"$set": {"play_count": plays, "plays": plays}}
+        )
+        if result.modified_count > 0:
+            songs_updated += 1
+    
+    # Reset songs with no plays
+    await db.songs.update_many(
+        {"song_id": {"$nin": [s["_id"] for s in song_plays]}},
+        {"$set": {"play_count": 0, "plays": 0}}
+    )
+    
+    # Calculate album play counts (sum of all their songs' plays)
+    albums = await db.albums.find({}, {"_id": 0, "album_id": 1}).to_list(1000)
+    albums_updated = 0
+    
+    for album in albums:
+        album_id = album["album_id"]
+        # Get total plays for all songs in this album
+        album_plays_pipeline = [
+            {"$match": {"content_type": "song", "counted_as_play": True}},
+            {"$lookup": {
+                "from": "songs",
+                "localField": "content_id",
+                "foreignField": "song_id",
+                "as": "song"
+            }},
+            {"$unwind": "$song"},
+            {"$match": {"song.album_id": album_id}},
+            {"$count": "total"}
+        ]
+        result = await db.listening_sessions.aggregate(album_plays_pipeline).to_list(1)
+        total_plays = result[0]["total"] if result else 0
+        
+        update_result = await db.albums.update_one(
+            {"album_id": album_id},
+            {"$set": {"play_count": total_plays, "total_plays": total_plays}}
+        )
+        if update_result.modified_count > 0:
+            albums_updated += 1
+    
+    # Also recalculate teaching play counts
+    teaching_plays_pipeline = [
+        {"$match": {"content_type": "teaching_lesson", "counted_as_play": True}},
+        {"$group": {"_id": "$content_id", "total_plays": {"$sum": 1}}}
+    ]
+    teaching_plays = await db.listening_sessions.aggregate(teaching_plays_pipeline).to_list(10000)
+    
+    teachings_updated = 0
+    for item in teaching_plays:
+        lesson_id = item["_id"]
+        plays = item["total_plays"]
+        await db.teaching_lessons.update_one(
+            {"lesson_id": lesson_id},
+            {"$set": {"play_count": plays, "plays": plays}}
+        )
+        
+        # Update parent teaching
+        lesson = await db.teaching_lessons.find_one({"lesson_id": lesson_id})
+        if lesson:
+            teaching_id = lesson.get("teaching_id")
+            if teaching_id:
+                # Sum all lessons for this teaching
+                total = sum(
+                    p["total_plays"] for p in teaching_plays 
+                    if (await db.teaching_lessons.find_one({"lesson_id": p["_id"]})).get("teaching_id") == teaching_id
+                )
+                await db.teachings.update_one(
+                    {"teaching_id": teaching_id},
+                    {"$set": {"play_count": total, "total_plays": total}}
+                )
+                teachings_updated += 1
+    
+    # Clear caches
+    await cache.delete("analytics:*")
+    await cache.delete("home:*")
+    
+    return {
+        "success": True,
+        "songs_updated": songs_updated,
+        "albums_updated": albums_updated,
+        "teachings_updated": teachings_updated,
+        "total_song_sessions": len(song_plays),
+        "total_teaching_sessions": len(teaching_plays)
+    }
