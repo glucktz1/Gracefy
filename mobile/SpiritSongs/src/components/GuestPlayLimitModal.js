@@ -62,12 +62,27 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       setGoogleLoading(true);
       setError('');
       
-      // Use the same auth flow as web - redirect through Emergent Auth
+      // Mobile deep link for callback
       const mobileRedirect = 'gracefy://auth';
-      const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
-      const authUrl = `${GOOGLE_AUTH_URL}/?redirect=${encodeURIComponent(backendCallback)}`;
       
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect);
+      // Backend callback URL that will handle the OAuth response and redirect to mobile app
+      const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
+      
+      // Use Emergent Auth with 'redirect' parameter (same as web)
+      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
+      
+      // Try WebBrowser first, fallback to Linking if it fails
+      let result;
+      try {
+        result = await WebBrowser.openAuthSessionAsync(authUrl, mobileRedirect, {
+          showInRecents: true,
+          preferEphemeralSession: false,
+        });
+      } catch (webBrowserError) {
+        // Fallback to Linking.openURL for older devices
+        await Linking.openURL(authUrl);
+        return; // User will have to manually return to app
+      }
       
       if (result.type === 'success' && result.url) {
         const url = result.url;
@@ -79,7 +94,9 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
           const urlObj = new URL(url.replace('gracefy://', 'https://temp.com/'));
           token = urlObj.searchParams.get('token');
           userId = urlObj.searchParams.get('user_id');
-        } catch {}
+        } catch (parseError) {
+          // URL parsing failed
+        }
         
         // Fallback parsing
         if (!token && url.includes('token=')) {
@@ -96,6 +113,8 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
         } else {
           setError('Imeshindikana kupata token. Jaribu tena.');
         }
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        // User cancelled - no error needed
       }
     } catch (error) {
       setError('Imeshindikana kuingia na Google. Jaribu tena.');
