@@ -225,8 +225,41 @@ export default function AlbumsPage() {
       thumbnail: "",
       release_date: "",
       monetization_type: "free",
-      status: "active"
+      status: "active",
+      tags: []
     });
+  };
+
+  // Handle tag update for album
+  const handleUpdateAlbumTags = async () => {
+    if (!editingAlbumForTags) return;
+    
+    try {
+      await axios.put(`${API}/albums/${editingAlbumForTags.album_id}/tags`, {
+        tags: selectedTags
+      }, { withCredentials: true });
+      toast.success("Album tags updated");
+      setIsTagModalOpen(false);
+      setEditingAlbumForTags(null);
+      setSelectedTags([]);
+      fetchAlbums();
+    } catch (error) {
+      toast.error("Failed to update tags");
+    }
+  };
+
+  const openTagModal = (album) => {
+    setEditingAlbumForTags(album);
+    setSelectedTags(album.tags || []);
+    setIsTagModalOpen(true);
+  };
+
+  const toggleTag = (tagId) => {
+    setSelectedTags(prev => 
+      prev.includes(tagId) 
+        ? prev.filter(t => t !== tagId)
+        : [...prev, tagId]
+    );
   };
 
   const handleSongSubmit = async (e) => {
