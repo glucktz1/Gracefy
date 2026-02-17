@@ -346,6 +346,19 @@ const AlbumScreen = ({ route, navigation }) => {
               source={{ uri: getImageUrl(thumbnail) || 'https://via.placeholder.com/200' }}
               style={styles.albumArt}
             />
+            {/* Album Tags - Top Left */}
+            {album?.tags && album.tags.length > 0 && (
+              <View style={styles.albumTagsOverlay}>
+                {album.tags.slice(0, 2).map(tagId => {
+                  const tag = availableTags.find(t => t.tag_id === tagId);
+                  return tag ? (
+                    <View key={tagId} style={[styles.albumTagChip, { backgroundColor: tag.color }]}>
+                      <Text style={styles.albumTagChipText}>{tag.name}</Text>
+                    </View>
+                  ) : null;
+                })}
+              </View>
+            )}
           </View>
           
           {/* Info */}
