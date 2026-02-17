@@ -1201,6 +1201,53 @@ export default function AlbumsPage() {
                 </Select>
               </div>
 
+              {/* Album Tags */}
+              <div className="form-group">
+                <label className="form-label flex items-center gap-2">
+                  <Tag size={14} className="text-violet-500" />
+                  Album Tags
+                </label>
+                <p className="text-xs text-zinc-500 mb-2">Select tags for this album (e.g., Mpya, Pasaka, Krismasi)</p>
+                <div className="flex flex-wrap gap-2 p-3 bg-zinc-950 border border-zinc-800 rounded-lg max-h-32 overflow-y-auto">
+                  {availableTags.length === 0 ? (
+                    <p className="text-xs text-zinc-500">Loading tags...</p>
+                  ) : (
+                    availableTags.map((tag) => {
+                      const isSelected = (albumFormData.tags || []).includes(tag.tag_id);
+                      return (
+                        <button
+                          key={tag.tag_id}
+                          type="button"
+                          onClick={() => {
+                            const currentTags = albumFormData.tags || [];
+                            if (isSelected) {
+                              setAlbumFormData({
+                                ...albumFormData,
+                                tags: currentTags.filter(t => t !== tag.tag_id)
+                              });
+                            } else {
+                              setAlbumFormData({
+                                ...albumFormData,
+                                tags: [...currentTags, tag.tag_id]
+                              });
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                            isSelected 
+                              ? 'text-white' 
+                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                          }`}
+                          style={isSelected ? { backgroundColor: tag.color } : {}}
+                        >
+                          {isSelected && <Check size={12} />}
+                          {tag.name}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
               {/* Description */}
               <div className="form-group">
                 <label className="form-label">Description (optional)</label>
