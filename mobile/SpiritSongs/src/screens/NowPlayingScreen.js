@@ -394,8 +394,21 @@ const NowPlayingScreen = ({ navigation }) => {
 
           {/* Bottom Actions Row */}
           <View style={styles.bottomActionsRow}>
-            <TouchableOpacity style={styles.bottomIconBtn}>
-              <Ionicons name="radio-outline" size={22} color={COLORS.textSecondary} />
+            {/* Continuous Play / Auto-Recommend Toggle */}
+            <TouchableOpacity 
+              style={styles.bottomIconBtn} 
+              onPress={toggleContinuousPlay}
+            >
+              <View style={{ alignItems: 'center' }}>
+                <Ionicons 
+                  name={continuousPlay ? "infinite" : "infinite-outline"} 
+                  size={22} 
+                  color={continuousPlay ? COLORS.primary : COLORS.textSecondary} 
+                />
+                {continuousPlay && (
+                  <Text style={{ fontSize: 8, color: COLORS.primary, marginTop: 2 }}>AUTO</Text>
+                )}
+              </View>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.bottomIconBtn} onPress={handleShare}>
