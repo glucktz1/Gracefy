@@ -116,6 +116,8 @@ export const homeAPI = {
   getCategories: () => api.get('/categories'),
   // Mix methods
   getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
+  // Tags
+  getTags: () => api.get('/admin/tags'),
 };
 
 // ============ LEADER CONTENT API ============
