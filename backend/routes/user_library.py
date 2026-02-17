@@ -655,7 +655,7 @@ async def get_active_streams():
     }
 
 
-
+@router.post("/listening/track-play")
 async def track_play(request: Request, data: dict):
     """
     Track song play for listening history and revenue.
