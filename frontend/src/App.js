@@ -62,6 +62,7 @@ const ChatManagementPage = lazy(() => import("@/pages/ChatManagementPage"));
 const KnowledgeBankPage = lazy(() => import("@/pages/KnowledgeBankPage"));
 const AppControlPage = lazy(() => import("@/pages/AppControlPage"));
 const RecommendationEnginePage = lazy(() => import("@/pages/RecommendationEnginePage"));
+const AuthSettingsPage = lazy(() => import("@/pages/AuthSettingsPage"));
 
 // Icons
 import { 
