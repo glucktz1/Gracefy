@@ -134,6 +134,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback_router)       # /api/feedback/*
     app.include_router(chat_router)           # /api/chat/*
     app.include_router(app_control_router)    # /api/admin/app-*, /api/app/*
+    app.include_router(recommendations_router)  # /api/recommendations/*
     
     # ============== ROOT ENDPOINTS ==============
     
