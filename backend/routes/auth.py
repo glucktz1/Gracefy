@@ -1067,3 +1067,147 @@ async def get_app_user_auth(request: Request):
         raise HTTPException(status_code=401, detail="User not found")
     
     return user
+
+
+
+# ============== AUTH SETTINGS MANAGEMENT ==============
+
+DEFAULT_AUTH_SETTINGS = {
+    "settings_id": "auth_settings",
+    "email_password_enabled": True,
+    "google_enabled": True,
+    "phone_enabled": False,
+    "guest_access_enabled": True,
+    "registration_enabled": True,
+    "require_email_verification": False,
+    "require_phone_verification": False,
+    "max_login_attempts": 5,
+    "lockout_duration_minutes": 15,
+    "password_min_length": 6,
+    "created_at": None,
+    "updated_at": None
+}
+
+@router.get("/admin/auth-settings")
+async def get_auth_settings():
+    """Get authentication settings for admin panel"""
+    db = get_db()
+    
+    settings = await db.auth_settings.find_one(
+        {"settings_id": "auth_settings"},
+        {"_id": 0}
+    )
+    
+    if not settings:
+        # Return defaults if not configured
+        return DEFAULT_AUTH_SETTINGS
+    
+    # Merge with defaults to ensure all fields exist
+    merged = {**DEFAULT_AUTH_SETTINGS, **settings}
+    return merged
+
+
+@router.put("/admin/auth-settings")
+async def update_auth_settings(request: Request):
+    """Update authentication settings"""
+    db = get_db()
+    data = await request.json()
+    
+    # Validate data
+    allowed_fields = [
+        "email_password_enabled",
+        "google_enabled", 
+        "phone_enabled",
+        "guest_access_enabled",
+        "registration_enabled",
+        "require_email_verification",
+        "require_phone_verification",
+        "max_login_attempts",
+        "lockout_duration_minutes",
+        "password_min_length"
+    ]
+    
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.auth_settings.update_one(
+        {"settings_id": "auth_settings"},
+        {
+            "$set": update_data,
+            "$setOnInsert": {
+                "settings_id": "auth_settings",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        },
+        upsert=True
+    )
+    
+    # Clear cache if any
+    cache.delete("auth_settings")
+    
+    # Get updated settings
+    settings = await db.auth_settings.find_one(
+        {"settings_id": "auth_settings"},
+        {"_id": 0}
+    )
+    
+    return {"success": True, "settings": {**DEFAULT_AUTH_SETTINGS, **settings}}
+
+
+@router.get("/auth/available-methods")
+async def get_available_auth_methods():
+    """
+    Public endpoint to get which authentication methods are enabled.
+    Used by frontend and mobile app to show/hide login options.
+    """
+    db = get_db()
+    
+    # Try cache first
+    cached = cache.get("auth_methods")
+    if cached:
+        return cached
+    
+    settings = await db.auth_settings.find_one(
+        {"settings_id": "auth_settings"},
+        {"_id": 0}
+    )
+    
+    if not settings:
+        settings = DEFAULT_AUTH_SETTINGS
+    
+    methods = {
+        "email_password": settings.get("email_password_enabled", True),
+        "google": settings.get("google_enabled", True),
+        "phone": settings.get("phone_enabled", False),
+        "guest": settings.get("guest_access_enabled", True),
+        "registration_enabled": settings.get("registration_enabled", True)
+    }
+    
+    # Cache for 5 minutes
+    cache.set("auth_methods", methods, ttl=300)
+    
+    return methods
+
+
+# ============== VALIDATION MIDDLEWARE ==============
+
+async def check_auth_method_enabled(method: str) -> bool:
+    """Check if a specific auth method is enabled"""
+    db = get_db()
+    
+    settings = await db.auth_settings.find_one(
+        {"settings_id": "auth_settings"},
+        {"_id": 0}
+    )
+    
+    if not settings:
+        return True  # Default to enabled
+    
+    method_map = {
+        "email": settings.get("email_password_enabled", True),
+        "google": settings.get("google_enabled", True),
+        "phone": settings.get("phone_enabled", False),
+        "guest": settings.get("guest_access_enabled", True)
+    }
+    
+    return method_map.get(method, True)
