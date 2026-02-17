@@ -30,6 +30,7 @@ ALBUM_LIST_PROJECTION = {
     "status": 1,
     "songs_count": 1,
     "total_plays": 1,
+    "tags": 1,
     "created_at": 1
 }
 
