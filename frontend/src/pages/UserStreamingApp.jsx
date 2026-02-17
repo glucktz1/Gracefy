@@ -3523,7 +3523,7 @@ export default function UserStreamingApp() {
                           {layoutType === 0 && section.section_type === 'featured_albums' && (
                             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                               {items.slice(0, 5).map(album => (
-                                <WideAlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
+                                <WideAlbumCard key={album.album_id} album={album} onOpen={openAlbum} availableTags={availableTags} />
                               ))}
                             </div>
                           )}
@@ -3532,7 +3532,7 @@ export default function UserStreamingApp() {
                           {(layoutType === 1 || (layoutType === 0 && section.section_type !== 'featured_albums') || section.section_type === 'seasonal' || section.section_type === 'quick_access') && (
                             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                               {items.slice(0, 10).map(album => (
-                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
+                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} availableTags={availableTags} />
                               ))}
                             </div>
                           )}
@@ -3557,7 +3557,7 @@ export default function UserStreamingApp() {
                           {layoutType === 3 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                               {items.slice(0, 10).map(album => (
-                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} size="sm" />
+                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} size="sm" availableTags={availableTags} />
                               ))}
                             </div>
                           )}
