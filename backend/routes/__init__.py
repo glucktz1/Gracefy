@@ -23,6 +23,7 @@ from .cdn_management import router as cdn_management_router
 from .feedback import router as feedback_router
 from .chat import router as chat_router
 from .app_control import router as app_control_router
+from .recommendations import router as recommendations_router
 
 __all__ = [
     'auth_router',
@@ -45,4 +46,5 @@ __all__ = [
     'feedback_router',
     'chat_router',
     'app_control_router',
+    'recommendations_router',
 ]
