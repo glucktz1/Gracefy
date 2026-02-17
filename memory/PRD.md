@@ -233,9 +233,14 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 - [x] When shuffle ON, continuous play disabled
 - [x] When continuous play ON, shuffle disabled
 
-## Previous Updates (Feb 11, 2026)
+### Play Count & Revenue Fixes (Feb 17, 2026 - Session 2)
+- [x] **CRITICAL FIX**: Added missing `/api/listening/track-play` endpoint - it was defined as function but not exposed as API route
+- [x] Fixed `recalculate_play_counts` to handle both legacy (`song_id`) and new (`content_id`) session formats
+- [x] Updated album play count aggregation pipeline to use `$ifNull` for backward compatibility
+- [x] Verified play count increments correctly after 45+ second plays
+- [x] Verified revenue calculation from listening sessions works correctly
 
-### Play Count & Revenue Fixes
+### Previous Play Count & Revenue Fixes (Feb 11, 2026)
 - [x] Fixed play count recording to update both `play_count` and `plays` fields
 - [x] When a song is played, album's `total_plays` is also incremented
 - [x] Added `/api/admin/recalculate-play-counts` endpoint to fix historical data
