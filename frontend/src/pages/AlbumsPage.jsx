@@ -846,6 +846,24 @@ export default function AlbumsPage() {
                         <Calendar size={12} /> Released: {selectedAlbum.release_date}
                       </p>
                     )}
+                    {/* Album Tags */}
+                    {selectedAlbum.tags && selectedAlbum.tags.length > 0 && (
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <Tag size={12} className="text-zinc-500" />
+                        {selectedAlbum.tags.map(tagId => {
+                          const tag = availableTags.find(t => t.tag_id === tagId);
+                          return tag ? (
+                            <span 
+                              key={tagId}
+                              className="px-2 py-0.5 rounded text-xs"
+                              style={{ backgroundColor: tag.color + '30', color: tag.color }}
+                            >
+                              {tag.name}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                     <p className="text-sm text-zinc-500 mt-2">{albumSongs.length} songs</p>
                   </div>
                 </div>
