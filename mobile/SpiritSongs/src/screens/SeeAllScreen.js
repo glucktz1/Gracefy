@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { contentAPI, churchAPI, leaderContentAPI, getImageUrl } from '../services/api';
+import { contentAPI, churchAPI, leaderContentAPI, homeAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { SongListItem } from '../components/Cards';
 
@@ -25,12 +25,23 @@ const SeeAllScreen = ({ navigation, route }) => {
   const [items, setItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [availableTags, setAvailableTags] = useState([]);
   
   const { playTrack, currentTrack, isPlaying } = usePlayer();
 
   useEffect(() => {
     loadItems();
+    loadTags();
   }, [category, type]);
+
+  const loadTags = async () => {
+    try {
+      const res = await homeAPI.getTags();
+      setAvailableTags(res?.data?.tags || []);
+    } catch (e) {
+      console.log('Failed to load tags');
+    }
+  };
 
   useEffect(() => {
     filterItems();
