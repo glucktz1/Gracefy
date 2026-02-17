@@ -192,7 +192,35 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 2. 3 songs have no audio URL - disabled
 3. ~~Hero section images may not display properly~~ (FIXED - Feb 10, 2026)
 
-## Latest Updates (Feb 11, 2026)
+## Latest Updates (Feb 17, 2026)
+
+### Album Tagging System - COMPLETE
+- [x] Backend API for managing album tags (`/api/admin/tags`, `/api/albums/{id}/tags`)
+- [x] 8 system tags pre-configured: Nyimbo, Album, Mpya, Pasaka, Kwaresma, Krismasi, Trending, Featured
+- [x] Admin UI for creating custom tags in RecommendationEnginePage
+- [x] Tag management modal in AlbumsPage - manage tags per album
+- [x] Tags displayed on album cards and album detail header
+- [x] Album model updated with `tags: List[str]` field
+
+### Auto-Recommendation Engine - COMPLETE
+- [x] Backend recommendation API (`/api/recommendations/next-songs`)
+- [x] Configurable recommendation criteria (genre, artist, popularity, recency)
+- [x] Weight-based scoring system for recommendations
+- [x] Admin UI for configuring recommendation settings
+- [x] Source toggles: same album, same artist, trending, new releases
+- [x] Exclude recently played songs option
+- [x] Recommendation pool size and trending thresholds configurable
+
+### Continuous Play (Mobile) - COMPLETE
+- [x] Mobile PlayerContext updated with continuous play mode
+- [x] Auto-fetches recommended songs when queue nears end
+- [x] Pre-fetching recommendations when 2 songs from queue end
+- [x] Toggle between shuffle and continuous play (mutually exclusive)
+- [x] UI toggle in NowPlayingScreen with "infinite" icon
+- [x] When shuffle ON, continuous play disabled
+- [x] When continuous play ON, shuffle disabled
+
+## Previous Updates (Feb 11, 2026)
 
 ### Play Count & Revenue Fixes
 - [x] Fixed play count recording to update both `play_count` and `plays` fields
@@ -221,3 +249,5 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 - Revenue only calculates when billing is enabled in subscription_settings
 - CDN stats now count from songs/albums collections, not legacy files collection
 - Hero banners have 9 duplicate entries with large base64 images - consider cleanup
+- Album tags require cache invalidation (2 min TTL) to show in list API
+
