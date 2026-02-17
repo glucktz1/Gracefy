@@ -253,7 +253,6 @@ async def get_next_song_recommendations(
         exclude_ids.extend([s["content_id"] for s in recent_sessions])
     
     weights = settings.get("weights", {})
-    pool_size = settings.get("recommendation_pool_size", 50)
     
     # 1. Songs from same album (if enabled)
     if settings.get("include_from_same_album") and current_song.get("album_id"):
