@@ -160,6 +160,8 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/app-control", icon: Smartphone, label: "App Control", permissions: ["platform_settings"] },
     // Recommendation Engine
     { path: "/recommendations", icon: Sparkles, label: "Recommendations", permissions: ["platform_settings"] },
+    // Authentication Settings
+    { path: "/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
