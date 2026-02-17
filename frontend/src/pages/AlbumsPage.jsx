@@ -1460,6 +1460,97 @@ export default function AlbumsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Tag Management Modal */}
+      <Dialog open={isTagModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsTagModalOpen(false);
+          setEditingAlbumForTags(null);
+          setSelectedTags([]);
+        }
+      }}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Tag size={20} className="text-violet-500" />
+              Manage Album Tags
+            </DialogTitle>
+          </DialogHeader>
+          {editingAlbumForTags && (
+            <div className="py-4">
+              <p className="text-zinc-400 text-sm mb-4">
+                Select tags for: <span className="text-white font-medium">{editingAlbumForTags.title}</span>
+              </p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {availableTags.map(tag => {
+                  const isSelected = selectedTags.includes(tag.tag_id);
+                  return (
+                    <button
+                      key={tag.tag_id}
+                      type="button"
+                      onClick={() => toggleTag(tag.tag_id)}
+                      className={`p-3 rounded-lg border transition-all flex items-center gap-2 ${
+                        isSelected 
+                          ? 'border-violet-500 bg-violet-500/20' 
+                          : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
+                      }`}
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="text-sm text-white flex-1 text-left">{tag.name}</span>
+                      {isSelected && <Check size={14} className="text-violet-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {selectedTags.length > 0 && (
+                <div className="mt-4 p-3 bg-zinc-800 rounded-lg">
+                  <p className="text-xs text-zinc-400 mb-2">Selected Tags ({selectedTags.length}):</p>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedTags.map(tagId => {
+                      const tag = availableTags.find(t => t.tag_id === tagId);
+                      return tag ? (
+                        <span 
+                          key={tagId}
+                          className="px-2 py-1 rounded text-xs"
+                          style={{ backgroundColor: tag.color + '30', color: tag.color }}
+                        >
+                          {tag.name}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setIsTagModalOpen(false);
+                setEditingAlbumForTags(null);
+                setSelectedTags([]);
+              }} 
+              className="border-zinc-700 text-zinc-300"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateAlbumTags}
+              className="bg-violet-600 hover:bg-violet-700"
+              data-testid="save-tags-btn"
+            >
+              Save Tags
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
