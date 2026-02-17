@@ -2548,13 +2548,15 @@ export default function UserStreamingApp() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [homeRes, catRes, sectionsRes] = await Promise.all([
+        const [homeRes, catRes, sectionsRes, tagsRes] = await Promise.all([
           axios.get(`${API}/user/home`),
           axios.get(`${API}/user/browse/categories`),
-          axios.get(`${API}/layout/sections?active_only=true`)
+          axios.get(`${API}/layout/sections?active_only=true`),
+          axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } }))
         ]);
         setHomeData(homeRes.data);
         setCategories(catRes.data.categories || []);
+        setAvailableTags(tagsRes.data?.tags || []);
         
         // Get quick access section items
         const quickSection = sectionsRes.data.sections?.find(s => s.section_type === 'quick_access');
