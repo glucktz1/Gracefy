@@ -233,6 +233,20 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 - [x] When shuffle ON, continuous play disabled
 - [x] When continuous play ON, shuffle disabled
 
+### Bible Section Redesign (Feb 17, 2026)
+- [x] Completely redesigned BibleScreen.js to match web design
+- [x] New home view with two main cards:
+  - **Bible Card** (Orange gradient): Opens Bible book selection
+  - **Featured Snippet Card** (Purple gradient): "SOMO LA LEO" with instant play
+- [x] Cards feature modern gradient design with rounded corners
+- [x] "Fungua" and "Sikiliza Sasa" buttons styled like web version
+- [x] Added FEATURED badge on snippet card
+- [x] TTS Settings displayed showing current voice and speed
+- [x] Voice and speed settings from admin are now used for all TTS playback
+- [x] Added "Masomo Mengine" horizontal scroll for additional snippets
+- [x] View state management: home → books → chapters → verses
+- [x] Maintained all existing functionality (TTS, verse selection, listening history)
+
 ### AI Chat Screen Crash Fix (Feb 17, 2026)
 - [x] Added `parseMessage()` helper function for safe message parsing
 - [x] Added defensive null checks in `renderMessage()` to prevent crashes on malformed data
