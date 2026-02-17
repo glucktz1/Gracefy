@@ -154,19 +154,34 @@ const SeeAllScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderAlbumItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.albumCard}
-      onPress={() => handleItemPress(item)}
-    >
-      <Image
-        source={{ uri: getImageUrl(item.thumbnail) || 'https://via.placeholder.com/150' }}
-        style={styles.albumImage}
-      />
-      <Text style={styles.albumTitle} numberOfLines={2}>{item.name || item.title}</Text>
-      <Text style={styles.albumArtist} numberOfLines={1}>{item.artist_name || 'Unknown'}</Text>
-    </TouchableOpacity>
-  );
+  const renderAlbumItem = ({ item }) => {
+    // Get first tag for display
+    const firstTagId = item.tags?.[0];
+    const tag = firstTagId ? availableTags.find(t => t.tag_id === firstTagId) : null;
+    
+    return (
+      <TouchableOpacity 
+        style={styles.albumCard}
+        onPress={() => handleItemPress(item)}
+      >
+        <View style={styles.albumImageContainer}>
+          <Image
+            source={{ uri: getImageUrl(item.thumbnail) || 'https://via.placeholder.com/150' }}
+            style={styles.albumImage}
+          />
+          {tag && (
+            <View style={styles.albumTagBadge}>
+              <View style={[styles.albumTagPill, { backgroundColor: tag.color }]}>
+                <Text style={styles.albumTagText}>{tag.name}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+        <Text style={styles.albumTitle} numberOfLines={2}>{item.name || item.title}</Text>
+        <Text style={styles.albumArtist} numberOfLines={1}>{item.artist_name || 'Unknown'}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderSongItem = ({ item, index }) => (
     <SongListItem
