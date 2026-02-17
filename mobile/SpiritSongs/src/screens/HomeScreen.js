@@ -1109,13 +1109,6 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
               {hotNewReleases.map((album, index) => renderAlbumCard(album, index))}
-                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
-                    style={styles.smallSquareImage}
-                  />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
-                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
-                </TouchableOpacity>
-              ))}
             </ScrollView>
           </View>
         )}
