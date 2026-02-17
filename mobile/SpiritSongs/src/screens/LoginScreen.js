@@ -38,8 +38,35 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  
+  // Auth methods from admin settings
+  const [authMethods, setAuthMethods] = useState({
+    email_password: true,
+    google: true,
+    phone: false,
+    guest: true,
+    registration_enabled: true
+  });
+  const [loadingMethods, setLoadingMethods] = useState(true);
 
   const { login } = useAuth();
+
+  // Fetch available auth methods on mount
+  useEffect(() => {
+    const fetchAuthMethods = async () => {
+      try {
+        const response = await authAPI.getAuthMethods();
+        if (response.data) {
+          setAuthMethods(response.data);
+        }
+      } catch (error) {
+        console.log('Failed to fetch auth methods, using defaults:', error.message);
+      } finally {
+        setLoadingMethods(false);
+      }
+    };
+    fetchAuthMethods();
+  }, []);
 
   // Handle deep link for OAuth callback
   useEffect(() => {
