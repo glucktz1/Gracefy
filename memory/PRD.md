@@ -203,8 +203,17 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 - [x] 8 system tags pre-configured: Nyimbo, Album, Mpya, Pasaka, Kwaresma, Krismasi, Trending, Featured
 - [x] Admin UI for creating custom tags in RecommendationEnginePage
 - [x] Tag management modal in AlbumsPage - manage tags per album
-- [x] Tags displayed on album cards and album detail header
+- [x] **Tags in album creation/edit form** - admin can select tags when creating new albums
+- [x] Tags displayed on album cards and album detail header (Admin Panel)
 - [x] Album model updated with `tags: List[str]` field
+- [x] ALBUM_LIST_PROJECTION updated to include tags field
+
+### Mobile App - Album Tags Display - COMPLETE
+- [x] HomeScreen: Tags appear as colored badges on top-left of album cards
+- [x] SeeAllScreen: Tags displayed on album grid view
+- [x] AlbumScreen: Tags shown on album detail header
+- [x] renderAlbumCard() helper function for consistent tag display
+- [x] Tags API integrated in mobile app (homeAPI.getTags())
 
 ### Auto-Recommendation Engine - COMPLETE
 - [x] Backend recommendation API (`/api/recommendations/next-songs`)
