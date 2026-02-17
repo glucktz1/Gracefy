@@ -37,6 +37,7 @@ const AlbumScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [likedSongs, setLikedSongs] = useState(new Set());
   const [playlists, setPlaylists] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   
   // Modal states
   const [showActionsSheet, setShowActionsSheet] = useState(false);
