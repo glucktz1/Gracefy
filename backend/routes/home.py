@@ -23,6 +23,7 @@ ALBUM_LIST_PROJECTION = {
     "thumbnail": 1,
     "songs_count": 1,
     "total_plays": 1,
+    "tags": 1,
 }
 
 CATEGORY_LIST_PROJECTION = {
