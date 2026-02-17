@@ -581,10 +581,66 @@ export const PlayerProvider = ({ children }) => {
 
   /**
    * Toggle shuffle mode
+   * When shuffle is ON, continuous play (auto-recommendations) is disabled
    */
-  const toggleShuffle = () => {
-    setShuffle(prev => !prev);
-    // Note: Shuffle implementation would require reordering the queue
+  const toggleShuffle = async () => {
+    const newShuffle = !shuffle;
+    setShuffle(newShuffle);
+    shuffleRef.current = newShuffle;
+    
+    // If enabling shuffle, disable continuous play
+    if (newShuffle) {
+      setContinuousPlay(false);
+      continuousPlayRef.current = false;
+    }
+    
+    // Shuffle the current queue if enabling
+    if (newShuffle && queue.length > 1) {
+      try {
+        // Get current track
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+        const currentTrackData = currentIndex !== null ? queue[currentIndex] : null;
+        
+        // Shuffle remaining songs after current
+        const before = currentTrackData ? [currentTrackData] : [];
+        const rest = queue.filter((_, i) => i !== currentIndex);
+        const shuffled = [...rest].sort(() => Math.random() - 0.5);
+        const newQueue = [...before, ...shuffled];
+        
+        setQueue(newQueue);
+        queueRef.current = newQueue;
+        
+        // Reset TrackPlayer queue with shuffled order
+        await TrackPlayer.reset();
+        await TrackPlayer.add(newQueue.map(toTrackPlayerFormat));
+        if (currentTrackData) {
+          await TrackPlayer.play();
+        }
+        
+        console.log('[Player] Queue shuffled');
+      } catch (e) {
+        console.error('[Player] Shuffle error:', e);
+      }
+    }
+  };
+
+  /**
+   * Toggle continuous play mode (auto-recommendations)
+   * When ON, the app fetches recommended songs when queue ends
+   * When OFF, playback stops after the queue ends (unless repeat is enabled)
+   */
+  const toggleContinuousPlay = () => {
+    const newValue = !continuousPlay;
+    setContinuousPlay(newValue);
+    continuousPlayRef.current = newValue;
+    
+    // If enabling continuous play, disable shuffle
+    if (newValue && shuffle) {
+      setShuffle(false);
+      shuffleRef.current = false;
+    }
+    
+    console.log(`[Player] Continuous play ${newValue ? 'enabled' : 'disabled'}`);
   };
 
   /**
