@@ -84,8 +84,11 @@ export default function AlbumsPage() {
     thumbnail: "",
     release_date: "",
     monetization_type: "free",
-    status: "active"
+    status: "active",
+    tags: []
   });
+
+  const [availableTags, setAvailableTags] = useState([]);
 
   const [songFormData, setSongFormData] = useState({
     title: "",
