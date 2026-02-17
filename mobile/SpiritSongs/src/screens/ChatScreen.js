@@ -199,14 +199,28 @@ export default function ChatScreen({ navigation }) {
   };
 
   const renderMessage = ({ item, index }) => {
-    if (!item || !item.message) return null;
+    // Defensive check - skip invalid messages
+    if (!item) return null;
+    
+    const messageText = item.message || item.content || item.text || '';
+    if (!messageText) return null;
     
     const isUser = item.sender === 'user';
     const isSystem = item.sender === 'system';
     
+    // Safe timestamp formatting
+    let timeString = '';
+    try {
+      if (item.timestamp) {
+        timeString = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch (e) {
+      timeString = '';
+    }
+    
     return (
       <View 
-        key={item.id || index}
+        key={item.id || `msg-${index}`}
         style={[
           styles.messageRow, 
           isUser && styles.messageRowUser,
@@ -228,13 +242,11 @@ export default function ChatScreen({ navigation }) {
             isUser && styles.messageTextUser,
             isSystem && styles.messageTextSystem
           ]}>
-            {item.message}
+            {messageText}
           </Text>
-          {item.timestamp && (
-            <Text style={styles.messageTime}>
-              {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          )}
+          {timeString ? (
+            <Text style={styles.messageTime}>{timeString}</Text>
+          ) : null}
         </View>
         {isUser && (
           <View style={styles.avatarUser}>
