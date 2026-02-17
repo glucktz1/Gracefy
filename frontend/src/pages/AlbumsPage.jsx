@@ -3,7 +3,7 @@ import axios from "axios";
 import { 
   Music2, Plus, Edit2, Trash2, MoreVertical, Upload, Play, Disc, 
   Check, X, ToggleLeft, ToggleRight, CheckSquare, Square, FileAudio,
-  DollarSign, Crown, Gift, Calendar, Clock
+  DollarSign, Crown, Gift, Calendar, Clock, Tag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
