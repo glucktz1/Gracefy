@@ -1196,31 +1196,33 @@ async def get_available_auth_methods():
     """
     db = get_db()
     
-    # Try cache first
-    cached = cache.get("auth_methods")
-    if cached:
-        return cached
-    
-    settings = await db.auth_settings.find_one(
-        {"settings_id": "auth_settings"},
-        {"_id": 0}
-    )
-    
-    if not settings:
-        settings = DEFAULT_AUTH_SETTINGS
-    
-    methods = {
-        "email_password": settings.get("email_password_enabled", True),
-        "google": settings.get("google_enabled", True),
-        "phone": settings.get("phone_enabled", False),
-        "guest": settings.get("guest_access_enabled", True),
-        "registration_enabled": settings.get("registration_enabled", True)
-    }
-    
-    # Cache for 5 minutes
-    cache.set("auth_methods", methods, ttl=300)
-    
-    return methods
+    try:
+        settings = await db.auth_settings.find_one(
+            {"settings_id": "auth_settings"},
+            {"_id": 0}
+        )
+        
+        if not settings:
+            settings = DEFAULT_AUTH_SETTINGS
+        
+        methods = {
+            "email_password": settings.get("email_password_enabled", True),
+            "google": settings.get("google_enabled", True),
+            "phone": settings.get("phone_enabled", False),
+            "guest": settings.get("guest_access_enabled", True),
+            "registration_enabled": settings.get("registration_enabled", True)
+        }
+        
+        return methods
+    except Exception as e:
+        # Return defaults on error
+        return {
+            "email_password": True,
+            "google": True,
+            "phone": False,
+            "guest": True,
+            "registration_enabled": True
+        }
 
 
 # ============== VALIDATION MIDDLEWARE ==============
