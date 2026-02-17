@@ -565,12 +565,31 @@ const styles = StyleSheet.create({
   artContainer: {
     alignItems: 'center',
     marginTop: SPACING.xxl + SPACING.lg,
+    position: 'relative',
   },
   albumArt: {
     width: 200,
     height: 200,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.surface,
+  },
+  albumTagsOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: -30,
+    flexDirection: 'column',
+    gap: 4,
+  },
+  albumTagChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  albumTagChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
   },
   infoContainer: {
     alignItems: 'center',
