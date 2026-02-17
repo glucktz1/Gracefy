@@ -86,7 +86,7 @@ export const usePlayer = () => {
  */
 export const PlayerProvider = ({ children }) => {
   // ============ AUTH CONTEXT ============
-  const { isAuthenticated, incrementGuestPlayCount } = useAuth();
+  const { isAuthenticated, incrementGuestPlayCount, user } = useAuth();
 
   // ============ STATE ============
   const [currentTrack, setCurrentTrack] = useState(null);
@@ -97,6 +97,7 @@ export const PlayerProvider = ({ children }) => {
   const [repeat, setRepeat] = useState('all');
   const [isLiked, setIsLiked] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [continuousPlay, setContinuousPlay] = useState(true); // Auto-recommendation on by default
 
   // ============ HOOKS FROM TRACK PLAYER ============
   const playbackState = usePlaybackState();
@@ -106,7 +107,10 @@ export const PlayerProvider = ({ children }) => {
   // ============ REFS ============
   const queueRef = useRef([]);
   const repeatRef = useRef('all');
+  const shuffleRef = useRef(false);
+  const continuousPlayRef = useRef(true);
   const setupCompleteRef = useRef(false);
+  const isFetchingRecommendationsRef = useRef(false);
   
   // Analytics tracking
   const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
@@ -124,6 +128,8 @@ export const PlayerProvider = ({ children }) => {
   // ============ SYNC REFS ============
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
+  useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
+  useEffect(() => { continuousPlayRef.current = continuousPlay; }, [continuousPlay]);
 
   // ============ SETUP PLAYER ============
   const setupPlayer = useCallback(async () => {
