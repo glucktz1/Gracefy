@@ -89,6 +89,9 @@ export default function AlbumsPage() {
   });
 
   const [availableTags, setAvailableTags] = useState([]);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [editingAlbumForTags, setEditingAlbumForTags] = useState(null);
+  const [selectedTags, setSelectedTags] = useState([]);
 
   const [songFormData, setSongFormData] = useState({
     title: "",
