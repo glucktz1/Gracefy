@@ -157,6 +157,8 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/knowledge-bank", icon: Brain, label: "Knowledge Bank", permissions: ["platform_settings"] },
     // App Control & Management - Standalone Section
     { path: "/app-control", icon: Smartphone, label: "App Control", permissions: ["platform_settings"] },
+    // Recommendation Engine
+    { path: "/recommendations", icon: Sparkles, label: "Recommendations", permissions: ["platform_settings"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
