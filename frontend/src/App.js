@@ -61,13 +61,14 @@ const FeedbackPage = lazy(() => import("@/pages/FeedbackPage"));
 const ChatManagementPage = lazy(() => import("@/pages/ChatManagementPage"));
 const KnowledgeBankPage = lazy(() => import("@/pages/KnowledgeBankPage"));
 const AppControlPage = lazy(() => import("@/pages/AppControlPage"));
+const RecommendationEnginePage = lazy(() => import("@/pages/RecommendationEnginePage"));
 
 // Icons
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   Mic2, Video, Radio, Heart, MessageSquare,
   CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe,
-  ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud, Tags, Megaphone, MessageCircle, Headphones, Brain, Smartphone
+  ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud, Tags, Megaphone, MessageCircle, Headphones, Brain, Smartphone, Sparkles
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
