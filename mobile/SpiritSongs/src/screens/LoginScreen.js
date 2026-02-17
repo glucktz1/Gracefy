@@ -585,8 +585,17 @@ const LoginScreen = ({ navigation }) => {
             {/* Registration Link - Only show if registration enabled */}
             {authMethods.registration_enabled && (
               <TouchableOpacity onPress={() => setAuthMode('register')}>
-              <Text style={styles.linkText}>Huna akaunti? Sajili sasa</Text>
-            </TouchableOpacity>
+                <Text style={styles.linkText}>Huna akaunti? Sajili sasa</Text>
+              </TouchableOpacity>
+            )}
+            
+            {/* No login methods warning */}
+            {!authMethods.email_password && !authMethods.google && !authMethods.phone && (
+              <View style={styles.noMethodsWarning}>
+                <Ionicons name="warning-outline" size={24} color="#f59e0b" />
+                <Text style={styles.noMethodsText}>Hakuna njia ya kuingia inayopatikana kwa sasa</Text>
+              </View>
+            )}
           </>
         );
     }
