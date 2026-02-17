@@ -508,66 +508,83 @@ const LoginScreen = ({ navigation }) => {
         return (
           <>
             <Text style={styles.title}>Karibu Tena!</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={COLORS.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={COLORS.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textSecondary} />
+            
+            {/* Email/Password Login - Only show if enabled */}
+            {authMethods.email_password && (
+              <>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => setAuthMode('forgot')}>
+                  <Text style={styles.forgotText}>Umesahau password?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
+                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Ingia</Text>}
+                </TouchableOpacity>
+              </>
+            )}
+            
+            {/* Divider - Show if there are multiple methods */}
+            {authMethods.email_password && (authMethods.google || authMethods.phone) && (
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>au</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            )}
+            
+            {/* Google Login - Only show if enabled */}
+            {authMethods.google && (
+              <TouchableOpacity 
+                style={styles.googleButton} 
+                onPress={handleGoogleLogin} 
+                disabled={googleLoading}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={20} color="#fff" />
+                    <Text style={styles.googleButtonText}>Ingia na Google</Text>
+                  </>
+                )}
               </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={() => setAuthMode('forgot')}>
-              <Text style={styles.forgotText}>Umesahau password?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Ingia</Text>}
-            </TouchableOpacity>
+            )}
             
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>au</Text>
-              <View style={styles.dividerLine} />
-            </View>
+            {/* Phone Login - Only show if enabled */}
+            {authMethods.phone && (
+              <TouchableOpacity style={styles.phoneButton} onPress={() => setAuthMode('phone')}>
+                <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+                <Text style={styles.phoneButtonText}>Ingia na Simu</Text>
+              </TouchableOpacity>
+            )}
             
-            <TouchableOpacity 
-              style={styles.googleButton} 
-              onPress={handleGoogleLogin} 
-              disabled={googleLoading}
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="logo-google" size={20} color="#fff" />
-                  <Text style={styles.googleButtonText}>Ingia na Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.phoneButton} onPress={() => setAuthMode('phone')}>
-              <Ionicons name="call-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.phoneButtonText}>Ingia na Simu</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity onPress={() => setAuthMode('register')}>
+            {/* Registration Link - Only show if registration enabled */}
+            {authMethods.registration_enabled && (
+              <TouchableOpacity onPress={() => setAuthMode('register')}>
               <Text style={styles.linkText}>Huna akaunti? Sajili sasa</Text>
             </TouchableOpacity>
           </>
