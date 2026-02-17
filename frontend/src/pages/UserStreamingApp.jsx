@@ -3634,7 +3634,7 @@ export default function UserStreamingApp() {
                       <SectionHeader title={t('library.albums', 'Albums')} />
                       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                         {searchResults.albums.map(album => (
-                          <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} />
+                          <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} availableTags={availableTags} />
                         ))}
                       </div>
                     </section>
