@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // API Base URL - connects to existing backend
-export const API_BASE_URL = 'https://songfix-spirit.preview.emergentagent.com/api';
+export const API_BASE_URL = 'https://melodyminder-4.preview.emergentagent.com/api';
 
 // Create axios instance
 const api = axios.create({
