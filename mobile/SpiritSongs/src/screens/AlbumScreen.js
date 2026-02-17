@@ -75,6 +75,7 @@ const AlbumScreen = ({ route, navigation }) => {
   useEffect(() => {
     if (item) {
       loadSongs();
+      loadTags();
       if (isAuthenticated) {
         loadLikedSongs();
         loadPlaylists();
@@ -83,6 +84,15 @@ const AlbumScreen = ({ route, navigation }) => {
       setLoading(false);
     }
   }, [item, isAuthenticated]);
+
+  const loadTags = async () => {
+    try {
+      const res = await homeAPI.getTags();
+      setAvailableTags(res?.data?.tags || []);
+    } catch (e) {
+      console.log('Failed to load tags:', e.message);
+    }
+  };
 
   const loadSongs = async () => {
     try {
