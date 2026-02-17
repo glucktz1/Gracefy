@@ -747,12 +747,23 @@ export default function AlbumsPage() {
                               thumbnail: album.thumbnail || "",
                               release_date: album.release_date || "",
                               monetization_type: album.monetization_type || "free",
-                              status: album.status || "active"
+                              status: album.status || "active",
+                              tags: album.tags || []
                             });
                             setIsAlbumModalOpen(true);
                           }} className="text-zinc-300 focus:text-white focus:bg-zinc-800">
                             <Edit2 size={14} className="mr-2" />
                             Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTagModal(album);
+                            }}
+                            className="text-zinc-300 focus:text-white focus:bg-zinc-800"
+                          >
+                            <Tag size={14} className="mr-2" />
+                            Manage Tags
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={async (e) => {
