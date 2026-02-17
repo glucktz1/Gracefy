@@ -1431,11 +1431,21 @@ async def recalculate_play_counts():
     for album in albums:
         album_id = album["album_id"]
         # Get total plays for all songs in this album
+        # Match both new format (content_id) and legacy format (song_id)
         album_plays_pipeline = [
-            {"$match": {"content_type": "song", "counted_as_play": True}},
+            {"$match": {
+                "counted_as_play": True,
+                "$or": [
+                    {"content_type": "song", "content_id": {"$ne": None}},
+                    {"song_id": {"$ne": None}}
+                ]
+            }},
+            {"$addFields": {
+                "effective_song_id": {"$ifNull": ["$content_id", "$song_id"]}
+            }},
             {"$lookup": {
                 "from": "songs",
-                "localField": "content_id",
+                "localField": "effective_song_id",
                 "foreignField": "song_id",
                 "as": "song"
             }},
