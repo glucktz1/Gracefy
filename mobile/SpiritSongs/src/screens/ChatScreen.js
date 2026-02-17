@@ -71,8 +71,15 @@ export default function ChatScreen({ navigation }) {
       
       if (response.data && response.data.success) {
         setConversationId(response.data.conversation_id);
-        const msgs = response.data.messages || [];
-        setMessages(msgs);
+        const rawMsgs = response.data.messages || [];
+        // Parse messages safely to prevent crashes
+        const msgs = rawMsgs.map((m, i) => parseMessage(m, i)).filter(m => m && m.message);
+        setMessages(msgs.length > 0 ? msgs : [{
+          id: 'welcome',
+          message: 'Karibu kwenye Msaada wa SpiritSongs! Ninawezaje kukusaidia leo?',
+          sender: 'ai',
+          timestamp: new Date().toISOString(),
+        }]);
       } else {
         // Show welcome message
         setMessages([{
