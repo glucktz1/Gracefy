@@ -791,6 +791,7 @@ export const PlayerProvider = ({ children }) => {
     shuffle,
     repeat,
     isLiked,
+    continuousPlay, // Auto-recommendation mode
     
     // Actions
     playTrack,
@@ -802,6 +803,7 @@ export const PlayerProvider = ({ children }) => {
     toggleShuffle,
     toggleRepeat,
     toggleLike,
+    toggleContinuousPlay, // Toggle auto-recommendations
     addToQueue,
     playQueue,
     clearQueue,
