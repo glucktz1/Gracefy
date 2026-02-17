@@ -205,6 +205,14 @@ export const playerAPI = {
   likeSong: (songId) => api.post('/user/favorites/add', { id: songId, type: 'song' }),
   unlikeSong: (songId) => api.post('/user/favorites/remove', { id: songId, type: 'song' }),
   checkLiked: (songId) => api.get(`/user/favorites/check?type=song&id=${songId}`),
+  
+  // Recommendations for continuous play
+  getNextSongRecommendations: (currentSongId, userId = null, limit = 10) => 
+    api.get(`/recommendations/next-songs?current_song_id=${currentSongId}${userId ? `&user_id=${userId}` : ''}&limit=${limit}`),
+  getUserRecommendations: (userId, limit = 20) => 
+    api.get(`/recommendations/for-user?user_id=${userId}&limit=${limit}`),
+  getTrending: (limit = 20) => 
+    api.get(`/recommendations/trending?limit=${limit}`),
 };
 
 // ============ BIBLE API ============
