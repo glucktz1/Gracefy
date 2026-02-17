@@ -408,6 +408,11 @@ async def register_user(data: dict):
     """Register a new user with email/password or phone"""
     db = get_db()
     
+    # Check if registration is enabled
+    auth_settings = await db.auth_settings.find_one({"settings_id": "auth_settings"})
+    if auth_settings and not auth_settings.get("registration_enabled", True):
+        raise HTTPException(status_code=403, detail="New registrations are currently disabled")
+    
     email = data.get("email")
     phone = data.get("phone")
     password = data.get("password")
@@ -415,6 +420,19 @@ async def register_user(data: dict):
     
     if not password or (not email and not phone):
         raise HTTPException(status_code=400, detail="Email or phone and password required")
+    
+    # Check if email registration is enabled
+    if email and not await check_auth_method_enabled("email"):
+        raise HTTPException(status_code=403, detail="Email registration is currently disabled")
+    
+    # Check if phone registration is enabled
+    if phone and not await check_auth_method_enabled("phone"):
+        raise HTTPException(status_code=403, detail="Phone registration is currently disabled")
+    
+    # Check password length
+    min_length = auth_settings.get("password_min_length", 6) if auth_settings else 6
+    if len(password) < min_length:
+        raise HTTPException(status_code=400, detail=f"Password must be at least {min_length} characters")
     
     # Check if user exists
     if email:
