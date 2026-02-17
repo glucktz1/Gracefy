@@ -58,6 +58,7 @@ class Album(BaseModel):
     status: str = "active"  # active, inactive
     songs_count: int = 0
     total_plays: int = 0
+    tags: List[str] = []  # Tags like: Nyimbo, Album, Mpya, Pasaka, Kwaresma, etc.
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
