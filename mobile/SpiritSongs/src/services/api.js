@@ -89,6 +89,9 @@ export const authAPI = {
   googleStart: (redirectUri) => api.get(`/user/auth/google-start?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`),
   googleCallback: (sessionId) => api.post('/user/auth/google-callback', { session_id: sessionId }),
   
+  // Auth methods (admin configurable)
+  getAuthMethods: () => api.get('/auth/available-methods'),
+  
   // Session
   getMe: (token) => {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
