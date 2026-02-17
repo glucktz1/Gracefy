@@ -537,9 +537,14 @@ const QuickAccessCard = ({ item, onClick }) => {
 };
 
 // Album Card - Standard
-const AlbumCard = ({ album, onPlay, onOpen, size = 'md' }) => {
+const AlbumCard = ({ album, onPlay, onOpen, size = 'md', availableTags = [] }) => {
   const sizeClasses = { sm: 'w-36', md: 'w-44', lg: 'w-52' };
   const thumbUrl = getThumbnail(album);
+  
+  // Get first tag for display
+  const firstTagId = album.tags?.[0];
+  const tag = firstTagId ? availableTags.find(t => t.tag_id === firstTagId) : null;
+  
   return (
     <button
       onClick={() => onOpen(album.album_id)}
@@ -552,6 +557,17 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md' }) => {
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-800 to-emerald-700">
             <Music2 size={size === 'lg' ? 48 : 36} className="text-white/40" />
+          </div>
+        )}
+        {/* Tag Badge - Top Left */}
+        {tag && (
+          <div className="absolute top-2 left-2">
+            <span 
+              className="px-2 py-1 rounded-full text-[10px] font-bold uppercase text-white shadow-lg"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+            </span>
           </div>
         )}
         <div className="absolute bottom-2 right-2 w-11 h-11 bg-emerald-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-300 shadow-xl shadow-black/40">
