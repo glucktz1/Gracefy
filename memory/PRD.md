@@ -233,6 +233,15 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 - [x] When shuffle ON, continuous play disabled
 - [x] When continuous play ON, shuffle disabled
 
+### AI Chat Screen Crash Fix (Feb 17, 2026)
+- [x] Added `parseMessage()` helper function for safe message parsing
+- [x] Added defensive null checks in `renderMessage()` to prevent crashes on malformed data
+- [x] Added safe timestamp formatting with try-catch
+- [x] Added error state handling for graceful failure
+- [x] Verified backend `/api/chat/support` and `/api/chat/support/message` endpoints working correctly
+- [x] AI (Gemini 3 Flash) responding in both Swahili and English
+- [x] Admin chat management page functional at `/api/chat/admin/conversations`
+
 ### Play Count & Revenue Fixes (Feb 17, 2026 - Session 2)
 - [x] **CRITICAL FIX**: Added missing `/api/listening/track-play` endpoint - it was defined as function but not exposed as API route
 - [x] Fixed `recalculate_play_counts` to handle both legacy (`song_id`) and new (`content_id`) session formats
