@@ -1391,9 +1391,19 @@ async def recalculate_play_counts():
     db = get_db()
     
     # Get all songs and their play counts from listening_sessions
+    # Match both content_id (new format) and song_id (legacy format)
     song_plays_pipeline = [
-        {"$match": {"content_type": "song", "counted_as_play": True}},
-        {"$group": {"_id": "$content_id", "total_plays": {"$sum": 1}}}
+        {"$match": {
+            "counted_as_play": True,
+            "$or": [
+                {"content_type": "song", "content_id": {"$ne": None}},
+                {"song_id": {"$ne": None}}
+            ]
+        }},
+        {"$group": {
+            "_id": {"$ifNull": ["$content_id", "$song_id"]}, 
+            "total_plays": {"$sum": 1}
+        }}
     ]
     song_plays = await db.listening_sessions.aggregate(song_plays_pipeline).to_list(10000)
     
