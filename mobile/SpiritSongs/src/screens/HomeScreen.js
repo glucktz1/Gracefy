@@ -124,6 +124,7 @@ const HomeScreen = ({ navigation }) => {
         churchesRes,
         mafundishoRes,
         filtersRes,
+        tagsRes,
       ] = await Promise.all([
         homeAPI.getSections().catch(() => ({ data: { sections: [] } })),
         homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
@@ -136,7 +137,12 @@ const HomeScreen = ({ navigation }) => {
         churchAPI.getChurches().catch(() => ({ data: { churches: [] } })),
         leaderContentAPI.getMafundisho().catch(() => ({ data: { mafundisho: [] } })),
         homeAPI.getHomeFilters().catch(() => ({ data: { filters: [] } })),
+        homeAPI.getTags().catch(() => ({ data: { tags: [] } })),
       ]);
+
+      // Album Tags
+      const tags = tagsRes.data?.tags || [];
+      setAvailableTags(tags);
 
       // Layout sections - handle both nested and direct response
       const rawSections = sectionsRes.data?.sections || sectionsRes.data || [];
