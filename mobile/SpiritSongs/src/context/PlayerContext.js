@@ -190,14 +190,84 @@ export const PlayerProvider = ({ children }) => {
     }
   }, []);
 
+  // ============ FETCH RECOMMENDATIONS FOR CONTINUOUS PLAY ============
+  const fetchAndAddRecommendations = async (currentSongId) => {
+    if (isFetchingRecommendationsRef.current) return;
+    if (shuffleRef.current) return; // Don't fetch recommendations in shuffle mode
+    
+    isFetchingRecommendationsRef.current = true;
+    console.log('[Player] Fetching recommendations for continuous play...');
+    
+    try {
+      const userId = user?.user_id || null;
+      const res = await playerAPI.getNextSongRecommendations(currentSongId, userId, 10);
+      
+      if (res?.data?.songs && res.data.songs.length > 0) {
+        const newSongs = res.data.songs.filter(
+          song => !queueRef.current.find(q => q.song_id === song.song_id)
+        );
+        
+        if (newSongs.length > 0) {
+          console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);
+          
+          // Add songs to queue
+          const updatedQueue = [...queueRef.current, ...newSongs];
+          setQueue(updatedQueue);
+          queueRef.current = updatedQueue;
+          
+          // Add to TrackPlayer
+          const tracksToAdd = newSongs.map(toTrackPlayerFormat);
+          await TrackPlayer.add(tracksToAdd);
+        }
+      }
+    } catch (e) {
+      console.log('[Player] Recommendation fetch error:', e.message);
+    } finally {
+      isFetchingRecommendationsRef.current = false;
+    }
+  };
+
   // ============ INITIALIZE ON MOUNT ============
   useEffect(() => {
     setupPlayer();
 
-    // Listen for queue end to handle repeat
+    // Listen for queue end to handle repeat or continuous play
     const queueEndedSub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
       console.log('[Player] Queue ended');
-      if (repeatRef.current === 'all' && queueRef.current.length > 0) {
+      
+      // If shuffle is on, let repeat handle it (repeat all shuffles again)
+      if (shuffleRef.current) {
+        if (repeatRef.current === 'all' && queueRef.current.length > 0) {
+          try {
+            await TrackPlayer.skip(0);
+            await TrackPlayer.play();
+          } catch (e) {
+            console.error('[Player] Restart queue error:', e);
+          }
+        }
+        return;
+      }
+      
+      // Continuous play mode - fetch recommendations and keep playing
+      if (continuousPlayRef.current && queueRef.current.length > 0) {
+        const lastTrack = queueRef.current[queueRef.current.length - 1];
+        if (lastTrack?.song_id) {
+          await fetchAndAddRecommendations(lastTrack.song_id);
+          
+          // Check if we added new songs
+          const trackPlayerQueue = await TrackPlayer.getQueue();
+          const currentIndex = await TrackPlayer.getActiveTrackIndex();
+          
+          if (currentIndex !== null && currentIndex < trackPlayerQueue.length - 1) {
+            try {
+              await TrackPlayer.skipToNext();
+            } catch (e) {
+              console.error('[Player] Skip to recommended error:', e);
+            }
+          }
+        }
+      } else if (repeatRef.current === 'all' && queueRef.current.length > 0) {
+        // Regular repeat all
         try {
           await TrackPlayer.skip(0);
           await TrackPlayer.play();
@@ -207,13 +277,33 @@ export const PlayerProvider = ({ children }) => {
       }
     });
 
+    // Listen for track change to pre-fetch recommendations
+    const trackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
+      if (!event?.track) return;
+      
+      // When we're near the end of the queue, pre-fetch more recommendations
+      if (continuousPlayRef.current && !shuffleRef.current) {
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+        const trackPlayerQueue = await TrackPlayer.getQueue();
+        
+        // If we're 2 songs from the end, fetch more
+        if (currentIndex !== null && trackPlayerQueue.length - currentIndex <= 2) {
+          const currentTrackInQueue = queueRef.current[currentIndex];
+          if (currentTrackInQueue?.song_id) {
+            fetchAndAddRecommendations(currentTrackInQueue.song_id);
+          }
+        }
+      }
+    });
+
     // Cleanup
     return () => {
       queueEndedSub.remove();
+      trackChangedSub.remove();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
     };
-  }, [setupPlayer]);
+  }, [setupPlayer, user]);
 
   // ============ SYNC ACTIVE TRACK ============
   useEffect(() => {
