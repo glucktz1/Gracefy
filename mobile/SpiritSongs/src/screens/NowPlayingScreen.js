@@ -39,12 +39,14 @@ const NowPlayingScreen = ({ navigation }) => {
     repeat,
     queue,
     queueIndex,
+    continuousPlay,
     togglePlay,
     seekTo,
     skipNext,
     skipPrevious,
     toggleShuffle,
     cycleRepeat,
+    toggleContinuousPlay,
     playTrack,
   } = usePlayer();
 
