@@ -319,6 +319,44 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('Playlist', { mix });
   };
 
+  // Helper function to render album tags overlay
+  const renderAlbumTags = (album) => {
+    if (!album?.tags || album.tags.length === 0) return null;
+    
+    // Get first tag only to show on card (top-left badge)
+    const firstTagId = album.tags[0];
+    const tag = availableTags.find(t => t.tag_id === firstTagId);
+    
+    if (!tag) return null;
+    
+    return (
+      <View style={styles.albumTagBadge}>
+        <View style={[styles.albumTagPill, { backgroundColor: tag.color }]}>
+          <Text style={styles.albumTagText}>{tag.name}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // Album card component with tags
+  const renderAlbumCard = (album, index) => (
+    <TouchableOpacity 
+      key={album.album_id || index} 
+      style={styles.smallSquareCard}
+      onPress={() => handleAlbumPress(album)}
+    >
+      <View style={styles.albumImageContainer}>
+        <Image
+          source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
+          style={styles.smallSquareImage}
+        />
+        {renderAlbumTags(album)}
+      </View>
+      <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
+      <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
+    </TouchableOpacity>
+  );
+
   const handlePlayMix = async (mix) => {
     // Play the mix directly - get songs and start playing
     try {
