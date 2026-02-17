@@ -721,8 +721,24 @@ export default function AlbumsPage() {
                             )}
                           </div>
                           <p className="text-sm text-zinc-500 truncate">{album.artist_name || "Unknown Artist"}</p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
                             {getMonetizationBadge(album.monetization_type || "free")}
+                            {/* Display album tags */}
+                            {album.tags && album.tags.length > 0 && album.tags.slice(0, 2).map(tagId => {
+                              const tag = availableTags.find(t => t.tag_id === tagId);
+                              return tag ? (
+                                <span 
+                                  key={tagId}
+                                  className="px-1.5 py-0.5 rounded text-xs"
+                                  style={{ backgroundColor: tag.color + '30', color: tag.color }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ) : null;
+                            })}
+                            {album.tags && album.tags.length > 2 && (
+                              <span className="text-xs text-zinc-500">+{album.tags.length - 2}</span>
+                            )}
                           </div>
                         </div>
                       </div>
