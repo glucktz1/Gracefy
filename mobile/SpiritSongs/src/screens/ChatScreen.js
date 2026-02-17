@@ -21,6 +21,17 @@ import { API_BASE_URL } from '../services/api';
 // Use the API URL from services/api.js
 const API_URL = API_BASE_URL;
 
+// Safe message parser to prevent crashes
+const parseMessage = (msg, index) => {
+  if (!msg) return null;
+  return {
+    id: msg.id || msg._id || `msg-${index}-${Date.now()}`,
+    message: msg.message || msg.content || msg.text || '',
+    sender: msg.sender || msg.role || 'ai',
+    timestamp: msg.timestamp || msg.created_at || new Date().toISOString(),
+  };
+};
+
 export default function ChatScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
