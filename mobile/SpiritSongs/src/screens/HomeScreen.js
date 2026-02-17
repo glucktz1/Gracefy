@@ -1093,20 +1093,7 @@ const HomeScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {mostListenedAlbums.map((album, index) => (
-                <TouchableOpacity 
-                  key={album.album_id || index} 
-                  style={styles.smallSquareCard}
-                  onPress={() => handleAlbumPress(album)}
-                >
-                  <Image
-                    source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
-                    style={styles.smallSquareImage}
-                  />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
-                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
-                </TouchableOpacity>
-              ))}
+              {mostListenedAlbums.map((album, index) => renderAlbumCard(album, index))}
             </ScrollView>
           </View>
         )}
@@ -1121,13 +1108,7 @@ const HomeScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {hotNewReleases.map((album, index) => (
-                <TouchableOpacity 
-                  key={album.album_id || index} 
-                  style={styles.smallSquareCard}
-                  onPress={() => handleAlbumPress(album)}
-                >
-                  <Image
+              {hotNewReleases.map((album, index) => renderAlbumCard(album, index))}
                     source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
                     style={styles.smallSquareImage}
                   />
