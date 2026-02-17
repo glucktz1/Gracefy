@@ -55,6 +55,9 @@ const HomeScreen = ({ navigation }) => {
   const [mostListenedAlbums, setMostListenedAlbums] = useState([]);
   const [hotNewReleases, setHotNewReleases] = useState([]);
   
+  // Album Tags
+  const [availableTags, setAvailableTags] = useState([]);
+  
   // Hero Carousel State
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
   const heroScrollRef = useRef(null);
