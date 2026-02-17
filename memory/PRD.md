@@ -233,6 +233,21 @@ REACT_APP_BACKEND_URL=https://melodyminder-4.preview.emergentagent.com
 - [x] When shuffle ON, continuous play disabled
 - [x] When continuous play ON, shuffle disabled
 
+### Authentication Management System (Feb 17, 2026)
+- [x] Backend API for auth settings (`/api/admin/auth-settings`, `/api/auth/available-methods`)
+- [x] Configurable login methods:
+  - Email/Password toggle
+  - Google Sign-In toggle
+  - Phone Number toggle (requires SMS setup)
+  - Guest Access toggle
+- [x] Security settings: min password length, max login attempts, lockout duration
+- [x] Registration enable/disable toggle
+- [x] Email/Phone verification requirement toggles
+- [x] Admin UI page (`/auth-settings`) with toggle switches
+- [x] Mobile app LoginScreen updated to respect auth method settings
+- [x] Login/register endpoints check if method is enabled before proceeding
+- [x] Public endpoint `/api/auth/available-methods` for frontend/mobile to query enabled methods
+
 ### Bible Section Redesign (Feb 17, 2026)
 - [x] Completely redesigned BibleScreen.js to match web design
 - [x] New home view with two main cards:
