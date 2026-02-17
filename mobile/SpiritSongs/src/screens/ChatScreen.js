@@ -40,6 +40,7 @@ export default function ChatScreen({ navigation }) {
   const [conversationId, setConversationId] = useState(null);
   const [showSatisfaction, setShowSatisfaction] = useState(false);
   const [token, setToken] = useState(null);
+  const [error, setError] = useState(null);
   const flatListRef = useRef(null);
 
   // Get token on mount
@@ -50,6 +51,7 @@ export default function ChatScreen({ navigation }) {
         setToken(storedToken);
       } catch (e) {
         console.log('Error getting token:', e);
+        // Don't crash - just continue without token
       }
     };
     getToken();
