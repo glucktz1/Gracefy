@@ -1710,11 +1710,32 @@ const styles = StyleSheet.create({
     width: 120,
     marginRight: SPACING.md,
   },
+  albumImageContainer: {
+    position: 'relative',
+    width: 120,
+    height: 120,
+  },
   smallSquareImage: {
     width: 120,
     height: 120,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.card,
+  },
+  albumTagBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+  },
+  albumTagPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  albumTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
   },
   smallSquareTitle: {
     fontSize: FONT_SIZES.sm,
