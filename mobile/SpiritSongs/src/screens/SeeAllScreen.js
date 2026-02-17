@@ -382,11 +382,31 @@ const styles = StyleSheet.create({
     margin: SPACING.xs,
     maxWidth: '48%',
   },
+  albumImageContainer: {
+    position: 'relative',
+    width: '100%',
+  },
   albumImage: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.card,
+  },
+  albumTagBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+  },
+  albumTagPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  albumTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
   },
   albumTitle: {
     fontSize: FONT_SIZES.sm,
