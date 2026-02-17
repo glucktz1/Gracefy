@@ -497,6 +497,14 @@ async def login_user(data: dict):
     if not password or (not email and not phone):
         raise HTTPException(status_code=400, detail="Credentials required")
     
+    # Check if email/password login is enabled
+    if email and not await check_auth_method_enabled("email"):
+        raise HTTPException(status_code=403, detail="Email/password login is currently disabled")
+    
+    # Check if phone login is enabled
+    if phone and not await check_auth_method_enabled("phone"):
+        raise HTTPException(status_code=403, detail="Phone login is currently disabled")
+    
     query = {"email": email} if email else {"phone": phone}
     user = await db.app_users.find_one(query)
     
