@@ -768,6 +768,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.md,
   },
+  noMethodsWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.lg,
+    gap: 10,
+  },
+  noMethodsText: {
+    color: '#f59e0b',
+    fontSize: FONT_SIZES.sm,
+    textAlign: 'center',
+    flex: 1,
+  },
 });
 
 export default LoginScreen;
