@@ -976,6 +976,10 @@ async def google_auth_callback(request: Request):
 @router.post("/user/auth/mobile-login")
 async def mobile_google_login(request: Request):
     """Process mobile Google login with session_id"""
+    # Check if Google login is enabled
+    if not await check_auth_method_enabled("google"):
+        raise HTTPException(status_code=403, detail="Google login is currently disabled")
+    
     data = await request.json()
     session_id = data.get("session_id")
     
@@ -988,6 +992,10 @@ async def mobile_google_login(request: Request):
 async def process_mobile_google_login(session_id: str, mobile_redirect: str = None):
     """Common function to process mobile Google login"""
     db = get_db()
+    
+    # Check if Google login is enabled
+    if not await check_auth_method_enabled("google"):
+        raise HTTPException(status_code=403, detail="Google login is currently disabled")
     
     # Get user data from Emergent auth
     async with httpx.AsyncClient() as client_http:
