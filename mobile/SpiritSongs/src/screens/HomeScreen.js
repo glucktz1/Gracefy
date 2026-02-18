@@ -130,6 +130,7 @@ const HomeScreen = ({ navigation }) => {
         mafundishoRes,
         filtersRes,
         tagsRes,
+        radioRes,
       ] = await Promise.all([
         homeAPI.getSections().catch(() => ({ data: { sections: [] } })),
         homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
@@ -143,6 +144,7 @@ const HomeScreen = ({ navigation }) => {
         leaderContentAPI.getMafundisho().catch(() => ({ data: { mafundisho: [] } })),
         homeAPI.getHomeFilters().catch(() => ({ data: { filters: [] } })),
         homeAPI.getTags().catch(() => ({ data: { tags: [] } })),
+        radioAPI.getStations().catch(() => ({ data: { stations: [] } })),
       ]);
 
       // Album Tags
