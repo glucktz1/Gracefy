@@ -474,21 +474,26 @@ REACT_APP_BACKEND_URL=https://music-worship-app.preview.emergentagent.com
   8. Sayari FM (Tanzania, Swahili)
 
 ## Current Mobile Build
-- **Build ID**: 65d55f5a-83e4-47cb-8940-a85b8d807438
+- **Build ID**: 06f4d335-f14a-4ca6-8e0c-93e9c67272df
 - **Status**: In Progress
 - **Profile**: preview (APK)
 - **Account**: gracefy3
-- **View Logs**: https://expo.dev/accounts/gracefy3/projects/Gracefy-App/builds/65d55f5a-83e4-47cb-8940-a85b8d807438
+- **View Logs**: https://expo.dev/accounts/gracefy3/projects/Gracefy-App/builds/06f4d335-f14a-4ca6-8e0c-93e9c67272df
 
 ### Features in Current Build:
-- **Improved Radio Integration:**
-  - Radio row on HomeScreen after "Mchanganyiko Maalumu" section
-  - Radio plays in mini player (shared PlayerContext)
-  - 8 verified working Christian radio stations
-  - Priority: Radio Maria Tanzania, Radio Uhai, Jesus Is Lord Radio
-- Bible snippets on HomeScreen
-- AI Chat title "Ongea nasi wakat wowote"
-- Device tracking and error reporting
+- **Improved Radio:**
+  - Radio Tumaini added (http://65.108.124.70:9368/stream)
+  - Radio Maria Tanzania (working)
+  - Generic radio icons (admin can update thumbnails)
+- **Subscription/Billing System:**
+  - "Vifurushi Vyangu" (My Plans) in profile menu
+  - Plans display and selection
+  - Web redirect mode for app-to-web subscription flow
+  - Admin can toggle billing on/off
+  - Premium feature gating (downloads, playlists, skips)
+- **Enhanced Church Cards:**
+  - Larger images with border styling
+  - Shadow effects for better appearance
 - All previous features
 
 ### Radio Stations (Verified Working):
