@@ -119,6 +119,30 @@ async def get_current_user(request: Request):
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    # First check admin_sessions for admin users
+    if session_token.startswith("admin_"):
+        admin_session = await db.admin_sessions.find_one({"session_token": session_token}, {"_id": 0})
+        
+        if admin_session:
+            expires_at = admin_session["expires_at"]
+            if isinstance(expires_at, str):
+                expires_at = datetime.fromisoformat(expires_at)
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            if expires_at < datetime.now(timezone.utc):
+                raise HTTPException(status_code=401, detail="Session expired")
+            
+            admin_user = await db.admin_users.find_one(
+                {"admin_id": admin_session["admin_id"]}, 
+                {"_id": 0, "password_hash": 0}
+            )
+            
+            if admin_user:
+                admin_user["role"] = "admin"
+                return admin_user
+    
+    # Check regular user sessions
     session = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
     
     if not session:
@@ -148,9 +172,12 @@ async def logout(request: Request, response: Response):
     session_token = request.cookies.get("session_token")
     
     if session_token:
+        # Delete from both session collections
         await db.user_sessions.delete_one({"session_token": session_token})
+        await db.admin_sessions.delete_one({"session_token": session_token})
     
     response.delete_cookie(key="session_token", path="/")
+    response.delete_cookie(key="admin_email", path="/")
     return {"message": "Logged out successfully"}
 
 
