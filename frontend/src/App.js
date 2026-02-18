@@ -123,7 +123,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
       ]
     },
-    // Control and Management Group
+    // Control and Management Group (includes App Health Monitoring)
     { 
       groupId: "control-management",
       icon: Shield, 
@@ -134,18 +134,20 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
         { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
         { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
+        { path: "/app-health", icon: Smartphone, label: "App Health Monitoring", permissions: ["platform_settings"] },
       ]
     },
-    // Settings Group
+    // Settings Group (includes Auth Settings)
     { 
       groupId: "settings",
       icon: Settings, 
       label: "Settings", 
-      permissions: ["platform_settings", "revenue_configuration"],
+      permissions: ["platform_settings", "revenue_configuration", "role_assignment"],
       children: [
         { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
         { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
         { path: "/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
+        { path: "/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
       ]
     },
     // Advertising & Campaigns - Standalone Section
@@ -156,12 +158,8 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/chat-support", icon: Headphones, label: "Chat & Support", permissions: ["platform_settings", "content_moderation"] },
     // Knowledge Bank - AI Support Knowledge Base
     { path: "/knowledge-bank", icon: Brain, label: "Knowledge Bank", permissions: ["platform_settings"] },
-    // App Control & Management - Standalone Section
-    { path: "/app-control", icon: Smartphone, label: "App Control", permissions: ["platform_settings"] },
     // Recommendation Engine
     { path: "/recommendations", icon: Sparkles, label: "Recommendations", permissions: ["platform_settings"] },
-    // Authentication Settings
-    { path: "/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
