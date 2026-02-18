@@ -4463,17 +4463,13 @@ export default function UserStreamingApp() {
             <Search size={20} />
             <span className="text-[10px]">{t('nav.search', 'Search')}</span>
           </button>
-          <button onClick={() => setView('bible')} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'bible' ? 'text-amber-500' : 'text-zinc-500'}`}>
-            <BookOpen size={20} />
-            <span className="text-[10px]">{t('nav.bible', 'Biblia')}</span>
+          <button onClick={() => setView('radio')} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'radio' ? 'text-violet-500' : 'text-zinc-500'}`} data-testid="mobile-radio-nav">
+            <Radio size={20} />
+            <span className="text-[10px]">{t('nav.radio', 'Redio')}</span>
           </button>
           <button onClick={fetchLibrary} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'library' ? 'text-white' : 'text-zinc-500'}`}>
             <Library size={20} />
             <span className="text-[10px]">{t('nav.library', 'Library')}</span>
-          </button>
-          <button onClick={() => setShowLanguageModal(true)} className={`flex flex-col items-center gap-0.5 py-1 px-3 text-zinc-500`}>
-            <Globe size={20} />
-            <span className="text-[10px]">{language.toUpperCase()}</span>
           </button>
         </div>
       </nav>
