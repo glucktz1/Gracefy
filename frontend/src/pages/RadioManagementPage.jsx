@@ -77,6 +77,11 @@ export default function RadioManagementPage() {
   const [previewStation, setPreviewStation] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioRef, setAudioRef] = useState(null);
+  
+  // Image upload state
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchStations();
