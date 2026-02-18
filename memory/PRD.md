@@ -395,3 +395,31 @@ REACT_APP_BACKEND_URL=https://music-app-patches.preview.emergentagent.com
   - Bible screen TTS playback
   - AI Chat stability
 
+### Admin Choir Management & Communication (Feb 18, 2026)
+- [x] **Choir Enable/Disable/Delete with Audit Logging:**
+  - `POST /api/admin/choir/{id}/disable` - Disable choir (prevents login)
+  - `POST /api/admin/choir/{id}/enable` - Re-enable choir
+  - `DELETE /api/admin/choir/{id}` - Soft delete (preserves data)
+  - All actions logged to `audit_logs` collection with admin name, reason, timestamp
+
+- [x] **Choir Notification System:**
+  - Admin can send messages to single or multiple choirs
+  - Notification types: info, warning, urgent
+  - Choirs can view and reply to messages
+  - APIs:
+    - `POST /api/admin/choir-notifications/send`
+    - `GET /api/admin/choir-notifications`
+    - `POST /api/choir/notifications/{id}/reply` (choir side)
+
+- [x] **Choir Dashboard Enhanced:**
+  - Replaced "Revenue Split" with "Choir Information" section
+  - Shows: choir name, parish/church, leaders, payment details
+  - Added "Messages from Admin" section with unread count badge
+  - Choirs can view full messages and reply to admin
+
+- [x] **Admin Choir Management Page Enhanced:**
+  - Dropdown menu with: Edit, Reset Password, Send Message, Disable/Enable, Delete
+  - Confirmation modals for destructive actions
+  - Bulk notification sending (select multiple choirs)
+  - Audit logs accessible via API
+
