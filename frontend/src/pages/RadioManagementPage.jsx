@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { 
   Radio, Search, Plus, Edit2, Trash2, Power, Play, Pause,
   Globe, Music2, BarChart3, Clock, TrendingUp, ChevronUp, ChevronDown,
-  ExternalLink, RefreshCw
+  ExternalLink, RefreshCw, Upload, Image as ImageIcon, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
