@@ -474,18 +474,32 @@ REACT_APP_BACKEND_URL=https://music-worship-app.preview.emergentagent.com
   8. Sayari FM (Tanzania, Swahili)
 
 ## Current Mobile Build
-- **Build ID**: 423e3368-43c9-489d-b5e0-25a426bd37da
+- **Build ID**: 65d55f5a-83e4-47cb-8940-a85b8d807438
 - **Status**: In Progress
 - **Profile**: preview (APK)
 - **Account**: gracefy3
-- **View Logs**: https://expo.dev/accounts/gracefy3/projects/Gracefy-App/builds/423e3368-43c9-489d-b5e0-25a426bd37da
+- **View Logs**: https://expo.dev/accounts/gracefy3/projects/Gracefy-App/builds/65d55f5a-83e4-47cb-8940-a85b8d807438
 
 ### Features in Current Build:
-- Live Christian Radio with 8 stations
+- **Improved Radio Integration:**
+  - Radio row on HomeScreen after "Mchanganyiko Maalumu" section
+  - Radio plays in mini player (shared PlayerContext)
+  - 8 verified working Christian radio stations
+  - Priority: Radio Maria Tanzania, Radio Uhai, Jesus Is Lord Radio
 - Bible snippets on HomeScreen
 - AI Chat title "Ongea nasi wakat wowote"
 - Device tracking and error reporting
 - All previous features
+
+### Radio Stations (Verified Working):
+1. Radio Maria Tanzania - http://dreamsiteradiocp2.com:8034/stream
+2. Radio Uhai - https://s2.citrus3.com:8050/stream
+3. Jesus Is Lord Radio - https://s3.radio.co/s97f38db97/listen
+4. Heaven FM Radio - http://stream.zeno.fm/eequgfw72hhvv
+5. Favour FM 104.1 (Uganda) - http://us5new.listen2myradio.com:2199/listen.php
+6. Voice Of Heaven - http://stream.zeno.fm/s961sfesdmntv
+7. Prayer Tower Radio - http://stream.zeno.fm/ymapb78yznhvv
+8. Gospel Kingz - http://stream.zeno.fm/vstzctms6rhvv
 
 ## Test Credentials
 - **Admin Login:**
