@@ -200,6 +200,43 @@ async def seed_default_stations():
     logger.info(f"Seeded {len(DEFAULT_CHRISTIAN_STATIONS)} default radio stations")
 
 
+async def reseed_stations():
+    """Reseed database with updated radio station URLs"""
+    db = get_db()
+    
+    for station in DEFAULT_CHRISTIAN_STATIONS:
+        # Update existing or insert new
+        await db.radio_stations.update_one(
+            {"station_id": station["station_id"]},
+            {"$set": {
+                **station,
+                "is_enabled": True,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$setOnInsert": {
+                "play_count": 0,
+                "total_listen_minutes": 0,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }},
+            upsert=True
+        )
+    
+    # Delete old stations that are no longer in the default list
+    default_ids = [s["station_id"] for s in DEFAULT_CHRISTIAN_STATIONS]
+    await db.radio_stations.delete_many({"station_id": {"$nin": default_ids}})
+    
+    logger.info(f"Reseeded {len(DEFAULT_CHRISTIAN_STATIONS)} radio stations with updated URLs")
+
+
+@router.post("/admin/radio/reseed")
+async def admin_reseed_stations():
+    """Reseed radio stations with updated verified URLs"""
+    await reseed_stations()
+    db = get_db()
+    stations = await db.radio_stations.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    return {"message": "Stations reseeded successfully", "stations": stations, "total": len(stations)}
+
+
 # ============== ADMIN RADIO MANAGEMENT ==============
 
 @router.get("/admin/radio/stations")
