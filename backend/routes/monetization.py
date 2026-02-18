@@ -195,6 +195,10 @@ async def save_monetization_settings(data: dict):
     
     settings = {
         "billing_enabled": data.get("billing_enabled", True),
+        "billing_mode": data.get("billing_mode", "full"),  # full, app_redirect, disabled
+        "app_billing_enabled": data.get("app_billing_enabled", True),
+        "web_billing_enabled": data.get("web_billing_enabled", True),
+        "web_redirect_url": data.get("web_redirect_url", "https://www.gracefy.net"),
         "free_trial_enabled": data.get("free_trial_enabled", True),
         "free_trial_days": data.get("free_trial_days", 7),
         "minimum_payout_threshold": data.get("minimum_payout_threshold", 10000),
@@ -202,6 +206,13 @@ async def save_monetization_settings(data: dict):
         "revenue_share_percent": data.get("revenue_share_percent", 70),
         "supported_currencies": data.get("supported_currencies", ["TZS", "USD"]),
         "default_currency": data.get("default_currency", "TZS"),
+        "premium_features": data.get("premium_features", {
+            "downloads": True,
+            "playlists": True,
+            "skip_limit": 3,
+            "offline_mode": True,
+            "high_quality": True
+        }),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
