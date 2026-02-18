@@ -618,27 +618,159 @@ export default function ChoirDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Revenue Split Pie */}
+              {/* Choir Information */}
               <Card className="bg-zinc-900/50 border-zinc-800">
                 <CardHeader>
-                  <CardTitle className="text-white text-base">Revenue Split</CardTitle>
+                  <CardTitle className="text-white text-base flex items-center gap-2">
+                    <Building size={16} className="text-emerald-400" />
+                    Choir Information
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" labelLine={false}>
-                        {pieData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }} formatter={(v) => `TZS ${v.toLocaleString()}`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex justify-center gap-4 mt-2">
-                    <div className="flex items-center gap-2 text-xs"><div className="w-3 h-3 rounded bg-emerald-500"></div><span className="text-zinc-400">Your Earnings ({100 - (rates.platform_share || 30)}%)</span></div>
-                    <div className="flex items-center gap-2 text-xs"><div className="w-3 h-3 rounded bg-indigo-500"></div><span className="text-zinc-400">Platform ({rates.platform_share || 30}%)</span></div>
+                <CardContent className="space-y-4">
+                  {/* Choir Name & Parish */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400 text-sm">Choir Name</span>
+                      <span className="text-white font-medium">{profile?.choir_name || profile?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400 text-sm">Parish / Church</span>
+                      <span className="text-white">{fullProfile?.church?.name || profile?.church_name || 'N/A'}</span>
+                    </div>
+                    {fullProfile?.church?.parish && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 text-sm">Diocese</span>
+                        <span className="text-white">{fullProfile.church.parish}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Leaders */}
+                  {fullProfile?.leaders?.length > 0 && (
+                    <div className="border-t border-zinc-800 pt-3">
+                      <p className="text-zinc-400 text-sm mb-2 flex items-center gap-2">
+                        <Users size={14} /> Registered Leaders
+                      </p>
+                      <div className="space-y-2">
+                        {fullProfile.leaders.map((leader) => (
+                          <div key={leader.leader_id} className="text-sm flex justify-between">
+                            <span className="text-white">{leader.name} <span className="text-zinc-500">({leader.role})</span></span>
+                            <span className="text-zinc-400">{leader.phone}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Payment Details */}
+                  <div className="border-t border-zinc-800 pt-3">
+                    <p className="text-zinc-400 text-sm mb-2 flex items-center gap-2">
+                      <CreditCard size={14} /> Payment Details
+                    </p>
+                    {paymentDetails?.payment_method === 'bank' ? (
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Bank</span>
+                          <span className="text-white">{paymentDetails.payment_details?.bank_name || 'Not set'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Account Name</span>
+                          <span className="text-white">{paymentDetails.payment_details?.account_name || 'Not set'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Account No.</span>
+                          <span className="text-white">{paymentDetails.payment_details?.account_number || 'Not set'}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Method</span>
+                          <span className="text-emerald-400">Mobile Money</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-400">Phone</span>
+                          <span className="text-white">{paymentDetails?.payment_details?.phone || fullProfile?.account?.email || 'Not set'}</span>
+                        </div>
+                        {paymentDetails?.payment_details?.account_name && (
+                          <div className="flex justify-between">
+                            <span className="text-zinc-400">Registered Name</span>
+                            <span className="text-white">{paymentDetails.payment_details.account_name}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-3 text-xs"
+                      onClick={() => setIsPaymentModalOpen(true)}
+                    >
+                      Update Payment Details
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Notifications Section */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white text-base flex items-center gap-2">
+                    <FileText size={16} className="text-amber-400" />
+                    Messages from Admin
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
+                    )}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {notifications.length > 0 ? (
+                  <div className="space-y-3 max-h-64 overflow-auto">
+                    {notifications.slice(0, 5).map((notif) => (
+                      <div 
+                        key={notif.notification_id} 
+                        className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                          notif.is_read ? 'bg-zinc-800/30' : 'bg-amber-900/20 border border-amber-800/30'
+                        }`}
+                        onClick={() => {
+                          setSelectedNotification(notif);
+                          setIsNotificationModalOpen(true);
+                          if (!notif.is_read) markAsRead(notif.notification_id);
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              {!notif.is_read && <div className="w-2 h-2 bg-amber-500 rounded-full"></div>}
+                              <h4 className="font-medium text-white text-sm">{notif.subject || 'Admin Message'}</h4>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                notif.type === 'urgent' ? 'bg-red-600' : 
+                                notif.type === 'warning' ? 'bg-amber-600' : 'bg-zinc-600'
+                              }`}>{notif.type}</span>
+                            </div>
+                            <p className="text-zinc-400 text-xs mt-1 line-clamp-2">{notif.message}</p>
+                          </div>
+                          <span className="text-zinc-500 text-xs">{new Date(notif.created_at).toLocaleDateString()}</span>
+                        </div>
+                        {notif.responses?.length > 0 && (
+                          <div className="mt-2 text-xs text-zinc-500">
+                            {notif.responses.length} response(s)
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-zinc-500">
+                    <FileText size={32} className="mx-auto mb-2 opacity-50" />
+                    <p>No messages from admin yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Album Performance */}
             <Card className="bg-zinc-900/50 border-zinc-800">
