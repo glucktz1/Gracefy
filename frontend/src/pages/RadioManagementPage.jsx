@@ -289,6 +289,7 @@ export default function RadioManagementPage() {
       is_featured: station.is_featured || false,
       order: station.order || 99
     });
+    setImagePreview(station.favicon || "");
     setIsEditModalOpen(true);
   };
 
