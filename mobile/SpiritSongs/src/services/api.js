@@ -323,4 +323,16 @@ export const trackingAPI = {
   reportError: (errorData) => api.post('/errors/report', errorData),
 };
 
+// ============ RADIO API ============
+export const radioAPI = {
+  // Get list of enabled radio stations
+  getStations: (params = {}) => api.get('/radio/stations', { params }),
+  // Get single station details
+  getStation: (stationId) => api.get(`/radio/stations/${stationId}`),
+  // Track radio play start
+  trackPlay: (data) => api.post('/radio/play', data),
+  // Track radio play stop
+  trackStop: (data) => api.post('/radio/stop', data),
+};
+
 export default api;
