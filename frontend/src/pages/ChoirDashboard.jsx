@@ -109,7 +109,7 @@ export default function ChoirDashboard() {
     try {
       const headers = { Authorization: `Bearer ${sessionToken}` };
       
-      const [profileRes, revenueRes, withdrawalsRes, paymentRes, contentRes, albumsRes, catRes, editReqRes] = await Promise.all([
+      const [profileRes, revenueRes, withdrawalsRes, paymentRes, contentRes, albumsRes, catRes, editReqRes, notifRes, fullProfileRes] = await Promise.all([
         axios.get(`${API}/choir/me`, { headers, withCredentials: true }),
         axios.get(`${API}/choir/revenue/${choirId}`, { headers, withCredentials: true }),
         axios.get(`${API}/withdrawal/my-requests`, { headers, withCredentials: true }),
@@ -117,7 +117,9 @@ export default function ChoirDashboard() {
         axios.get(`${API}/choir/my-content-requests`, { headers, withCredentials: true }),
         axios.get(`${API}/choir/my-albums`, { headers, withCredentials: true }),
         axios.get(`${API}/categories`, { headers, withCredentials: true }),
-        axios.get(`${API}/choir/my-edit-requests`, { headers, withCredentials: true }).catch(() => ({ data: { requests: [] } }))
+        axios.get(`${API}/choir/my-edit-requests`, { headers, withCredentials: true }).catch(() => ({ data: { requests: [] } })),
+        axios.get(`${API}/choir/notifications`, { headers, withCredentials: true }).catch(() => ({ data: { notifications: [], unread_count: 0 } })),
+        axios.get(`${API}/choir/full-profile`, { headers, withCredentials: true }).catch(() => ({ data: null }))
       ]);
       
       // Merge account and choir data into profile
@@ -134,6 +136,18 @@ export default function ChoirDashboard() {
       setMyAlbums(albumsRes.data.albums || []);
       setCategories(catRes.data.categories || []);
       setMyEditRequests(editReqRes.data.requests || []);
+      setNotifications(notifRes.data.notifications || []);
+      setUnreadCount(notifRes.data.unread_count || 0);
+      setFullProfile(fullProfileRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      if (error.response?.status === 401) {
+        handleLogout();
+      } else {
+        toast.error("Failed to load dashboard data");
+      }
+    } finally {
+      setLoading(false);
     } catch (error) {
       console.error("Error fetching data:", error);
       if (error.response?.status === 401) {
