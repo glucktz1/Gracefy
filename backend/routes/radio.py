@@ -404,6 +404,55 @@ async def admin_reorder_stations(data: dict):
     return {"success": True}
 
 
+@router.post("/admin/radio/upload-thumbnail")
+async def upload_radio_thumbnail(file: UploadFile = File(...)):
+    """Upload thumbnail image for a radio station"""
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid image type. Use JPEG, PNG, WebP, or GIF")
+    
+    # Read and validate file size (max 2MB)
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Maximum 2MB")
+    
+    # Generate unique filename
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    filename = f"radio_thumb_{uuid.uuid4().hex[:12]}.{ext}"
+    
+    # Try CDN upload if enabled
+    if is_cdn_enabled():
+        try:
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/radio-thumbnails/{filename}"
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    storage_url,
+                    content=content,
+                    headers={
+                        "AccessKey": BUNNY_API_KEY,
+                        "Content-Type": file.content_type
+                    },
+                    timeout=30.0
+                )
+                
+                if response.status_code in [200, 201]:
+                    cdn_url = f"{BUNNY_CDN_URL}/radio-thumbnails/{filename}"
+                    logger.info(f"Radio thumbnail uploaded to CDN: {cdn_url}")
+                    return {"url": cdn_url, "type": "cdn"}
+                else:
+                    logger.warning(f"CDN upload failed with status {response.status_code}: {response.text}")
+        except Exception as e:
+            logger.error(f"CDN upload error: {e}")
+    
+    # Fallback to base64 data URL
+    thumbnail_b64 = f"data:{file.content_type};base64,{base64.b64encode(content).decode('utf-8')}"
+    logger.info("Radio thumbnail stored as base64")
+    return {"url": thumbnail_b64, "type": "base64"}
+
+
 # ============== RADIO ANALYTICS ==============
 
 @router.post("/radio/play")
