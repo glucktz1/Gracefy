@@ -193,30 +193,39 @@ const BibleScreen = ({ navigation, route }) => {
     if (!snippet) return;
     
     try {
-      // Find the book
+      // Find the book - check multiple possible field names
+      const snippetBookName = snippet.book || snippet.book_name || snippet.reference?.split(' ')[0];
       const book = books.find(b => 
-        b.name === snippet.book || 
-        b.name_localized === snippet.book ||
-        b.name.toLowerCase() === snippet.book.toLowerCase()
+        b.name === snippetBookName || 
+        b.name_localized === snippetBookName ||
+        b.name.toLowerCase() === snippetBookName?.toLowerCase()
       );
       
       if (book) {
         setSelectedBook(book);
         
+        // Get chapter from snippet - check multiple field names
+        const chapter = snippet.chapter_start || snippet.chapter || 1;
+        
         // Load verses for the snippet
-        const versesResponse = await bibleAPI.getVerses(book.name, snippet.chapter_start);
+        const versesResponse = await bibleAPI.getVerses(book.name, chapter);
         const versesData = versesResponse.data?.verses || [];
         setVerses(versesData);
-        setSelectedChapter(snippet.chapter_start);
+        setSelectedChapter(chapter);
+        setViewState('verses');
         
         // Set verse range
-        const start = snippet.verse_start || 1;
-        const end = snippet.verse_end || versesData.length;
+        const start = snippet.verse_start || snippet.start_verse || 1;
+        const end = snippet.verse_end || snippet.end_verse || versesData.length;
         setStartVerse(start.toString());
         setEndVerse(end.toString());
         
         // Start playing immediately
-        await playPassage(book.name, snippet.chapter_start, start, end);
+        await playPassage(book.name, chapter, start, end);
+      } else {
+        // If book not found, just navigate to Bible home
+        showToast('Kitabu hakijapatikana, tafadhali chagua', 'info');
+        setViewState('books');
       }
     } catch (error) {
       console.error('Error playing snippet:', error);
