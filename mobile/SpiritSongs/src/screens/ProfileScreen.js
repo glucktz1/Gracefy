@@ -899,6 +899,18 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     marginLeft: SPACING.sm,
   },
+  premiumBadgeSmall: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+    marginRight: SPACING.sm,
+  },
+  premiumBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
   // Subscription styles
   premiumCard: {
     borderRadius: BORDER_RADIUS.lg,
