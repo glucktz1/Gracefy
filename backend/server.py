@@ -67,6 +67,7 @@ from routes import (
     chat_router,
     app_control_router,
     recommendations_router,
+    radio_router,
 )
 from routes.teachings import router as teachings_router
 from routes.rbac import router as rbac_router
