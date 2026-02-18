@@ -99,6 +99,10 @@ export default function EnhancedAnalyticsPage() {
     return () => clearInterval(interval);
   }, [fetchAnalytics]);
 
+  useEffect(() => {
+    fetchReplayStats();
+  }, [fetchReplayStats]);
+
   const generateDemoData = async () => {
     try {
       setLoading(true);
