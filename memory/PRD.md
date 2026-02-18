@@ -338,6 +338,46 @@ REACT_APP_BACKEND_URL=https://music-app-patches.preview.emergentagent.com
   - Speed control: 0.5x to 2x
 - [x] 66 Bible books, 31,103 verses in database
 
+### Admin Panel Enhancements (Feb 18, 2026)
+- [x] **Sidebar Reorganization:**
+  - Auth Settings moved under Settings group
+  - App Control moved under Control & Management
+  - Renamed "App Control" to "App Health Monitoring"
+  
+- [x] **Replay Analytics (Analytics → Replays Tab):**
+  - Users who replayed same song on same day
+  - Total replay minutes
+  - Songs with most replays (per day/week/month)
+  - API: `GET /api/analytics/replay-stats?period=day|week|month`
+
+- [x] **Device & Platform Analytics (Analytics → Devices Tab):**
+  - User distribution by platform (Android, iOS, Web)
+  - Device manufacturers (Samsung, Apple, Huawei, etc.)
+  - Top device models
+  - Location distribution
+  - API: `GET /api/analytics/device-distribution`
+
+- [x] **Error Reporting System (App Health → Error Reports Tab):**
+  - Automatic error capture from app and web
+  - Shows device type (e.g., Samsung S22)
+  - Filter by platform and severity
+  - Mark as resolved or delete
+  - APIs:
+    - `POST /api/errors/report` - Submit error from app/web
+    - `GET /api/admin/error-reports` - List errors with filters
+    - `PUT /api/admin/error-reports/{id}/resolve` - Mark resolved
+    - `DELETE /api/admin/error-reports/{id}` - Delete report
+
+- [x] **Device Tracking (Mobile App):**
+  - Added expo-device integration
+  - Tracks device on login: manufacturer, model, OS version, app version
+  - API: `POST /api/analytics/track-device`
+  - ErrorReporter utility for automatic error capture
+
+- [x] **Billing Toggle**: Confirmed billing_enabled flag is respected in:
+  - analytics.py (revenue calculations)
+  - monetization.py (subscription features)
+
 ## Testing Notes
 - Use "Generate Data" button in analytics to create demo listening sessions
 - Revenue only calculates when billing is enabled in subscription_settings
@@ -347,7 +387,8 @@ REACT_APP_BACKEND_URL=https://music-app-patches.preview.emergentagent.com
 - Bible TTS requires EMERGENT_LLM_KEY in backend .env
 
 ## User Verification Pending
-- [ ] New mobile build (de797243-ea3e-...) needs testing for:
+- [ ] New mobile build needed with device tracking features
+- [ ] Previous mobile build (de797243-ea3e-...) needs testing for:
   - Google Sign-in
   - Album tags on cards
   - Continuous play feature  
