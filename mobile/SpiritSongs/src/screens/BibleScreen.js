@@ -23,7 +23,7 @@ import Toast from '../components/Toast';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 3) / 2;
 
-const BibleScreen = ({ navigation }) => {
+const BibleScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [books, setBooks] = useState([]);
   const [selectedBook, setSelectedBook] = useState(null);
@@ -61,6 +61,9 @@ const BibleScreen = ({ navigation }) => {
   
   // Toast
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
+  
+  // Incoming snippet from navigation params
+  const incomingSnippet = route?.params?.snippet;
 
   const { isPlaying: isMusicPlaying, pausePlayback, resumePlayback } = usePlayer();
   const { user } = useAuth();
@@ -84,6 +87,13 @@ const BibleScreen = ({ navigation }) => {
       clearStopExternalAudioCallback();
     };
   }, []);
+  
+  // Handle incoming snippet from HomeScreen navigation
+  useEffect(() => {
+    if (incomingSnippet && books.length > 0 && !loading) {
+      handleSnippetPlay(incomingSnippet);
+    }
+  }, [incomingSnippet, books, loading]);
 
   const loadFeaturedSnippets = async () => {
     try {
