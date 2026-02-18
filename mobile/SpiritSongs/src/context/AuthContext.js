@@ -166,6 +166,35 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  // Track device information for analytics
+  const trackDeviceInfo = async (userId) => {
+    try {
+      const deviceData = {
+        user_id: userId,
+        platform: Platform.OS === 'ios' ? 'ios' : 'android',
+        device_type: Platform.OS,
+        device_manufacturer: Device.manufacturer || 'Unknown',
+        device_model: Device.modelName || Device.modelId || 'Unknown',
+        os_version: `${Platform.OS} ${Device.osVersion || Platform.Version}`,
+        app_version: Application.nativeApplicationVersion || '1.0.0',
+        device_info: {
+          brand: Device.brand,
+          designName: Device.designName,
+          modelName: Device.modelName,
+          osVersion: Device.osVersion,
+          platformApiLevel: Device.platformApiLevel,
+          totalMemory: Device.totalMemory,
+          isDevice: Device.isDevice,
+        }
+      };
+      
+      await trackingAPI.trackDevice(deviceData);
+      console.log('Device info tracked:', deviceData.device_model);
+    } catch (error) {
+      console.log('Device tracking error (non-critical):', error.message);
+    }
+  };
+
   const login = async (token, userData) => {
     try {
       await SecureStore.setItemAsync('auth_token', token);
@@ -179,6 +208,11 @@ export const AuthProvider = ({ children }) => {
       await resetGuestStats();
       setIsAppLocked(false);
       setShouldPromptLogin(false);
+      
+      // Track device info for analytics
+      if (userData?.user_id) {
+        trackDeviceInfo(userData.user_id);
+      }
       
       console.log('Login successful:', userData?.email || userData?.user_id);
     } catch (e) {
