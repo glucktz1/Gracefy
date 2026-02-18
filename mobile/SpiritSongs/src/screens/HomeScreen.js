@@ -865,20 +865,16 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.quickAccessItem} />
           )}
 
-          {recentAlbums[2] ? (
-            <TouchableOpacity 
-              style={styles.quickAccessItem}
-              onPress={() => handleAlbumPress(recentAlbums[2])}
-            >
-              <Image
-                source={{ uri: getImageUrl(recentAlbums[2].thumbnail || recentAlbums[2].thumbnail_url) || 'https://via.placeholder.com/56' }}
-                style={styles.quickAccessImage}
-              />
-              <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[2].title}</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.quickAccessItem} />
-          )}
+          {/* Live Radio Button */}
+          <TouchableOpacity 
+            style={styles.quickAccessItem}
+            onPress={() => navigation.navigate('Radio')}
+          >
+            <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.quickAccessIcon}>
+              <Ionicons name="radio" size={20} color={COLORS.text} />
+            </LinearGradient>
+            <Text style={styles.quickAccessText} numberOfLines={2}>Redio</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Category Filters - Below Quick Access */}
