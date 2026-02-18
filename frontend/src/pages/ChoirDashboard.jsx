@@ -148,15 +148,6 @@ export default function ChoirDashboard() {
       }
     } finally {
       setLoading(false);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      if (error.response?.status === 401) {
-        handleLogout();
-      } else {
-        toast.error("Failed to load dashboard data");
-      }
-    } finally {
-      setLoading(false);
     }
   };
 
