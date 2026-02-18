@@ -1774,6 +1774,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  // Radio Section Styles
+  radioCard: {
+    width: 110,
+    marginRight: SPACING.sm,
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'transparent',
+  },
+  radioCardActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  radioLogoContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
+    marginBottom: SPACING.sm,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  radioLogoActive: {
+    borderColor: '#8B5CF6',
+    borderWidth: 3,
+  },
+  radioLogo: {
+    width: '100%',
+    height: '100%',
+  },
+  radioLogoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioPlayingIndicator: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioPlayingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.text,
+  },
+  radioName: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  radioCountry: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
+  },
+  radioPlayButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioPlayButtonActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+  },
+
   // Bible Section - Enhanced Colorful Tiles
   sectionHeaderWithIcon: {
     flexDirection: 'row',
