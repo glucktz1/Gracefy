@@ -353,11 +353,22 @@ export default function ChoirManagementPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="page-title">Choir Management</h1>
-            <p className="page-subtitle">Manage all choirs and view their performance</p>
+            <p className="page-subtitle">Manage all choirs, communications, and audit history</p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700" data-testid="add-choir-btn">
-            <Plus size={16} className="mr-2" /> Add Choir
-          </Button>
+          <div className="flex gap-2">
+            {selectedChoirs.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={() => setIsNotificationModalOpen(true)}
+                className="border-amber-600 text-amber-400 hover:bg-amber-600/10"
+              >
+                <Send size={16} className="mr-2" /> Message ({selectedChoirs.length})
+              </Button>
+            )}
+            <Button onClick={() => setIsCreateModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700" data-testid="add-choir-btn">
+              <Plus size={16} className="mr-2" /> Add Choir
+            </Button>
+          </div>
         </div>
       </div>
 
