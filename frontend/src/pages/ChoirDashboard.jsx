@@ -47,6 +47,13 @@ export default function ChoirDashboard() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [fullProfile, setFullProfile] = useState(null);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [replyMessage, setReplyMessage] = useState("");
 
   // Modal states
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
@@ -54,6 +61,7 @@ export default function ChoirDashboard() {
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
   const [isSongModalOpen, setIsSongModalOpen] = useState(false);
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   // Form states
   const [withdrawForm, setWithdrawForm] = useState({
