@@ -215,16 +215,87 @@ async def save_monetization_settings(data: dict):
 
 @router.get("/billing-status")
 async def get_billing_status():
-    """Get billing status for the app"""
+    """Get billing status for the app - used by mobile and web to check billing mode"""
     db = get_db()
     
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
     
+    if not settings:
+        settings = {}
+    
     return {
-        "billing_enabled": settings.get("billing_enabled", True) if settings else True,
-        "free_trial_enabled": settings.get("free_trial_enabled", True) if settings else True,
-        "free_trial_days": settings.get("free_trial_days", 7) if settings else 7
+        "billing_enabled": settings.get("billing_enabled", True),
+        "billing_mode": settings.get("billing_mode", "full"),  # full, app_redirect, disabled
+        "app_billing_enabled": settings.get("app_billing_enabled", True),
+        "web_billing_enabled": settings.get("web_billing_enabled", True),
+        "web_redirect_url": settings.get("web_redirect_url", "https://www.gracefy.net"),
+        "free_trial_enabled": settings.get("free_trial_enabled", True),
+        "free_trial_days": settings.get("free_trial_days", 7),
+        "premium_features": settings.get("premium_features", {
+            "downloads": True,
+            "playlists": True,
+            "skip_limit": 3,
+            "offline_mode": True,
+            "high_quality": True
+        })
     }
+
+
+@router.get("/user/subscription-status")
+async def get_user_subscription_status(user_id: str = Query(...)):
+    """Get user's subscription status and plan details"""
+    db = get_db()
+    
+    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    subscription = user.get("subscription", {})
+    
+    # Check if subscription is active and not expired
+    is_active = False
+    if subscription.get("status") == "active" and subscription.get("expires_at"):
+        expires_at = datetime.fromisoformat(subscription["expires_at"].replace("Z", "+00:00"))
+        is_active = expires_at > datetime.now(timezone.utc)
+        if not is_active:
+            # Update expired subscription
+            await db.app_users.update_one(
+                {"user_id": user_id},
+                {"$set": {"subscription.status": "expired", "is_premium": False}}
+            )
+    
+    # Get billing settings
+    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    billing_enabled = settings.get("billing_enabled", True) if settings else True
+    
+    # If billing is disabled, everyone is "premium"
+    if not billing_enabled:
+        return {
+            "has_subscription": True,
+            "is_premium": True,
+            "subscription": {"status": "free_access", "plan_name": "Bure"},
+            "billing_enabled": False,
+            "message": "Huduma ni bure kwa sasa"
+        }
+    
+    return {
+        "has_subscription": is_active,
+        "is_premium": is_active or user.get("is_premium", False),
+        "subscription": {
+            "status": subscription.get("status", "none"),
+            "plan_id": subscription.get("plan_id"),
+            "plan_name": subscription.get("plan_name"),
+            "started_at": subscription.get("started_at"),
+            "expires_at": subscription.get("expires_at"),
+        } if subscription else None,
+        "billing_enabled": billing_enabled
+    }
+
+
+@router.get("/subscription/current")
+async def get_current_subscription(user_id: str = Query(...)):
+    """Get user's current subscription details (Vifurushi Vyangu)"""
+    return await get_user_subscription_status(user_id)
 
 
 # ============== TRIAL SETTINGS ==============
