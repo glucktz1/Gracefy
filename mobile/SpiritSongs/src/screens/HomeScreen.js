@@ -1090,6 +1090,68 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
+        {/* Redio za Kikristo (Live Christian Radio) */}
+        {radioStations.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderWithIcon}>
+                <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+                  <Ionicons name="radio" size={18} color="#8B5CF6" />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Redio za Kikristo</Text>
+                  <Text style={styles.sectionSubtitleText}>Sikiliza mubashara</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => navigation.navigate('Radio')}>
+                <Text style={styles.seeAll}>Ona zote</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {radioStations.slice(0, 6).map((station) => {
+                const isCurrentlyPlaying = currentTrack?.isRadio && currentTrack?.song_id === station.station_id && isPlaying;
+                return (
+                  <TouchableOpacity 
+                    key={station.station_id} 
+                    style={[
+                      styles.radioCard,
+                      isCurrentlyPlaying && styles.radioCardActive
+                    ]}
+                    onPress={() => playRadio(station)}
+                  >
+                    <View style={[styles.radioLogoContainer, isCurrentlyPlaying && styles.radioLogoActive]}>
+                      {station.favicon ? (
+                        <Image
+                          source={{ uri: station.favicon }}
+                          style={styles.radioLogo}
+                        />
+                      ) : (
+                        <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.radioLogoPlaceholder}>
+                          <Ionicons name="radio" size={24} color={COLORS.text} />
+                        </LinearGradient>
+                      )}
+                      {isCurrentlyPlaying && (
+                        <View style={styles.radioPlayingIndicator}>
+                          <View style={styles.radioPlayingDot} />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.radioName} numberOfLines={1}>{station.name}</Text>
+                    <Text style={styles.radioCountry} numberOfLines={1}>{station.country}</Text>
+                    <View style={[styles.radioPlayButton, isCurrentlyPlaying && styles.radioPlayButtonActive]}>
+                      <Ionicons 
+                        name={isCurrentlyPlaying ? "pause" : "play"} 
+                        size={16} 
+                        color={isCurrentlyPlaying ? "#8B5CF6" : COLORS.text} 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Album Zinazosikilizwa Zaidi (Most Listened Albums) */}
         {mostListenedAlbums.length > 0 && (
           <View style={styles.section}>
