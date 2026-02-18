@@ -431,7 +431,7 @@ const ProfileScreen = ({ navigation }) => {
             ) : (
               <TouchableOpacity 
                 style={styles.upgradeBanner}
-                onPress={() => navigation.navigate('SubscriptionPlans')}
+                onPress={() => navigation.navigate('Subscription')}
               >
                 <View style={styles.upgradeContent}>
                   <Ionicons name="star" size={24} color={COLORS.warning} />
