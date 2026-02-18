@@ -522,20 +522,45 @@ export default function ChoirManagementPage() {
                         <DropdownMenuItem onClick={() => openPasswordReset(choir)} className="text-violet-400 hover:text-violet-300">
                           <Key size={14} className="mr-2" /> Reset Password
                         </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedChoirs([choir.singer_id]);
+                            setIsNotificationModalOpen(true);
+                          }} 
+                          className="text-amber-400 hover:text-amber-300"
+                        >
+                          <Send size={14} className="mr-2" /> Send Message
+                        </DropdownMenuItem>
                         {choir.approval_status === "pending" && (
                           <DropdownMenuItem onClick={() => handleApprovalChange(choir.singer_id, "approved")} className="text-emerald-400">
                             <CheckCircle size={14} className="mr-2" /> Approve
                           </DropdownMenuItem>
                         )}
-                        {choir.status === "active" ? (
-                          <DropdownMenuItem onClick={() => handleStatusChange(choir.singer_id, "suspended")} className="text-amber-400">
-                            <XCircle size={14} className="mr-2" /> Suspend
+                        <DropdownMenuSeparator className="bg-zinc-800" />
+                        {choir.status === "disabled" ? (
+                          <DropdownMenuItem onClick={() => handleEnableChoir(choir)} className="text-emerald-400">
+                            <Power size={14} className="mr-2" /> Enable
                           </DropdownMenuItem>
                         ) : (
-                          <DropdownMenuItem onClick={() => handleStatusChange(choir.singer_id, "active")} className="text-emerald-400">
-                            <CheckCircle size={14} className="mr-2" /> Activate
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedChoirForAction(choir);
+                              setIsDisableModalOpen(true);
+                            }} 
+                            className="text-amber-400"
+                          >
+                            <Power size={14} className="mr-2" /> Disable
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedChoirForAction(choir);
+                            setIsDeleteModalOpen(true);
+                          }} 
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <Trash2 size={14} className="mr-2" /> Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
