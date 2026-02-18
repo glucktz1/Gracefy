@@ -7,8 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { 
   Smartphone, AlertTriangle, CheckCircle, Clock, Users, 
   Activity, Bug, Settings, RefreshCw, Download, Trash2,
-  Search, Filter, ChevronDown, BarChart3, Shield
+  Search, Filter, ChevronDown, BarChart3, Shield, Monitor,
+  AlertCircle, XCircle, Info, Globe, Cpu, HardDrive
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -19,6 +27,9 @@ const AppControlPage = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
   const [crashReports, setCrashReports] = useState([]);
+  const [errorReports, setErrorReports] = useState([]);
+  const [errorStats, setErrorStats] = useState({ by_platform: {}, by_severity: {} });
+  const [deviceDistribution, setDeviceDistribution] = useState(null);
   const [guestLimits, setGuestLimits] = useState({
     max_plays: 3,
     max_skips: 3,
@@ -31,6 +42,10 @@ const AppControlPage = () => {
     min_app_version: '1.0.0',
     feature_flags: {}
   });
+  
+  // Filters
+  const [errorPlatformFilter, setErrorPlatformFilter] = useState('all');
+  const [errorSeverityFilter, setErrorSeverityFilter] = useState('all');
 
   useEffect(() => {
     loadData();
@@ -39,14 +54,20 @@ const AppControlPage = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, crashRes, settingsRes] = await Promise.all([
+      const [statsRes, crashRes, settingsRes, errorRes, deviceRes] = await Promise.all([
         axios.get(`${API}/admin/app-stats`, { withCredentials: true }).catch(() => ({ data: {} })),
         axios.get(`${API}/admin/crash-reports`, { withCredentials: true }).catch(() => ({ data: { reports: [] } })),
-        axios.get(`${API}/admin/app-settings`, { withCredentials: true }).catch(() => ({ data: {} }))
+        axios.get(`${API}/admin/app-settings`, { withCredentials: true }).catch(() => ({ data: {} })),
+        axios.get(`${API}/admin/error-reports`, { withCredentials: true }).catch(() => ({ data: { reports: [], stats: {} } })),
+        axios.get(`${API}/analytics/device-distribution`, { withCredentials: true }).catch(() => ({ data: null })),
       ]);
       
       setStats(statsRes.data);
       setCrashReports(crashRes.data?.reports || []);
+      setErrorReports(errorRes.data?.reports || []);
+      setErrorStats(errorRes.data?.stats || { by_platform: {}, by_severity: {} });
+      setDeviceDistribution(deviceRes.data);
+      
       if (settingsRes.data?.guest_limits) {
         setGuestLimits(settingsRes.data.guest_limits);
       }
@@ -88,74 +109,130 @@ const AppControlPage = () => {
     }
   };
 
+  const resolveErrorReport = async (errorId) => {
+    try {
+      await axios.put(`${API}/admin/error-reports/${errorId}/resolve`, {}, { withCredentials: true });
+      setErrorReports(prev => prev.map(r => 
+        r.error_id === errorId ? { ...r, resolved: true } : r
+      ));
+      toast.success('Error marked as resolved');
+    } catch (error) {
+      toast.error('Failed to resolve error');
+    }
+  };
+
+  const deleteErrorReport = async (errorId) => {
+    try {
+      await axios.delete(`${API}/admin/error-reports/${errorId}`, { withCredentials: true });
+      setErrorReports(prev => prev.filter(r => r.error_id !== errorId));
+      toast.success('Error report deleted');
+    } catch (error) {
+      toast.error('Failed to delete error report');
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     return new Date(dateStr).toLocaleString('sw-TZ');
   };
 
+  const getSeverityColor = (severity) => {
+    switch(severity) {
+      case 'critical': return 'bg-red-600';
+      case 'error': return 'bg-red-500';
+      case 'warning': return 'bg-yellow-500';
+      case 'info': return 'bg-blue-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getSeverityIcon = (severity) => {
+    switch(severity) {
+      case 'critical': return <XCircle className="h-4 w-4" />;
+      case 'error': return <AlertCircle className="h-4 w-4" />;
+      case 'warning': return <AlertTriangle className="h-4 w-4" />;
+      case 'info': return <Info className="h-4 w-4" />;
+      default: return <Bug className="h-4 w-4" />;
+    }
+  };
+
+  const filteredErrors = errorReports.filter(err => {
+    if (errorPlatformFilter !== 'all' && err.platform !== errorPlatformFilter) return false;
+    if (errorSeverityFilter !== 'all' && err.severity !== errorSeverityFilter) return false;
+    return true;
+  });
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" data-testid="app-health-page">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Smartphone className="w-6 h-6 text-violet-500" />
-            App Control & Management
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Monitor className="h-6 w-6 text-blue-500" />
+            App Health Monitoring
           </h1>
-          <p className="text-zinc-400 mt-1">Monitor app performance, crashes, and user settings</p>
+          <p className="text-slate-500">Monitor app performance, errors, and device distribution</p>
         </div>
-        <Button onClick={loadData} variant="outline" className="gap-2">
-          <RefreshCw className="w-4 h-4" />
+        <Button onClick={loadData} variant="outline" size="sm" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-zinc-900 border-zinc-800">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-400">Total Users</p>
-                <p className="text-2xl font-bold text-white">{stats.total_users || 0}</p>
+                <p className="text-sm text-slate-500">Total Users</p>
+                <p className="text-2xl font-bold">{stats.total_users || 0}</p>
               </div>
-              <Users className="w-8 h-8 text-blue-500" />
+              <Users className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-400">Active Today</p>
-                <p className="text-2xl font-bold text-white">{stats.active_today || 0}</p>
+                <p className="text-sm text-slate-500">Active Today</p>
+                <p className="text-2xl font-bold">{stats.active_today || 0}</p>
               </div>
-              <Activity className="w-8 h-8 text-green-500" />
+              <Activity className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-400">Crash Reports</p>
-                <p className="text-2xl font-bold text-white">{crashReports.length}</p>
+                <p className="text-sm text-slate-500">Guest Users</p>
+                <p className="text-2xl font-bold">{stats.guest_users || 0}</p>
               </div>
-              <Bug className="w-8 h-8 text-red-500" />
+              <Shield className="h-8 w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-400">Guest Users</p>
-                <p className="text-2xl font-bold text-white">{stats.guest_users || 0}</p>
+                <p className="text-sm text-slate-500">Crash Reports</p>
+                <p className="text-2xl font-bold">{crashReports.length || 0}</p>
               </div>
-              <Shield className="w-8 h-8 text-yellow-500" />
+              <Bug className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Error Reports</p>
+                <p className="text-2xl font-bold">{errorReports.length || 0}</p>
+              </div>
+              <AlertCircle className="h-8 w-8 text-amber-500" />
             </div>
           </CardContent>
         </Card>
@@ -163,115 +240,268 @@ const AppControlPage = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-zinc-900 border border-zinc-800">
+        <TabsList className="bg-slate-800">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="errors">Error Reports</TabsTrigger>
           <TabsTrigger value="crashes">Crash Reports</TabsTrigger>
-          <TabsTrigger value="guest-limits">Guest Limits</TabsTrigger>
-          <TabsTrigger value="settings">App Settings</TabsTrigger>
+          <TabsTrigger value="devices">Device Analytics</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-zinc-900 border-zinc-800">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Error Distribution by Platform */}
+            <Card>
               <CardHeader>
-                <CardTitle className="text-lg text-white">App Health Status</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Errors by Platform
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                  <span className="text-zinc-300">Backend API</span>
-                  <Badge className="bg-green-600">Healthy</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                  <span className="text-zinc-300">Database</span>
-                  <Badge className="bg-green-600">Connected</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                  <span className="text-zinc-300">CDN (Bunny.net)</span>
-                  <Badge className="bg-green-600">Active</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                  <span className="text-zinc-300">AI Chat (Emergent LLM)</span>
-                  <Badge className="bg-green-600">Active</Badge>
+              <CardContent>
+                <div className="space-y-3">
+                  {Object.entries(errorStats.by_platform || {}).map(([platform, count]) => (
+                    <div key={platform} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="capitalize">{platform}</Badge>
+                      </div>
+                      <span className="text-lg font-semibold">{count}</span>
+                    </div>
+                  ))}
+                  {Object.keys(errorStats.by_platform || {}).length === 0 && (
+                    <p className="text-slate-500 text-center py-4">No error data yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900 border-zinc-800">
+            {/* Error Distribution by Severity */}
+            <Card>
               <CardHeader>
-                <CardTitle className="text-lg text-white">Recent Activity</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Errors by Severity
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <div>
-                    <p className="text-zinc-300 text-sm">App build triggered</p>
-                    <p className="text-zinc-500 text-xs">Just now</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
-                  <Activity className="w-5 h-5 text-blue-500" />
-                  <div>
-                    <p className="text-zinc-300 text-sm">Hero content optimized (86MB → 2.6KB)</p>
-                    <p className="text-zinc-500 text-xs">Performance improvement: 32,000x faster</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
-                  <Settings className="w-5 h-5 text-violet-500" />
-                  <div>
-                    <p className="text-zinc-300 text-sm">Debug info removed from app</p>
-                    <p className="text-zinc-500 text-xs">Cleaner user experience</p>
-                  </div>
+              <CardContent>
+                <div className="space-y-3">
+                  {Object.entries(errorStats.by_severity || {}).map(([severity, count]) => (
+                    <div key={severity} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={getSeverityColor(severity)}>{severity}</Badge>
+                      </div>
+                      <span className="text-lg font-semibold">{count}</span>
+                    </div>
+                  ))}
+                  {Object.keys(errorStats.by_severity || {}).length === 0 && (
+                    <p className="text-slate-500 text-center py-4">No error data yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
+
+            {/* Device Distribution Summary */}
+            {deviceDistribution && (
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cpu className="h-5 w-5" />
+                    Platform Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-green-500/10 rounded-lg">
+                      <p className="text-3xl font-bold text-green-500">{deviceDistribution.platform_distribution?.android || 0}</p>
+                      <p className="text-sm text-slate-400">Android</p>
+                    </div>
+                    <div className="text-center p-4 bg-blue-500/10 rounded-lg">
+                      <p className="text-3xl font-bold text-blue-500">{deviceDistribution.platform_distribution?.ios || 0}</p>
+                      <p className="text-sm text-slate-400">iOS</p>
+                    </div>
+                    <div className="text-center p-4 bg-purple-500/10 rounded-lg">
+                      <p className="text-3xl font-bold text-purple-500">{deviceDistribution.platform_distribution?.web || 0}</p>
+                      <p className="text-sm text-slate-400">Web</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-500/10 rounded-lg">
+                      <p className="text-3xl font-bold text-gray-500">{deviceDistribution.platform_distribution?.unknown || 0}</p>
+                      <p className="text-sm text-slate-400">Unknown</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
+        </TabsContent>
+
+        {/* Error Reports Tab */}
+        <TabsContent value="errors" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Error Reports
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Select value={errorPlatformFilter} onValueChange={setErrorPlatformFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Platform" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Platforms</SelectItem>
+                      <SelectItem value="android">Android</SelectItem>
+                      <SelectItem value="ios">iOS</SelectItem>
+                      <SelectItem value="web">Web</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={errorSeverityFilter} onValueChange={setErrorSeverityFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Severity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Severity</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                      <SelectItem value="warning">Warning</SelectItem>
+                      <SelectItem value="info">Info</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <CardDescription>Automatic error reports captured from user devices</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredErrors.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No error reports found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredErrors.map((error) => (
+                    <div key={error.error_id} className={`border rounded-lg p-4 ${error.resolved ? 'border-green-500/30 bg-green-500/5' : 'border-slate-700'}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className={getSeverityColor(error.severity)}>
+                              {getSeverityIcon(error.severity)}
+                              <span className="ml-1">{error.severity}</span>
+                            </Badge>
+                            <Badge variant="outline" className="capitalize">{error.platform}</Badge>
+                            {error.resolved && <Badge className="bg-green-600">Resolved</Badge>}
+                          </div>
+                          <h4 className="font-semibold text-white">{error.error_type}</h4>
+                          <p className="text-sm text-slate-400 mt-1">{error.message}</p>
+                          
+                          {/* Device Info */}
+                          <div className="mt-3 p-2 bg-slate-800/50 rounded text-xs">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              {error.device_manufacturer && (
+                                <span><strong>Device:</strong> {error.device_manufacturer} {error.device_model}</span>
+                              )}
+                              {error.os_version && (
+                                <span><strong>OS:</strong> {error.os_version}</span>
+                              )}
+                              {error.app_version && (
+                                <span><strong>App:</strong> v{error.app_version}</span>
+                              )}
+                              {error.screen && (
+                                <span><strong>Screen:</strong> {error.screen}</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {error.stack_trace && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300">View Stack Trace</summary>
+                              <pre className="mt-2 text-xs bg-slate-900 p-2 rounded overflow-auto max-h-32">{error.stack_trace}</pre>
+                            </details>
+                          )}
+                          
+                          <p className="text-xs text-slate-500 mt-2">
+                            {formatDate(error.created_at)}
+                            {error.user_email && <span className="ml-2">• User: {error.user_email}</span>}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          {!error.resolved && (
+                            <Button size="sm" variant="outline" onClick={() => resolveErrorReport(error.error_id)}>
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button size="sm" variant="destructive" onClick={() => deleteErrorReport(error.error_id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Crash Reports Tab */}
         <TabsContent value="crashes" className="space-y-4">
-          <Card className="bg-zinc-900 border-zinc-800">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-lg text-white flex items-center gap-2">
-                <Bug className="w-5 h-5 text-red-500" />
+              <CardTitle className="flex items-center gap-2">
+                <Bug className="h-5 w-5" />
                 Crash Reports
               </CardTitle>
-              <CardDescription>App crash reports and error logs from users</CardDescription>
+              <CardDescription>App crashes reported from mobile devices</CardDescription>
             </CardHeader>
             <CardContent>
               {crashReports.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                  <p className="text-zinc-400">No crash reports - App is running smoothly!</p>
+                <div className="text-center py-8 text-slate-500">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                  <p>No crash reports - App is running smoothly!</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {crashReports.map((report) => (
-                    <div key={report.report_id} className="p-4 bg-zinc-800 rounded-lg">
+                    <div key={report.report_id} className="border border-slate-700 rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge variant={report.severity === 'critical' ? 'destructive' : 'secondary'}>
+                            <Badge className={report.severity === 'critical' ? 'bg-red-600' : 'bg-orange-500'}>
                               {report.severity || 'error'}
                             </Badge>
-                            <span className="text-zinc-400 text-xs">{formatDate(report.created_at)}</span>
+                            {report.screen && <Badge variant="outline">{report.screen}</Badge>}
                           </div>
-                          <p className="text-white font-medium">{report.error_type || 'Unknown Error'}</p>
-                          <p className="text-zinc-400 text-sm mt-1">{report.message}</p>
-                          {report.screen && (
-                            <p className="text-zinc-500 text-xs mt-2">Screen: {report.screen}</p>
+                          <h4 className="font-semibold text-white">{report.error_type}</h4>
+                          <p className="text-sm text-slate-400 mt-1">{report.message}</p>
+                          
+                          {report.device_info && (
+                            <div className="mt-3 p-2 bg-slate-800/50 rounded text-xs">
+                              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                {report.device_info.manufacturer && (
+                                  <span><strong>Device:</strong> {report.device_info.manufacturer} {report.device_info.model}</span>
+                                )}
+                                {report.device_info.osVersion && (
+                                  <span><strong>OS:</strong> {report.device_info.osVersion}</span>
+                                )}
+                                {report.app_version && (
+                                  <span><strong>App:</strong> v{report.app_version}</span>
+                                )}
+                              </div>
+                            </div>
                           )}
-                          {report.app_version && (
-                            <p className="text-zinc-500 text-xs">Version: {report.app_version}</p>
+                          
+                          {report.stack_trace && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300">View Stack Trace</summary>
+                              <pre className="mt-2 text-xs bg-slate-900 p-2 rounded overflow-auto max-h-32">{report.stack_trace}</pre>
+                            </details>
                           )}
+                          
+                          <p className="text-xs text-slate-500 mt-2">{formatDate(report.created_at)}</p>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => deleteCrashReport(report.report_id)}
-                          className="text-red-500 hover:text-red-400"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                        <Button size="sm" variant="destructive" onClick={() => deleteCrashReport(report.report_id)}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -282,110 +512,213 @@ const AppControlPage = () => {
           </Card>
         </TabsContent>
 
-        {/* Guest Limits Tab */}
-        <TabsContent value="guest-limits" className="space-y-4">
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-lg text-white">Guest User Limits</CardTitle>
-              <CardDescription>Configure limits for guest users before requiring login</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Device Analytics Tab */}
+        <TabsContent value="devices" className="space-y-4">
+          {deviceDistribution ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Platform Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Platform Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Object.entries(deviceDistribution.platform_distribution || {}).map(([platform, count]) => (
+                      <div key={platform} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${
+                            platform === 'android' ? 'bg-green-500' :
+                            platform === 'ios' ? 'bg-blue-500' :
+                            platform === 'web' ? 'bg-purple-500' : 'bg-gray-500'
+                          }`} />
+                          <span className="capitalize">{platform}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{count}</span>
+                          <span className="text-xs text-slate-500">
+                            ({((count / deviceDistribution.total_users) * 100).toFixed(1)}%)
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Manufacturer Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="h-5 w-5" />
+                    Device Manufacturers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-auto">
+                    {Object.entries(deviceDistribution.manufacturer_distribution || {}).map(([manufacturer, count]) => (
+                      <div key={manufacturer} className="flex items-center justify-between py-1 border-b border-slate-800 last:border-0">
+                        <span className="text-sm">{manufacturer}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Device Models */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cpu className="h-5 w-5" />
+                    Top Device Models
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-auto">
+                    {Object.entries(deviceDistribution.top_device_models || {}).map(([model, count]) => (
+                      <div key={model} className="flex items-center justify-between py-1 border-b border-slate-800 last:border-0">
+                        <span className="text-sm">{model}</span>
+                        <Badge variant="outline">{count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Location Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Location Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-auto">
+                    {Object.entries(deviceDistribution.location_distribution || {}).map(([location, count]) => (
+                      <div key={location} className="flex items-center justify-between py-1 border-b border-slate-800 last:border-0">
+                        <span className="text-sm">{location}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <HardDrive className="h-12 w-12 mx-auto mb-4 text-slate-500" />
+                <p className="text-slate-500">Loading device analytics...</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Guest User Limits */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Guest User Limits
+                </CardTitle>
+                <CardDescription>Configure limitations for non-registered users</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm text-zinc-400 block mb-2">Max Songs Before Prompt</label>
+                  <label className="text-sm text-slate-400">Max Plays Before Prompt</label>
                   <Input
                     type="number"
                     value={guestLimits.max_plays}
                     onChange={(e) => setGuestLimits(prev => ({ ...prev, max_plays: parseInt(e.target.value) || 0 }))}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 block mb-2">Max Skips Before Prompt</label>
+                  <label className="text-sm text-slate-400">Max Skips</label>
                   <Input
                     type="number"
                     value={guestLimits.max_skips}
                     onChange={(e) => setGuestLimits(prev => ({ ...prev, max_skips: parseInt(e.target.value) || 0 }))}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 block mb-2">Max Listen Minutes</label>
+                  <label className="text-sm text-slate-400">Max Listen Minutes</label>
                   <Input
                     type="number"
                     value={guestLimits.max_listen_minutes}
                     onChange={(e) => setGuestLimits(prev => ({ ...prev, max_listen_minutes: parseInt(e.target.value) || 0 }))}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 block mb-2">Prompts Before Lock</label>
+                  <label className="text-sm text-slate-400">Prompt Attempts Before Lock</label>
                   <Input
                     type="number"
                     value={guestLimits.prompt_attempts_before_lock}
                     onChange={(e) => setGuestLimits(prev => ({ ...prev, prompt_attempts_before_lock: parseInt(e.target.value) || 0 }))}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="mt-1"
                   />
                 </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={saveGuestLimits} className="bg-violet-600 hover:bg-violet-700">
+                <Button onClick={saveGuestLimits} className="w-full">
                   Save Guest Limits
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
 
-        {/* App Settings Tab */}
-        <TabsContent value="settings" className="space-y-4">
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-lg text-white">App Configuration</CardTitle>
-              <CardDescription>Global app settings and feature flags</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-zinc-800 rounded-lg">
-                <div>
-                  <p className="text-white font-medium">Maintenance Mode</p>
-                  <p className="text-zinc-400 text-sm">Disable app access for maintenance</p>
+            {/* App Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  App Settings
+                </CardTitle>
+                <CardDescription>Global app configuration</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Maintenance Mode</p>
+                    <p className="text-xs text-slate-500">Disable app access temporarily</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={appSettings.maintenance_mode}
+                    onChange={(e) => setAppSettings(prev => ({ ...prev, maintenance_mode: e.target.checked }))}
+                    className="w-5 h-5"
+                  />
                 </div>
-                <Button
-                  variant={appSettings.maintenance_mode ? 'destructive' : 'outline'}
-                  onClick={() => setAppSettings(prev => ({ ...prev, maintenance_mode: !prev.maintenance_mode }))}
-                >
-                  {appSettings.maintenance_mode ? 'Enabled' : 'Disabled'}
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-zinc-400 block mb-2">Minimum App Version</label>
+                  <label className="text-sm text-slate-400">Minimum App Version</label>
                   <Input
                     value={appSettings.min_app_version}
                     onChange={(e) => setAppSettings(prev => ({ ...prev, min_app_version: e.target.value }))}
-                    className="bg-zinc-800 border-zinc-700"
                     placeholder="1.0.0"
+                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 block mb-2">Force Update Version</label>
+                  <label className="text-sm text-slate-400">Force Update Version (optional)</label>
                   <Input
                     value={appSettings.force_update_version}
                     onChange={(e) => setAppSettings(prev => ({ ...prev, force_update_version: e.target.value }))}
-                    className="bg-zinc-800 border-zinc-700"
                     placeholder="Leave empty to disable"
+                    className="mt-1"
                   />
                 </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button onClick={saveAppSettings} className="bg-violet-600 hover:bg-violet-700">
-                  Save Settings
+                <Button onClick={saveAppSettings} className="w-full">
+                  Save App Settings
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
