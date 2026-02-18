@@ -76,7 +76,9 @@ const HomeScreen = ({ navigation }) => {
   
   // Extract values with safe fallbacks
   const playTrack = playerContext?.playTrack ?? (() => {});
+  const playRadio = playerContext?.playRadio ?? (() => {});
   const currentTrack = playerContext?.currentTrack ?? null;
+  const isPlaying = playerContext?.isPlaying ?? false;
   const isAuthenticated = authContext?.isAuthenticated ?? false;
   const user = authContext?.user ?? null;
 
