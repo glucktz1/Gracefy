@@ -40,6 +40,7 @@ import CheckoutScreen from './src/screens/CheckoutScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import FeedbackScreen from './src/screens/FeedbackScreen';
 import ChatScreen from './src/screens/ChatScreen';
+import RadioScreen from './src/screens/RadioScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
