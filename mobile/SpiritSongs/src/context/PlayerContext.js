@@ -780,6 +780,77 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Play a radio station stream
+   */
+  const playRadio = async (station) => {
+    if (!station?.url_resolved) {
+      console.error('[Player] No radio URL provided');
+      return;
+    }
+
+    // Stop external audio
+    if (stopExternalAudioCallback) {
+      try { await stopExternalAudioCallback(); } catch (e) {}
+    }
+
+    setIsLoading(true);
+    console.log('[Player] Playing radio:', station.name);
+
+    try {
+      // End previous stream
+      await endStreamTracking();
+
+      // Reset player queue
+      await TrackPlayer.reset();
+
+      // Create radio track object
+      const radioTrack = {
+        id: station.station_id,
+        url: station.url_resolved,
+        title: station.name,
+        artist: `${station.country} • ${station.language}`,
+        artwork: station.favicon || 'https://i.imgur.com/JQjZ9Qa.png',
+        isLiveStream: true,
+        duration: 0, // Live streams have no duration
+      };
+
+      // Add to player
+      await TrackPlayer.add(radioTrack);
+      await TrackPlayer.play();
+
+      // Update state with radio info
+      setCurrentTrack({
+        song_id: station.station_id,
+        title: station.name,
+        artist: `${station.country} • ${station.language}`,
+        thumbnail: station.favicon,
+        isRadio: true,
+        radioStation: station,
+      });
+
+      // Clear queue for radio
+      setQueue([]);
+      queueRef.current = [];
+      setQueueIndex(0);
+
+      console.log('[Player] Radio playing successfully');
+    } catch (error) {
+      console.error('[Player] Radio play error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Stop radio playback
+   */
+  const stopRadio = async () => {
+    if (currentTrack?.isRadio) {
+      await stopPlayback();
+    }
+  };
+
   // ============ CONTEXT VALUE ============
   const contextValue = {
     // State
