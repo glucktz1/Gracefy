@@ -160,6 +160,43 @@ export default function ChoirDashboard() {
     }
   };
 
+  // Handle notification reply
+  const handleNotificationReply = async () => {
+    if (!selectedNotification || !replyMessage.trim()) return;
+    
+    try {
+      const headers = { Authorization: `Bearer ${sessionToken}` };
+      await axios.post(
+        `${API}/choir/notifications/${selectedNotification.notification_id}/reply`,
+        { message: replyMessage },
+        { headers, withCredentials: true }
+      );
+      toast.success("Reply sent successfully");
+      setReplyMessage("");
+      fetchData(); // Refresh to get updated notification
+    } catch (error) {
+      toast.error("Failed to send reply");
+    }
+  };
+
+  // Mark notification as read
+  const markAsRead = async (notificationId) => {
+    try {
+      const headers = { Authorization: `Bearer ${sessionToken}` };
+      await axios.put(
+        `${API}/choir/notifications/${notificationId}/read`,
+        {},
+        { headers, withCredentials: true }
+      );
+      setNotifications(prev => prev.map(n => 
+        n.notification_id === notificationId ? { ...n, is_read: true } : n
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  };
+
   useEffect(() => {
     if (!sessionToken || !choirId) {
       navigate("/choir/login", { replace: true });
