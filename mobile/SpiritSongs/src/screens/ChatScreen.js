@@ -276,7 +276,7 @@ export default function ChatScreen({ navigation }) {
             <Ionicons name="sparkles" size={20} color="#8b5cf6" />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Msaada wa AI</Text>
+            <Text style={styles.headerTitle}>Ongea nasi wakati wowote</Text>
             <Text style={styles.headerSubtitle}>Tupo hapa kukusaidia</Text>
           </View>
         </View>
