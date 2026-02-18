@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { 
   Users, Music2, DollarSign, Clock, Search, Plus, Eye, Edit2,
-  CheckCircle, XCircle, MoreVertical, Phone, Building, Church, Key
+  CheckCircle, XCircle, MoreVertical, Phone, Building, Church, Key,
+  Power, Trash2, Send, MessageSquare, History, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +28,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +61,22 @@ export default function ChoirManagementPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  
+  // New states for choir management
+  const [activeTab, setActiveTab] = useState("choirs");
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [selectedChoirs, setSelectedChoirs] = useState([]);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isDisableModalOpen, setIsDisableModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [actionReason, setActionReason] = useState("");
+  const [selectedChoirForAction, setSelectedChoirForAction] = useState(null);
+  const [notificationForm, setNotificationForm] = useState({
+    subject: "",
+    message: "",
+    type: "info"
+  });
   const [selectedChoir, setSelectedChoir] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [resettingPassword, setResettingPassword] = useState(false);
