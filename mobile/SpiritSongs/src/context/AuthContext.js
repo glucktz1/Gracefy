@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { AppState } from 'react-native';
-import { authAPI } from '../services/api';
+import * as Device from 'expo-device';
+import * as Application from 'expo-application';
+import { AppState, Platform } from 'react-native';
+import { authAPI, trackingAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
