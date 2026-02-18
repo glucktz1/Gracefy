@@ -4,18 +4,31 @@ Handles live Christian radio streaming integration.
 Uses Radio Browser API for station data.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
 import httpx
 import logging
+import base64
+import os
 
 from core.database import get_db
 from core.cache import cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["radio"])
+
+# Radio Browser API base URL
+RADIO_BROWSER_API = "https://de1.api.radio-browser.info/json"
+
+# CDN Configuration
+BUNNY_API_KEY = os.environ.get("BUNNY_API_KEY", "")
+BUNNY_STORAGE_ZONE = os.environ.get("BUNNY_STORAGE_ZONE", "gracefy-storage")
+BUNNY_CDN_URL = os.environ.get("BUNNY_CDN_URL", "https://gracefy.b-cdn.net")
+
+def is_cdn_enabled():
+    return bool(BUNNY_API_KEY and BUNNY_STORAGE_ZONE)
 
 # Radio Browser API base URL
 RADIO_BROWSER_API = "https://de1.api.radio-browser.info/json"
