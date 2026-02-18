@@ -279,6 +279,12 @@ export default function EnhancedAnalyticsPage() {
           <TabsTrigger value="overview" className="data-[state=active]:bg-violet-600">Overview</TabsTrigger>
           <TabsTrigger value="revenue" className="data-[state=active]:bg-violet-600">Revenue</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">Content</TabsTrigger>
+          <TabsTrigger value="replays" className="data-[state=active]:bg-orange-600">
+            <RefreshCw size={14} className="mr-1" /> Replays
+          </TabsTrigger>
+          <TabsTrigger value="devices" className="data-[state=active]:bg-blue-600">
+            <Smartphone size={14} className="mr-1" /> Devices
+          </TabsTrigger>
           <TabsTrigger value="bible" className="data-[state=active]:bg-amber-600">
             <BookOpen size={14} className="mr-1" /> Bible
           </TabsTrigger>
