@@ -300,10 +300,57 @@ REACT_APP_BACKEND_URL=https://music-app-patches.preview.emergentagent.com
 - [x] Added App Control & Management page
 - [x] Revenue settings now accessible via API
 
+## Latest Updates (Feb 18, 2026)
+
+### Performance & Optimization Verification
+- [x] **Redis Caching**: Implemented with automatic fallback to in-memory cache
+  - TTL settings: Home (60s), Albums (120s), Bible (3600s), Search (30s)
+  - Decorator `@redis_cached` for easy caching of route handlers
+  - Cache invalidation helpers: `invalidate_album_cache`, `invalidate_song_cache`
+- [x] **Database Indexes**: Comprehensive indexes on 87 collections
+  - Verified: albums, songs, app_users, bible_verses, listening_sessions all have proper indexes
+  - TTL indexes on page_views (90 days) and user_tokens (30 days)
+- [x] **Connection Pooling**: Already optimized (100 pool size, retry enabled)
+- [x] **CDN**: In use for audio and image delivery (Bunny CDN)
+
+### Bible Section Improvements (Feb 18, 2026)
+- [x] **HomeScreen Enhancement**: Added colorful Bible & Devotional tiles
+  - Orange gradient Bible card with "Fungua" button
+  - Purple gradient Featured Snippet card with "Sikiliza" button
+  - Additional snippets in horizontal scroll with multi-color gradients
+  - Navigation to BibleScreen with snippet auto-play support
+- [x] **BibleScreen**: Now accepts `route.params.snippet` to auto-play a snippet
+  - Enhanced `handleSnippetPlay` to handle multiple field name formats
+  - Added detailed logging for TTS API debugging
+  - Better error messages for TTS failures
+- [x] **Web Bible Reader**: Verse range selection fully functional
+  - Book selection dropdown
+  - Chapter selection dropdown
+  - Verse range inputs (start/end)
+  - Voice and speed controls
+  - "Sikiliza Sasa" (Listen Now) button
+
+### Bible TTS System
+- [x] Backend endpoint: `POST /api/bible/tts/passage` working correctly
+  - Returns audio_base64 for playback
+  - Caching support for repeated passages
+  - Voice options: 6 voices (3 male, 3 female) with Swahili and English
+  - Speed control: 0.5x to 2x
+- [x] 66 Bible books, 31,103 verses in database
+
 ## Testing Notes
 - Use "Generate Data" button in analytics to create demo listening sessions
 - Revenue only calculates when billing is enabled in subscription_settings
 - CDN stats now count from songs/albums collections, not legacy files collection
 - Hero banners have 9 duplicate entries with large base64 images - consider cleanup
 - Album tags require cache invalidation (2 min TTL) to show in list API
+- Bible TTS requires EMERGENT_LLM_KEY in backend .env
+
+## User Verification Pending
+- [ ] New mobile build (de797243-ea3e-...) needs testing for:
+  - Google Sign-in
+  - Album tags on cards
+  - Continuous play feature  
+  - Bible screen TTS playback
+  - AI Chat stability
 
