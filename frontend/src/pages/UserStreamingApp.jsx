@@ -3133,6 +3133,13 @@ export default function UserStreamingApp() {
           >
             <BookOpen size={22} /> {t('nav.bible', 'Biblia')}
           </button>
+          <button 
+            onClick={() => setView('radio')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'radio' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+            data-testid="radio-nav-btn"
+          >
+            <Radio size={22} /> {t('nav.radio', 'Redio')}
+          </button>
         </nav>
 
         <div className="mt-6 pt-6 border-t border-zinc-800 space-y-2">
