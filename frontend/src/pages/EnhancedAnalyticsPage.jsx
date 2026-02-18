@@ -580,6 +580,285 @@ export default function EnhancedAnalyticsPage() {
           </Card>
         </TabsContent>
 
+        {/* Replays Analytics Tab */}
+        <TabsContent value="replays" className="space-y-6">
+          {/* Period Selector */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <RefreshCw className="text-orange-400" size={20} />
+              Replay Analytics
+            </h3>
+            <div className="flex gap-2">
+              {['day', 'week', 'month'].map(p => (
+                <Button
+                  key={p}
+                  variant={replayPeriod === p ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setReplayPeriod(p)}
+                  className={replayPeriod === p ? 'bg-orange-600' : ''}
+                >
+                  {p === 'day' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Replay Summary Cards */}
+          {replayStats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard
+                icon={Users}
+                iconColor="orange"
+                label="Users Who Replayed"
+                value={replayStats.summary?.users_who_replayed || 0}
+                subValue="Same song, same day"
+              />
+              <StatCard
+                icon={Clock}
+                iconColor="blue"
+                label="Total Replay Minutes"
+                value={`${replayStats.summary?.total_replay_minutes?.toLocaleString() || 0} min`}
+                subValue="Accumulated replay time"
+              />
+              <StatCard
+                icon={Music2}
+                iconColor="purple"
+                label="Replay Sessions"
+                value={replayStats.summary?.total_replay_sessions || 0}
+                subValue="Total replay instances"
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Users Who Replayed */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+                  <Users size={18} className="text-orange-400" />
+                  Users Who Replayed Same Song
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {replayStats?.user_replays?.length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-auto">
+                    {replayStats.user_replays.slice(0, 20).map((replay, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="w-10 h-10 bg-orange-600/20 rounded-full flex items-center justify-center text-orange-400 font-bold">
+                          {replay.replay_count}x
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white truncate">{replay.song_title}</p>
+                          <p className="text-xs text-zinc-500">{replay.user_name || replay.user_email || 'Anonymous'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-orange-400">{replay.total_minutes} min</p>
+                          <p className="text-xs text-zinc-500">{replay.date}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-center py-8">No replay data for this period</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Replayed Songs */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+                  <Music2 size={18} className="text-purple-400" />
+                  Most Replayed Songs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {replayStats?.top_replayed_songs?.length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-auto">
+                    {replayStats.top_replayed_songs.map((song, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="w-8 h-8 bg-purple-600/20 rounded flex items-center justify-center text-purple-400 font-bold text-sm">
+                          #{idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white truncate">{song.song_title}</p>
+                          <p className="text-xs text-zinc-500">{song.artist_name}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-purple-400">{song.total_plays} plays</p>
+                          <p className="text-xs text-zinc-500">{song.unique_users} users • {song.replay_ratio}x avg</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-center py-8">No replay data for this period</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Device Analytics Tab */}
+        <TabsContent value="devices" className="space-y-6">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Smartphone className="text-blue-400" size={20} />
+            Device & Platform Distribution
+          </h3>
+
+          {deviceDistribution ? (
+            <>
+              {/* Platform Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <StatCard
+                  icon={Smartphone}
+                  iconColor="green"
+                  label="Android Users"
+                  value={deviceDistribution.platform_distribution?.android || 0}
+                  subValue={`${((deviceDistribution.platform_distribution?.android || 0) / (deviceDistribution.total_users || 1) * 100).toFixed(1)}%`}
+                />
+                <StatCard
+                  icon={Smartphone}
+                  iconColor="blue"
+                  label="iOS Users"
+                  value={deviceDistribution.platform_distribution?.ios || 0}
+                  subValue={`${((deviceDistribution.platform_distribution?.ios || 0) / (deviceDistribution.total_users || 1) * 100).toFixed(1)}%`}
+                />
+                <StatCard
+                  icon={Monitor}
+                  iconColor="purple"
+                  label="Web Users"
+                  value={deviceDistribution.platform_distribution?.web || 0}
+                  subValue={`${((deviceDistribution.platform_distribution?.web || 0) / (deviceDistribution.total_users || 1) * 100).toFixed(1)}%`}
+                />
+                <StatCard
+                  icon={Users}
+                  iconColor="gray"
+                  label="Unknown Platform"
+                  value={deviceDistribution.platform_distribution?.unknown || 0}
+                  subValue="Needs device tracking"
+                />
+              </div>
+
+              {/* Platform Pie Chart */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="bg-zinc-900/50 border-zinc-800">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+                      <PieChart size={18} className="text-blue-400" />
+                      Platform Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <RechartsPie>
+                        <Pie
+                          data={Object.entries(deviceDistribution.platform_distribution || {}).map(([name, value]) => ({
+                            name: name.charAt(0).toUpperCase() + name.slice(1),
+                            value
+                          }))}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {Object.entries(deviceDistribution.platform_distribution || {}).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </RechartsPie>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Manufacturer Distribution */}
+                <Card className="bg-zinc-900/50 border-zinc-800">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+                      <Smartphone size={18} className="text-green-400" />
+                      Device Manufacturers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-64 overflow-auto">
+                      {Object.entries(deviceDistribution.manufacturer_distribution || {}).map(([manufacturer, count], idx) => (
+                        <div key={manufacturer} className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center text-xs text-zinc-400">
+                              {idx + 1}
+                            </div>
+                            <span className="text-white">{manufacturer}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{count}</Badge>
+                            <span className="text-xs text-zinc-500">
+                              {((count / deviceDistribution.total_users) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Top Device Models and Location */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Top Device Models */}
+                <Card className="bg-zinc-900/50 border-zinc-800">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+                      <Smartphone size={18} className="text-orange-400" />
+                      Top Device Models
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-64 overflow-auto">
+                      {Object.entries(deviceDistribution.top_device_models || {}).map(([model, count], idx) => (
+                        <div key={model} className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0">
+                          <span className="text-sm text-white truncate flex-1">{model}</span>
+                          <Badge variant="outline">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Location Distribution */}
+                <Card className="bg-zinc-900/50 border-zinc-800">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+                      <Globe size={18} className="text-cyan-400" />
+                      Location Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-64 overflow-auto">
+                      {Object.entries(deviceDistribution.location_distribution || {}).map(([location, count]) => (
+                        <div key={location} className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0">
+                          <span className="text-sm text-white">{location}</span>
+                          <Badge variant="secondary">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="py-12 text-center">
+                <Smartphone className="h-12 w-12 mx-auto mb-4 text-zinc-600" />
+                <p className="text-zinc-500">Loading device analytics...</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* Bible Analytics Tab */}
         <TabsContent value="bible" className="space-y-6">
           {/* Bible Stats Cards */}
