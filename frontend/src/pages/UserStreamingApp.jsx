@@ -4241,6 +4241,14 @@ export default function UserStreamingApp() {
             />
           )}
 
+          {/* RADIO VIEW */}
+          {view === 'radio' && (
+            <RadioView 
+              t={t}
+              onBack={() => setView('home')}
+            />
+          )}
+
           {/* TEACHING DETAIL VIEW */}
           {view === 'teaching' && selectedTeaching && (
             <div className="pb-32">
