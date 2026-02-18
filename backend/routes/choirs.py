@@ -233,17 +233,18 @@ async def get_choir_payment_details(request: Request):
     if not token_doc:
         raise HTTPException(status_code=401, detail="Invalid token")
     
-    account = await db.choir_accounts.find_one(
+    # Verify account exists first
+    account_exists = await db.choir_accounts.find_one(
         {"account_id": token_doc["account_id"]},
-        {"_id": 0, "payment_details": 1, "payment_method": 1}
+        {"_id": 0, "account_id": 1, "payment_details": 1, "payment_method": 1}
     )
     
-    if not account:
+    if not account_exists or not account_exists.get("account_id"):
         raise HTTPException(status_code=401, detail="Account not found")
     
     return {
-        "payment_method": account.get("payment_method", "mobile_money"),
-        "payment_details": account.get("payment_details", {})
+        "payment_method": account_exists.get("payment_method", "mobile_money"),
+        "payment_details": account_exists.get("payment_details", {})
     }
 
 
