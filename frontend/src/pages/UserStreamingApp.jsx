@@ -1277,6 +1277,286 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
   );
 };
 
+// Radio View Component - Live Christian Radio Streaming
+const RadioView = ({ t, onBack }) => {
+  const [stations, setStations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [playingStation, setPlayingStation] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioElement, setAudioElement] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [playStartTime, setPlayStartTime] = useState(null);
+
+  useEffect(() => {
+    fetchStations();
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
+      }
+    };
+  }, []);
+
+  const fetchStations = async () => {
+    try {
+      const response = await axios.get(`${API}/radio/stations`);
+      setStations(response.data.stations || []);
+    } catch (error) {
+      console.error("Error fetching radio stations:", error);
+      toast.error("Failed to load radio stations");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlayStation = async (station) => {
+    try {
+      // If same station, toggle play/pause
+      if (playingStation?.station_id === station.station_id) {
+        if (isPlaying) {
+          audioElement?.pause();
+          setIsPlaying(false);
+          // Track stop
+          if (sessionId && playStartTime) {
+            const duration = Math.floor((Date.now() - playStartTime) / 1000);
+            try {
+              await axios.post(`${API}/radio/stop`, { session_id: sessionId, duration_seconds: duration });
+            } catch (e) {}
+          }
+        } else {
+          audioElement?.play();
+          setIsPlaying(true);
+          setPlayStartTime(Date.now());
+        }
+        return;
+      }
+
+      // Stop current station
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
+        if (sessionId && playStartTime) {
+          const duration = Math.floor((Date.now() - playStartTime) / 1000);
+          try {
+            await axios.post(`${API}/radio/stop`, { session_id: sessionId, duration_seconds: duration });
+          } catch (e) {}
+        }
+      }
+
+      setPlayingStation(station);
+      toast.info(`Loading ${station.name}...`);
+
+      // Track play
+      try {
+        const trackResponse = await axios.post(`${API}/radio/play`, {
+          station_id: station.station_id,
+          platform: 'web'
+        });
+        setSessionId(trackResponse.data?.session_id);
+      } catch (e) {}
+
+      // Create and play audio
+      const audio = new Audio(station.url_resolved);
+      audio.onplay = () => setIsPlaying(true);
+      audio.onpause = () => setIsPlaying(false);
+      audio.onerror = () => {
+        toast.error("Failed to play station");
+        setIsPlaying(false);
+      };
+      
+      await audio.play();
+      setAudioElement(audio);
+      setPlayStartTime(Date.now());
+      toast.success(`Now playing: ${station.name}`);
+    } catch (error) {
+      console.error("Error playing station:", error);
+      toast.error("Failed to play station");
+    }
+  };
+
+  const handleStopAll = () => {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.src = '';
+      setAudioElement(null);
+    }
+    if (sessionId && playStartTime) {
+      const duration = Math.floor((Date.now() - playStartTime) / 1000);
+      axios.post(`${API}/radio/stop`, { session_id: sessionId, duration_seconds: duration }).catch(() => {});
+    }
+    setPlayingStation(null);
+    setIsPlaying(false);
+    setSessionId(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+      </div>
+    );
+  }
+
+  const featuredStations = stations.filter(s => s.is_featured);
+  const allStations = stations;
+
+  return (
+    <div className="pb-32">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={onBack}
+            className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Radio className="w-7 h-7 text-violet-500" />
+              {t('radio.title', 'Redio za Kikristo')}
+            </h1>
+            <p className="text-zinc-400 text-sm">{t('radio.subtitle', 'Sikiliza mubashara')}</p>
+          </div>
+        </div>
+        {playingStation && (
+          <button 
+            onClick={handleStopAll}
+            className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 flex items-center gap-2"
+          >
+            <X size={16} /> Stop
+          </button>
+        )}
+      </div>
+
+      {/* Now Playing Banner */}
+      {playingStation && isPlaying && (
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600">
+          <div className="flex items-center gap-4">
+            <div className="flex gap-1 items-end h-6">
+              {[1,2,3,4].map((i) => (
+                <div key={i} className="w-1 bg-white rounded-full animate-pulse" style={{ height: `${8 + Math.random() * 16}px`, animationDelay: `${i * 100}ms` }} />
+              ))}
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-white/70 uppercase tracking-wider font-medium">Playing Now</p>
+              <p className="font-semibold">{playingStation.name}</p>
+            </div>
+            <button 
+              onClick={() => handlePlayStation(playingStation)}
+              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"
+            >
+              <Pause size={20} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Featured Stations */}
+      {featuredStations.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="w-5 h-5 text-amber-500" />
+            <h2 className="text-lg font-bold">{t('radio.featured', 'Redio Maarufu')}</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {featuredStations.map(station => (
+              <StationCard 
+                key={station.station_id}
+                station={station}
+                isActive={playingStation?.station_id === station.station_id && isPlaying}
+                onPlay={() => handlePlayStation(station)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* All Stations */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Radio className="w-5 h-5 text-violet-500" />
+          <h2 className="text-lg font-bold">{t('radio.all', 'Redio Zote')}</h2>
+          <span className="text-zinc-500 text-sm">({allStations.length})</span>
+        </div>
+        {allStations.length === 0 ? (
+          <div className="text-center py-12 text-zinc-400">
+            <Radio className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No radio stations available</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {allStations.map(station => (
+              <StationCard 
+                key={station.station_id}
+                station={station}
+                isActive={playingStation?.station_id === station.station_id && isPlaying}
+                onPlay={() => handlePlayStation(station)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
+
+// Station Card Component
+const StationCard = ({ station, isActive, onPlay }) => {
+  return (
+    <div 
+      className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
+        isActive 
+          ? 'bg-violet-500/10 border-violet-500/30' 
+          : 'bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800'
+      }`}
+      onClick={onPlay}
+      data-testid={`station-card-${station.station_id}`}
+    >
+      {/* Logo */}
+      <div className={`w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 relative ${isActive ? 'ring-2 ring-violet-500' : ''}`}>
+        {station.favicon ? (
+          <img src={station.favicon} alt={station.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
+            <Radio className="w-6 h-6 text-white" />
+          </div>
+        )}
+        {isActive && (
+          <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-zinc-900" />
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold truncate">{station.name}</h3>
+          {station.is_featured && (
+            <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded">★</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-sm text-zinc-400">
+          <span className="flex items-center gap-1">
+            <Globe className="w-3 h-3" /> {station.country}
+          </span>
+          <span>{station.language}</span>
+        </div>
+      </div>
+
+      {/* Play Button */}
+      <button 
+        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+          isActive 
+            ? 'bg-violet-500 text-white' 
+            : 'bg-zinc-700 text-white hover:bg-zinc-600'
+        }`}
+      >
+        {isActive ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+      </button>
+    </div>
+  );
+};
+
 // Bible View Component
 const BibleView = ({ language, t, onBack }) => {
   const [books, setBooks] = useState([]);
