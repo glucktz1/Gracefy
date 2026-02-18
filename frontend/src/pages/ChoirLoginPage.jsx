@@ -21,11 +21,12 @@ export default function ChoirLoginPage() {
     setLoading(true);
     try {
       const response = await axios.post(`${API}/choir/login`, formData, { withCredentials: true });
-      toast.success(`Welcome, ${response.data.choir_name}!`);
+      const { account, token } = response.data;
+      toast.success(`Welcome, ${account.choir_name}!`);
       // Store session token in localStorage as backup
-      localStorage.setItem("choir_session", response.data.session_token);
-      localStorage.setItem("choir_id", response.data.choir_id);
-      localStorage.setItem("choir_name", response.data.choir_name);
+      localStorage.setItem("choir_session", token);
+      localStorage.setItem("choir_id", account.choir_id);
+      localStorage.setItem("choir_name", account.choir_name);
       navigate("/choir/dashboard", { replace: true });
     } catch (error) {
       toast.error(error.response?.data?.detail || "Invalid credentials");
