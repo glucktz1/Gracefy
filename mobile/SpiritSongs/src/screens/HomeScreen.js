@@ -225,6 +225,10 @@ const HomeScreen = ({ navigation }) => {
       const mafundisho = mafundishoRes.data?.teachings || mafundishoRes.data?.mafundisho || [];
       setMafundishoContent(Array.isArray(mafundisho) ? mafundisho : []);
 
+      // Radio Stations
+      const stations = radioRes.data?.stations || [];
+      setRadioStations(Array.isArray(stations) ? stations : []);
+
       // Quick Access config
       const quickAccessSection = activeSections.find(s => 
         s.section_type === 'quick_access' || s.name === 'quick_access'
