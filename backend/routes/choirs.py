@@ -698,3 +698,255 @@ async def delete_choir_account(account_id: str):
     
     return {"message": "Account deleted"}
 
+
+
+# ============== CHOIR NOTIFICATIONS (CHOIR SIDE) ==============
+
+@router.get("/choir/notifications")
+async def get_choir_notifications(request: Request):
+    """Get notifications for the logged-in choir"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "choir_id": 1}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    notifications = await db.choir_notifications.find(
+        {"choir_id": account["choir_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    unread_count = sum(1 for n in notifications if not n.get("is_read"))
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count
+    }
+
+
+@router.put("/choir/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, request: Request):
+    """Mark a notification as read"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "choir_id": 1}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    result = await db.choir_notifications.update_one(
+        {"notification_id": notification_id, "choir_id": account["choir_id"]},
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    return {"success": True}
+
+
+@router.post("/choir/notifications/{notification_id}/reply")
+async def reply_to_notification(notification_id: str, request: Request, data: dict):
+    """Choir replies to an admin notification"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "choir_id": 1, "choir_name": 1}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    message = data.get("message", "")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    
+    response = {
+        "response_id": f"resp_{uuid.uuid4().hex[:8]}",
+        "message": message,
+        "from": "choir",
+        "from_name": account.get("choir_name", "Choir"),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    result = await db.choir_notifications.update_one(
+        {"notification_id": notification_id, "choir_id": account["choir_id"]},
+        {
+            "$push": {"responses": response},
+            "$set": {"has_choir_response": True}
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    return {"success": True, "response": response}
+
+
+# ============== CHOIR PROFILE & INFO ==============
+
+@router.get("/choir/full-profile")
+async def get_choir_full_profile(request: Request):
+    """Get comprehensive choir profile including leaders and payment details"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "password_hash": 0}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    # Get choir/singer details
+    choir = await db.singers.find_one(
+        {"singer_id": account["choir_id"]},
+        {"_id": 0}
+    )
+    
+    # Get church details if linked
+    church = None
+    if choir and choir.get("church_id"):
+        church = await db.churches.find_one(
+            {"church_id": choir["church_id"]},
+            {"_id": 0, "name": 1, "address": 1, "parish": 1, "diocese": 1, "denomination": 1}
+        )
+    
+    # Get choir leaders
+    leaders = await db.choir_leaders.find(
+        {"choir_id": account["choir_id"]},
+        {"_id": 0}
+    ).to_list(10)
+    
+    return {
+        "account": account,
+        "choir": choir,
+        "church": church,
+        "leaders": leaders,
+        "payment_info": {
+            "method": account.get("payment_method", "mobile_money"),
+            "details": account.get("payment_details", {})
+        }
+    }
+
+
+@router.post("/choir/leaders")
+async def add_choir_leader(request: Request, data: dict):
+    """Add a leader to the choir"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "choir_id": 1}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    leader = {
+        "leader_id": f"leader_{uuid.uuid4().hex[:8]}",
+        "choir_id": account["choir_id"],
+        "name": data.get("name"),
+        "role": data.get("role", "Leader"),  # Chairperson, Secretary, Treasurer, etc.
+        "phone": data.get("phone"),
+        "email": data.get("email"),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.choir_leaders.insert_one(leader)
+    leader.pop("_id", None)
+    
+    return {"success": True, "leader": leader}
+
+
+@router.delete("/choir/leaders/{leader_id}")
+async def remove_choir_leader(leader_id: str, request: Request):
+    """Remove a leader from the choir"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "choir_id": 1}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    result = await db.choir_leaders.delete_one({
+        "leader_id": leader_id,
+        "choir_id": account["choir_id"]
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Leader not found")
+    
+    return {"success": True}
+
