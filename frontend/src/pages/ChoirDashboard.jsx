@@ -1402,6 +1402,92 @@ export default function ChoirDashboard() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Notification Detail Modal */}
+      <Dialog open={isNotificationModalOpen} onOpenChange={setIsNotificationModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="text-amber-400" />
+              {selectedNotification?.subject || 'Admin Message'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedNotification && (
+            <div className="space-y-4">
+              {/* Message Info */}
+              <div className="flex items-center gap-2 text-sm text-zinc-400">
+                <span className={`px-2 py-0.5 rounded text-xs ${
+                  selectedNotification.type === 'urgent' ? 'bg-red-600 text-white' : 
+                  selectedNotification.type === 'warning' ? 'bg-amber-600 text-white' : 'bg-zinc-700'
+                }`}>{selectedNotification.type}</span>
+                <span>From: Admin</span>
+                <span>•</span>
+                <span>{new Date(selectedNotification.created_at).toLocaleString()}</span>
+              </div>
+              
+              {/* Main Message */}
+              <div className="p-4 bg-zinc-800/50 rounded-lg">
+                <p className="text-white whitespace-pre-wrap">{selectedNotification.message}</p>
+              </div>
+              
+              {/* Conversation Thread */}
+              {selectedNotification.responses?.length > 0 && (
+                <div className="border-t border-zinc-800 pt-4">
+                  <p className="text-sm text-zinc-400 mb-3">Conversation</p>
+                  <div className="space-y-3 max-h-48 overflow-auto">
+                    {selectedNotification.responses.map((resp) => (
+                      <div 
+                        key={resp.response_id} 
+                        className={`p-3 rounded-lg ${
+                          resp.from === 'choir' ? 'bg-emerald-900/20 ml-4' : 'bg-zinc-800/50 mr-4'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-medium ${
+                            resp.from === 'choir' ? 'text-emerald-400' : 'text-amber-400'
+                          }`}>
+                            {resp.from === 'choir' ? 'You' : 'Admin'}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            {new Date(resp.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-white">{resp.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Reply Form */}
+              <div className="border-t border-zinc-800 pt-4">
+                <label className="text-sm text-zinc-400 mb-2 block">Reply to Admin</label>
+                <textarea 
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-white text-sm resize-none"
+                  rows={3}
+                  placeholder="Type your reply..."
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                />
+                <div className="flex justify-end gap-2 mt-3">
+                  <Button variant="outline" onClick={() => setIsNotificationModalOpen(false)}>
+                    Close
+                  </Button>
+                  <Button 
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={handleNotificationReply}
+                    disabled={!replyMessage.trim()}
+                  >
+                    <Send size={14} className="mr-2" />
+                    Send Reply
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
