@@ -78,7 +78,7 @@ export default function ChatScreen({ navigation }) {
         const msgs = rawMsgs.map((m, i) => parseMessage(m, i)).filter(m => m && m.message);
         setMessages(msgs.length > 0 ? msgs : [{
           id: 'welcome',
-          message: 'Karibu kwenye Msaada wa SpiritSongs! Ninawezaje kukusaidia leo?',
+          message: 'Karibu! Tunafurahi kuongea nawe. Je, tunawezaje kukusaidia leo?',
           sender: 'ai',
           timestamp: new Date().toISOString(),
         }]);
@@ -86,7 +86,7 @@ export default function ChatScreen({ navigation }) {
         // Show welcome message
         setMessages([{
           id: 'welcome',
-          message: 'Karibu kwenye Msaada wa SpiritSongs! Ninawezaje kukusaidia leo?',
+          message: 'Karibu! Tunafurahi kuongea nawe. Je, tunawezaje kukusaidia leo?',
           sender: 'ai',
           timestamp: new Date().toISOString(),
         }]);
@@ -96,7 +96,7 @@ export default function ChatScreen({ navigation }) {
       // Show welcome message on error
       setMessages([{
         id: 'welcome',
-        message: 'Karibu kwenye Msaada wa SpiritSongs! Ninawezaje kukusaidia leo?',
+        message: 'Karibu! Tunafurahi kuongea nawe. Je, tunawezaje kukusaidia leo?',
         sender: 'ai',
         timestamp: new Date().toISOString(),
       }]);
