@@ -3,7 +3,7 @@ Admin routes for Gracefy.
 Handles admin panel operations, system settings, cache management.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
