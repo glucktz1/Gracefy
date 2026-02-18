@@ -315,4 +315,12 @@ export const chatAPI = {
   getSupportChat: () => api.get('/chat/support'),
 };
 
+// ============ DEVICE & ERROR TRACKING API ============
+export const trackingAPI = {
+  // Track device info (call on app launch and login)
+  trackDevice: (deviceData) => api.post('/analytics/track-device', deviceData),
+  // Report errors automatically
+  reportError: (errorData) => api.post('/errors/report', errorData),
+};
+
 export default api;
