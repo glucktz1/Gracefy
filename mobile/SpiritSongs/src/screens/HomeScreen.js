@@ -1113,42 +1113,143 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Bible & Books Section */}
+        {/* Bible & Devotionals Section - Enhanced Colorful Tiles */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Biblia na Vitabu</Text>
+            <View style={styles.sectionHeaderWithIcon}>
+              <View style={styles.sectionIconBadge}>
+                <Ionicons name="book" size={20} color="#f97316" />
+              </View>
+              <View>
+                <Text style={styles.sectionTitle}>Biblia na Masomo</Text>
+                <Text style={styles.sectionSubtitleText}>Sikiliza Neno la Mungu</Text>
+              </View>
+            </View>
             <TouchableOpacity onPress={() => navigation.navigate('Bible')}>
               <Text style={styles.seeAll}>Ona yote</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bibleRow}>
-            {/* Bible Main Card */}
+          
+          {/* Two Main Cards Row */}
+          <View style={styles.bibleTwoCardsRow}>
+            {/* Bible Main Card - Orange Gradient */}
             <TouchableOpacity 
-              style={styles.bibleMainCard}
+              style={styles.bibleColorCard}
               onPress={() => navigation.navigate('Bible')}
+              activeOpacity={0.85}
             >
-              <LinearGradient colors={['#1a472a', '#2d5a3d']} style={styles.bibleMainGradient}>
-                <Ionicons name="book-outline" size={40} color={COLORS.primary} />
-                <Text style={styles.bibleMainTitle}>Biblia Takatifu</Text>
-                <Text style={styles.bibleMainSubtitle}>Swahili TTS</Text>
-                <View style={styles.bibleMainMeta}>
-                  <Ionicons name="headset-outline" size={12} color={COLORS.text} />
-                  <Text style={styles.bibleMainMetaText}> Sikiliza</Text>
+              <LinearGradient 
+                colors={['#ea580c', '#f97316', '#fb923c']} 
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bibleColorGradient}
+              >
+                <View style={styles.bibleCardIconWrap}>
+                  <Ionicons name="book-outline" size={28} color="rgba(255,255,255,0.9)" />
+                </View>
+                <Text style={styles.bibleColorTitle}>Biblia</Text>
+                <Text style={styles.bibleColorSubtitle}>Agano Jipya • Kiswahili</Text>
+                <Text style={styles.bibleColorDesc}>Soma na Sikiliza Neno</Text>
+                <View style={styles.bibleColorButton}>
+                  <Ionicons name="headset" size={14} color="#333" />
+                  <Text style={styles.bibleColorButtonText}>Fungua</Text>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Bible Snippets */}
-            {bibleSnippets.slice(0, 5).map((snippet, index) => (
-              <TouchableOpacity key={snippet.snippet_id || index} style={styles.snippetCard}>
-                <LinearGradient colors={['#2a2a3a', '#1a1a2a']} style={styles.snippetGradient}>
-                  <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
-                  <Text style={styles.snippetTitle} numberOfLines={2}>{snippet.title || snippet.reference}</Text>
-                  <Text style={styles.snippetVerse} numberOfLines={2}>{snippet.text?.substring(0, 50)}...</Text>
+            {/* Featured Snippet Card - Purple Gradient */}
+            {bibleSnippets.length > 0 ? (
+              <TouchableOpacity 
+                style={styles.bibleColorCard}
+                onPress={() => navigation.navigate('Bible', { snippet: bibleSnippets[0] })}
+                activeOpacity={0.85}
+              >
+                <LinearGradient 
+                  colors={['#7c3aed', '#8b5cf6', '#a78bfa']} 
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.bibleColorGradient}
+                >
+                  <View style={styles.featuredSnippetBadge}>
+                    <Text style={styles.featuredSnippetBadgeText}>FEATURED</Text>
+                  </View>
+                  <Text style={styles.snippetLabelSmall}>SOMO LA LEO</Text>
+                  <Text style={styles.bibleColorTitle} numberOfLines={1}>
+                    {bibleSnippets[0].reference || bibleSnippets[0].title}
+                  </Text>
+                  <Text style={styles.bibleColorDesc} numberOfLines={2}>
+                    {bibleSnippets[0].description || bibleSnippets[0].subtitle}
+                  </Text>
+                  <View style={styles.bibleColorButton}>
+                    <Ionicons name="headset" size={14} color="#333" />
+                    <Text style={styles.bibleColorButtonText}>Sikiliza</Text>
+                  </View>
                 </LinearGradient>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            ) : (
+              <TouchableOpacity 
+                style={styles.bibleColorCard}
+                onPress={() => navigation.navigate('Bible')}
+                activeOpacity={0.85}
+              >
+                <LinearGradient 
+                  colors={['#7c3aed', '#8b5cf6', '#a78bfa']} 
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.bibleColorGradient}
+                >
+                  <View style={styles.bibleCardIconWrap}>
+                    <Ionicons name="sparkles" size={28} color="rgba(255,255,255,0.9)" />
+                  </View>
+                  <Text style={styles.bibleColorTitle}>Masomo</Text>
+                  <Text style={styles.bibleColorSubtitle}>Mafundisho</Text>
+                  <Text style={styles.bibleColorDesc}>Sikiliza mafundisho ya Biblia</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* More Snippets Horizontal Scroll */}
+          {bibleSnippets.length > 1 && (
+            <View style={styles.moreSnippetsContainer}>
+              <Text style={styles.moreSnippetsLabel}>Masomo Mengine</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.moreSnippetsScroll}
+              >
+                {bibleSnippets.slice(1, 6).map((snippet, index) => (
+                  <TouchableOpacity 
+                    key={snippet.snippet_id || index} 
+                    style={styles.miniSnippetCard}
+                    onPress={() => navigation.navigate('Bible', { snippet })}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient 
+                      colors={
+                        index % 3 === 0 ? ['#059669', '#10b981'] :
+                        index % 3 === 1 ? ['#0891b2', '#06b6d4'] :
+                        ['#dc2626', '#ef4444']
+                      } 
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.miniSnippetGradient}
+                    >
+                      <Text style={styles.miniSnippetTitle} numberOfLines={1}>
+                        {snippet.reference || snippet.title}
+                      </Text>
+                      <Text style={styles.miniSnippetDesc} numberOfLines={2}>
+                        {snippet.description || snippet.subtitle || snippet.text?.substring(0, 40)}
+                      </Text>
+                      <View style={styles.miniSnippetPlayIcon}>
+                        <Ionicons name="play-circle" size={22} color="rgba(255,255,255,0.9)" />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* Churches (Makanisa) Section */}
