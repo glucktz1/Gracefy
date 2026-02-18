@@ -20,7 +20,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://melodyminder-4.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://music-app-patches.preview.emergentagent.com').rstrip('/')
 
 # Test user credentials
 TEST_EMAIL = f"test_user_{uuid.uuid4().hex[:8]}@example.com"
