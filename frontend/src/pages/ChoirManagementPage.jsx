@@ -786,6 +786,146 @@ export default function ChoirManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Send Notification Modal */}
+      <Dialog open={isNotificationModalOpen} onOpenChange={setIsNotificationModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="text-amber-400" />
+              Send Message to Choir(s)
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="text-sm text-zinc-400">
+              Sending to {selectedChoirs.length} choir(s)
+              <Button variant="link" className="text-xs text-amber-400 ml-2" onClick={selectAllChoirs}>
+                Select All Active
+              </Button>
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Type</label>
+              <Select value={notificationForm.type} onValueChange={(v) => setNotificationForm({...notificationForm, type: v})}>
+                <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-800 border-zinc-700">
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Subject</label>
+              <Input 
+                value={notificationForm.subject}
+                onChange={(e) => setNotificationForm({...notificationForm, subject: e.target.value})}
+                placeholder="Message subject"
+                className="bg-zinc-800 border-zinc-700"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Message *</label>
+              <Textarea 
+                value={notificationForm.message}
+                onChange={(e) => setNotificationForm({...notificationForm, message: e.target.value})}
+                placeholder="Enter your message to the choir(s)..."
+                className="bg-zinc-800 border-zinc-700"
+                rows={4}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNotificationModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendNotification} className="bg-amber-600 hover:bg-amber-700">
+              <Send size={14} className="mr-2" /> Send Message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disable Choir Confirmation Modal */}
+      <Dialog open={isDisableModalOpen} onOpenChange={setIsDisableModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <AlertTriangle />
+              Disable Choir
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-zinc-300">
+              Are you sure you want to disable <strong>{selectedChoirForAction?.name}</strong>?
+              This will prevent them from logging in and uploading content.
+            </p>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Reason (optional)</label>
+              <Textarea 
+                value={actionReason}
+                onChange={(e) => setActionReason(e.target.value)}
+                placeholder="Enter reason for disabling..."
+                className="bg-zinc-800 border-zinc-700"
+                rows={2}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDisableModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleDisableChoir} className="bg-amber-600 hover:bg-amber-700">
+              <Power size={14} className="mr-2" /> Disable Choir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Choir Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <Trash2 />
+              Delete Choir
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-zinc-300">
+              Are you sure you want to delete <strong>{selectedChoirForAction?.name}</strong>?
+              This action will be logged in the audit history.
+            </p>
+            <p className="text-sm text-amber-400">
+              Note: The choir's data will be preserved but marked as deleted. Any earnings balance will be retained in records.
+            </p>
+            
+            <div>
+              <label className="text-sm text-zinc-400">Reason (optional)</label>
+              <Textarea 
+                value={actionReason}
+                onChange={(e) => setActionReason(e.target.value)}
+                placeholder="Enter reason for deletion..."
+                className="bg-zinc-800 border-zinc-700"
+                rows={2}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleDeleteChoir} className="bg-red-600 hover:bg-red-700">
+              <Trash2 size={14} className="mr-2" /> Delete Choir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
