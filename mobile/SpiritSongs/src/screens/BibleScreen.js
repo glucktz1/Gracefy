@@ -302,6 +302,8 @@ const BibleScreen = ({ navigation, route }) => {
   // Play passage with TTS
   const playPassage = async (book, chapter, start, end) => {
     try {
+      console.log('playPassage called:', { book, chapter, start, end });
+      
       if (isMusicPlaying) {
         wasMusicPlayingRef.current = true;
         await pausePlayback?.();
@@ -320,6 +322,15 @@ const BibleScreen = ({ navigation, route }) => {
       });
 
       showToast('Inaandaa sauti...', 'info');
+      
+      console.log('Calling TTS API with:', {
+        book,
+        chapter,
+        start_verse: start,
+        end_verse: end,
+        voice: ttsSettings.default_voice,
+        speed: ttsSettings.default_speed
+      });
 
       const response = await bibleAPI.generatePassageTTS({
         book: book,
@@ -329,6 +340,12 @@ const BibleScreen = ({ navigation, route }) => {
         language: 'sw',
         voice: ttsSettings.default_voice,
         speed: ttsSettings.default_speed
+      });
+      
+      console.log('TTS API response received:', {
+        hasAudio: !!response.data?.audio_base64,
+        audioLength: response.data?.audio_base64?.length || 0,
+        cached: response.data?.cached
       });
 
       if (response.data?.audio_base64) {
@@ -372,11 +389,13 @@ const BibleScreen = ({ navigation, route }) => {
         
         showToast('Inasoma...', 'success');
       } else {
-        throw new Error('No audio returned');
+        console.error('No audio_base64 in response:', response.data);
+        throw new Error('No audio returned from server');
       }
     } catch (error) {
-      console.error('Error generating TTS:', error);
-      showToast('Imeshindwa kutengeneza sauti', 'error');
+      console.error('Error generating TTS:', error.message || error);
+      console.error('Full error:', JSON.stringify(error, null, 2));
+      showToast('Imeshindwa kutengeneza sauti: ' + (error.message || 'Unknown error'), 'error');
       setGeneratingAudio(false);
     }
   };
