@@ -22,6 +22,7 @@ RADIO_BROWSER_API = "https://de1.api.radio-browser.info/json"
 
 # Predefined Christian radio stations from Tanzania and Kenya
 # Updated with verified working stream URLs
+# Generic radio icon used as default favicon - admin can update
 DEFAULT_CHRISTIAN_STATIONS = [
     {
         "station_id": "radio_maria_tz",
@@ -31,9 +32,21 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "Swahili",
         "tags": ["christian", "catholic", "swahili"],
         "url_resolved": "http://dreamsiteradiocp2.com:8034/stream",
-        "favicon": "https://i.imgur.com/YqW3nKd.png",
+        "favicon": "",
         "is_featured": True,
         "order": 1
+    },
+    {
+        "station_id": "radio_tumaini",
+        "name": "Radio Tumaini",
+        "country": "Tanzania",
+        "country_code": "TZ",
+        "language": "Swahili",
+        "tags": ["christian", "catholic", "swahili"],
+        "url_resolved": "http://65.108.124.70:9368/stream",
+        "favicon": "",
+        "is_featured": True,
+        "order": 2
     },
     {
         "station_id": "radio_uhai",
@@ -43,9 +56,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "Swahili",
         "tags": ["christian", "gospel", "swahili"],
         "url_resolved": "https://s2.citrus3.com:8050/stream",
-        "favicon": "https://i.imgur.com/JQjZ9Qa.png",
+        "favicon": "",
         "is_featured": True,
-        "order": 2
+        "order": 3
     },
     {
         "station_id": "jesus_is_lord_radio",
@@ -55,9 +68,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "Swahili",
         "tags": ["christian", "gospel", "swahili"],
         "url_resolved": "https://s3.radio.co/s97f38db97/listen",
-        "favicon": "https://i.imgur.com/8kL5mNp.png",
+        "favicon": "",
         "is_featured": True,
-        "order": 3
+        "order": 4
     },
     {
         "station_id": "heaven_fm_tz",
@@ -67,9 +80,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "Swahili", 
         "tags": ["christian", "gospel", "swahili"],
         "url_resolved": "http://stream.zeno.fm/eequgfw72hhvv",
-        "favicon": "https://i.imgur.com/Dp9fKLm.png",
-        "is_featured": True,
-        "order": 4
+        "favicon": "",
+        "is_featured": False,
+        "order": 5
     },
     {
         "station_id": "favour_fm_uganda",
@@ -79,9 +92,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "English",
         "tags": ["christian", "gospel", "english"],
         "url_resolved": "http://us5new.listen2myradio.com:2199/listen.php?port=8138&type=ice&mount=stream",
-        "favicon": "https://i.imgur.com/KjN8pLq.png",
+        "favicon": "",
         "is_featured": False,
-        "order": 5
+        "order": 6
     },
     {
         "station_id": "voice_of_heaven",
@@ -91,9 +104,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "Swahili",
         "tags": ["christian", "gospel", "swahili"],
         "url_resolved": "http://stream.zeno.fm/s961sfesdmntv",
-        "favicon": "https://i.imgur.com/LmR4nHj.png",
+        "favicon": "",
         "is_featured": False,
-        "order": 6
+        "order": 7
     },
     {
         "station_id": "prayer_tower_radio",
@@ -103,9 +116,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "English",
         "tags": ["christian", "prayer", "english"],
         "url_resolved": "http://stream.zeno.fm/ymapb78yznhvv",
-        "favicon": "https://i.imgur.com/Nq8rTsP.png",
+        "favicon": "",
         "is_featured": False,
-        "order": 7
+        "order": 8
     },
     {
         "station_id": "gospel_kingz",
@@ -115,9 +128,9 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "language": "Swahili",
         "tags": ["christian", "gospel", "swahili"],
         "url_resolved": "http://stream.zeno.fm/vstzctms6rhvv",
-        "favicon": "https://i.imgur.com/Qr9sTuV.png",
+        "favicon": "",
         "is_featured": False,
-        "order": 8
+        "order": 9
     }
 ]
 
