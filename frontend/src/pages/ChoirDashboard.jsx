@@ -112,7 +112,13 @@ export default function ChoirDashboard() {
         axios.get(`${API}/choir/my-edit-requests`, { headers, withCredentials: true }).catch(() => ({ data: { requests: [] } }))
       ]);
       
-      setProfile(profileRes.data);
+      // Merge account and choir data into profile
+      const { account, choir } = profileRes.data;
+      setProfile({
+        ...account,
+        ...choir,
+        choir_name: account?.choir_name || choir?.name
+      });
       setRevenue(revenueRes.data);
       setWithdrawals(withdrawalsRes.data.requests || []);
       setPaymentDetails(paymentRes.data);
