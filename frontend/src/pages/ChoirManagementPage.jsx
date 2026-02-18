@@ -96,18 +96,109 @@ export default function ChoirManagementPage() {
 
   const fetchData = async () => {
     try {
-      const [choirsRes, churchesRes] = await Promise.all([
+      const [choirsRes, churchesRes, logsRes, notifsRes] = await Promise.all([
         axios.get(`${API}/admin/choirs`, { withCredentials: true }),
-        axios.get(`${API}/churches`, { withCredentials: true })
+        axios.get(`${API}/churches`, { withCredentials: true }),
+        axios.get(`${API}/admin/choir-audit-logs?limit=50`, { withCredentials: true }).catch(() => ({ data: { logs: [] } })),
+        axios.get(`${API}/admin/choir-notifications?limit=50`, { withCredentials: true }).catch(() => ({ data: { notifications: [] } }))
       ]);
       setChoirs(choirsRes.data.choirs || []);
       setChurches(churchesRes.data.churches || []);
+      setAuditLogs(logsRes.data.logs || []);
+      setNotifications(notifsRes.data.notifications || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load choirs");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Disable choir
+  const handleDisableChoir = async () => {
+    if (!selectedChoirForAction) return;
+    try {
+      await axios.post(`${API}/admin/choir/${selectedChoirForAction.singer_id}/disable`, 
+        { reason: actionReason || "Disabled by admin" },
+        { withCredentials: true }
+      );
+      toast.success(`Choir "${selectedChoirForAction.name}" has been disabled`);
+      setIsDisableModalOpen(false);
+      setActionReason("");
+      setSelectedChoirForAction(null);
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to disable choir");
+    }
+  };
+
+  // Enable choir
+  const handleEnableChoir = async (choir) => {
+    try {
+      await axios.post(`${API}/admin/choir/${choir.singer_id}/enable`, 
+        { reason: "Enabled by admin" },
+        { withCredentials: true }
+      );
+      toast.success(`Choir "${choir.name}" has been enabled`);
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to enable choir");
+    }
+  };
+
+  // Delete choir
+  const handleDeleteChoir = async () => {
+    if (!selectedChoirForAction) return;
+    try {
+      await axios.delete(`${API}/admin/choir/${selectedChoirForAction.singer_id}`, 
+        { data: { reason: actionReason || "Deleted by admin" }, withCredentials: true }
+      );
+      toast.success(`Choir "${selectedChoirForAction.name}" has been deleted`);
+      setIsDeleteModalOpen(false);
+      setActionReason("");
+      setSelectedChoirForAction(null);
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to delete choir");
+    }
+  };
+
+  // Send notification to choirs
+  const handleSendNotification = async () => {
+    if (!notificationForm.message || selectedChoirs.length === 0) {
+      toast.error("Please select at least one choir and enter a message");
+      return;
+    }
+    try {
+      await axios.post(`${API}/admin/choir-notifications/send`, {
+        choir_ids: selectedChoirs,
+        subject: notificationForm.subject,
+        message: notificationForm.message,
+        type: notificationForm.type
+      }, { withCredentials: true });
+      toast.success(`Notification sent to ${selectedChoirs.length} choir(s)`);
+      setIsNotificationModalOpen(false);
+      setNotificationForm({ subject: "", message: "", type: "info" });
+      setSelectedChoirs([]);
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to send notification");
+    }
+  };
+
+  // Toggle choir selection
+  const toggleChoirSelection = (choirId) => {
+    setSelectedChoirs(prev => 
+      prev.includes(choirId) 
+        ? prev.filter(id => id !== choirId)
+        : [...prev, choirId]
+    );
+  };
+
+  // Select all choirs
+  const selectAllChoirs = () => {
+    const activeChoirs = choirs.filter(c => c.status === 'active').map(c => c.singer_id);
+    setSelectedChoirs(activeChoirs);
   };
 
   useEffect(() => {
