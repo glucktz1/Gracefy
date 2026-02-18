@@ -55,6 +55,9 @@ const HomeScreen = ({ navigation }) => {
   const [mostListenedAlbums, setMostListenedAlbums] = useState([]);
   const [hotNewReleases, setHotNewReleases] = useState([]);
   
+  // Radio Stations
+  const [radioStations, setRadioStations] = useState([]);
+  
   // Album Tags
   const [availableTags, setAvailableTags] = useState([]);
   
