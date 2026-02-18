@@ -305,6 +305,10 @@ export default function RadioManagementPage() {
       order: 99
     });
     setSelectedStation(null);
+    setImagePreview("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const togglePreview = (station) => {
