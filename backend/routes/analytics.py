@@ -1507,3 +1507,452 @@ async def recalculate_play_counts():
         "total_song_sessions": len(song_plays),
         "total_teaching_sessions": len(teaching_plays)
     }
+
+
+# ============== REPLAY ANALYTICS ==============
+
+@router.get("/analytics/replay-stats")
+async def get_replay_statistics(
+    period: str = Query("day", description="Time period: day, week, month")
+):
+    """
+    Get replay statistics:
+    - Users who replayed the same song on the same day
+    - Total replay minutes
+    - Songs with most replays
+    """
+    db = get_db()
+    from datetime import timedelta
+    
+    # Calculate date range
+    now = datetime.now(timezone.utc)
+    if period == "day":
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        start_date = now - timedelta(days=7)
+    else:  # month
+        start_date = now - timedelta(days=30)
+    
+    # Users who replayed same song on same day
+    user_replays_pipeline = [
+        {"$match": {
+            "started_at": {"$gte": start_date.isoformat()},
+            "counted_as_play": True
+        }},
+        {"$addFields": {
+            "effective_song_id": {"$ifNull": ["$content_id", "$song_id"]},
+            "play_date": {"$dateToString": {"format": "%Y-%m-%d", "date": {"$dateFromString": {"dateString": "$started_at"}}}}
+        }},
+        {"$group": {
+            "_id": {
+                "user_id": "$user_id",
+                "song_id": "$effective_song_id",
+                "date": "$play_date"
+            },
+            "play_count": {"$sum": 1},
+            "total_duration_seconds": {"$sum": "$duration_seconds"}
+        }},
+        {"$match": {"play_count": {"$gt": 1}}},  # Only replays (played more than once)
+        {"$lookup": {
+            "from": "songs",
+            "localField": "_id.song_id",
+            "foreignField": "song_id",
+            "as": "song_info"
+        }},
+        {"$lookup": {
+            "from": "app_users",
+            "localField": "_id.user_id",
+            "foreignField": "user_id",
+            "as": "user_info"
+        }},
+        {"$unwind": {"path": "$song_info", "preserveNullAndEmptyArrays": True}},
+        {"$unwind": {"path": "$user_info", "preserveNullAndEmptyArrays": True}},
+        {"$project": {
+            "user_id": "$_id.user_id",
+            "user_name": {"$ifNull": ["$user_info.full_name", "$user_info.name", "Unknown User"]},
+            "user_email": "$user_info.email",
+            "song_id": "$_id.song_id",
+            "song_title": {"$ifNull": ["$song_info.title", "Unknown Song"]},
+            "artist_name": {"$ifNull": ["$song_info.artist", "Unknown Artist"]},
+            "date": "$_id.date",
+            "replay_count": "$play_count",
+            "total_minutes": {"$round": [{"$divide": ["$total_duration_seconds", 60]}, 2]}
+        }},
+        {"$sort": {"replay_count": -1}},
+        {"$limit": 100}
+    ]
+    
+    user_replays = await db.listening_sessions.aggregate(user_replays_pipeline).to_list(100)
+    
+    # Songs with most replays (per day/week/month)
+    song_replays_pipeline = [
+        {"$match": {
+            "started_at": {"$gte": start_date.isoformat()},
+            "counted_as_play": True
+        }},
+        {"$addFields": {
+            "effective_song_id": {"$ifNull": ["$content_id", "$song_id"]}
+        }},
+        {"$group": {
+            "_id": "$effective_song_id",
+            "total_plays": {"$sum": 1},
+            "unique_users": {"$addToSet": "$user_id"},
+            "total_duration_seconds": {"$sum": "$duration_seconds"}
+        }},
+        {"$addFields": {
+            "unique_user_count": {"$size": "$unique_users"},
+            "replay_ratio": {"$cond": {
+                "if": {"$gt": [{"$size": "$unique_users"}, 0]},
+                "then": {"$divide": ["$total_plays", {"$size": "$unique_users"}]},
+                "else": 0
+            }}
+        }},
+        {"$match": {"replay_ratio": {"$gt": 1}}},  # Songs with average >1 play per user
+        {"$lookup": {
+            "from": "songs",
+            "localField": "_id",
+            "foreignField": "song_id",
+            "as": "song_info"
+        }},
+        {"$unwind": {"path": "$song_info", "preserveNullAndEmptyArrays": True}},
+        {"$project": {
+            "song_id": "$_id",
+            "song_title": {"$ifNull": ["$song_info.title", "Unknown"]},
+            "artist_name": {"$ifNull": ["$song_info.artist", "Unknown"]},
+            "album_name": "$song_info.album_name",
+            "total_plays": 1,
+            "unique_users": "$unique_user_count",
+            "replay_ratio": {"$round": ["$replay_ratio", 2]},
+            "total_minutes": {"$round": [{"$divide": ["$total_duration_seconds", 60]}, 2]}
+        }},
+        {"$sort": {"total_plays": -1}},
+        {"$limit": 50}
+    ]
+    
+    top_replayed_songs = await db.listening_sessions.aggregate(song_replays_pipeline).to_list(50)
+    
+    # Summary stats
+    total_replay_users = len(set(r.get("user_id") for r in user_replays if r.get("user_id")))
+    total_replay_minutes = sum(r.get("total_minutes", 0) for r in user_replays)
+    
+    return {
+        "period": period,
+        "start_date": start_date.isoformat(),
+        "summary": {
+            "users_who_replayed": total_replay_users,
+            "total_replay_minutes": round(total_replay_minutes, 2),
+            "total_replay_sessions": len(user_replays)
+        },
+        "user_replays": user_replays,
+        "top_replayed_songs": top_replayed_songs
+    }
+
+
+# ============== DEVICE & PLATFORM ANALYTICS ==============
+
+@router.get("/analytics/device-distribution")
+async def get_device_distribution():
+    """
+    Get detailed device and platform distribution:
+    - Device manufacturers (Samsung, iPhone, etc.)
+    - Platform (Android, iOS, Web)
+    - Device models
+    - Location distribution
+    """
+    db = get_db()
+    
+    cache_key = "analytics:device_distribution"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+    
+    # Get all app users with device info
+    users = await db.app_users.find(
+        {},
+        {"_id": 0, "user_id": 1, "device_info": 1, "device_type": 1, "platform": 1, 
+         "device_model": 1, "device_manufacturer": 1, "os_version": 1,
+         "location": 1, "country": 1, "city": 1}
+    ).to_list(50000)
+    
+    # Initialize counters
+    platform_stats = {"android": 0, "ios": 0, "web": 0, "unknown": 0}
+    manufacturer_stats = {}
+    model_stats = {}
+    location_stats = {}
+    os_version_stats = {}
+    
+    for user in users:
+        # Platform
+        platform = (user.get("platform") or user.get("device_type") or "unknown").lower()
+        if "android" in platform:
+            platform_stats["android"] += 1
+        elif "ios" in platform or "iphone" in platform or "ipad" in platform:
+            platform_stats["ios"] += 1
+        elif "web" in platform:
+            platform_stats["web"] += 1
+        else:
+            platform_stats["unknown"] += 1
+        
+        # Device manufacturer
+        device_info = user.get("device_info", {}) or {}
+        manufacturer = (
+            user.get("device_manufacturer") or 
+            device_info.get("manufacturer") or 
+            device_info.get("brand") or 
+            "Unknown"
+        ).strip().title()
+        
+        # Normalize common manufacturer names
+        if "samsung" in manufacturer.lower():
+            manufacturer = "Samsung"
+        elif "apple" in manufacturer.lower() or "iphone" in manufacturer.lower():
+            manufacturer = "Apple"
+        elif "huawei" in manufacturer.lower():
+            manufacturer = "Huawei"
+        elif "xiaomi" in manufacturer.lower():
+            manufacturer = "Xiaomi"
+        elif "oppo" in manufacturer.lower():
+            manufacturer = "Oppo"
+        elif "vivo" in manufacturer.lower():
+            manufacturer = "Vivo"
+        elif "tecno" in manufacturer.lower():
+            manufacturer = "Tecno"
+        elif "infinix" in manufacturer.lower():
+            manufacturer = "Infinix"
+        elif "itel" in manufacturer.lower():
+            manufacturer = "Itel"
+        
+        manufacturer_stats[manufacturer] = manufacturer_stats.get(manufacturer, 0) + 1
+        
+        # Device model
+        model = (
+            user.get("device_model") or 
+            device_info.get("model") or 
+            device_info.get("modelName") or 
+            "Unknown"
+        ).strip()
+        if model and model != "Unknown":
+            model_key = f"{manufacturer} {model}"
+            model_stats[model_key] = model_stats.get(model_key, 0) + 1
+        
+        # OS Version
+        os_ver = (
+            user.get("os_version") or 
+            device_info.get("osVersion") or 
+            device_info.get("systemVersion") or 
+            "Unknown"
+        )
+        os_version_stats[os_ver] = os_version_stats.get(os_ver, 0) + 1
+        
+        # Location
+        location = user.get("location") or user.get("country") or user.get("city") or "Unknown"
+        location_stats[location] = location_stats.get(location, 0) + 1
+    
+    # Sort and limit results
+    top_manufacturers = sorted(manufacturer_stats.items(), key=lambda x: x[1], reverse=True)[:15]
+    top_models = sorted(model_stats.items(), key=lambda x: x[1], reverse=True)[:20]
+    top_locations = sorted(location_stats.items(), key=lambda x: x[1], reverse=True)[:15]
+    top_os_versions = sorted(os_version_stats.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    result = {
+        "total_users": len(users),
+        "platform_distribution": platform_stats,
+        "manufacturer_distribution": dict(top_manufacturers),
+        "top_device_models": dict(top_models),
+        "location_distribution": dict(top_locations),
+        "os_version_distribution": dict(top_os_versions),
+        "platform_breakdown": {
+            "mobile": platform_stats["android"] + platform_stats["ios"],
+            "web": platform_stats["web"],
+            "unknown": platform_stats["unknown"]
+        }
+    }
+    
+    await cache.set(cache_key, result, 300)
+    return result
+
+
+@router.post("/analytics/track-device")
+async def track_user_device(data: dict):
+    """
+    Track user device information from app or web.
+    Called when user opens the app or logs in.
+    """
+    db = get_db()
+    
+    user_id = data.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "user_id required"}
+    
+    # Extract device info
+    device_update = {}
+    
+    if data.get("platform"):
+        device_update["platform"] = data["platform"]
+    if data.get("device_type"):
+        device_update["device_type"] = data["device_type"]
+    if data.get("device_manufacturer"):
+        device_update["device_manufacturer"] = data["device_manufacturer"]
+    if data.get("device_model"):
+        device_update["device_model"] = data["device_model"]
+    if data.get("os_version"):
+        device_update["os_version"] = data["os_version"]
+    if data.get("app_version"):
+        device_update["app_version"] = data["app_version"]
+    if data.get("device_info"):
+        device_update["device_info"] = data["device_info"]
+    
+    # Location info
+    if data.get("location"):
+        device_update["location"] = data["location"]
+    if data.get("country"):
+        device_update["country"] = data["country"]
+    if data.get("city"):
+        device_update["city"] = data["city"]
+    
+    device_update["last_device_update"] = datetime.now(timezone.utc).isoformat()
+    
+    if device_update:
+        await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$set": device_update}
+        )
+    
+    return {"success": True, "updated_fields": list(device_update.keys())}
+
+
+# ============== ERROR REPORTING ==============
+
+@router.post("/errors/report")
+async def report_error(data: dict):
+    """
+    Capture errors from user's app/web automatically.
+    Includes device info, user context, and error details.
+    """
+    db = get_db()
+    import uuid
+    
+    error_report = {
+        "error_id": f"err_{uuid.uuid4().hex[:12]}",
+        "error_type": data.get("error_type", "runtime_error"),
+        "message": data.get("message", ""),
+        "stack_trace": data.get("stack_trace", ""),
+        "component": data.get("component", ""),
+        "screen": data.get("screen", ""),
+        "action": data.get("action", ""),
+        
+        # User info
+        "user_id": data.get("user_id"),
+        "user_email": data.get("user_email"),
+        
+        # Device info
+        "platform": data.get("platform", "unknown"),
+        "device_type": data.get("device_type", "unknown"),
+        "device_manufacturer": data.get("device_manufacturer", ""),
+        "device_model": data.get("device_model", ""),
+        "os_version": data.get("os_version", ""),
+        "app_version": data.get("app_version", ""),
+        "device_info": data.get("device_info", {}),
+        
+        # Context
+        "url": data.get("url", ""),
+        "user_agent": data.get("user_agent", ""),
+        "extra_context": data.get("extra_context", {}),
+        
+        # Metadata
+        "severity": data.get("severity", "error"),
+        "is_fatal": data.get("is_fatal", False),
+        "resolved": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.error_reports.insert_one(error_report)
+    error_report.pop("_id", None)
+    
+    return {"success": True, "error_id": error_report["error_id"]}
+
+
+@router.get("/admin/error-reports")
+async def get_error_reports(
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+    severity: Optional[str] = None,
+    platform: Optional[str] = None,
+    resolved: Optional[bool] = None
+):
+    """Get error reports with filtering"""
+    db = get_db()
+    
+    query = {}
+    if severity:
+        query["severity"] = severity
+    if platform:
+        query["platform"] = platform
+    if resolved is not None:
+        query["resolved"] = resolved
+    
+    reports = await db.error_reports.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Get counts by platform and severity
+    platform_counts = {}
+    severity_counts = {}
+    
+    all_reports = await db.error_reports.find({}, {"platform": 1, "severity": 1, "_id": 0}).to_list(10000)
+    for r in all_reports:
+        p = r.get("platform", "unknown")
+        s = r.get("severity", "error")
+        platform_counts[p] = platform_counts.get(p, 0) + 1
+        severity_counts[s] = severity_counts.get(s, 0) + 1
+    
+    total = await db.error_reports.count_documents(query)
+    
+    return {
+        "reports": reports,
+        "total": total,
+        "stats": {
+            "by_platform": platform_counts,
+            "by_severity": severity_counts
+        }
+    }
+
+
+@router.put("/admin/error-reports/{error_id}/resolve")
+async def resolve_error_report(error_id: str, data: dict = None):
+    """Mark an error report as resolved"""
+    db = get_db()
+    
+    update = {
+        "resolved": True,
+        "resolved_at": datetime.now(timezone.utc).isoformat()
+    }
+    if data and data.get("resolution_note"):
+        update["resolution_note"] = data["resolution_note"]
+    
+    result = await db.error_reports.update_one(
+        {"error_id": error_id},
+        {"$set": update}
+    )
+    
+    if result.matched_count == 0:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Error report not found")
+    
+    return {"success": True}
+
+
+@router.delete("/admin/error-reports/{error_id}")
+async def delete_error_report(error_id: str):
+    """Delete an error report"""
+    db = get_db()
+    
+    result = await db.error_reports.delete_one({"error_id": error_id})
+    
+    if result.deleted_count == 0:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Error report not found")
+    
+    return {"success": True}
+
