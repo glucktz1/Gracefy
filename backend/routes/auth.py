@@ -354,7 +354,69 @@ async def admin_user_login(data: dict, response: Response):
     if not email or not password:
         raise HTTPException(status_code=400, detail="Email/username and password required")
     
-    # Find user by email or username
+    # First check admin_users collection
+    admin_user = await db.admin_users.find_one({"email": email})
+    
+    if admin_user:
+        # Verify password
+        if not admin_user.get("password_hash"):
+            raise HTTPException(status_code=401, detail="This account uses OAuth login")
+        
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        if admin_user["password_hash"] != password_hash:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        if admin_user.get("status") != "active":
+            raise HTTPException(status_code=403, detail="Account is not active")
+        
+        # Create session
+        session_token = f"admin_{uuid.uuid4().hex}"
+        expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
+        
+        session_doc = {
+            "session_id": f"sess_{uuid.uuid4().hex}",
+            "admin_id": admin_user["admin_id"],
+            "user_id": admin_user["admin_id"],
+            "email": admin_user["email"],
+            "role": "admin",
+            "session_token": session_token,
+            "expires_at": expires_at.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.admin_sessions.insert_one(session_doc)
+        
+        # Set cookies
+        response.set_cookie(
+            key="session_token",
+            value=session_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            path="/",
+            max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60
+        )
+        response.set_cookie(
+            key="admin_email",
+            value=admin_user["email"],
+            httponly=False,
+            secure=True,
+            samesite="none",
+            path="/",
+            max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60
+        )
+        
+        return {
+            "token": session_token,
+            "user": {
+                "admin_id": admin_user["admin_id"],
+                "email": admin_user["email"],
+                "name": admin_user.get("name"),
+                "role": "admin",
+                "permissions": admin_user.get("permissions", [])
+            }
+        }
+    
+    # Fallback to users collection
     user = await db.users.find_one({"$or": [{"email": email}, {"username": email}]})
     
     if not user:
