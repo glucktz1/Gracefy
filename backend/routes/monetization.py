@@ -927,7 +927,7 @@ async def get_choir_revenues():
 
 
 @router.get("/revenue/settings")
-async def get_revenue_settings():
+async def get_revenue_settings_v2():
     """Get revenue sharing settings including monetization options"""
     db = get_db()
     
