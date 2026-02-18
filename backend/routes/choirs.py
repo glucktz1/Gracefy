@@ -218,6 +218,68 @@ async def logout_choir(request: Request):
     return {"message": "Logged out successfully"}
 
 
+@router.get("/choir/payment-details")
+async def get_choir_payment_details(request: Request):
+    """Get choir's payment details"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    account = await db.choir_accounts.find_one(
+        {"account_id": token_doc["account_id"]},
+        {"_id": 0, "payment_details": 1, "payment_method": 1}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=401, detail="Account not found")
+    
+    return {
+        "payment_method": account.get("payment_method", "mobile_money"),
+        "payment_details": account.get("payment_details", {})
+    }
+
+
+@router.post("/choir/payment-details")
+async def update_choir_payment_details(request: Request, data: dict):
+    """Update choir's payment details"""
+    db = get_db()
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header[7:]
+    token_doc = await db.choir_tokens.find_one({"token": token})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    update_data = {
+        "payment_method": data.get("payment_method", "mobile_money"),
+        "payment_details": {
+            "phone": data.get("phone", ""),
+            "bank_name": data.get("bank_name", ""),
+            "account_number": data.get("account_number", ""),
+            "account_name": data.get("account_name", "")
+        }
+    }
+    
+    await db.choir_accounts.update_one(
+        {"account_id": token_doc["account_id"]},
+        {"$set": update_data}
+    )
+    
+    return {"success": True, "message": "Payment details updated"}
+
+
 # ============== CHOIR CONTENT MANAGEMENT ==============
 
 @router.post("/choir/albums/create")
