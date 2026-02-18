@@ -9,54 +9,39 @@ import {
   ActivityIndicator,
   RefreshControl,
   Animated,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { radioAPI } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { usePlayer } from '../context/PlayerContext';
 import Toast from '../components/Toast';
 
 const RadioScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stations, setStations] = useState([]);
-  const [playingStation, setPlayingStation] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [sound, setSound] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
-  const [playStartTime, setPlayStartTime] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
   
   // Animation for playing indicator
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const { user } = useAuth();
+  // Use the shared player context
+  const { playRadio, stopPlayback, currentTrack, isPlaying } = usePlayer();
+
+  // Determine if a station is currently playing
+  const playingStation = currentTrack?.isRadio ? currentTrack?.radioStation : null;
+  const isStationPlaying = (station) => 
+    playingStation?.station_id === station.station_id && isPlaying;
 
   useEffect(() => {
     loadStations();
-    
-    // Configure audio session for streaming
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
-    });
-
-    return () => {
-      // Cleanup sound on unmount
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
   }, []);
 
   // Pulse animation for playing station
   useEffect(() => {
-    if (isPlaying) {
+    if (playingStation && isPlaying) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -74,7 +59,7 @@ const RadioScreen = ({ navigation }) => {
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isPlaying]);
+  }, [playingStation, isPlaying]);
 
   const showToast = (message, type = 'info') => {
     setToast({ visible: true, message, type });
@@ -101,110 +86,41 @@ const RadioScreen = ({ navigation }) => {
   const handlePlayStation = async (station) => {
     try {
       // If same station is playing, toggle pause/play
-      if (playingStation?.station_id === station.station_id) {
-        if (isPlaying) {
-          await sound?.pauseAsync();
-          setIsPlaying(false);
-          
-          // Track stop
-          if (sessionId && playStartTime) {
-            const duration = Math.floor((Date.now() - playStartTime) / 1000);
-            try {
-              await radioAPI.trackStop({ session_id: sessionId, duration_seconds: duration });
-            } catch (e) {
-              console.log('Failed to track stop:', e);
-            }
-          }
-        } else {
-          await sound?.playAsync();
-          setIsPlaying(true);
-          setPlayStartTime(Date.now());
-        }
+      if (isStationPlaying(station)) {
+        await stopPlayback();
+        showToast(`Imesimamishwa: ${station.name}`, 'info');
         return;
       }
 
-      // Stop current station if playing
-      if (sound) {
-        await sound.unloadAsync();
-        
-        // Track stop for previous station
-        if (sessionId && playStartTime) {
-          const duration = Math.floor((Date.now() - playStartTime) / 1000);
-          try {
-            await radioAPI.trackStop({ session_id: sessionId, duration_seconds: duration });
-          } catch (e) {
-            console.log('Failed to track stop:', e);
-          }
-        }
-      }
-
-      setPlayingStation(station);
-      setIsPlaying(false);
       showToast(`Inapakia ${station.name}...`, 'info');
-
-      // Track play start
+      
+      // Use the shared player context to play radio
+      await playRadio(station);
+      
+      // Track play analytics
       try {
-        const trackResponse = await radioAPI.trackPlay({
+        await radioAPI.trackPlay({
           station_id: station.station_id,
-          user_id: user?.user_id,
-          platform: Platform.OS,
+          platform: 'mobile',
         });
-        setSessionId(trackResponse.data?.session_id);
       } catch (e) {
-        console.log('Failed to track play:', e);
+        console.log('Failed to track radio play:', e);
       }
 
-      // Create and play new sound
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: station.url_resolved },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded) {
-            setIsPlaying(status.isPlaying);
-          }
-          if (status.error) {
-            console.error('Playback error:', status.error);
-            showToast('Imeshindwa kucheza redio', 'error');
-            setIsPlaying(false);
-          }
-        }
-      );
-      
-      setSound(newSound);
-      setIsPlaying(true);
-      setPlayStartTime(Date.now());
       showToast(`Inacheza: ${station.name}`, 'success');
     } catch (error) {
       console.error('Error playing station:', error);
       showToast('Imeshindwa kucheza redio. Jaribu tena.', 'error');
-      setIsPlaying(false);
     }
   };
 
   const handleStopPlayback = async () => {
-    if (sound) {
-      await sound.unloadAsync();
-      setSound(null);
-      
-      // Track stop
-      if (sessionId && playStartTime) {
-        const duration = Math.floor((Date.now() - playStartTime) / 1000);
-        try {
-          await radioAPI.trackStop({ session_id: sessionId, duration_seconds: duration });
-        } catch (e) {
-          console.log('Failed to track stop:', e);
-        }
-      }
-    }
-    setPlayingStation(null);
-    setIsPlaying(false);
-    setSessionId(null);
-    setPlayStartTime(null);
+    await stopPlayback();
+    showToast('Redio imesimamishwa', 'info');
   };
 
   const renderStationCard = (station, index) => {
-    const isCurrentStation = playingStation?.station_id === station.station_id;
-    const isActive = isCurrentStation && isPlaying;
+    const isActive = isStationPlaying(station);
 
     return (
       <TouchableOpacity
@@ -291,7 +207,6 @@ const RadioScreen = ({ navigation }) => {
                     styles.waveBar,
                     {
                       height: 8 + Math.random() * 12,
-                      animationDelay: `${i * 100}ms`,
                     },
                   ]}
                 />
@@ -354,7 +269,7 @@ const RadioScreen = ({ navigation }) => {
             <View style={styles.nowPlayingContent}>
               <View style={styles.soundWaveSmall}>
                 {[...Array(4)].map((_, i) => (
-                  <View key={i} style={styles.waveBarSmall} />
+                  <View key={i} style={[styles.waveBarSmall, { height: 8 + Math.random() * 12 }]} />
                 ))}
               </View>
               <View style={styles.nowPlayingInfo}>
@@ -365,7 +280,7 @@ const RadioScreen = ({ navigation }) => {
               </View>
               <TouchableOpacity
                 style={styles.nowPlayingPause}
-                onPress={() => handlePlayStation(playingStation)}
+                onPress={handleStopPlayback}
               >
                 <Ionicons name="pause" size={20} color={COLORS.text} />
               </TouchableOpacity>
@@ -416,8 +331,8 @@ const RadioScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Bottom Padding */}
-        <View style={{ height: 100 }} />
+        {/* Bottom Padding for mini player */}
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Toast */}
@@ -495,7 +410,7 @@ const styles = StyleSheet.create({
   nowPlayingBanner: {
     marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: SPACING.md,
     overflow: 'hidden',
   },
   nowPlayingGradient: {
@@ -517,7 +432,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.text,
     marginHorizontal: 1,
     borderRadius: 1,
-    height: Math.random() * 12 + 8,
   },
   nowPlayingInfo: {
     flex: 1,
@@ -569,7 +483,7 @@ const styles = StyleSheet.create({
   },
   stationCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: SPACING.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderWidth: 1,
@@ -586,7 +500,7 @@ const styles = StyleSheet.create({
   stationLogo: {
     width: 56,
     height: 56,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: SPACING.md,
     overflow: 'hidden',
     position: 'relative',
   },
