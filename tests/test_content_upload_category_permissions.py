@@ -13,7 +13,7 @@ import os
 import struct
 import base64
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://music-app-patches.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://music-worship-app.preview.emergentagent.com').rstrip('/')
 
 
 class TestContentThumbnailUpload:
