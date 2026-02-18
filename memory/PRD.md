@@ -423,3 +423,94 @@ REACT_APP_BACKEND_URL=https://music-worship-app.preview.emergentagent.com
   - Bulk notification sending (select multiple choirs)
   - Audit logs accessible via API
 
+### Live Christian Radio Feature (Feb 18, 2026) - COMPLETE
+- [x] **Backend API** (`/app/backend/routes/radio.py`):
+  - 8 pre-configured Christian stations (Tanzania & Kenya)
+  - CRUD operations for station management
+  - Radio Browser API integration for discovering more stations
+  - Analytics tracking: play counts, listen minutes, sessions
+  - APIs:
+    - `GET /api/radio/stations` - List enabled stations for users
+    - `GET /api/radio/stations/{id}` - Single station details
+    - `POST /api/radio/play` - Track play start
+    - `POST /api/radio/stop` - Track play end
+    - Admin: `GET/POST/PUT/DELETE /api/admin/radio/stations`
+    - `GET /api/admin/radio/analytics` - Station performance stats
+    - `GET /api/admin/radio/search` - Search Radio Browser API
+
+- [x] **Admin Panel** (`RadioManagementPage.jsx`):
+  - Station list with enable/disable toggles
+  - Add new stations manually or import from Radio Browser
+  - Edit station details (name, URL, country, language, logo)
+  - Reorder stations with drag controls
+  - Mark stations as "Featured"
+  - Analytics tab showing plays and listen time per station
+
+- [x] **Web User App** (`UserStreamingApp.jsx`):
+  - "Redio" button in sidebar and mobile bottom nav
+  - RadioView component with:
+    - Featured stations section
+    - All stations list
+    - Now playing banner with controls
+    - Audio streaming via HTML5 Audio
+    - Analytics tracking integration
+
+- [x] **Mobile App** (`RadioScreen.js`):
+  - New screen with expo-av audio playback
+  - Featured and all stations list
+  - Play/pause controls with pulse animation
+  - Now playing indicator
+  - Background audio support
+  - "Redio" quick access tile on HomeScreen
+
+- [x] **Pre-configured Stations:**
+  1. Radio Wapo (Tanzania, Swahili)
+  2. Radio Tumaini (Tanzania, Swahili)
+  3. Radio Maria Tanzania (Tanzania, Swahili)
+  4. Radio Imani (Tanzania, Swahili)
+  5. Hope FM Kenya (Kenya, English)
+  6. Radio Waumini (Kenya, Swahili)
+  7. Family FM Kenya (Kenya, English)
+  8. Sayari FM (Tanzania, Swahili)
+
+## Current Mobile Build
+- **Build ID**: 423e3368-43c9-489d-b5e0-25a426bd37da
+- **Status**: In Progress
+- **Profile**: preview (APK)
+- **Account**: gracefy3
+- **View Logs**: https://expo.dev/accounts/gracefy3/projects/Gracefy-App/builds/423e3368-43c9-489d-b5e0-25a426bd37da
+
+### Features in Current Build:
+- Live Christian Radio with 8 stations
+- Bible snippets on HomeScreen
+- AI Chat title "Ongea nasi wakat wowote"
+- Device tracking and error reporting
+- All previous features
+
+## Test Credentials
+- **Admin Login:**
+  - URL: `/login`
+  - Email: `admin@spiritsongs.com`
+  - Password: `Admin@123`
+  
+- **Choir Login:**
+  - URL: `/choir/login`
+  - Email: `cecilia@mabibo.com`
+  - Password: `choir123`
+
+## Remaining Tasks
+
+### P0 - Critical
+- [ ] Verify new mobile build (423e3368-...) works on device
+- [ ] Test radio streaming on mobile
+- [ ] Test Bible TTS on mobile
+
+### P1 - High Priority
+- [ ] Complete Advertising & Campaigns module
+- [ ] Implement Firebase push notifications
+- [ ] Azam Pay test mode
+
+### P2 - Medium Priority
+- [ ] Enhanced Church UI (image, location, announcements)
+- [ ] Twilio SMS / SendGrid email integration
+
