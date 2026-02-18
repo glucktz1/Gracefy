@@ -127,6 +127,54 @@ export default function RadioManagementPage() {
     }
   };
 
+  // Handle thumbnail image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image size should be less than 2MB");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(`${API}/content/upload-thumbnail`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true
+      });
+
+      if (response.data?.url) {
+        setStationForm(prev => ({ ...prev, favicon: response.data.url }));
+        setImagePreview(response.data.url);
+        toast.success("Image uploaded successfully");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const clearImage = () => {
+    setStationForm(prev => ({ ...prev, favicon: "" }));
+    setImagePreview("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleAddStation = async () => {
     if (!stationForm.name || !stationForm.url_resolved) {
       toast.error("Name and Stream URL are required");
