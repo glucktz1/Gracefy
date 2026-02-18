@@ -884,6 +884,8 @@ export const PlayerProvider = ({ children }) => {
     stopPlayback,
     pausePlayback,
     resumePlayback,
+    playRadio,
+    stopRadio,
   };
 
   return (
