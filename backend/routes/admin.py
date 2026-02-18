@@ -1747,3 +1747,344 @@ async def get_choir_revenue_detail(choir_id: str, period: str = Query("30d")):
         "albums": albums
     }
 
+
+
+# ============== CHOIR MANAGEMENT WITH AUDIT ==============
+
+@router.post("/admin/choir/{choir_id}/disable")
+async def disable_choir(choir_id: str, request: Request, data: dict = None):
+    """Disable a choir account - keeps data but prevents login and activity"""
+    db = get_db()
+    
+    # Get admin info from session/cookies
+    admin_email = request.cookies.get("admin_email", "admin")
+    
+    # Check choir exists
+    choir = await db.singers.find_one({"singer_id": choir_id})
+    if not choir:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    reason = (data or {}).get("reason", "Disabled by admin")
+    
+    # Update choir status
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {
+            "status": "disabled",
+            "disabled_at": datetime.now(timezone.utc).isoformat(),
+            "disabled_by": admin_email,
+            "disabled_reason": reason
+        }}
+    )
+    
+    # Update choir account status
+    await db.choir_accounts.update_one(
+        {"choir_id": choir_id},
+        {"$set": {"status": "disabled"}}
+    )
+    
+    # Create audit log
+    audit_log = {
+        "log_id": f"audit_{uuid.uuid4().hex[:12]}",
+        "action": "choir_disabled",
+        "entity_type": "choir",
+        "entity_id": choir_id,
+        "entity_name": choir.get("name"),
+        "performed_by": admin_email,
+        "reason": reason,
+        "previous_status": choir.get("status"),
+        "new_status": "disabled",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.audit_logs.insert_one(audit_log)
+    
+    return {"success": True, "message": f"Choir '{choir.get('name')}' has been disabled"}
+
+
+@router.post("/admin/choir/{choir_id}/enable")
+async def enable_choir(choir_id: str, request: Request, data: dict = None):
+    """Re-enable a disabled choir account"""
+    db = get_db()
+    
+    admin_email = request.cookies.get("admin_email", "admin")
+    
+    choir = await db.singers.find_one({"singer_id": choir_id})
+    if not choir:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    reason = (data or {}).get("reason", "Enabled by admin")
+    
+    # Update choir status
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {
+            "status": "active",
+            "enabled_at": datetime.now(timezone.utc).isoformat(),
+            "enabled_by": admin_email
+        },
+        "$unset": {
+            "disabled_at": "",
+            "disabled_by": "",
+            "disabled_reason": ""
+        }}
+    )
+    
+    # Update choir account status
+    await db.choir_accounts.update_one(
+        {"choir_id": choir_id},
+        {"$set": {"status": "approved"}}
+    )
+    
+    # Create audit log
+    audit_log = {
+        "log_id": f"audit_{uuid.uuid4().hex[:12]}",
+        "action": "choir_enabled",
+        "entity_type": "choir",
+        "entity_id": choir_id,
+        "entity_name": choir.get("name"),
+        "performed_by": admin_email,
+        "reason": reason,
+        "previous_status": choir.get("status"),
+        "new_status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.audit_logs.insert_one(audit_log)
+    
+    return {"success": True, "message": f"Choir '{choir.get('name')}' has been enabled"}
+
+
+@router.delete("/admin/choir/{choir_id}")
+async def delete_choir(choir_id: str, request: Request, data: dict = None):
+    """Delete a choir - soft delete, keeps audit record"""
+    db = get_db()
+    
+    admin_email = request.cookies.get("admin_email", "admin")
+    
+    choir = await db.singers.find_one({"singer_id": choir_id})
+    if not choir:
+        raise HTTPException(status_code=404, detail="Choir not found")
+    
+    reason = (data or {}).get("reason", "Deleted by admin")
+    
+    # Get related data counts for audit
+    albums_count = await db.albums.count_documents({"singer_id": choir_id})
+    account = await db.choir_accounts.find_one({"choir_id": choir_id}, {"_id": 0, "current_balance": 1})
+    
+    # Soft delete - mark as deleted instead of removing
+    await db.singers.update_one(
+        {"singer_id": choir_id},
+        {"$set": {
+            "status": "deleted",
+            "deleted_at": datetime.now(timezone.utc).isoformat(),
+            "deleted_by": admin_email,
+            "deleted_reason": reason
+        }}
+    )
+    
+    # Disable choir account
+    await db.choir_accounts.update_one(
+        {"choir_id": choir_id},
+        {"$set": {"status": "deleted"}}
+    )
+    
+    # Create comprehensive audit log
+    audit_log = {
+        "log_id": f"audit_{uuid.uuid4().hex[:12]}",
+        "action": "choir_deleted",
+        "entity_type": "choir",
+        "entity_id": choir_id,
+        "entity_name": choir.get("name"),
+        "performed_by": admin_email,
+        "reason": reason,
+        "previous_status": choir.get("status"),
+        "new_status": "deleted",
+        "metadata": {
+            "albums_count": albums_count,
+            "balance_at_deletion": account.get("current_balance", 0) if account else 0,
+            "choir_type": choir.get("type"),
+            "church_name": choir.get("church_name"),
+            "created_at": choir.get("created_at")
+        },
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.audit_logs.insert_one(audit_log)
+    
+    return {"success": True, "message": f"Choir '{choir.get('name')}' has been deleted"}
+
+
+@router.get("/admin/choir-audit-logs")
+async def get_choir_audit_logs(
+    choir_id: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0)
+):
+    """Get audit logs for choir actions"""
+    db = get_db()
+    
+    query = {"entity_type": "choir"}
+    if choir_id:
+        query["entity_id"] = choir_id
+    if action:
+        query["action"] = action
+    
+    logs = await db.audit_logs.find(query, {"_id": 0})\
+        .sort("created_at", -1)\
+        .skip(skip)\
+        .limit(limit)\
+        .to_list(limit)
+    
+    total = await db.audit_logs.count_documents(query)
+    
+    return {"logs": logs, "total": total}
+
+
+# ============== CHOIR NOTIFICATION SYSTEM ==============
+
+@router.post("/admin/choir-notifications/send")
+async def send_choir_notification(request: Request, data: dict):
+    """Send notification to one or multiple choirs"""
+    db = get_db()
+    
+    admin_email = request.cookies.get("admin_email", "admin")
+    
+    choir_ids = data.get("choir_ids", [])  # Can be single choir or list
+    subject = data.get("subject", "")
+    message = data.get("message", "")
+    notification_type = data.get("type", "info")  # info, warning, urgent
+    
+    if not choir_ids:
+        raise HTTPException(status_code=400, detail="At least one choir_id is required")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    
+    # If single choir_id passed as string, convert to list
+    if isinstance(choir_ids, str):
+        choir_ids = [choir_ids]
+    
+    # Create notifications for each choir
+    notifications = []
+    for choir_id in choir_ids:
+        notification = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "choir_id": choir_id,
+            "subject": subject,
+            "message": message,
+            "type": notification_type,
+            "sent_by": admin_email,
+            "is_read": False,
+            "responses": [],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        notifications.append(notification)
+    
+    if notifications:
+        await db.choir_notifications.insert_many(notifications)
+    
+    return {
+        "success": True,
+        "message": f"Notification sent to {len(choir_ids)} choir(s)",
+        "notification_ids": [n["notification_id"] for n in notifications]
+    }
+
+
+@router.get("/admin/choir-notifications")
+async def get_admin_choir_notifications(
+    choir_id: Optional[str] = None,
+    is_read: Optional[bool] = None,
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0)
+):
+    """Get all choir notifications (admin view)"""
+    db = get_db()
+    
+    query = {}
+    if choir_id:
+        query["choir_id"] = choir_id
+    if is_read is not None:
+        query["is_read"] = is_read
+    
+    notifications = await db.choir_notifications.find(query, {"_id": 0})\
+        .sort("created_at", -1)\
+        .skip(skip)\
+        .limit(limit)\
+        .to_list(limit)
+    
+    # Enrich with choir names
+    for notif in notifications:
+        choir = await db.singers.find_one(
+            {"singer_id": notif["choir_id"]},
+            {"_id": 0, "name": 1}
+        )
+        notif["choir_name"] = choir.get("name") if choir else "Unknown"
+    
+    total = await db.choir_notifications.count_documents(query)
+    
+    return {"notifications": notifications, "total": total}
+
+
+@router.get("/admin/choir-notifications/{notification_id}")
+async def get_notification_detail(notification_id: str):
+    """Get single notification with responses"""
+    db = get_db()
+    
+    notification = await db.choir_notifications.find_one(
+        {"notification_id": notification_id},
+        {"_id": 0}
+    )
+    
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    # Get choir name
+    choir = await db.singers.find_one(
+        {"singer_id": notification["choir_id"]},
+        {"_id": 0, "name": 1}
+    )
+    notification["choir_name"] = choir.get("name") if choir else "Unknown"
+    
+    return notification
+
+
+@router.post("/admin/choir-notifications/{notification_id}/reply")
+async def admin_reply_notification(notification_id: str, request: Request, data: dict):
+    """Admin replies to a choir's response"""
+    db = get_db()
+    
+    admin_email = request.cookies.get("admin_email", "admin")
+    message = data.get("message", "")
+    
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    
+    response = {
+        "response_id": f"resp_{uuid.uuid4().hex[:8]}",
+        "message": message,
+        "from": "admin",
+        "from_name": admin_email,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    result = await db.choir_notifications.update_one(
+        {"notification_id": notification_id},
+        {"$push": {"responses": response}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    return {"success": True, "response": response}
+
+
+@router.delete("/admin/choir-notifications/{notification_id}")
+async def delete_notification(notification_id: str):
+    """Delete a notification"""
+    db = get_db()
+    
+    result = await db.choir_notifications.delete_one({"notification_id": notification_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    return {"success": True}
+
