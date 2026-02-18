@@ -1705,7 +1705,140 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Bible Section
+  // Bible Section - Enhanced Colorful Tiles
+  sectionHeaderWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  sectionIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionSubtitleText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  bibleTwoCardsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  bibleColorCard: {
+    flex: 1,
+    height: 180,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  bibleColorGradient: {
+    flex: 1,
+    padding: SPACING.md,
+    justifyContent: 'space-between',
+  },
+  bibleCardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bibleColorTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  bibleColorSubtitle: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  bibleColorDesc: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+  },
+  bibleColorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+    marginTop: SPACING.sm,
+  },
+  bibleColorButtonText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+    color: '#333',
+  },
+  featuredSnippetBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: '#fbbf24',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  featuredSnippetBadgeText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  snippetLabelSmall: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  moreSnippetsContainer: {
+    paddingHorizontal: SPACING.md,
+  },
+  moreSnippetsLabel: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+  },
+  moreSnippetsScroll: {
+    paddingRight: SPACING.md,
+  },
+  miniSnippetCard: {
+    width: 140,
+    height: 100,
+    marginRight: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
+  },
+  miniSnippetGradient: {
+    flex: 1,
+    padding: SPACING.sm,
+    justifyContent: 'space-between',
+  },
+  miniSnippetTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  miniSnippetDesc: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  miniSnippetPlayIcon: {
+    alignSelf: 'flex-end',
+  },
+  // Legacy styles kept for compatibility
   bibleRow: {
     paddingHorizontal: SPACING.md,
   },
