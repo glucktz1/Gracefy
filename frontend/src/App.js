@@ -63,6 +63,7 @@ const KnowledgeBankPage = lazy(() => import("@/pages/KnowledgeBankPage"));
 const AppControlPage = lazy(() => import("@/pages/AppControlPage"));
 const RecommendationEnginePage = lazy(() => import("@/pages/RecommendationEnginePage"));
 const AuthSettingsPage = lazy(() => import("@/pages/AuthSettingsPage"));
+const RadioManagementPage = lazy(() => import("@/pages/RadioManagementPage"));
 
 // Icons
 import { 
@@ -178,6 +179,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
     { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
+    { path: "/radio", icon: Radio, label: "Live Radio", permissions: ["platform_settings"] },
     { path: "/audiorooms", icon: Radio, label: "Audio Rooms", permissions: ["platform_settings"] },
     { path: "/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
     { path: "/community", icon: MessageSquare, label: "Community", permissions: ["content_moderation"] },
