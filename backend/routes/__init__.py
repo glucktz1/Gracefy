@@ -24,6 +24,7 @@ from .feedback import router as feedback_router
 from .chat import router as chat_router
 from .app_control import router as app_control_router
 from .recommendations import router as recommendations_router
+from .radio import router as radio_router
 
 __all__ = [
     'auth_router',
@@ -47,4 +48,5 @@ __all__ = [
     'chat_router',
     'app_control_router',
     'recommendations_router',
+    'radio_router',
 ]
