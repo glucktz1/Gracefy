@@ -149,7 +149,7 @@ export default function RadioManagementPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post(`${API}/content/upload-thumbnail`, formData, {
+      const response = await axios.post(`${API}/admin/radio/upload-thumbnail`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true
       });
@@ -158,10 +158,13 @@ export default function RadioManagementPage() {
         setStationForm(prev => ({ ...prev, favicon: response.data.url }));
         setImagePreview(response.data.url);
         toast.success("Image uploaded successfully");
+      } else {
+        toast.error("Failed to upload image");
       }
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload image");
+      const errorMsg = error.response?.data?.detail || "Failed to upload image";
+      toast.error(errorMsg);
     } finally {
       setUploadingImage(false);
     }
