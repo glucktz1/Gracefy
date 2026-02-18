@@ -735,15 +735,76 @@ export default function RadioManagementPage() {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Logo URL (optional)</Label>
+              
+              {/* Thumbnail Upload/URL Section */}
+              <div className="space-y-3">
+                <Label>Station Logo/Thumbnail</Label>
+                
+                {/* Image Preview */}
+                {(imagePreview || stationForm.favicon) && (
+                  <div className="relative w-24 h-24 mx-auto">
+                    <img 
+                      src={imagePreview || stationForm.favicon} 
+                      alt="Station logo preview"
+                      className="w-full h-full object-cover rounded-lg border border-slate-600"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                )}
+                
+                {/* Upload Button */}
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="station-image-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 border-slate-700 bg-slate-800 hover:bg-slate-700"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                  </Button>
+                </div>
+                
+                {/* OR Separator */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-slate-700"></div>
+                  <span className="text-xs text-slate-500">OR</span>
+                  <div className="flex-1 h-px bg-slate-700"></div>
+                </div>
+                
+                {/* URL Input */}
                 <Input
                   value={stationForm.favicon}
-                  onChange={(e) => setStationForm(prev => ({ ...prev, favicon: e.target.value }))}
-                  placeholder="https://example.com/logo.png"
+                  onChange={(e) => {
+                    setStationForm(prev => ({ ...prev, favicon: e.target.value }));
+                    setImagePreview(e.target.value);
+                  }}
+                  placeholder="Enter image URL directly"
                   className="bg-slate-800 border-slate-700"
                 />
+                <p className="text-xs text-slate-500">Upload an image or paste a direct URL to the logo</p>
               </div>
+              
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Switch
