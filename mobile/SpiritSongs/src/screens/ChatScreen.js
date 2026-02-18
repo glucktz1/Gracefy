@@ -148,10 +148,23 @@ export default function ChatScreen({ navigation }) {
       }
     } catch (error) {
       console.log('Send message error:', error?.message || error);
+      console.log('Error details:', JSON.stringify(error?.response?.data || {}));
+      
+      // Check if it's a timeout or network error
+      let errorMessage = 'Samahani, kuna tatizo la mtandao. Tafadhali jaribu tena baadaye.';
+      
+      if (error?.response?.status === 500) {
+        errorMessage = 'Huduma yetu ina shida kwa muda. Tafadhali jaribu tena.';
+      } else if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+        errorMessage = 'Muda wa kusubiri umekwisha. Tafadhali angalia mtandao wako na ujaribu tena.';
+      } else if (error?.message?.includes('Network Error')) {
+        errorMessage = 'Hakuna mtandao. Tafadhali angalia uhusiano wako wa intaneti.';
+      }
+      
       // Add fallback response on error
       const fallbackMessage = {
         id: `fallback-${Date.now()}`,
-        message: 'Samahani, kuna tatizo la mtandao. Tafadhali jaribu tena.',
+        message: errorMessage,
         sender: 'ai',
         timestamp: new Date().toISOString(),
       };
