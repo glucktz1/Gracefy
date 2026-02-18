@@ -498,13 +498,21 @@ REACT_APP_BACKEND_URL=https://music-worship-app.preview.emergentagent.com
 
 ### Radio Stations (Verified Working):
 1. Radio Maria Tanzania - http://dreamsiteradiocp2.com:8034/stream
-2. Radio Uhai - https://s2.citrus3.com:8050/stream
-3. Jesus Is Lord Radio - https://s3.radio.co/s97f38db97/listen
-4. Heaven FM Radio - http://stream.zeno.fm/eequgfw72hhvv
-5. Favour FM 104.1 (Uganda) - http://us5new.listen2myradio.com:2199/listen.php
-6. Voice Of Heaven - http://stream.zeno.fm/s961sfesdmntv
-7. Prayer Tower Radio - http://stream.zeno.fm/ymapb78yznhvv
-8. Gospel Kingz - http://stream.zeno.fm/vstzctms6rhvv
+2. Radio Tumaini - http://65.108.124.70:9368/stream
+3. Radio Uhai - https://s2.citrus3.com:8050/stream
+4. Jesus Is Lord Radio - https://s3.radio.co/s97f38db97/listen
+5. Heaven FM Radio - http://stream.zeno.fm/eequgfw72hhvv
+6. Favour FM 104.1 (Uganda)
+7. Voice Of Heaven
+8. Prayer Tower Radio
+9. Gospel Kingz
+
+### Admin Radio Thumbnail Upload (Feb 18, 2026)
+- Added "Upload Image" button for radio station thumbnails
+- Option to paste direct URL as alternative
+- Image preview with remove button
+- Max file size: 2MB
+- Supported formats: All images
 
 ## Test Credentials
 - **Admin Login:**
