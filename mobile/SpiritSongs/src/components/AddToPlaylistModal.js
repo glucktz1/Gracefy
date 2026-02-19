@@ -48,13 +48,13 @@ export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe }) => 
     <View style={styles.centeredOverlay}>
       <TouchableOpacity style={styles.overlayBackground} activeOpacity={1} onPress={onClose} />
       <View style={styles.loginModal}>
-        <Ionicons name="star-outline" size={48} color={COLORS.primary} />
-        <Text style={styles.loginTitle}>Usajili Unahitajika</Text>
+        <Ionicons name="gift-outline" size={48} color={COLORS.primary} />
+        <Text style={styles.loginTitle}>Changia Kidogo</Text>
         <Text style={styles.loginMessage}>
-          Unahitaji usajili wa premium ili kutumia huduma hii
+          Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.
         </Text>
         <TouchableOpacity style={styles.loginButton} onPress={onSubscribe}>
-          <Text style={styles.loginButtonText}>Jisajili Sasa</Text>
+          <Text style={styles.loginButtonText}>Ona Vifurushi</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelLink} onPress={onClose}>
           <Text style={styles.cancelLinkText}>Baadaye</Text>
