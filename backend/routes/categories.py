@@ -66,6 +66,43 @@ async def get_category(category_id: str):
     return category
 
 
+@router.get("/categories/{category_id}/content")
+async def get_category_content(category_id: str, limit: int = Query(50)):
+    """Get all songs and albums in a category"""
+    db = get_db()
+    
+    category = await db.categories.find_one({"category_id": category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Get albums in this category
+    albums = await db.albums.find(
+        {"categories": category_id, "status": "published"},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Get songs in this category (either directly or via album)
+    album_ids = [a.get("album_id") for a in albums if a.get("album_id")]
+    songs = await db.songs.find(
+        {
+            "$or": [
+                {"categories": category_id},
+                {"album_id": {"$in": album_ids}}
+            ],
+            "status": "published"
+        },
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    return {
+        "category": category,
+        "songs": songs,
+        "albums": albums,
+        "total_songs": len(songs),
+        "total_albums": len(albums)
+    }
+
+
 @router.post("/categories")
 async def create_category(data: dict):
     """Create a new category"""
