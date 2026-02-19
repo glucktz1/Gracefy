@@ -377,7 +377,7 @@ const NowPlayingScreen = ({ navigation }) => {
 
             <TouchableOpacity 
               style={styles.controlButton}
-              onPress={skipPrevious}
+              onPress={handleSkipPrevious}
             >
               <Ionicons name="play-skip-back" size={36} color={COLORS.text} />
             </TouchableOpacity>
@@ -395,7 +395,7 @@ const NowPlayingScreen = ({ navigation }) => {
 
             <TouchableOpacity 
               style={styles.controlButton}
-              onPress={skipNext}
+              onPress={handleSkipNext}
             >
               <Ionicons name="play-skip-forward" size={36} color={COLORS.text} />
             </TouchableOpacity>
