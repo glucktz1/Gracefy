@@ -149,6 +149,12 @@ export const contentAPI = {
   getSongDownloadUrl: (songId) => api.get(`/songs/${songId}/download`),
 };
 
+// ============ SEARCH API ============
+export const searchAPI = {
+  search: (query) => api.get(`/user/search?q=${encodeURIComponent(query)}`),
+  searchByCategory: (categoryId) => api.get(`/categories/${categoryId}/content`),
+};
+
 // ============ LIBRARY API ============
 export const libraryAPI = {
   getLikedSongs: () => api.get('/library/likes'),
