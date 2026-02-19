@@ -917,7 +917,7 @@ const HomeScreen = ({ navigation }) => {
                 ]}
                 onPress={() => handleCategoryFilter(category)}
               >
-                {category.icon && (
+                {category.icon && category.icon !== '?' && (
                   <Ionicons 
                     name={category.icon} 
                     size={14} 
