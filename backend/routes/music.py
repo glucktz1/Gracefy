@@ -384,14 +384,34 @@ async def get_songs(
 
 @router.post("/albums")
 async def create_album(album: dict):
-    """Create a new album."""
+    """Create a new album with optional country tagging."""
     db = get_db()
+    
+    # Extract country codes if provided
+    country_codes = album.pop("country_codes", [])
+    is_geo_default = album.pop("is_geo_default", False)
     
     album_obj = Album(**album)
     doc = album_obj.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    doc["is_geo_default"] = is_geo_default
     
     await db.albums.insert_one(doc)
+    
+    # Add country tags if provided
+    if country_codes:
+        import uuid
+        mappings = [
+            {
+                "id": f"cc_{uuid.uuid4().hex[:12]}",
+                "content_id": doc["album_id"],
+                "country_code": cc.upper(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            for cc in country_codes
+        ]
+        await db.content_country.insert_many(mappings)
+    
     await invalidate_albums_cache()
     
     return {"album_id": doc["album_id"], "message": "Album created successfully"}
@@ -399,15 +419,37 @@ async def create_album(album: dict):
 
 @router.put("/albums/{album_id}")
 async def update_album(album_id: str, updates: dict):
-    """Update album."""
+    """Update album with optional country tagging."""
     db = get_db()
     
     updates.pop("_id", None)
     updates.pop("album_id", None)
     
+    # Extract country codes if provided
+    country_codes = updates.pop("country_codes", None)
+    
     result = await db.albums.update_one({"album_id": album_id}, {"$set": updates})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Album not found")
+    
+    # Update country tags if provided
+    if country_codes is not None:
+        import uuid
+        # Remove existing mappings
+        await db.content_country.delete_many({"content_id": album_id})
+        
+        # Add new mappings
+        if country_codes:
+            mappings = [
+                {
+                    "id": f"cc_{uuid.uuid4().hex[:12]}",
+                    "content_id": album_id,
+                    "country_code": cc.upper(),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                for cc in country_codes
+            ]
+            await db.content_country.insert_many(mappings)
     
     await invalidate_albums_cache(album_id)
     
