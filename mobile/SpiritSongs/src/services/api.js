@@ -152,7 +152,8 @@ export const contentAPI = {
 // ============ SEARCH API ============
 export const searchAPI = {
   search: (query) => api.get(`/user/search?q=${encodeURIComponent(query)}`),
-  searchByCategory: (categoryId) => api.get(`/categories/${categoryId}/content`),
+  searchByCategory: (categoryId) => api.get(`/user/browse/category/${categoryId}`),
+  getCategoryContent: (categoryId) => api.get(`/categories/${categoryId}/content`),
 };
 
 // ============ LIBRARY API ============
