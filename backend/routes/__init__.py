@@ -50,4 +50,5 @@ __all__ = [
     'app_control_router',
     'recommendations_router',
     'radio_router',
+    'geo_content_router',
 ]
