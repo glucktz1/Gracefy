@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { contentAPI, churchAPI, leaderContentAPI, homeAPI, getImageUrl } from '../services/api';
+import { contentAPI, churchAPI, leaderContentAPI, homeAPI, getImageUrl, searchAPI } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { SongListItem } from '../components/Cards';
 
