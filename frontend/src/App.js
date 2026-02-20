@@ -64,6 +64,7 @@ const AppControlPage = lazy(() => import("@/pages/AppControlPage"));
 const RecommendationEnginePage = lazy(() => import("@/pages/RecommendationEnginePage"));
 const AuthSettingsPage = lazy(() => import("@/pages/AuthSettingsPage"));
 const RadioManagementPage = lazy(() => import("@/pages/RadioManagementPage"));
+const GeoContentPage = lazy(() => import("@/pages/GeoContentPage"));
 
 // Icons
 import { 
