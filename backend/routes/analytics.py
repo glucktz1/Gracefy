@@ -3,7 +3,7 @@ Analytics routes for Gracefy Admin Panel.
 Dashboard statistics, trends, and user demographics.
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from datetime import datetime, timezone
 from typing import Optional
 import logging
