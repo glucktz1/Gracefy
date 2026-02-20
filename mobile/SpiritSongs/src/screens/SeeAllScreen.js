@@ -53,11 +53,25 @@ const SeeAllScreen = ({ navigation, route }) => {
       let data = [];
       
       switch (type) {
+        case 'category':
+          // Fetch content directly from category endpoint using category ID
+          if (category) {
+            const categoryRes = await searchAPI.searchByCategory(category);
+            // Combine albums and songs for category view
+            const albums = categoryRes.data?.albums || [];
+            const songs = categoryRes.data?.songs || [];
+            // Display albums primarily, or songs if no albums
+            data = albums.length > 0 ? albums : songs;
+          }
+          break;
+          
         case 'albums':
           const albumsRes = await contentAPI.getAlbums();
           data = albumsRes.data?.albums || albumsRes.data || [];
           if (category && category !== 'all') {
+            // Filter by category_id if provided
             data = data.filter(a => 
+              a.category_id === category ||
               a.category?.toLowerCase() === category.toLowerCase() ||
               a.genre?.toLowerCase() === category.toLowerCase()
             );
@@ -69,6 +83,7 @@ const SeeAllScreen = ({ navigation, route }) => {
           data = songsRes.data?.songs || songsRes.data || [];
           if (category && category !== 'all') {
             data = data.filter(s => 
+              s.category_id === category ||
               s.category?.toLowerCase() === category.toLowerCase() ||
               s.genre?.toLowerCase() === category.toLowerCase()
             );
