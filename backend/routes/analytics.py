@@ -495,12 +495,25 @@ async def record_play(data: dict):
 
 
 @router.post("/analytics/start-session")
-async def start_listening_session(data: dict):
+async def start_listening_session(data: dict, request: Request = None):
     """
     Start a listening session (called when playback begins).
     Used to track active listeners.
     """
     db = get_db()
+    
+    # Get user's country for geo analytics
+    country_code = data.get("country_code")
+    if not country_code and data.get("user_id"):
+        user = await db.app_users.find_one(
+            {"user_id": data["user_id"]},
+            {"_id": 0, "country_override": 1, "country_code": 1}
+        )
+        if user:
+            country_code = user.get("country_override") or user.get("country_code")
+    
+    if not country_code:
+        country_code = "GLOBAL"
     
     session_id = f"session_{__import__('uuid').uuid4().hex[:12]}"
     session = {
@@ -509,6 +522,7 @@ async def start_listening_session(data: dict):
         "content_id": data.get("content_id"),
         "user_id": data.get("user_id"),
         "platform": data.get("platform", "web"),
+        "country_code": country_code,
         "start_time": datetime.now(timezone.utc).isoformat(),
         "end_time": None,  # Will be set when session ends
         "counted_as_play": False  # Will be updated if 45+ seconds played
