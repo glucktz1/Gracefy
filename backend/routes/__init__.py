@@ -25,6 +25,7 @@ from .chat import router as chat_router
 from .app_control import router as app_control_router
 from .recommendations import router as recommendations_router
 from .radio import router as radio_router
+from .geo_content import router as geo_content_router
 
 __all__ = [
     'auth_router',
