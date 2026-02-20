@@ -440,3 +440,187 @@ async def get_layout_sections(
         .to_list(30)
     
     return {"sections": sections}
+
+
+@router.get("/user/home/geo")
+async def get_geo_filtered_home(
+    request: Request,
+    user_id: Optional[str] = None,
+    country: Optional[str] = None
+):
+    """
+    Get home feed filtered by user's country.
+    Falls back to default content if no country-specific content exists.
+    
+    Priority: user_country param > user profile > IP detection
+    """
+    db = get_db()
+    
+    # Import geo functions
+    from routes.geo_content import get_client_ip, get_country_from_ip, DEFAULT_COUNTRY
+    
+    # Determine user's country
+    if country:
+        user_country = country.upper()
+    elif user_id:
+        # Check user profile for country override
+        user = await db.app_users.find_one(
+            {"user_id": user_id},
+            {"_id": 0, "country_override": 1, "country_code": 1}
+        )
+        if user:
+            user_country = user.get("country_override") or user.get("country_code") or DEFAULT_COUNTRY
+        else:
+            user_country = DEFAULT_COUNTRY
+    else:
+        # Detect from IP
+        client_ip = get_client_ip(request)
+        user_country = await get_country_from_ip(client_ip)
+    
+    # Cache key includes country
+    cache_key = f"home:geo:{user_country}:v1"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        cached_result["from_cache"] = True
+        return cached_result
+    
+    # Get content IDs tagged for this country
+    country_content_ids = await db.content_country.distinct(
+        "content_id",
+        {"country_code": user_country}
+    )
+    
+    # Also include GLOBAL content
+    global_content_ids = await db.content_country.distinct(
+        "content_id",
+        {"country_code": "GLOBAL"}
+    )
+    
+    allowed_content_ids = list(set(country_content_ids + global_content_ids))
+    using_fallback = len(allowed_content_ids) == 0
+    
+    # Get active layout sections
+    sections = await db.layout_sections.find(
+        {"platforms": "app", "is_active": True},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(20)
+    
+    home_data = []
+    
+    for section in sections:
+        section_type = section.get("section_type", "")
+        section_data = {
+            "section_id": section.get("section_id"),
+            "section_type": section_type,
+            "title": section.get("title", ""),
+            "show_see_all": section.get("show_see_all", True),
+            "display_type": section.get("display_type", "horizontal_scroll")
+        }
+        
+        content_count = section.get("content_count", 10)
+        
+        # Apply geo-filter for album-based sections
+        if section_type in ["featured_albums", "new_releases", "top_albums", "albums"]:
+            query = {"status": "active"}
+            
+            if allowed_content_ids:
+                # Filter by country-tagged content OR default fallback
+                query["$or"] = [
+                    {"album_id": {"$in": allowed_content_ids}},
+                    {"is_geo_default": True}
+                ]
+            elif using_fallback:
+                # Only show default fallback content
+                query["is_geo_default"] = True
+            
+            items = await db.albums.find(
+                query,
+                ALBUM_LIST_PROJECTION
+            ).sort("total_plays", -1).limit(content_count).to_list(content_count)
+            
+            section_data["items"] = optimize_thumbnails(items)
+            section_data["content_type"] = "albums"
+            
+        elif section_type in ["trending", "most_played"]:
+            query = {"status": "active"}
+            
+            if allowed_content_ids:
+                query["$or"] = [
+                    {"album_id": {"$in": allowed_content_ids}},
+                    {"is_geo_default": True}
+                ]
+            elif using_fallback:
+                query["is_geo_default"] = True
+            
+            items = await db.albums.find(
+                query,
+                ALBUM_LIST_PROJECTION
+            ).sort("total_plays", -1).limit(content_count).to_list(content_count)
+            
+            section_data["items"] = optimize_thumbnails(items)
+            section_data["content_type"] = "albums"
+            
+        else:
+            # For non-album sections, use standard fetching
+            section_content = await fetch_section_content(db, section)
+            section_data = section_content
+        
+        home_data.append(section_data)
+    
+    # Get hero content (not geo-filtered)
+    hero_config = await db.hero_config.find_one({"config_id": "main"}, {"_id": 0})
+    hero_content = {
+        "hero_type": "static_banner",
+        "auto_rotate": True,
+        "rotation_interval": 5000,
+        "items": []
+    }
+    
+    if hero_config:
+        hero_content["hero_type"] = hero_config.get("hero_type", "static_banner")
+        if hero_config.get("hero_type") == "dynamic_content" and hero_config.get("content_ids"):
+            albums = await db.albums.find(
+                {"album_id": {"$in": hero_config["content_ids"]}, "status": "active"},
+                ALBUM_LIST_PROJECTION
+            ).to_list(10)
+            hero_content["items"] = optimize_thumbnails(albums)
+        else:
+            banners = await db.hero_banners.find(
+                {"is_active": True},
+                {"_id": 0}
+            ).sort("order", 1).to_list(10)
+            hero_content["items"] = banners
+    
+    # Get burners
+    burners = await db.layout_burners.find(
+        {"platforms": "app", "is_active": True},
+        {"_id": 0}
+    ).sort("sort_order", 1).to_list(5)
+    
+    # Track geo analytics
+    import uuid
+    await db.geo_analytics.insert_one({
+        "event_id": f"geo_evt_{uuid.uuid4().hex[:12]}",
+        "event_type": "feed_request",
+        "user_id": user_id,
+        "country_code": user_country,
+        "content_type": "home_feed",
+        "results_count": sum(len(s.get("items", [])) for s in home_data),
+        "used_fallback": using_fallback,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    
+    response_data = {
+        "sections": home_data,
+        "hero": hero_content,
+        "burners": burners,
+        "user_country": user_country,
+        "using_fallback": using_fallback,
+        "from_cache": False
+    }
+    
+    # Cache for 60 seconds
+    await cache.set(cache_key, response_data, 60)
+    
+    return response_data
+
