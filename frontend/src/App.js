@@ -552,6 +552,7 @@ function AppRouter() {
         <Route path="/knowledge-bank" element={<ProtectedRoute><KnowledgeBankPage /></ProtectedRoute>} />
         <Route path="/app-health" element={<ProtectedRoute><AppControlPage /></ProtectedRoute>} />
         <Route path="/recommendations" element={<ProtectedRoute><RecommendationEnginePage /></ProtectedRoute>} />
+        <Route path="/geo-content" element={<ProtectedRoute><GeoContentPage /></ProtectedRoute>} />
         <Route path="/auth-settings" element={<ProtectedRoute><AuthSettingsPage /></ProtectedRoute>} />
         <Route path="/churches" element={<ProtectedRoute><ChurchesPage /></ProtectedRoute>} />
         <Route path="/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
