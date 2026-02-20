@@ -4,6 +4,7 @@ Optimized for high traffic with caching and efficient queries.
 """
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from datetime import datetime, timezone
 from typing import Optional, List
 import logging
 
