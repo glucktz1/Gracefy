@@ -162,6 +162,8 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     { path: "/knowledge-bank", icon: Brain, label: "Knowledge Bank", permissions: ["platform_settings"] },
     // Recommendation Engine
     { path: "/recommendations", icon: Sparkles, label: "Recommendations", permissions: ["platform_settings"] },
+    // Geo-Content Management
+    { path: "/geo-content", icon: Globe, label: "Geo Content", permissions: ["platform_settings", "content_moderation"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
