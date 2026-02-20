@@ -525,6 +525,47 @@ REACT_APP_BACKEND_URL=https://worship-mobile.preview.emergentagent.com
   - Email: `cecilia@mabibo.com`
   - Password: `choir123`
 
+## Geo-Filtered Content Delivery Module (Feb 20, 2026)
+**NEW FEATURE - COMPLETE**
+
+### Backend (geo_content.py)
+- [x] IP geolocation detection using ip-api.com
+- [x] User country detection with priority: Override > Profile > IP
+- [x] Content country tagging API (single and bulk)
+- [x] Localized feed endpoint (`/api/geo/localized-feed`)
+- [x] Fallback content for untagged countries
+- [x] Geo-filtered home feed (`/api/user/home/geo`)
+- [x] Database indexes for performance
+
+### Admin Dashboard (GeoContentPage.jsx)
+- [x] Overview tab with stats (tagged content, countries, fallback rate)
+- [x] Content Tagging tab with album list and country assignment
+- [x] Multi-select country tagging modal
+- [x] Default fallback toggle per content
+- [x] Bulk update countries (add/remove/replace)
+- [x] Analytics tab (fallback usage by country)
+- [x] Content Gaps tab (countries with users but no content)
+
+### Analytics Tracking
+- [x] Plays per country (via listening_sessions)
+- [x] Active users per country
+- [x] Content availability gaps detection
+- [x] Fallback usage count per country
+- [x] Top content per country
+
+### API Endpoints Created
+- GET `/api/geo/detect-country` - Detect user country from IP
+- GET `/api/geo/user-country` - Get user's effective country
+- POST `/api/geo/user-country-override` - Set manual country override
+- GET `/api/geo/content-countries/{content_id}` - Get content's country tags
+- POST `/api/admin/geo/set-content-countries` - Set country tags
+- POST `/api/admin/geo/toggle-default-content` - Mark as fallback
+- POST `/api/admin/geo/bulk-update-countries` - Bulk operations
+- GET `/api/geo/localized-feed` - Country-filtered content
+- GET `/api/geo/fallback-content` - Default fallback content
+- GET `/api/geo/analytics/*` - Various analytics endpoints
+- GET `/api/user/home/geo` - Geo-filtered home feed
+
 ## Search and Filter Fix (Feb 20, 2026)
 - [x] **Mobile SeeAllScreen.js:**
   - Added `type: 'category'` case to fetch content from backend API `/user/browse/category/{categoryId}`
