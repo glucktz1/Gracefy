@@ -397,9 +397,10 @@ const HomeScreen = ({ navigation }) => {
       return;
     }
     
-    // Navigate to SeeAll screen with category filter
+    // Navigate to SeeAll screen with category filter - use type 'category' 
+    // to fetch content from backend endpoint
     navigation.navigate('SeeAll', { 
-      type: 'albums',
+      type: 'category',
       title: category.name,
       category: category.id,
       categoryName: category.name
