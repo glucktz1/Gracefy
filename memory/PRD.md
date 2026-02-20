@@ -525,19 +525,37 @@ REACT_APP_BACKEND_URL=https://worship-mobile.preview.emergentagent.com
   - Email: `cecilia@mabibo.com`
   - Password: `choir123`
 
+## Search and Filter Fix (Feb 20, 2026)
+- [x] **Mobile SeeAllScreen.js:**
+  - Added `type: 'category'` case to fetch content from backend API `/user/browse/category/{categoryId}`
+  - Fixed category filtering to use proper backend endpoint instead of local filtering
+  - Added `searchAPI` import for category content fetching
+- [x] **Mobile HomeScreen.js:**
+  - Updated `handleCategoryFilter` to pass `type: 'category'` when navigating
+  - Category filters now properly fetch content from backend
+- [x] **Mobile api.js:**
+  - Updated `searchAPI.searchByCategory` to use `/user/browse/category/{categoryId}`
+  - Added `getCategoryContent` alternative endpoint
+- [x] **Web UserStreamingApp.jsx:**
+  - Search functionality verified working (uses `/user/search` endpoint)
+  - Category filter verified working (uses `/user/browse/category/{categoryId}`)
+
 ## Remaining Tasks
 
 ### P0 - Critical
-- [ ] Verify new mobile build (423e3368-...) works on device
+- [ ] Complete Premium Feature Enforcement (continuous play, background play blocking for free users)
+- [ ] Verify new mobile build with search/filter fix
 - [ ] Test radio streaming on mobile
-- [ ] Test Bible TTS on mobile
 
 ### P1 - High Priority
+- [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
+- [ ] Web App UI Reorganization (match mobile layout)
+- [ ] Audio Ad System (admin configurable frequency)
 - [ ] Complete Advertising & Campaigns module
 - [ ] Implement Firebase push notifications
-- [ ] Azam Pay test mode
 
 ### P2 - Medium Priority
+- [ ] Azam Pay test mode
 - [ ] Enhanced Church UI (image, location, announcements)
 - [ ] Twilio SMS / SendGrid email integration
 
