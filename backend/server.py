@@ -138,6 +138,10 @@ def create_app() -> FastAPI:
     app.include_router(recommendations_router)  # /api/recommendations/*
     app.include_router(radio_router)          # /api/radio/*
     
+    # Import and include geo_content router
+    from routes.geo_content import router as geo_content_router
+    app.include_router(geo_content_router)    # /api/geo/*
+    
     # ============== ROOT ENDPOINTS ==============
     
     @app.get("/")
