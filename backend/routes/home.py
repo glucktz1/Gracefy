@@ -3,8 +3,9 @@ Home routes for Gracefy - User home screen data.
 Heavily optimized for initial app load performance.
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from typing import Optional
+from datetime import datetime, timezone
 import logging
 import asyncio
 
