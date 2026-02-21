@@ -525,6 +525,41 @@ REACT_APP_BACKEND_URL=https://worship-mobile.preview.emergentagent.com
   - Email: `cecilia@mabibo.com`
   - Password: `choir123`
 
+## Billing & Geo-Content Enforcement Fix (Feb 21, 2026)
+
+### Billing Logic Fixes
+- [x] **Mobile SubscriptionScreen.js**: Already had logic to show "Huduma ni Bure!" when billing disabled
+- [x] **Mobile ProfileScreen.js**: Updated subscription menu item to only show when `billingEnabled` is true
+- [x] **Web UserStreamingApp.jsx**: Added `billingEnabled` and `isPremium` state tracking
+- [x] **Backend billing-status endpoint**: Working correctly, returns `billing_enabled` flag
+
+### Geo-Content Logic Integration
+- [x] **Created GeoContext.js**: New context provider for mobile geo-content management
+  - Fetches geo settings from backend
+  - Detects user country via IP (if enabled)
+  - Supports country override (if allowed)
+  - Respects `geo_filtering_enabled` setting
+- [x] **Updated mobile api.js**: Added `geoAPI` with all geo endpoints
+- [x] **Updated mobile HomeScreen.js**: 
+  - Integrated `useGeo` and `useBilling` hooks
+  - Uses geo-filtered albums when geo is enabled
+- [x] **Updated mobile App.js**: Added `GeoProvider` to provider stack
+- [x] **Updated web UserStreamingApp.jsx**: 
+  - Added geo detection and billing status fetching
+  - Uses geo-filtered home endpoint when applicable
+- [x] **Backend geo_content.py**: Added `/geo/settings` endpoint for admin control
+
+### New API Endpoints
+- GET `/api/geo/settings` - Get geo filtering settings
+- PUT `/api/admin/geo/settings` - Update geo filtering settings
+
+### Admin Controls (via API)
+- `geo_filtering_enabled`: Master toggle for geo content filtering
+- `auto_detect_country`: Enable/disable IP-based country detection
+- `allow_country_override`: Allow users to manually set their country
+- `default_fallback_enabled`: Show default content when no geo content exists
+- `priority_countries`: List of priority countries for content
+
 ## Geo-Filtered Content Delivery Module (Feb 20, 2026)
 **NEW FEATURE - COMPLETE**
 
