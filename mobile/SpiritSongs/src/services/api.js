@@ -131,6 +131,7 @@ export const geoAPI = {
   setCountryOverride: (userId, countryCode) => api.post('/geo/user-country-override', { user_id: userId, country_code: countryCode }),
   getLocalizedFeed: (country, contentType = 'albums') => api.get(`/geo/localized-feed?user_country=${country}&content_type=${contentType}`),
   getCountries: () => api.get('/geo/countries'),
+  getSettings: () => api.get('/geo/settings'),
 };
 
 // ============ LEADER CONTENT API ============
