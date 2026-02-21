@@ -8,8 +8,25 @@ export const GeoProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [userCountry, setUserCountry] = useState(null);
   const [countrySource, setCountrySource] = useState('detecting'); // detecting, ip, profile, override
-  const [geoEnabled, setGeoEnabled] = useState(true);
+  const [geoEnabled, setGeoEnabled] = useState(false); // Default to false until we check settings
+  const [geoSettings, setGeoSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Fetch geo settings first
+  const loadGeoSettings = useCallback(async () => {
+    try {
+      const settingsRes = await geoAPI.getSettings().catch(() => null);
+      if (settingsRes?.data) {
+        setGeoSettings(settingsRes.data);
+        setGeoEnabled(settingsRes.data.geo_filtering_enabled ?? false);
+        return settingsRes.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading geo settings:', error);
+      return null;
+    }
+  }, []);
 
   // Detect user's country on mount
   const detectCountry = useCallback(async () => {
@@ -17,8 +34,19 @@ export const GeoProvider = ({ children }) => {
       setLoading(true);
       setCountrySource('detecting');
       
+      // Load settings first
+      const settings = await loadGeoSettings();
+      
+      // If geo filtering is disabled, don't bother detecting
+      if (!settings?.geo_filtering_enabled) {
+        setUserCountry('GLOBAL');
+        setCountrySource('disabled');
+        setLoading(false);
+        return;
+      }
+      
       // First check if user has an override or profile country
-      if (user?.user_id) {
+      if (user?.user_id && settings?.allow_country_override) {
         const userCountryRes = await geoAPI.getUserCountry(user.user_id).catch(() => null);
         if (userCountryRes?.data) {
           setUserCountry(userCountryRes.data.country_code);
@@ -28,13 +56,17 @@ export const GeoProvider = ({ children }) => {
         }
       }
       
-      // Fall back to IP detection
-      const detectRes = await geoAPI.detectCountry().catch(() => null);
-      if (detectRes?.data) {
-        setUserCountry(detectRes.data.country_code);
-        setCountrySource('ip');
+      // Fall back to IP detection if enabled
+      if (settings?.auto_detect_country) {
+        const detectRes = await geoAPI.detectCountry().catch(() => null);
+        if (detectRes?.data) {
+          setUserCountry(detectRes.data.country_code);
+          setCountrySource('ip');
+        } else {
+          setUserCountry('GLOBAL');
+          setCountrySource('default');
+        }
       } else {
-        // Default to GLOBAL if detection fails
         setUserCountry('GLOBAL');
         setCountrySource('default');
       }
@@ -45,7 +77,7 @@ export const GeoProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, loadGeoSettings]);
 
   useEffect(() => {
     detectCountry();
