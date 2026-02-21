@@ -86,7 +86,7 @@ export const GeoProvider = ({ children }) => {
   // Allow user to manually override their country
   const setCountryOverride = async (countryCode) => {
     try {
-      if (user?.user_id && countryCode) {
+      if (user?.user_id && countryCode && geoSettings?.allow_country_override) {
         await geoAPI.setCountryOverride(user.user_id, countryCode);
       }
       setUserCountry(countryCode);
@@ -121,6 +121,7 @@ export const GeoProvider = ({ children }) => {
     userCountry,
     countrySource,
     geoEnabled,
+    geoSettings,
     loading,
     detectCountry,
     setCountryOverride,
