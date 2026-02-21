@@ -877,3 +877,58 @@ async def create_geo_indexes():
     except Exception as e:
         logger.error(f"Failed to create indexes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== GEO CONTENT SETTINGS ==============
+
+@router.get("/geo/settings")
+async def get_geo_settings():
+    """
+    Get geo-content filtering settings.
+    """
+    db = get_db()
+    
+    settings = await db.geo_settings.find_one({"settings_id": "geo_content"}, {"_id": 0})
+    
+    if not settings:
+        # Default settings
+        settings = {
+            "settings_id": "geo_content",
+            "geo_filtering_enabled": True,
+            "default_fallback_enabled": True,
+            "auto_detect_country": True,
+            "allow_country_override": True,
+            "priority_countries": ["TZ", "KE", "UG", "NG", "GH", "ZA"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.geo_settings.insert_one(settings)
+    
+    return settings
+
+
+@router.put("/admin/geo/settings")
+async def update_geo_settings(data: dict):
+    """
+    Update geo-content filtering settings (admin only).
+    """
+    db = get_db()
+    
+    allowed_fields = [
+        "geo_filtering_enabled",
+        "default_fallback_enabled", 
+        "auto_detect_country",
+        "allow_country_override",
+        "priority_countries"
+    ]
+    
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.geo_settings.update_one(
+        {"settings_id": "geo_content"},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    return await get_geo_settings()
+
