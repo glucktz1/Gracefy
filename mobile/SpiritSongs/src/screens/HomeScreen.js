@@ -214,8 +214,7 @@ const HomeScreen = ({ navigation }) => {
       const mixes = mixesRes.data?.mixes || mixesRes.data || [];
       setSpecialMixes(mixes);
 
-      // Albums
-      const albums = albumsRes.data?.albums || albumsRes.data || [];
+      // Albums - already defined above with geo-filtering
       setRecentAlbums(albums);
 
       // Songs
