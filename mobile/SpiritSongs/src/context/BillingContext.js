@@ -29,42 +29,57 @@ export const BillingProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Get billing status first
-      const billingRes = await billingAPI.getBillingStatus().catch(() => ({ data: {} }));
-      if (billingRes.data) {
-        setBillingEnabled(billingRes.data.billing_enabled || false);
-        setBillingMode(billingRes.data.billing_mode || 'full');
-        setAppBillingEnabled(billingRes.data.app_billing_enabled ?? true);
-        setWebRedirectUrl(billingRes.data.web_redirect_url || 'https://www.gracefy.net');
-        setPremiumFeatures(billingRes.data.premium_features || {
-          downloads: true,
-          playlists: true,
-          skip_limit: 3,
-          offline_mode: true,
-          high_quality: true
-        });
+      // Get billing status first - this is the master setting
+      const billingRes = await billingAPI.getBillingStatus().catch(() => ({ data: { billing_enabled: false } }));
+      const masterBillingEnabled = billingRes.data?.billing_enabled ?? false;
+      
+      // Set billing states from master settings
+      setBillingEnabled(masterBillingEnabled);
+      setBillingMode(billingRes.data?.billing_mode || 'full');
+      setAppBillingEnabled(billingRes.data?.app_billing_enabled ?? true);
+      setWebRedirectUrl(billingRes.data?.web_redirect_url || 'https://www.gracefy.net');
+      setPremiumFeatures(billingRes.data?.premium_features || {
+        downloads: true,
+        playlists: true,
+        skip_limit: 3,
+        offline_mode: true,
+        high_quality: true
+      });
+      
+      // If billing is disabled, everyone is premium - no need to check user subscription
+      if (!masterBillingEnabled) {
+        setIsPremium(true);
+        setSubscription({ status: 'free_access', plan_name: 'Bure' });
+        // Still get plans for display purposes
+        const plansRes = await billingAPI.getPlans().catch(() => ({ data: { plans: [] } }));
+        setPlans(plansRes.data?.plans || []);
+        setLoading(false);
+        return;
       }
       
       // Get plans
       const plansRes = await billingAPI.getPlans().catch(() => ({ data: { plans: [] } }));
       setPlans(plansRes.data?.plans || []);
       
-      // Get user subscription status if authenticated
+      // Only check user subscription if billing is enabled
       if (user?.user_id) {
         const subRes = await billingAPI.getUserSubscription(user.user_id).catch(() => ({ 
-          data: { billing_enabled: false, is_premium: false } 
+          data: { is_premium: false } 
         }));
         if (subRes.data) {
           setIsPremium(subRes.data.is_premium || false);
           setSubscription(subRes.data.subscription || null);
-          // Override billing_enabled if it comes from user status
-          if (subRes.data.billing_enabled !== undefined) {
-            setBillingEnabled(subRes.data.billing_enabled);
-          }
         }
+      } else {
+        // Not logged in and billing is enabled - not premium
+        setIsPremium(false);
+        setSubscription(null);
       }
     } catch (error) {
       console.error('Error loading billing data:', error);
+      // On error, default to billing disabled (safer for users)
+      setBillingEnabled(false);
+      setIsPremium(true);
     } finally {
       setLoading(false);
     }
