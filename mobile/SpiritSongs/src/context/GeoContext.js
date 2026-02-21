@@ -144,6 +144,7 @@ export const useGeo = () => {
       userCountry: 'GLOBAL',
       countrySource: 'default',
       geoEnabled: false,
+      geoSettings: null,
       loading: false,
       detectCountry: () => {},
       setCountryOverride: () => false,
