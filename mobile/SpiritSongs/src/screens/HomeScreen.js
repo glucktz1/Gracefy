@@ -160,6 +160,10 @@ const HomeScreen = ({ navigation }) => {
         homeAPI.getHomeFilters().catch(() => ({ data: { filters: [] } })),
         homeAPI.getTags().catch(() => ({ data: { tags: [] } })),
         radioAPI.getStations().catch(() => ({ data: { stations: [] } })),
+        // Get geo-filtered albums if geo-filtering is enabled
+        useGeoFiltering 
+          ? geoAPI.getLocalizedFeed(userCountry, 'albums').catch(() => ({ data: { albums: [] } }))
+          : Promise.resolve({ data: { albums: [] } }),
       ]);
 
       // Album Tags
@@ -198,6 +202,13 @@ const HomeScreen = ({ navigation }) => {
       // Hero content
       const heroData = heroRes.data || { items: [] };
       setHeroContent(heroData);
+      
+      // Use geo-filtered albums if available, otherwise use regular albums
+      const geoAlbums = geoAlbumsRes?.data?.albums || [];
+      const regularAlbums = albumsRes.data?.albums || albumsRes.data || [];
+      
+      // If geo filtering returned albums, use those; otherwise use regular albums
+      const albums = (useGeoFiltering && geoAlbums.length > 0) ? geoAlbums : regularAlbums;
 
       // Special mixes
       const mixes = mixesRes.data?.mixes || mixesRes.data || [];
