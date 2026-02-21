@@ -2874,9 +2874,12 @@ export default function UserStreamingApp() {
           axios.get(`${API}/geo/detect-country`).catch(() => ({ data: { country_code: 'GLOBAL' } }))
         ]);
         
-        // Set billing state
-        const billingStatus = billingRes.data?.billing_enabled || false;
+        // Set billing state - if billing is disabled, everyone is premium
+        const billingStatus = billingRes.data?.billing_enabled ?? false;
         setBillingEnabled(billingStatus);
+        if (!billingStatus) {
+          setIsPremium(true); // When billing is OFF, everyone is premium
+        }
         
         // Set geo state
         const detectedCountry = geoRes.data?.country_code || 'GLOBAL';
