@@ -103,6 +103,7 @@ export const authAPI = {
 // ============ HOME API ============
 export const homeAPI = {
   getHome: () => api.get('/user/home'),
+  getGeoHome: (country) => api.get(`/user/home/geo${country ? `?country=${country}` : ''}`),
   getHeroContent: () => api.get('/layout/hero-content'),
   getSections: () => api.get('/layout/sections'),
   getBurners: () => api.get('/layout/burners'),
@@ -121,6 +122,15 @@ export const homeAPI = {
   getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
   // Tags
   getTags: () => api.get('/admin/tags'),
+};
+
+// ============ GEO CONTENT API ============
+export const geoAPI = {
+  detectCountry: () => api.get('/geo/detect-country'),
+  getUserCountry: (userId) => api.get(`/geo/user-country${userId ? `?user_id=${userId}` : ''}`),
+  setCountryOverride: (userId, countryCode) => api.post('/geo/user-country-override', { user_id: userId, country_code: countryCode }),
+  getLocalizedFeed: (country, contentType = 'albums') => api.get(`/geo/localized-feed?user_country=${country}&content_type=${contentType}`),
+  getCountries: () => api.get('/geo/countries'),
 };
 
 // ============ LEADER CONTENT API ============
