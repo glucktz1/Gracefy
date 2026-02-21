@@ -485,18 +485,20 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Akaunti</Text>
           
-          {/* Subscription/Plans - Always visible */}
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('Subscription')}
-          >
-            <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-              <Ionicons name="gift" size={20} color="#8B5CF6" />
-            </View>
-            <Text style={styles.menuItemText}>Vifurushi Vyangu</Text>
-            {isPremium && <View style={styles.premiumBadgeSmall}><Text style={styles.premiumBadgeText}>PREMIUM</Text></View>}
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
+          {/* Subscription/Plans - Only show if billing is enabled */}
+          {billingEnabled && (
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('Subscription')}
+            >
+              <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+                <Ionicons name="gift" size={20} color="#8B5CF6" />
+              </View>
+              <Text style={styles.menuItemText}>Vifurushi Vyangu</Text>
+              {isPremium && <View style={styles.premiumBadgeSmall}><Text style={styles.premiumBadgeText}>PREMIUM</Text></View>}
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity 
             style={styles.menuItem}
