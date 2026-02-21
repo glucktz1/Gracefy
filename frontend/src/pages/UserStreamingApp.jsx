@@ -2927,13 +2927,22 @@ export default function UserStreamingApp() {
           setUser(res.data);
           localStorage.setItem('user_id', res.data.user_id);
           setFavorites(res.data.favorites || []);
+          
+          // Check user's subscription status if billing is enabled
+          if (billingEnabled && res.data.user_id) {
+            axios.get(`${API}/monetization/user-subscription/${res.data.user_id}`)
+              .then(subRes => {
+                setIsPremium(subRes.data?.is_premium || false);
+              })
+              .catch(() => setIsPremium(false));
+          }
         })
         .catch(() => {
           localStorage.removeItem('user_token');
           setToken(null);
         });
     }
-  }, [token]);
+  }, [token, billingEnabled]);
 
   // Handle Google OAuth callback
   useEffect(() => {
