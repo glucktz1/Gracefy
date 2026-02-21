@@ -2931,13 +2931,22 @@ export default function UserStreamingApp() {
           localStorage.setItem('user_id', res.data.user_id);
           setFavorites(res.data.favorites || []);
           
-          // Check user's subscription status if billing is enabled
+          // Only check subscription if billing is enabled
           if (billingEnabled && res.data.user_id) {
-            axios.get(`${API}/monetization/user-subscription/${res.data.user_id}`)
+            axios.get(`${API}/user/subscription-status?user_id=${res.data.user_id}`)
               .then(subRes => {
-                setIsPremium(subRes.data?.is_premium || false);
+                // If billing is disabled at backend level, user is premium
+                if (subRes.data?.billing_enabled === false) {
+                  setIsPremium(true);
+                  setBillingEnabled(false);
+                } else {
+                  setIsPremium(subRes.data?.is_premium || false);
+                }
               })
               .catch(() => setIsPremium(false));
+          } else if (!billingEnabled) {
+            // Billing is disabled, everyone is premium
+            setIsPremium(true);
           }
         })
         .catch(() => {
