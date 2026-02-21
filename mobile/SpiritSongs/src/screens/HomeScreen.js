@@ -128,6 +128,9 @@ const HomeScreen = ({ navigation }) => {
     try {
       setLoading(true);
       
+      // Use geo-filtered home endpoint if geo is enabled
+      const useGeoFiltering = geoEnabled && userCountry && userCountry !== 'GLOBAL';
+      
       const [
         sectionsRes, 
         heroRes,
@@ -142,6 +145,7 @@ const HomeScreen = ({ navigation }) => {
         filtersRes,
         tagsRes,
         radioRes,
+        geoAlbumsRes,
       ] = await Promise.all([
         homeAPI.getSections().catch(() => ({ data: { sections: [] } })),
         homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
