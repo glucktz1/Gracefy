@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PlayerProvider, usePlayer, setShowLoginPromptCallback, clearShowLoginPromptCallback } from './src/context/PlayerContext';
 import { BillingProvider } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
+import { GeoProvider } from './src/context/GeoContext';
 
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
