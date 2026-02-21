@@ -2868,8 +2868,28 @@ export default function UserStreamingApp() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // First, fetch billing status and detect user country
+        const [billingRes, geoRes] = await Promise.all([
+          axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } })),
+          axios.get(`${API}/geo/detect-country`).catch(() => ({ data: { country_code: 'GLOBAL' } }))
+        ]);
+        
+        // Set billing state
+        const billingStatus = billingRes.data?.billing_enabled || false;
+        setBillingEnabled(billingStatus);
+        
+        // Set geo state
+        const detectedCountry = geoRes.data?.country_code || 'GLOBAL';
+        setUserCountry(detectedCountry);
+        
+        // Use geo-filtered home endpoint if geo content exists
+        const useGeoFiltering = geoEnabled && detectedCountry && detectedCountry !== 'GLOBAL';
+        const homeEndpoint = useGeoFiltering 
+          ? `${API}/user/home/geo?country=${detectedCountry}` 
+          : `${API}/user/home`;
+        
         const [homeRes, catRes, sectionsRes, tagsRes] = await Promise.all([
-          axios.get(`${API}/user/home`),
+          axios.get(homeEndpoint),
           axios.get(`${API}/user/browse/categories`),
           axios.get(`${API}/layout/sections?active_only=true`),
           axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } }))
@@ -2897,7 +2917,7 @@ export default function UserStreamingApp() {
       }
     };
     fetchData();
-  }, []);
+  }, [geoEnabled]);
 
   // Check auth
   useEffect(() => {
