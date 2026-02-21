@@ -75,6 +75,8 @@ const HomeScreen = ({ navigation }) => {
   // Call hooks unconditionally - they have built-in fallbacks
   const playerContext = usePlayer();
   const authContext = useAuth();
+  const geoContext = useGeo();
+  const billingContext = useBilling();
   
   // Extract values with safe fallbacks
   const playTrack = playerContext?.playTrack ?? (() => {});
@@ -83,6 +85,13 @@ const HomeScreen = ({ navigation }) => {
   const isPlaying = playerContext?.isPlaying ?? false;
   const isAuthenticated = authContext?.isAuthenticated ?? false;
   const user = authContext?.user ?? null;
+  
+  // Geo context values
+  const userCountry = geoContext?.userCountry ?? 'GLOBAL';
+  const geoEnabled = geoContext?.geoEnabled ?? false;
+  
+  // Billing context values
+  const billingEnabled = billingContext?.billingEnabled ?? false;
 
   useEffect(() => {
     updateGreeting();
