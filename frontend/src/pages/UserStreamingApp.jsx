@@ -2789,6 +2789,14 @@ export default function UserStreamingApp() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   
+  // Billing/Monetization state
+  const [billingEnabled, setBillingEnabled] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  
+  // Geo-content state
+  const [userCountry, setUserCountry] = useState('GLOBAL');
+  const [geoEnabled, setGeoEnabled] = useState(true);
+  
   // Bible audio state
   const [bibleAudioPlaying, setBibleAudioPlaying] = useState(null);
   const [bibleAudioElement, setBibleAudioElement] = useState(null);
