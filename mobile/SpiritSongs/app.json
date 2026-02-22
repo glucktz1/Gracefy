@@ -87,6 +87,11 @@
       ],
       "expo-task-manager"
     ],
-    "owner": "gracefy2"
+    "owner": "gracefy2",
+    "extra": {
+      "eas": {
+        "projectId": "gracefy2"
+      }
+    }
   }
 }
