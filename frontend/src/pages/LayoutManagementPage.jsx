@@ -1260,7 +1260,9 @@ export default function LayoutManagementPage() {
     platforms: ["app", "web"], content_type: "", content_count: 10,
     background_color: "", background_gradient: "", link_type: "", link_target: "",
     layout_style: "horizontal_small",
-    quick_access_items: []
+    quick_access_items: [],
+    content_source: "manual", // "manual" or "category"
+    link_category_id: ""
   });
 
   const [burnerForm, setBurnerForm] = useState({
