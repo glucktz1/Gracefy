@@ -110,17 +110,18 @@ export default function AlbumsPage() {
 
   const fetchAlbums = useCallback(async () => {
     try {
-      const [albumsRes, categoriesRes, singersRes, songCategoriesRes, tagsRes] = await Promise.all([
+      const [albumsRes, songCategoriesRes, singersRes, tagsRes] = await Promise.all([
         axios.get(`${API}/albums?include_inactive=true&limit=500`, { withCredentials: true }),
-        axios.get(`${API}/categories`, { withCredentials: true }),
+        axios.get(`${API}/song-categories/all`, { withCredentials: true }),
         axios.get(`${API}/singers`, { withCredentials: true }),
-        axios.get(`${API}/song-categories`, { withCredentials: true }),
         axios.get(`${API}/admin/tags`, { withCredentials: true }).catch(() => ({ data: { tags: [] } }))
       ]);
       setAlbums(albumsRes.data.albums);
-      setCategories(categoriesRes.data.categories);
+      // Use song-categories as the primary category source
+      const cats = songCategoriesRes.data.categories || [];
+      setCategories(cats);
+      setSongCategories(cats);
       setSingers(singersRes.data.singers);
-      setSongCategories(songCategoriesRes.data.categories || []);
       setAvailableTags(tagsRes.data?.tags || []);
     } catch (error) {
       console.error("Error fetching data:", error);
