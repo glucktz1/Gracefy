@@ -179,7 +179,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
     // Standalone items
     { path: "/users", icon: Users, label: "App Users", permissions: ["user_management"] },
     { path: "/admin/users", icon: Shield, label: "Admin Users", permissions: ["role_assignment", "user_management"] },
-    { path: "/categories", icon: FolderTree, label: "Categories", permissions: ["platform_settings"] },
     { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
     { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
     { path: "/radio", icon: Radio, label: "Live Radio", permissions: ["platform_settings"] },
