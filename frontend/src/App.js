@@ -22,7 +22,6 @@ import { LanguageProvider } from "@/context/LanguageContext";
 
 // Lazy-loaded pages - loaded on demand
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
-const CategoriesPage = lazy(() => import("@/pages/CategoriesPage"));
 const AlbumsPage = lazy(() => import("@/pages/AlbumsPage"));
 const ChurchesPage = lazy(() => import("@/pages/ChurchesPage"));
 const SingersPage = lazy(() => import("@/pages/SingersPage"));
