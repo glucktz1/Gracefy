@@ -447,7 +447,8 @@ async def get_layout_sections(
 async def get_geo_filtered_home(
     request: Request,
     user_id: Optional[str] = None,
-    country: Optional[str] = None
+    country: Optional[str] = None,
+    platform: str = Query("app", enum=["app", "web"])
 ):
     """
     Get home feed filtered by user's country.
