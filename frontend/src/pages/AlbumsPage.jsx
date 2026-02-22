@@ -1075,7 +1075,7 @@ export default function AlbumsPage() {
                 <Select 
                   value={albumFormData.category_id} 
                   onValueChange={(value) => {
-                    const cat = categories.find(c => c.category_id === value);
+                    const cat = categories.find(c => c.song_category_id === value || c.category_id === value);
                     setAlbumFormData({ 
                       ...albumFormData, 
                       category_id: value,
@@ -1088,7 +1088,7 @@ export default function AlbumsPage() {
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
                     {categories.map(cat => (
-                      <SelectItem key={cat.category_id} value={cat.category_id}>
+                      <SelectItem key={cat.song_category_id || cat.category_id} value={cat.song_category_id || cat.category_id}>
                         {cat.icon} {cat.name}
                       </SelectItem>
                     ))}
