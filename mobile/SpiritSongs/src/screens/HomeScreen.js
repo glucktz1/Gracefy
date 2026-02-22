@@ -429,10 +429,12 @@ const HomeScreen = ({ navigation }) => {
     
     // Navigate to SeeAll screen with category filter - use type 'category' 
     // to fetch content from backend endpoint
+    // Use song_category_id or category_id for proper filtering
+    const categoryId = category.song_category_id || category.category_id || category.id;
     navigation.navigate('SeeAll', { 
       type: 'category',
       title: category.name,
-      category: category.id,
+      category: categoryId,
       categoryName: category.name
     });
   };
