@@ -38,23 +38,22 @@ async def get_user_from_token(request: Request):
 
 @router.get("/user/browse/categories")
 async def browse_categories():
-    """Get categories for browse screen"""
+    """Get categories for browse screen - uses song_categories as primary"""
     db = get_db()
     
-    categories = await db.categories.find(
+    # Use song_categories as the primary category source
+    categories = await db.song_categories.find(
         {"status": "active"},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(50)
     
-    # Also get song categories
-    song_categories = await db.song_categories.find(
-        {"status": "active"},
-        {"_id": 0}
-    ).sort("sort_order", 1).to_list(50)
+    # Map song_category_id to category_id for compatibility
+    for cat in categories:
+        if "song_category_id" in cat and "category_id" not in cat:
+            cat["category_id"] = cat["song_category_id"]
     
     return {
-        "categories": categories,
-        "song_categories": song_categories
+        "categories": categories
     }
 
 
