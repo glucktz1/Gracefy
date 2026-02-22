@@ -237,9 +237,9 @@ async def fetch_section_content(db, section: dict) -> dict:
 
 
 @router.get("/user/home")
-async def get_user_home():
+async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     """
-    Get home screen data for the mobile app.
+    Get home screen data for app or web.
     
     OPTIMIZED FOR PERFORMANCE:
     - Aggressive caching (60 seconds)
@@ -249,16 +249,16 @@ async def get_user_home():
     """
     db = get_db()
     
-    # Check cache first
-    cache_key = "home:app:main:v2"
+    # Check cache first (separate cache for app vs web)
+    cache_key = f"home:{platform}:main:v2"
     cached_result = await cache.get(cache_key)
     if cached_result:
-        logger.debug("Home data served from cache")
+        logger.debug(f"Home data ({platform}) served from cache")
         return cached_result
     
-    # Get active layout sections
+    # Get active layout sections for the specified platform
     sections = await db.layout_sections.find(
-        {"platforms": "app", "is_active": True},
+        {"platforms": platform, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(20)
     
