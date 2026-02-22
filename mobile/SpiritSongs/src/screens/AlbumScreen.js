@@ -189,6 +189,13 @@ const AlbumScreen = ({ route, navigation }) => {
       return;
     }
     
+    // Check authentication before downloading
+    if (!isAuthenticated) {
+      showToast('Tafadhali ingia kwanza ili kupakua', 'warning');
+      navigation.navigate('Profile');
+      return;
+    }
+    
     // Check how many songs are already downloaded
     const notDownloaded = songs.filter(s => !isDownloaded(s.song_id));
     
@@ -203,7 +210,7 @@ const AlbumScreen = ({ route, navigation }) => {
     } else {
       showToast(result.message || 'Haiwezi kupakua', 'error');
     }
-  }, [songs, queueAlbumDownload, isDownloaded]);
+  }, [songs, queueAlbumDownload, isDownloaded, isAuthenticated, navigation]);
 
   // Check if all songs are downloaded
   const allSongsDownloaded = songs?.length > 0 && songs.every(s => isDownloaded(s.song_id));
