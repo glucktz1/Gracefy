@@ -91,15 +91,33 @@ async def fetch_section_content(db, section: dict) -> dict:
     content_count = section.get("content_count", 10)
     section_type = section["section_type"]
     
+    # Category mapping: old category IDs <-> song category IDs
+    category_mapping = {
+        "cat_9912003e1414": "songcat_593f7c13c64a",  # Christimas Songs -> Krismasi
+        "cat_66de3ce04e18": "songcat_593f7c13c64a",  # Christmas -> Krismasi
+        "cat_f3cce0507446": "songcat_f13791e16795",  # Kwaresma(lent) -> Kwaresma
+        "songcat_593f7c13c64a": ["cat_9912003e1414", "cat_66de3ce04e18"],  # Krismasi
+        "songcat_f13791e16795": ["cat_f3cce0507446"],  # Kwaresma
+    }
+    
     # If section has a linked category, fetch albums from that category
     link_category_id = section.get("link_category_id") or section.get("category_id")
     if link_category_id and section.get("content_type") == "albums":
+        # Build list of category IDs to search (including mapped ones)
+        category_ids = [link_category_id]
+        if link_category_id in category_mapping:
+            mapped = category_mapping[link_category_id]
+            if isinstance(mapped, list):
+                category_ids.extend(mapped)
+            else:
+                category_ids.append(mapped)
+        
         # Fetch albums that belong to the linked category
         items = await db.albums.find(
             {
                 "$or": [
-                    {"category_id": link_category_id},
-                    {"song_category_id": link_category_id}
+                    {"category_id": {"$in": category_ids}},
+                    {"song_category_id": {"$in": category_ids}}
                 ],
                 "status": "active"
             },
