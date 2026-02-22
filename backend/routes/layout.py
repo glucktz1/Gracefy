@@ -89,6 +89,7 @@ async def create_section(data: dict):
         "content_ids": data.get("content_ids", []),
         "content_count": data.get("content_count", 10),
         "content_source": data.get("content_source", "manual"),
+        "link_category_id": data.get("link_category_id"),
         "background_image": data.get("background_image"),
         "background_color": data.get("background_color"),
         "background_gradient": data.get("background_gradient"),
