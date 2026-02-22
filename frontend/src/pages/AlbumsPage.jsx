@@ -610,7 +610,7 @@ export default function AlbumsPage() {
                 <SelectContent className="bg-zinc-900 border-zinc-800">
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map(cat => (
-                    <SelectItem key={cat.category_id} value={cat.category_id}>{cat.name}</SelectItem>
+                    <SelectItem key={cat.song_category_id || cat.category_id} value={cat.song_category_id || cat.category_id}>{cat.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
