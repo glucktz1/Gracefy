@@ -268,7 +268,7 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     
     # Get burners and hero in parallel
     burners_task = db.layout_burners.find(
-        {"platforms": "app", "is_active": True},
+        {"platforms": platform, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(5)
     
