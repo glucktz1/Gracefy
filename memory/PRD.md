@@ -525,6 +525,32 @@ REACT_APP_BACKEND_URL=https://worship-mobile.preview.emergentagent.com
   - Email: `cecilia@mabibo.com`
   - Password: `choir123`
 
+## Layout Manager Platform Awareness Fix (Feb 22, 2026)
+
+### Backend Updates (home.py)
+- [x] Added `platform` query parameter to `/user/home` endpoint (accepts "app" or "web")
+- [x] Added `platform` query parameter to `/user/home/geo` endpoint
+- [x] Sections now filtered by platform: `{"platforms": platform, "is_active": True}`
+- [x] Burners also filtered by platform
+- [x] Separate cache keys for app vs web: `home:{platform}:main:v2`
+
+### Web App Updates (UserStreamingApp.jsx)
+- [x] Web app now calls `/user/home?platform=web` for proper filtering
+- [x] Geo-filtered endpoint also uses `platform=web` parameter
+
+### Layout Manager Functionality (Verified Working)
+- [x] **Sections Tab**: Create, edit, delete sections with platform targeting (App/Web/Both)
+- [x] **Hero Banners Tab**: Manage hero carousel banners
+- [x] **Burners Tab**: Promotional banner cards
+- [x] **Home Filters Tab**: Category filter buttons
+- [x] **Hero Config Tab**: Hero section configuration
+- [x] **Preview Tab**: Live mobile app preview
+
+### Platform Targeting
+- Sections can be set to: App only, Web only, or Both
+- Backend properly filters content based on platform parameter
+- Each platform has separate cache for performance
+
 ## Billing & Geo-Content Enforcement Fix (Feb 21, 2026)
 
 ### Billing Logic Fixes
