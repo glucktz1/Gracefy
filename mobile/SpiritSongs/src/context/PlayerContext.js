@@ -231,7 +231,14 @@ export const PlayerProvider = ({ children }) => {
 
   // ============ INITIALIZE ON MOUNT ============
   useEffect(() => {
-    setupPlayer();
+    const initializePlayer = async () => {
+      await setupPlayer();
+      
+      // Restore state from TrackPlayer if app was reopened
+      await restorePlayerState();
+    };
+    
+    initializePlayer();
 
     // Listen for queue end to handle repeat or continuous play
     const queueEndedSub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
