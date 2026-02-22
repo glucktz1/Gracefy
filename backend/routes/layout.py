@@ -246,6 +246,7 @@ async def assign_section_content(section_id: str, data: dict):
             "content_ids": content_ids,
             "content_type": content_type,
             "content_source": "manual",
+            "link_category_id": None,  # Clear category link when manually assigning content
             "updated_at": datetime.now(timezone.utc).isoformat()
         }}
     )
