@@ -62,12 +62,34 @@ async def browse_category(category_id: str):
     """Get content for a specific category"""
     db = get_db()
     
-    # Get albums in this category (check both category_id and song_category_id)
+    # Map old category IDs to new song category IDs if needed
+    # Also map song category IDs to old category IDs for album lookup
+    category_mapping = {
+        # Old categories -> song categories
+        "cat_9912003e1414": "songcat_593f7c13c64a",  # Christimas Songs -> Krismasi
+        "cat_66de3ce04e18": "songcat_593f7c13c64a",  # Christmas -> Krismasi
+        "cat_f3cce0507446": "songcat_f13791e16795",  # Kwaresma(lent) -> Kwaresma
+        # Reverse mapping: song categories -> old categories
+        "songcat_593f7c13c64a": ["cat_9912003e1414", "cat_66de3ce04e18"],  # Krismasi -> both Christmas cats
+        "songcat_f13791e16795": ["cat_f3cce0507446"],  # Kwaresma
+    }
+    
+    # Build query to find albums
+    category_ids_to_search = [category_id]
+    
+    # If this is a song category, also search for mapped old category IDs
+    if category_id in category_mapping and isinstance(category_mapping[category_id], list):
+        category_ids_to_search.extend(category_mapping[category_id])
+    # If this is an old category, also search for mapped song category
+    elif category_id in category_mapping and isinstance(category_mapping[category_id], str):
+        category_ids_to_search.append(category_mapping[category_id])
+    
+    # Get albums in this category (check category_id, song_category_id, and mapped IDs)
     albums = await db.albums.find(
         {
             "$or": [
-                {"category_id": category_id},
-                {"song_category_id": category_id}
+                {"category_id": {"$in": category_ids_to_search}},
+                {"song_category_id": {"$in": category_ids_to_search}}
             ],
             "status": "active"
         },
