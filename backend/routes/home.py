@@ -479,8 +479,8 @@ async def get_geo_filtered_home(
         client_ip = get_client_ip(request)
         user_country = await get_country_from_ip(client_ip)
     
-    # Cache key includes country
-    cache_key = f"home:geo:{user_country}:v1"
+    # Cache key includes country and platform
+    cache_key = f"home:geo:{user_country}:{platform}:v1"
     cached_result = await cache.get(cache_key)
     if cached_result:
         cached_result["from_cache"] = True
@@ -501,9 +501,9 @@ async def get_geo_filtered_home(
     allowed_content_ids = list(set(country_content_ids + global_content_ids))
     using_fallback = len(allowed_content_ids) == 0
     
-    # Get active layout sections
+    # Get active layout sections for the specified platform
     sections = await db.layout_sections.find(
-        {"platforms": "app", "is_active": True},
+        {"platforms": platform, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(20)
     
