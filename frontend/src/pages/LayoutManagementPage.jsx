@@ -2010,6 +2010,72 @@ export default function LayoutManagementPage() {
                 </div>
               </div>
 
+              {/* Content Source Selection - Manual vs Category Link */}
+              {sectionForm.content_type === "albums" && (
+                <div className="border border-violet-500/30 rounded-lg p-4 bg-violet-900/10">
+                  <label className="text-sm font-medium text-violet-300 mb-3 block flex items-center gap-2">
+                    <Link size={16} />
+                    Content Source
+                  </label>
+                  <div className="flex gap-4 mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="content_source"
+                        value="manual"
+                        checked={sectionForm.content_source === "manual"}
+                        onChange={() => setSectionForm({ ...sectionForm, content_source: "manual", link_category_id: "" })}
+                        className="text-violet-500"
+                      />
+                      <span className="text-zinc-300">Manual Selection</span>
+                      <span className="text-xs text-zinc-500">(Hand-pick albums)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="content_source"
+                        value="category"
+                        checked={sectionForm.content_source === "category"}
+                        onChange={() => setSectionForm({ ...sectionForm, content_source: "category" })}
+                        className="text-violet-500"
+                      />
+                      <span className="text-zinc-300">Link to Category</span>
+                      <span className="text-xs text-zinc-500">(Auto-populate from category)</span>
+                    </label>
+                  </div>
+                  
+                  {sectionForm.content_source === "category" && (
+                    <div>
+                      <label className="text-sm text-zinc-400 mb-1 block">Select Category</label>
+                      <Select 
+                        value={sectionForm.link_category_id} 
+                        onValueChange={(v) => setSectionForm({ ...sectionForm, link_category_id: v })}
+                      >
+                        <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
+                          <SelectValue placeholder="Choose a category (e.g., Christmas, Lent)" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-800">
+                          {categories.map(cat => (
+                            <SelectItem key={cat.song_category_id || cat.category_id} value={cat.song_category_id || cat.category_id}>
+                              {cat.name} {cat.name_sw ? `(${cat.name_sw})` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-zinc-500 mt-2">
+                        Albums tagged with this category will automatically appear in this section.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {sectionForm.content_source === "manual" && (
+                    <p className="text-xs text-zinc-500">
+                      Use the "Manage Content" button after creating the section to select specific albums.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="text-sm text-zinc-400 mb-1 block">Description</label>
                 <Textarea
