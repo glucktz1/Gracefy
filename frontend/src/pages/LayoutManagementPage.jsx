@@ -1277,7 +1277,7 @@ export default function LayoutManagementPage() {
       const [sectionsRes, burnersRes, categoriesRes, albumsRes, churchesRes, choirsRes, leadersRes, snippetsRes, mixesRes, leaderContentRes, teachingsRes] = await Promise.all([
         axios.get(`${API}/layout/sections?include_inactive=true`, { withCredentials: true }),
         axios.get(`${API}/layout/burners`, { withCredentials: true }),
-        axios.get(`${API}/categories`, { withCredentials: true }),
+        axios.get(`${API}/song-categories/all`, { withCredentials: true }),
         axios.get(`${API}/albums`, { withCredentials: true }),
         axios.get(`${API}/churches`, { withCredentials: true }).catch(() => ({ data: { churches: [] } })),
         axios.get(`${API}/admin/choirs`, { withCredentials: true }).catch(() => ({ data: { choirs: [] } })),
