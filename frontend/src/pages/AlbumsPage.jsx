@@ -1089,7 +1089,7 @@ export default function AlbumsPage() {
                   <SelectContent className="bg-zinc-900 border-zinc-800">
                     {categories.map(cat => (
                       <SelectItem key={cat.song_category_id || cat.category_id} value={cat.song_category_id || cat.category_id}>
-                        {cat.icon} {cat.name}
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
