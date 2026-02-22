@@ -91,6 +91,26 @@ async def fetch_section_content(db, section: dict) -> dict:
     content_count = section.get("content_count", 10)
     section_type = section["section_type"]
     
+    # If section has a linked category, fetch albums from that category
+    link_category_id = section.get("link_category_id") or section.get("category_id")
+    if link_category_id and section.get("content_type") == "albums":
+        # Fetch albums that belong to the linked category
+        items = await db.albums.find(
+            {
+                "$or": [
+                    {"category_id": link_category_id},
+                    {"song_category_id": link_category_id}
+                ],
+                "status": "active"
+            },
+            ALBUM_LIST_PROJECTION
+        ).sort("total_plays", -1).limit(content_count).to_list(content_count)
+        for item in items:
+            item["entity_type"] = "album"
+        section_data["items"] = optimize_thumbnails(items)
+        section_data["content_type"] = "albums"
+        return section_data
+    
     # Custom content IDs take priority
     if section.get("content_ids") and len(section["content_ids"]) > 0:
         content_type = section.get("content_type", "albums")
