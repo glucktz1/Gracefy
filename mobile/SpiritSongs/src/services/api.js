@@ -153,7 +153,7 @@ export const contentAPI = {
   getAlbums: () => api.get('/albums'),
   getAlbum: (id) => api.get(`/albums/${id}`),
   getAllSongs: () => api.get('/albums/all-songs'),
-  getCategories: () => api.get('/categories'),
+  getCategories: () => api.get('/song-categories/all'),
   getSpecialMix: (id) => api.get(`/special-mixes/${id}`),
   getSpecialMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
   getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),  // Alias for getSpecialMixSongs
@@ -165,7 +165,7 @@ export const contentAPI = {
 export const searchAPI = {
   search: (query) => api.get(`/user/search?q=${encodeURIComponent(query)}`),
   searchByCategory: (categoryId) => api.get(`/user/browse/category/${categoryId}`),
-  getCategoryContent: (categoryId) => api.get(`/categories/${categoryId}/content`),
+  getCategoryContent: (categoryId) => api.get(`/user/browse/category/${categoryId}`),
 };
 
 // ============ LIBRARY API ============
