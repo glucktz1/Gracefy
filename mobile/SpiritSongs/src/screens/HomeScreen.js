@@ -180,23 +180,28 @@ const HomeScreen = ({ navigation }) => {
       // Home filters from admin panel (new endpoint)
       const homeFilters = filtersRes.data?.filters || [];
       if (homeFilters.length > 0) {
-        // Use filters from admin-managed endpoint
-        const categoryFilters = homeFilters
-          .filter(f => f.is_active)
-          .map(f => ({
-            id: f.filter_id,
-            name: f.name,
-            name_en: f.name_en,
-            icon: f.icon,
-            color: f.color,
-            filter_type: f.filter_type,
-            category_id: f.category_id,
-            content_type: f.content_type,
-          }));
+        // Use filters from admin-managed endpoint with Swahili names
+        const categoryFilters = [
+          { id: 'all', name: 'Zote', name_sw: 'Zote', icon: null, color: '#8B5CF6' },
+          ...homeFilters
+            .filter(f => f.is_active || f.enabled)
+            .map(f => ({
+              id: f.song_category_id || f.filter_id || f.category_id,
+              name: f.name_sw || f.name,  // Prefer Swahili name
+              name_en: f.name,
+              name_sw: f.name_sw,
+              icon: f.icon,
+              color: f.color || '#6366f1',
+              filter_type: f.filter_type || 'category',
+              category_id: f.song_category_id || f.category_id,
+              song_category_id: f.song_category_id,
+              content_type: f.content_type || 'albums',
+            }))
+        ];
         setCategories(categoryFilters);
       } else {
         // Fallback to default
-        setCategories([{ id: 'all', name: 'Yote', icon: null }]);
+        setCategories([{ id: 'all', name: 'Zote', icon: null }]);
       }
 
       // Hero content
