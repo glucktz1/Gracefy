@@ -2888,8 +2888,8 @@ export default function UserStreamingApp() {
         // Use geo-filtered home endpoint if geo content exists
         const useGeoFiltering = geoEnabled && detectedCountry && detectedCountry !== 'GLOBAL';
         const homeEndpoint = useGeoFiltering 
-          ? `${API}/user/home/geo?country=${detectedCountry}` 
-          : `${API}/user/home`;
+          ? `${API}/user/home/geo?country=${detectedCountry}&platform=web` 
+          : `${API}/user/home?platform=web`;
         
         const [homeRes, catRes, sectionsRes, tagsRes] = await Promise.all([
           axios.get(homeEndpoint),
