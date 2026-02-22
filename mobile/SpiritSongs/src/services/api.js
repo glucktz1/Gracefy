@@ -116,8 +116,9 @@ export const homeAPI = {
   getAlbums: () => api.get('/albums'),
   getAlbum: (id) => api.get(`/albums/${id}`),
   getAlbumSongs: (id) => api.get(`/albums/${id}`), // Returns {album, songs}
-  // Category methods
-  getCategories: () => api.get('/categories'),
+  // Category methods - use song-categories as primary source
+  getCategories: () => api.get('/song-categories/all'),
+  getSongCategories: () => api.get('/song-categories/all'),
   // Mix methods
   getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
   // Tags
