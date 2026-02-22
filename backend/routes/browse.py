@@ -62,17 +62,28 @@ async def browse_category(category_id: str):
     """Get content for a specific category"""
     db = get_db()
     
-    # Get albums in this category
+    # Get albums in this category (check both category_id and song_category_id)
     albums = await db.albums.find(
-        {"category_id": category_id, "status": "active"},
+        {
+            "$or": [
+                {"category_id": category_id},
+                {"song_category_id": category_id}
+            ],
+            "status": "active"
+        },
         {"_id": 0}
     ).sort("total_plays", -1).limit(50).to_list(50)
     
-    # Get category info
-    category = await db.categories.find_one(
-        {"category_id": category_id},
+    # Get category info - check both collections
+    category = await db.song_categories.find_one(
+        {"$or": [{"song_category_id": category_id}, {"category_id": category_id}]},
         {"_id": 0}
     )
+    if not category:
+        category = await db.categories.find_one(
+            {"category_id": category_id},
+            {"_id": 0}
+        )
     
     return {
         "category": category,
