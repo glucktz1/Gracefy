@@ -525,6 +525,27 @@ REACT_APP_BACKEND_URL=https://worship-mobile.preview.emergentagent.com
   - Email: `cecilia@mabibo.com`
   - Password: `choir123`
 
+## Categories Consolidation (Feb 22, 2026)
+
+### Changes Made
+- [x] **Removed standalone CategoriesPage** (`/categories`) - Was outside Content section
+- [x] **Kept SongCategoriesPage** (`/song-categories`) - Inside Content section, now the single source of truth
+- [x] **Updated backend browse endpoint** (`/user/browse/categories`) - Now uses `song_categories` collection
+- [x] **Updated AlbumsPage** - Fetches categories from `/song-categories/all`
+- [x] **Updated LayoutManagementPage** - Uses `/song-categories/all` for category lists
+- [x] **Updated mobile api.js** - All category endpoints now point to `/song-categories/all`
+- [x] **Updated browse_category endpoint** - Checks both `category_id` and `song_category_id` fields
+
+### Category Management
+- **Admin Panel**: Contents > Song Categories (13 categories available)
+- **API Endpoint**: `/api/song-categories/all` (primary), `/api/user/browse/categories` (user-facing)
+- **Collections**: Uses `song_categories` collection exclusively
+
+### Verified Working
+- Albums page filter dropdown shows all 13 song categories
+- Web app home filters use unified categories
+- Mobile app category filtering uses unified endpoint
+
 ## Layout Manager Platform Awareness Fix (Feb 22, 2026)
 
 ### Backend Updates (home.py)
