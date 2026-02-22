@@ -1694,13 +1694,18 @@ export default function LayoutManagementPage() {
                         {getPlatformBadge(section.platforms)}
                         <Badge className="bg-zinc-700 text-zinc-300">{section.section_type}</Badge>
                         {section.layout_style && <Badge className="bg-blue-500/20 text-blue-400">{section.layout_style}</Badge>}
+                        {section.link_category_id && <Badge className="bg-violet-500/20 text-violet-400">Category Linked</Badge>}
                         {!section.is_active && <Badge className="bg-red-500/20 text-red-400">Hidden</Badge>}
                         {section.is_active && <Badge className="bg-emerald-500/20 text-emerald-400">Live</Badge>}
                       </div>
                       <p className="text-sm text-zinc-500 mt-1">{section.description || "No description"}</p>
                       {section.content_type && (
                         <p className="text-xs text-zinc-600 mt-1">
-                          Content: {section.content_type} ({section.content_ids?.length || 0} items)
+                          Content: {section.content_type} 
+                          {section.link_category_id 
+                            ? ` (Auto from: ${categories.find(c => c.song_category_id === section.link_category_id || c.category_id === section.link_category_id)?.name || section.link_category_id})`
+                            : ` (${section.content_ids?.length || 0} manual items)`
+                          }
                         </p>
                       )}
                     </div>
