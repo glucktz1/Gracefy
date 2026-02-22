@@ -161,6 +161,11 @@ export const SongActionsSheet = ({
       cancelDownload(song.song_id);
       showToast('Upakuaji umesitishwa', 'info');
     } else {
+      // Check authentication before downloading
+      if (!isAuthenticated) {
+        onLoginRequired?.();
+        return;
+      }
       // Start download
       const success = queueDownload(song);
       if (success) {
@@ -169,7 +174,7 @@ export const SongActionsSheet = ({
         showToast('Haiwezi kupakua', 'error');
       }
     }
-  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload]);
+  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload, isAuthenticated, onLoginRequired]);
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) {
