@@ -1429,7 +1429,9 @@ export default function LayoutManagementPage() {
       link_type: section.link_type || "",
       link_target: section.link_target || "",
       layout_style: section.layout_style || "horizontal_small",
-      quick_access_items: section.quick_access_items || []
+      quick_access_items: section.quick_access_items || [],
+      content_source: section.link_category_id ? "category" : "manual",
+      link_category_id: section.link_category_id || ""
     });
     setIsSectionModalOpen(true);
   };
