@@ -3629,6 +3629,53 @@ export default function UserStreamingApp() {
                 {/* Bible Devotional Cards - Horizontal Scroll */}
                 <BibleDevotionalSection language={language} t={t} onPlaySnippet={handlePlayBibleSnippet} />
 
+                {/* Radio Stations - Single Row */}
+                {homeRadioStations.length > 0 && (
+                  <section>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Radio className="w-5 h-5 text-violet-500" />
+                        <h2 className="text-lg font-bold">{t('radio.title', 'Redio za Kikristo')}</h2>
+                      </div>
+                      <button 
+                        onClick={() => setView('radio')} 
+                        className="text-sm text-violet-400 hover:text-violet-300"
+                      >
+                        {t('common.seeAll', 'Angalia Zote')}
+                      </button>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                      {homeRadioStations.map(station => (
+                        <div
+                          key={station.station_id}
+                          onClick={() => setView('radio')}
+                          className="flex-shrink-0 w-36 bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
+                        >
+                          <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center relative">
+                            {station.favicon ? (
+                              <img 
+                                src={station.favicon} 
+                                alt={station.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <Radio className="w-10 h-10 text-white/60" />
+                            )}
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center">
+                                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                              </div>
+                            </div>
+                          </div>
+                          <h3 className="font-medium text-sm truncate text-center">{station.name}</h3>
+                          <p className="text-xs text-zinc-400 truncate text-center">{station.country || 'Live'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {/* Category Filter Pills */}
                 {!activeCategory && (
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
