@@ -2812,6 +2812,9 @@ export default function UserStreamingApp() {
   
   // Download app popup
   const [showDownloadPopup, setShowDownloadPopup] = useState(false);
+  
+  // Radio stations state for home view
+  const [homeRadioStations, setHomeRadioStations] = useState([]);
 
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
