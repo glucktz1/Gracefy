@@ -229,6 +229,53 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
+  // ============ RESTORE PLAYER STATE (when app reopens) ============
+  const restorePlayerState = async () => {
+    try {
+      // Check if TrackPlayer has an active track
+      const activeTrack = await TrackPlayer.getActiveTrack().catch(() => null);
+      if (!activeTrack) {
+        console.log('[Player] No active track to restore');
+        return;
+      }
+
+      console.log('[Player] Restoring player state, active track:', activeTrack.title);
+
+      // Get the full queue from TrackPlayer
+      const trackPlayerQueue = await TrackPlayer.getQueue();
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+      if (trackPlayerQueue.length > 0) {
+        // Convert TrackPlayer tracks back to our song format
+        const restoredQueue = trackPlayerQueue.map(track => ({
+          song_id: track.songId || track.id,
+          title: track.title,
+          artist_name: track.artist,
+          album_title: track.album,
+          thumbnail: track.artwork,
+          audio_url: track.url,
+          duration: track.duration,
+        }));
+
+        // Update our state
+        setQueue(restoredQueue);
+        queueRef.current = restoredQueue;
+
+        if (currentIndex !== null && currentIndex >= 0 && currentIndex < restoredQueue.length) {
+          setQueueIndex(currentIndex);
+          setCurrentTrack(restoredQueue[currentIndex]);
+          
+          // Check liked status
+          checkLikedStatus(restoredQueue[currentIndex].song_id);
+        }
+
+        console.log(`[Player] Restored queue with ${restoredQueue.length} tracks, index: ${currentIndex}`);
+      }
+    } catch (error) {
+      console.error('[Player] Failed to restore state:', error);
+    }
+  };
+
   // ============ INITIALIZE ON MOUNT ============
   useEffect(() => {
     const initializePlayer = async () => {
