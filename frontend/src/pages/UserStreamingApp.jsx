@@ -2894,15 +2894,17 @@ export default function UserStreamingApp() {
           ? `${API}/user/home/geo?country=${detectedCountry}&platform=web` 
           : `${API}/user/home?platform=web`;
         
-        const [homeRes, catRes, sectionsRes, tagsRes] = await Promise.all([
+        const [homeRes, catRes, sectionsRes, tagsRes, radioRes] = await Promise.all([
           axios.get(homeEndpoint),
           axios.get(`${API}/user/browse/categories`),
           axios.get(`${API}/layout/sections?active_only=true`),
-          axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } }))
+          axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
+          axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } }))
         ]);
         setHomeData(homeRes.data);
         setCategories(catRes.data.categories || []);
         setAvailableTags(tagsRes.data?.tags || []);
+        setHomeRadioStations(radioRes.data.stations?.slice(0, 6) || []);
         
         // Get quick access section items
         const quickSection = sectionsRes.data.sections?.find(s => s.section_type === 'quick_access');
