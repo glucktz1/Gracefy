@@ -494,8 +494,10 @@ async def create_song(song: dict):
         {"$inc": {"songs_count": 1}}
     )
     
-    await invalidate_songs_cache()
-    await invalidate_albums_cache(doc["album_id"])
+    # Invalidate cache in background (don't wait)
+    import asyncio
+    asyncio.create_task(invalidate_songs_cache())
+    asyncio.create_task(invalidate_albums_cache(doc["album_id"]))
     
     return {"song_id": doc["song_id"], "message": "Song created successfully"}
 
