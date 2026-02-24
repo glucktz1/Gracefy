@@ -213,6 +213,10 @@ export default function AlbumsPage() {
       if (editingAlbum) {
         await axios.put(`${API}/albums/${editingAlbum.album_id}`, data, { withCredentials: true });
         toast.success("Album updated successfully");
+        // Update album in local state instead of refetching all
+        setAlbums(prev => prev.map(a => 
+          a.album_id === editingAlbum.album_id ? { ...a, ...data } : a
+        ));
         // Update selected album if it's the one being edited
         if (selectedAlbum?.album_id === editingAlbum.album_id) {
           setSelectedAlbum({ ...selectedAlbum, ...data });
@@ -220,15 +224,16 @@ export default function AlbumsPage() {
       } else {
         const response = await axios.post(`${API}/albums`, data, { withCredentials: true });
         toast.success("Album created successfully");
-        // Auto-select the new album
-        const newAlbum = { ...data, album_id: response.data.album_id };
+        // Add new album to local state instead of refetching all
+        const newAlbum = { ...data, album_id: response.data.album_id, songs: [], song_count: 0 };
+        setAlbums(prev => [newAlbum, ...prev]);
         setSelectedAlbum(newAlbum);
       }
       setIsAlbumModalOpen(false);
       setEditingAlbum(null);
       setThumbnailFile(null);
       resetAlbumForm();
-      fetchAlbums();
+      // Don't call fetchAlbums() - we already updated local state
     } catch (error) {
       toast.error(error.response?.data?.detail || "Operation failed");
     } finally {
