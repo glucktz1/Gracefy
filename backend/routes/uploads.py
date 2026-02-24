@@ -117,7 +117,7 @@ async def upload_file(
         "filename": filename,
         "url": cdn_url or f"/api/files/{file_id}",
         "cdn_url": cdn_url,
-        "size_bytes": len(content)
+        "size_bytes": file_size
     }
 
 
