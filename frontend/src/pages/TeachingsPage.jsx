@@ -884,6 +884,44 @@ export default function TeachingsPage() {
               />
             </div>
 
+            {/* Country/Geo Targeting */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block flex items-center gap-2">
+                <Globe size={14} className="text-blue-400" />
+                Nchi Zinazoweza Kufikia (Geo Content)
+              </label>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-1">
+                  {COMMON_COUNTRIES.map(country => (
+                    <label key={country.code} className="flex items-center gap-2 p-1.5 rounded hover:bg-zinc-800 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={teachingForm.country_codes?.includes(country.code)}
+                        onChange={(e) => {
+                          const codes = teachingForm.country_codes || [];
+                          if (e.target.checked) {
+                            if (country.code === "GLOBAL") {
+                              setTeachingForm({ ...teachingForm, country_codes: ["GLOBAL"] });
+                            } else {
+                              const filtered = codes.filter(c => c !== "GLOBAL");
+                              setTeachingForm({ ...teachingForm, country_codes: [...filtered, country.code] });
+                            }
+                          } else {
+                            setTeachingForm({ ...teachingForm, country_codes: codes.filter(c => c !== country.code) });
+                          }
+                        }}
+                        className="rounded border-zinc-700 bg-zinc-900 text-violet-500"
+                      />
+                      <span>{country.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {teachingForm.country_codes?.includes("GLOBAL") && (
+                <p className="text-xs text-emerald-400 mt-1">Mafundisho yatapatikana ulimwenguni kote</p>
+              )}
+            </div>
+
             {/* Description */}
             <div>
               <label className="text-sm text-zinc-400 block mb-1">Maelezo</label>
