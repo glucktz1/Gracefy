@@ -435,14 +435,14 @@ async def update_album(album_id: str, updates: dict):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Album not found")
     
-    # Update country tags if provided
+    # Update country tags if provided (only if not GLOBAL)
     if country_codes is not None:
         import uuid
         # Remove existing mappings
         await db.content_country.delete_many({"content_id": album_id})
         
-        # Add new mappings
-        if country_codes:
+        # Add new mappings only if specific countries (not GLOBAL)
+        if country_codes and "GLOBAL" not in country_codes:
             mappings = [
                 {
                     "id": f"cc_{uuid.uuid4().hex[:12]}",
@@ -454,7 +454,9 @@ async def update_album(album_id: str, updates: dict):
             ]
             await db.content_country.insert_many(mappings)
     
-    await invalidate_albums_cache(album_id)
+    # Invalidate cache in background (don't wait)
+    import asyncio
+    asyncio.create_task(invalidate_albums_cache(album_id))
     
     return {"message": "Album updated successfully"}
 
