@@ -1119,6 +1119,54 @@ export default function AlbumsPage() {
                 </Select>
               </div>
 
+              {/* Country/Geo Targeting */}
+              <div className="form-group">
+                <label className="form-label flex items-center gap-2">
+                  <Globe size={16} className="text-blue-400" />
+                  Available Countries (Geo Content)
+                </label>
+                <p className="text-xs text-zinc-500 mb-2">Select which countries can access this content</p>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 max-h-48 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {COMMON_COUNTRIES.map(country => (
+                      <label key={country.code} className="flex items-center gap-2 p-2 rounded hover:bg-zinc-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={albumFormData.country_codes?.includes(country.code)}
+                          onChange={(e) => {
+                            const codes = albumFormData.country_codes || [];
+                            if (e.target.checked) {
+                              // If selecting GLOBAL, clear other selections
+                              if (country.code === "GLOBAL") {
+                                setAlbumFormData({ ...albumFormData, country_codes: ["GLOBAL"] });
+                              } else {
+                                // Remove GLOBAL if selecting specific countries
+                                const filtered = codes.filter(c => c !== "GLOBAL");
+                                setAlbumFormData({ ...albumFormData, country_codes: [...filtered, country.code] });
+                              }
+                            } else {
+                              setAlbumFormData({ ...albumFormData, country_codes: codes.filter(c => c !== country.code) });
+                            }
+                          }}
+                          className="rounded border-zinc-700 bg-zinc-900 text-violet-500 focus:ring-violet-500"
+                        />
+                        <span className="text-sm">{country.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {albumFormData.country_codes?.length > 0 && !albumFormData.country_codes.includes("GLOBAL") && (
+                  <p className="text-xs text-amber-400 mt-2">
+                    Content will only be available in: {albumFormData.country_codes.join(", ")}
+                  </p>
+                )}
+                {albumFormData.country_codes?.includes("GLOBAL") && (
+                  <p className="text-xs text-emerald-400 mt-2">
+                    Content will be available globally (all countries)
+                  </p>
+                )}
+              </div>
+
               {/* Thumbnail Upload */}
               <div className="form-group">
                 <label className="form-label">Album Thumbnail *</label>
