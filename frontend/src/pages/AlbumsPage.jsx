@@ -787,7 +787,8 @@ export default function AlbumsPage() {
                               release_date: album.release_date || "",
                               monetization_type: album.monetization_type || "free",
                               status: album.status || "active",
-                              tags: album.tags || []
+                              tags: album.tags || [],
+                              country_codes: album.country_codes || ["GLOBAL"]
                             });
                             setIsAlbumModalOpen(true);
                           }} className="text-zinc-300 focus:text-white focus:bg-zinc-800">
