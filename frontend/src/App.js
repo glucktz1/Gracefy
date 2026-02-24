@@ -540,6 +540,8 @@ function AppRouter() {
         <Route path="/song-categories" element={<ProtectedRoute><SongCategoriesPage /></ProtectedRoute>} />
         <Route path="/admin/choirs" element={<ProtectedRoute><ChoirManagementPage /></ProtectedRoute>} />
         <Route path="/admin/choirs/:choirId" element={<ProtectedRoute><ChoirDetailsPage /></ProtectedRoute>} />
+        <Route path="/admin/leaders" element={<ProtectedRoute><ReligiousLeadersPage /></ProtectedRoute>} />
+        <Route path="/religious-leaders" element={<ProtectedRoute><ReligiousLeadersPage /></ProtectedRoute>} />
         <Route path="/choir-accounts" element={<ProtectedRoute><ChoirAccountsPage /></ProtectedRoute>} />
         <Route path="/withdrawals" element={<ProtectedRoute><WithdrawalsPage /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
