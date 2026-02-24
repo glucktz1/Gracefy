@@ -357,32 +357,37 @@ export default function AlbumsPage() {
 
     try {
       const totalSongs = bulkSongs.length;
-      const createdSongs = [];
-
-      for (let i = 0; i < bulkSongs.length; i++) {
-        const song = bulkSongs[i];
+      
+      // Upload all files in parallel first
+      const uploadPromises = bulkSongs.map(async (song, index) => {
         let audioUrl = "";
-        
         if (song.file) {
           audioUrl = await handleFileUpload(song.file);
         }
-
-        const songData = {
+        return {
           title: song.title,
           album_id: selectedAlbum.album_id,
           duration: parseInt(song.duration) || 0,
           duration_formatted: song.duration_formatted || "",
           audio_url: audioUrl,
-          track_number: i + 1 + albumSongs.length,
+          track_number: index + 1 + albumSongs.length,
           status: "active"
         };
+      });
 
-        await axios.post(`${API}/songs`, songData, { withCredentials: true });
-        createdSongs.push(songData);
-        setUploadProgress(Math.round(((i + 1) / totalSongs) * 100));
-      }
+      // Wait for all uploads to complete
+      setUploadProgress(30);
+      const songDataList = await Promise.all(uploadPromises);
+      setUploadProgress(60);
 
-      toast.success(`${createdSongs.length} songs uploaded successfully`);
+      // Create all songs in parallel
+      const createPromises = songDataList.map(songData => 
+        axios.post(`${API}/songs`, songData, { withCredentials: true })
+      );
+      await Promise.all(createPromises);
+      setUploadProgress(100);
+
+      toast.success(`${totalSongs} songs uploaded successfully`);
       setIsBulkSongModalOpen(false);
       setBulkSongs([]);
       fetchAlbumSongs(selectedAlbum.album_id);
