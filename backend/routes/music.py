@@ -399,8 +399,8 @@ async def create_album(album: dict):
     
     await db.albums.insert_one(doc)
     
-    # Add country tags if provided
-    if country_codes:
+    # Add country tags if provided (only if not GLOBAL)
+    if country_codes and "GLOBAL" not in country_codes:
         import uuid
         mappings = [
             {
@@ -413,7 +413,9 @@ async def create_album(album: dict):
         ]
         await db.content_country.insert_many(mappings)
     
-    await invalidate_albums_cache()
+    # Invalidate cache in background (don't wait)
+    import asyncio
+    asyncio.create_task(invalidate_albums_cache())
     
     return {"album_id": doc["album_id"], "message": "Album created successfully"}
 
