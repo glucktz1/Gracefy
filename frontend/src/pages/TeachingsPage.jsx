@@ -187,7 +187,7 @@ export default function TeachingsPage() {
       title: "", title_sw: "", description: "", description_sw: "",
       thumbnail: "", leader_id: "", leader_name: "",
       category_id: "", category_name: "", monetization_type: "free",
-      release_date: "", status: "draft"
+      release_date: "", status: "draft", country_codes: ["GLOBAL"]
     });
     setThumbnailFile(null);
     setThumbnailPreview("");
