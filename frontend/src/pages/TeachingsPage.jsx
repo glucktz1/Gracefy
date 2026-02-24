@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { 
   BookOpen, Plus, Edit2, Trash2, Play, Pause, Upload, ChevronDown, ChevronRight,
-  FileAudio, Folder, Clock, Eye, Music, Check, X, MoreVertical, Calendar
+  FileAudio, Folder, Clock, Eye, Music, Check, X, MoreVertical, Calendar, Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
