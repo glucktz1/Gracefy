@@ -178,6 +178,16 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
       ]
     },
+    { 
+      groupId: "religious-leaders",
+      icon: BookOpen, 
+      label: "Religious Leaders", 
+      permissions: ["user_management", "content_management"],
+      children: [
+        { path: "/religious-leaders", icon: Users, label: "Leader Management", permissions: ["user_management"] },
+        { path: "/teachings", icon: BookMarked, label: "Teachings (Mafundisho)", permissions: ["content_management"] },
+      ]
+    },
     // Standalone items
     { path: "/users", icon: Users, label: "App Users", permissions: ["user_management"] },
     { path: "/admin/users", icon: Shield, label: "Admin Users", permissions: ["role_assignment", "user_management"] },
