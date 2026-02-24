@@ -681,7 +681,8 @@ async def get_public_leaders(
     """Get public list of religious leaders"""
     db = get_db()
     
-    query = {"status": "active"}
+    # Include both "active" and "approved" status
+    query = {"status": {"$in": ["active", "approved"]}}
     if denomination:
         query["denomination"] = denomination
     if featured is not None:
