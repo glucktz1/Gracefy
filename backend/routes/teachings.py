@@ -184,6 +184,7 @@ async def create_teaching(data: dict):
         "monetization_type": data.get("monetization_type", "free"),
         "release_date": data.get("release_date"),
         "status": data.get("status", "draft"),
+        "country_codes": data.get("country_codes", ["GLOBAL"]),
         "is_featured": data.get("is_featured", False),
         "view_count": 0,
         "listen_count": 0,
