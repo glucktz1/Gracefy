@@ -72,6 +72,7 @@ from routes import (
 from routes.teachings import router as teachings_router
 from routes.rbac import router as rbac_router
 from routes.advertising import router as advertising_router
+from routes.leaders import router as leaders_router
 
 # Legacy cache service for backward compatibility
 from cache_service import cache as legacy_cache
