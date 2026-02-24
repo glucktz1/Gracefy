@@ -64,6 +64,9 @@ const RecommendationEnginePage = lazy(() => import("@/pages/RecommendationEngine
 const AuthSettingsPage = lazy(() => import("@/pages/AuthSettingsPage"));
 const RadioManagementPage = lazy(() => import("@/pages/RadioManagementPage"));
 const GeoContentPage = lazy(() => import("@/pages/GeoContentPage"));
+const ReligiousLeadersPage = lazy(() => import("@/pages/ReligiousLeadersPage"));
+const LeaderLoginPage = lazy(() => import("@/pages/LeaderLoginPage"));
+const LeaderDashboardPage = lazy(() => import("@/pages/LeaderDashboardPage"));
 
 // Icons
 import { 
