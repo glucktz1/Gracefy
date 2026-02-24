@@ -66,6 +66,22 @@ export default function TeachingsPage() {
   const [editingTeaching, setEditingTeaching] = useState(null);
   const [savingTeaching, setSavingTeaching] = useState(false);
   
+  // Common countries for quick selection
+  const COMMON_COUNTRIES = [
+    { code: "GLOBAL", name: "Global (All Countries)", name_sw: "Ulimwengu Mzima" },
+    { code: "TZ", name: "Tanzania", name_sw: "Tanzania" },
+    { code: "KE", name: "Kenya", name_sw: "Kenya" },
+    { code: "UG", name: "Uganda", name_sw: "Uganda" },
+    { code: "RW", name: "Rwanda", name_sw: "Rwanda" },
+    { code: "BI", name: "Burundi", name_sw: "Burundi" },
+    { code: "CD", name: "DR Congo", name_sw: "DRC" },
+    { code: "ZM", name: "Zambia", name_sw: "Zambia" },
+    { code: "MW", name: "Malawi", name_sw: "Malawi" },
+    { code: "ZA", name: "South Africa", name_sw: "Afrika Kusini" },
+    { code: "US", name: "United States", name_sw: "Marekani" },
+    { code: "GB", name: "United Kingdom", name_sw: "Uingereza" },
+  ];
+  
   // Teaching form
   const [teachingForm, setTeachingForm] = useState({
     title: "",
@@ -79,7 +95,8 @@ export default function TeachingsPage() {
     category_name: "",
     monetization_type: "free",
     release_date: "",
-    status: "draft"
+    status: "draft",
+    country_codes: ["GLOBAL"]
   });
   
   // Topic modal
