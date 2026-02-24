@@ -135,7 +135,7 @@ export default function TeachingsPage() {
     try {
       const [teachingsRes, leadersRes, catsRes, monTypesRes, statsRes] = await Promise.all([
         axios.get(`${API}/teachings`),
-        axios.get(`${API}/leaders`),
+        axios.get(`${API}/admin/leaders`),  // Use admin endpoint to get all leaders
         axios.get(`${API}/teachings/categories`),
         axios.get(`${API}/teachings/monetization-types`),
         axios.get(`${API}/teachings/stats`)
