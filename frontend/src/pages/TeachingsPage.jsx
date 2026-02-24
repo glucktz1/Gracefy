@@ -262,7 +262,8 @@ export default function TeachingsPage() {
       category_name: teaching.category_name || "",
       monetization_type: teaching.monetization_type || "free",
       release_date: teaching.release_date || "",
-      status: teaching.status || "draft"
+      status: teaching.status || "draft",
+      country_codes: teaching.country_codes || ["GLOBAL"]
     });
     setThumbnailPreview(teaching.thumbnail ? getMediaUrl(teaching.thumbnail) : "");
     setIsTeachingModalOpen(true);
