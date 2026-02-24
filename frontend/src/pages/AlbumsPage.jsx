@@ -248,7 +248,8 @@ export default function AlbumsPage() {
       release_date: "",
       monetization_type: "free",
       status: "active",
-      tags: []
+      tags: [],
+      country_codes: ["GLOBAL"]
     });
   };
 
