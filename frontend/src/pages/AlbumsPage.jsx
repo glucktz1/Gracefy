@@ -74,6 +74,26 @@ export default function AlbumsPage() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   
+  // Common countries for quick selection
+  const COMMON_COUNTRIES = [
+    { code: "GLOBAL", name: "Global (All Countries)", name_sw: "Ulimwengu Mzima" },
+    { code: "TZ", name: "Tanzania", name_sw: "Tanzania" },
+    { code: "KE", name: "Kenya", name_sw: "Kenya" },
+    { code: "UG", name: "Uganda", name_sw: "Uganda" },
+    { code: "RW", name: "Rwanda", name_sw: "Rwanda" },
+    { code: "BI", name: "Burundi", name_sw: "Burundi" },
+    { code: "CD", name: "DR Congo", name_sw: "DRC" },
+    { code: "ZM", name: "Zambia", name_sw: "Zambia" },
+    { code: "MW", name: "Malawi", name_sw: "Malawi" },
+    { code: "MZ", name: "Mozambique", name_sw: "Msumbiji" },
+    { code: "ZA", name: "South Africa", name_sw: "Afrika Kusini" },
+    { code: "NG", name: "Nigeria", name_sw: "Nigeria" },
+    { code: "GH", name: "Ghana", name_sw: "Ghana" },
+    { code: "US", name: "United States", name_sw: "Marekani" },
+    { code: "GB", name: "United Kingdom", name_sw: "Uingereza" },
+    { code: "CA", name: "Canada", name_sw: "Kanada" },
+  ];
+
   const [albumFormData, setAlbumFormData] = useState({
     title: "",
     description: "",
@@ -85,7 +105,8 @@ export default function AlbumsPage() {
     release_date: "",
     monetization_type: "free",
     status: "active",
-    tags: []
+    tags: [],
+    country_codes: ["GLOBAL"]
   });
 
   const [availableTags, setAvailableTags] = useState([]);
