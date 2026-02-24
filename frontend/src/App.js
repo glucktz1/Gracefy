@@ -517,6 +517,10 @@ function AppRouter() {
         {/* Public Choir Registration */}
         <Route path="/choir-register" element={<ChoirRegistrationPage />} />
         
+        {/* Leader Portal Routes */}
+        <Route path="/leader/login" element={<LeaderLoginPage />} />
+        <Route path="/leader/dashboard" element={<LeaderDashboardPage />} />
+        
         {/* Admin Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/choir/login" element={<ChoirLoginPage />} />
