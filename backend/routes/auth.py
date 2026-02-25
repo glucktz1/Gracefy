@@ -15,6 +15,14 @@ import os
 from core.database import get_db
 from core.cache import cache
 
+# Import SMS service
+try:
+    from services.sms_service import send_otp_sms, send_sms, get_sms_settings
+except ImportError:
+    send_otp_sms = None
+    send_sms = None
+    get_sms_settings = None
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["auth"])
 
