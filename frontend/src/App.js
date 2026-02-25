@@ -524,6 +524,7 @@ function AppRouter() {
       <Routes>
         {/* User Streaming App - Public */}
         <Route path="/app" element={<UserStreamingApp />} />
+        <Route path="/app/see-all/:sectionId" element={<Suspense fallback={<PageLoader />}><SeeAllPage /></Suspense>} />
         
         {/* Public Choir Registration */}
         <Route path="/choir-register" element={<ChoirRegistrationPage />} />
