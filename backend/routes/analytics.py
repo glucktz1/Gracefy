@@ -2110,10 +2110,12 @@ async def get_location_analytics_overview(refresh: bool = False):
         "users_with_location": total_with_location,
         "location_coverage": round(total_with_location / total_users * 100, 1) if total_users > 0 else 0,
         "countries": [{"country": c["_id"], "users": c["users"]} for c in countries],
-        "available_countries": SUPPORTED_COUNTRIES
+        "available_countries": SUPPORTED_COUNTRIES,
+        "last_updated": datetime.now(timezone.utc).isoformat()
     }
     
-    await cache.set(cache_key, result, 300)
+    # Cache for 60 seconds for near real-time updates
+    await cache.set(cache_key, result, 60)
     return result
 
 
