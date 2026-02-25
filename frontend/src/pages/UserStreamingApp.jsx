@@ -2656,8 +2656,8 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
             )}
 
             <div className="space-y-3">
-              {/* Phone OTP Login */}
-              {loginMethod === 'phone' ? (
+              {/* Phone OTP Login - Only show if phone auth is enabled */}
+              {authMethods.phone && loginMethod === 'phone' ? (
                 <>
                   {!otpStep ? (
                     <>
