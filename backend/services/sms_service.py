@@ -127,7 +127,7 @@ async def send_sms(
         result["error"] = str(e)
     
     # Log to database
-    if db:
+    if db is not None:
         await log_sms_to_db(db, result)
     
     return result
