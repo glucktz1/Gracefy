@@ -2728,8 +2728,8 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 </>
               )}
             </>
-          ) : (
-            /* Email/Password Login */
+          ) : authMethods.email_password ? (
+            /* Email/Password Login - Only show if email auth is enabled */
             <>
               {authMode === 'register' && (
                 <Input value={authForm.name} onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })} placeholder="Your name" className="bg-zinc-800 border-zinc-700" />
