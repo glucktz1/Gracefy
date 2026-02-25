@@ -663,22 +663,55 @@ REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
   - Search functionality verified working (uses `/user/search` endpoint)
   - Category filter verified working (uses `/user/browse/category/{categoryId}`)
 
+## Session Update: Feb 25, 2026
+
+### Content Categorization Bug Fix (COMPLETED)
+- [x] Fixed critical bug where albums appeared in incorrect category sections
+- [x] Fixed "Kusifu na Kuabudu" (Praise & Worship) section to link to correct category `songcat_7fd753a1ed8e`
+- [x] Improved `fetch_section_content` logic in `/app/backend/routes/home.py`:
+  - Added proper check for `content_source='category'` OR `link_category_id` set
+  - Fixed `featured_albums` and `seasonal` section types to not show unrelated content when unconfigured
+  - Added logging warnings for misconfigured sections
+- [x] Web app and mobile app now display identical sections with correct content
+
+### Azam Pay Payment Flow (TESTED & VERIFIED)
+- [x] Complete payment flow tested with 33 API tests (100% pass rate)
+- [x] Billing toggle working correctly:
+  - When billing is disabled: All users get `free_access` status, plans return empty array
+  - When billing is enabled: Plans available, subscription status checked per user
+- [x] MNO detection working for all Tanzanian operators:
+  - Vodacom (074, 075, 076)
+  - Tigo (065, 067, 071)
+  - Airtel (068, 069, 078, 079)
+  - Halotel (062)
+- [x] Phone normalization handles all formats (0xx, 255xx, +255xx)
+- [x] Test mode payment confirmation working at `/api/payment/azampay/test-confirm/{txn_id}`
+- [x] Subscription plans: Daily (500 TZS), Weekly (2000 TZS), Monthly (5500 TZS)
+
+### API Endpoints Verified
+- GET `/api/billing-status` - Returns billing_enabled, billing_mode, premium_features
+- GET `/api/subscription-plans` - Returns plans when billing enabled
+- GET `/api/user/subscription-status?user_id={id}` - Returns subscription status
+- POST `/api/payment/azampay/checkout` - Creates payment transaction
+- POST `/api/payment/azampay/test-confirm/{txn_id}` - Confirms test payment
+- GET `/api/payment/azampay/status/{txn_id}` - Gets transaction status
+
 ## Remaining Tasks
 
 ### P0 - Critical
 - [ ] Complete Premium Feature Enforcement (continuous play, background play blocking for free users)
-- [ ] Verify new mobile build with search/filter fix
-- [ ] Test radio streaming on mobile
+- [ ] Verify mobile fixes for downloads and mini-player sync (user verification pending)
 
 ### P1 - High Priority
+- [ ] "See All" functionality for home sections with search
 - [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
-- [ ] Web App UI Reorganization (match mobile layout)
+- [ ] Web App Filters display in Swahili
+
+### P2 - Medium Priority
+- [ ] Radio stations single row on web home page
 - [ ] Audio Ad System (admin configurable frequency)
 - [ ] Complete Advertising & Campaigns module
 - [ ] Implement Firebase push notifications
-
-### P2 - Medium Priority
-- [ ] Azam Pay test mode
 - [ ] Enhanced Church UI (image, location, announcements)
 - [ ] Twilio SMS / SendGrid email integration
 
