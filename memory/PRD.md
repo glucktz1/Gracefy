@@ -731,6 +731,7 @@ REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
   - `GET /api/analytics/location/countries-chart` - Countries bar chart data
   - `GET /api/analytics/location/cities-chart/{country}` - Cities bar chart data
   - `GET /api/analytics/location/growth/{country}` - Growth trend data
+  - `GET /api/analytics/location/realtime-stats` - Real-time uncached stats
 - [x] Mobile app location tracking:
   - Added expo-location dependency
   - Created LocationService for GPS capture
@@ -742,7 +743,21 @@ REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
   - Countries bar chart with total/new users
   - Cities bar chart per country with total/new/active users
   - Growth trend line chart
-  - Pie chart for country distribution
+  - Auto-refresh toggle (30-second interval)
+  - Real-time updates as users/countries come onboard
+
+### Gracefy Logo Branding - IMPLEMENTED
+- [x] Updated logo across all platforms:
+  - Admin login page
+  - Choir login page
+  - Leader login page
+  - User streaming app login modal
+  - Admin dashboard sidebar (top left)
+  - Mobile header
+  - Favicon (32x32)
+  - Web manifest icons (192x192, 512x512)
+  - Mobile app assets (icon, splash screen, adaptive icon)
+- [x] Logo blends seamlessly with dark theme
 
 ### Layout Manager - VERIFIED
 - [x] Web app and mobile app use same sections from layout_sections
