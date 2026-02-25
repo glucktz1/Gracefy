@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Button } from '../components/ui/button';
-import { MapPin, Users, Globe, TrendingUp, BarChart3, RefreshCw, Filter } from 'lucide-react';
+import { Switch } from '../components/ui/switch';
+import { MapPin, Users, Globe, TrendingUp, BarChart3, RefreshCw, Filter, Clock, Zap } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -40,6 +41,8 @@ const PERIODS = [
   { value: 'all', label: 'All Time' }
 ];
 
+const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+
 export default function LocationAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
@@ -48,11 +51,17 @@ export default function LocationAnalyticsPage() {
   const [countriesChart, setCountriesChart] = useState(null);
   const [citiesChart, setCitiesChart] = useState(null);
   const [growthData, setGrowthData] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const refreshIntervalRef = useRef(null);
 
-  const fetchOverview = useCallback(async () => {
+  const fetchOverview = useCallback(async (forceRefresh = false) => {
     try {
-      const res = await axios.get(`${API}/analytics/location/overview`);
+      const res = await axios.get(`${API}/analytics/location/overview`, {
+        params: { refresh: forceRefresh }
+      });
       setOverview(res.data);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching overview:', error);
     }
