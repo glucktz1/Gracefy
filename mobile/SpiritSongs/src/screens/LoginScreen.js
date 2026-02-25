@@ -622,10 +622,12 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
           
           <View style={styles.logoContainer}>
-            <View style={styles.logo}>
-              <Ionicons name="musical-notes" size={48} color={COLORS.primary} />
-            </View>
-            <Text style={styles.appName}>SpiritSongs</Text>
+            <Image
+              source={require('../../assets/gracefy-logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.appName}>Gracefy</Text>
           </View>
           
           <View style={styles.formContainer}>
