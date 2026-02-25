@@ -3743,7 +3743,9 @@ export default function UserStreamingApp() {
                       <SectionHeader 
                         title={section.title} 
                         subtitle={section.description}
-                        onSeeMore={items.length > 5 ? () => {} : null}
+                        onSeeMore={items.length > 5 ? () => {
+                          window.location.href = `/app/see-all/${section.section_id}?title=${encodeURIComponent(section.title || section.name || '')}`;
+                        } : null}
                       />
 
                       {/* Special Mixes Section */}
