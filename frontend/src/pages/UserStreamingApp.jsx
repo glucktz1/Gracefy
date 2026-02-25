@@ -2318,6 +2318,38 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [devOtp, setDevOtp] = useState(''); // For development display
   
+  // Auth methods from admin settings
+  const [authMethods, setAuthMethods] = useState({
+    email_password: true,
+    google: true,
+    phone: false,
+    guest: true,
+    registration_enabled: true
+  });
+  
+  // Fetch auth methods when modal opens
+  useEffect(() => {
+    if (showAuth) {
+      const fetchAuthMethods = async () => {
+        try {
+          const res = await axios.get(`${API}/auth/available-methods`);
+          if (res.data) {
+            setAuthMethods(res.data);
+            // Set default login method based on availability
+            if (!res.data.email_password && res.data.phone) {
+              setLoginMethod('phone');
+            } else if (!res.data.email_password && res.data.google) {
+              setLoginMethod('google');
+            }
+          }
+        } catch (e) {
+          console.log('Failed to fetch auth methods');
+        }
+      };
+      fetchAuthMethods();
+    }
+  }, [showAuth]);
+  
   // Forgot Password State
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [forgotStep, setForgotStep] = useState(1); // 1: enter email/phone, 2: enter OTP, 3: new password
