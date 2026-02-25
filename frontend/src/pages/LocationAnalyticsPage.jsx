@@ -176,11 +176,28 @@ export default function LocationAnalyticsPage() {
             Location Analytics
           </h1>
           <p className="text-zinc-400 mt-1">User distribution by country and city</p>
+          {lastUpdated && (
+            <p className="text-zinc-500 text-xs mt-1 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
         </div>
-        <Button onClick={fetchAllData} variant="outline" className="border-zinc-700">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Zap className={`w-4 h-4 ${autoRefresh ? 'text-green-500' : 'text-zinc-500'}`} />
+            <span className="text-zinc-400 text-sm">Auto-refresh</span>
+            <Switch 
+              checked={autoRefresh} 
+              onCheckedChange={setAutoRefresh}
+              className="data-[state=checked]:bg-green-500"
+            />
+          </div>
+          <Button onClick={() => fetchAllData(true)} variant="outline" className="border-zinc-700">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Overview Cards */}
