@@ -162,7 +162,7 @@ async def send_sms_v3(
         result["message_id"] = f"test_v3_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         result["status"] = "test_sent"
         
-        if db:
+        if db is not None:
             await log_sms_to_db(db, result)
         return result
     
