@@ -110,6 +110,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       children: [
         { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] },
         { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
+        { path: "/analytics/location", icon: MapPin, label: "Location Analytics", permissions: ["view_platform_analytics"] },
         { path: "/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
         { path: "/transactions", icon: Activity, label: "Transactions", permissions: ["view_all_revenue_reports", "approve_payouts"] },
         { path: "/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
