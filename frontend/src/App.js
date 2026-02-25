@@ -43,6 +43,7 @@ const MonetizationSettingsPage = lazy(() => import("@/pages/MonetizationSettings
 const LayoutManagementPage = lazy(() => import("@/pages/LayoutManagementPage"));
 const EnhancedAnalyticsPage = lazy(() => import("@/pages/EnhancedAnalyticsPage"));
 const LocationAnalyticsPage = lazy(() => import("@/pages/LocationAnalyticsPage"));
+const BrandingSettingsPage = lazy(() => import("@/pages/BrandingSettingsPage"));
 const RoleManagementPage = lazy(() => import("@/pages/RoleManagementPage"));
 const SpecialMixesPage = lazy(() => import("@/pages/SpecialMixesPage"));
 const ChurchLeaderLoginPage = lazy(() => import("@/pages/ChurchLeaderLoginPage"));
