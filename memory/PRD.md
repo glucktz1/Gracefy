@@ -724,6 +724,26 @@ REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
 - [x] Hero displays 3 albums: "Umenilisha kwa unono", "Baraka zako bwana", "Huyu ni nani"
 - [x] Auto-rotate and navigation working correctly
 
+### Location Analytics - IMPLEMENTED
+- [x] New backend endpoints for location analytics:
+  - `POST /api/analytics/track-location` - Track user GPS location
+  - `GET /api/analytics/location/overview` - Overview stats
+  - `GET /api/analytics/location/countries-chart` - Countries bar chart data
+  - `GET /api/analytics/location/cities-chart/{country}` - Cities bar chart data
+  - `GET /api/analytics/location/growth/{country}` - Growth trend data
+- [x] Mobile app location tracking:
+  - Added expo-location dependency
+  - Created LocationService for GPS capture
+  - Integrated with AuthContext on login
+  - Reverse geocoding to get city/country names
+- [x] Admin Location Analytics Page:
+  - Country dropdown filter (Tanzania, Kenya, Uganda, etc.)
+  - Period filter (7d, 30d, 90d, all time)
+  - Countries bar chart with total/new users
+  - Cities bar chart per country with total/new/active users
+  - Growth trend line chart
+  - Pie chart for country distribution
+
 ### Layout Manager - VERIFIED
 - [x] Web app and mobile app use same sections from layout_sections
 - [x] Sections correctly filter content based on link_category_id
