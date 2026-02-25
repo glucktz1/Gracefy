@@ -2078,14 +2078,17 @@ async def track_user_location(data: dict):
 
 
 @router.get("/analytics/location/overview")
-async def get_location_analytics_overview():
+async def get_location_analytics_overview(refresh: bool = False):
     """Get overview of user locations by country"""
     db = get_db()
     
     cache_key = "analytics:location:overview"
-    cached = await cache.get(cache_key)
-    if cached:
-        return cached
+    
+    # Allow force refresh
+    if not refresh:
+        cached = await cache.get(cache_key)
+        if cached:
+            return cached
     
     # Aggregate users by country
     country_pipeline = [
