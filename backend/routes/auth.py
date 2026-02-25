@@ -683,7 +683,7 @@ async def user_logout(request: Request):
 # ============== OTP AUTHENTICATION ==============
 
 @router.post("/auth/send-otp")
-async def send_otp(data: dict):
+async def send_otp_endpoint(data: dict):
     """Send OTP to phone number for authentication"""
     db = get_db()
     
@@ -715,15 +715,33 @@ async def send_otp(data: dict):
         upsert=True
     )
     
-    # In production, send SMS here
-    logger.info(f"[OTP] Phone: {phone}, Code: {otp}")
+    # Send SMS via MIA SMS service
+    sms_result = None
+    sms_sent = False
     
-    return {
-        "message": "OTP sent successfully",
+    if send_otp_sms:
+        try:
+            sms_result = await send_otp_sms(phone, otp, db)
+            sms_sent = sms_result.get("success", False)
+            logger.info(f"[OTP SMS] Phone: {phone}, Sent: {sms_sent}, Result: {sms_result.get('status', 'unknown')}")
+        except Exception as e:
+            logger.error(f"[OTP SMS Error] Phone: {phone}, Error: {str(e)}")
+    else:
+        logger.warning("[OTP] SMS service not available, OTP not sent")
+    
+    response = {
+        "message": "OTP sent successfully" if sms_sent else "OTP generated (SMS delivery pending)",
         "phone": phone,
         "expires_in": 600,
-        "demo_otp": otp  # Remove in production
+        "sms_sent": sms_sent
     }
+    
+    # Include OTP in response for development/testing when SMS fails
+    if not sms_sent or (sms_result and sms_result.get("test_mode")):
+        response["demo_otp"] = otp
+        response["note"] = "OTP included for testing. Remove in production."
+    
+    return response
 
 
 @router.post("/auth/verify-otp")
