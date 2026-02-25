@@ -213,6 +213,13 @@ export const AuthProvider = ({ children }) => {
       // Track device info for analytics
       if (userData?.user_id) {
         trackDeviceInfo(userData.user_id);
+        
+        // Initialize location tracking
+        try {
+          await locationService.init(userData.user_id);
+        } catch (locErr) {
+          console.log('Location init error (non-critical):', locErr);
+        }
       }
       
       console.log('Login successful:', userData?.email || userData?.user_id);
