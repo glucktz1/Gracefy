@@ -184,7 +184,7 @@ BUNNY_CDN_URL=https://gracefy-cdn.b-cdn.net
 
 ### Frontend (.env)
 ```
-REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://gospel-audio.preview.emergentagent.com
 ```
 
 ## EAS Build Credentials
