@@ -1362,3 +1362,62 @@ async def check_auth_method_enabled(method: str) -> bool:
     }
     
     return method_map.get(method, True)
+
+
+# ============== SMS SERVICE ADMIN ENDPOINTS ==============
+
+@router.get("/admin/sms/settings")
+async def get_sms_config():
+    """Get SMS service configuration (admin only)"""
+    if get_sms_settings:
+        return get_sms_settings()
+    return {"error": "SMS service not available", "configured": False}
+
+
+@router.post("/admin/sms/test")
+async def send_test_sms(data: dict):
+    """Send a test SMS message (admin only)"""
+    db = get_db()
+    
+    phone = data.get("phone")
+    message = data.get("message", "Test message from SpiritSongs")
+    
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number required")
+    
+    if not send_sms:
+        raise HTTPException(status_code=500, detail="SMS service not available")
+    
+    result = await send_sms(phone, message, db=db)
+    return result
+
+
+@router.get("/admin/sms/logs")
+async def get_sms_logs(
+    limit: int = 50,
+    status: str = None
+):
+    """Get SMS logs for debugging and monitoring"""
+    db = get_db()
+    
+    query = {}
+    if status:
+        query["success"] = status == "success"
+    
+    logs = await db.sms_logs.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    return {"logs": logs, "count": len(logs)}
+
+
+@router.get("/admin/sms/balance")
+async def check_sms_balance():
+    """Check SMS credit balance"""
+    try:
+        from services.sms_service import get_sms_balance
+        return await get_sms_balance()
+    except ImportError:
+        return {"error": "SMS service not available"}
+
