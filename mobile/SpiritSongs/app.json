@@ -22,7 +22,8 @@
           "fetch",
           "remote-notification"
         ],
-        "NSAppleMusicUsageDescription": "This app needs access to play music in the background."
+        "NSAppleMusicUsageDescription": "This app needs access to play music in the background.",
+        "NSLocationWhenInUseUsageDescription": "SpiritSongs uses your location to show content relevant to your region and improve your experience."
       }
     },
     "android": {
@@ -39,7 +40,9 @@
         "android.permission.WAKE_LOCK",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "intentFilters": [
         {
