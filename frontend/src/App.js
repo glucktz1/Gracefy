@@ -42,6 +42,7 @@ const ChoirDetailsPage = lazy(() => import("@/pages/ChoirDetailsPage"));
 const MonetizationSettingsPage = lazy(() => import("@/pages/MonetizationSettingsPage"));
 const LayoutManagementPage = lazy(() => import("@/pages/LayoutManagementPage"));
 const EnhancedAnalyticsPage = lazy(() => import("@/pages/EnhancedAnalyticsPage"));
+const LocationAnalyticsPage = lazy(() => import("@/pages/LocationAnalyticsPage"));
 const RoleManagementPage = lazy(() => import("@/pages/RoleManagementPage"));
 const SpecialMixesPage = lazy(() => import("@/pages/SpecialMixesPage"));
 const ChurchLeaderLoginPage = lazy(() => import("@/pages/ChurchLeaderLoginPage"));
