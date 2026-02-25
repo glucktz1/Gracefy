@@ -101,8 +101,18 @@ async def fetch_section_content(db, section: dict) -> dict:
     }
     
     # If section has a linked category, fetch albums from that category
+    # This works for sections with content_source='category' OR sections with link_category_id set
     link_category_id = section.get("link_category_id") or section.get("category_id")
-    if link_category_id and section.get("content_type") == "albums":
+    content_source = section.get("content_source", "")
+    
+    # Check if this section should fetch by category (either has link_category_id or content_source is 'category')
+    should_fetch_by_category = link_category_id and (
+        section.get("content_type") == "albums" or 
+        content_source == "category" or
+        section_type in ["featured_albums", "trending", "seasonal"]
+    )
+    
+    if should_fetch_by_category:
         # Build list of category IDs to search (including mapped ones)
         category_ids = [link_category_id]
         if link_category_id in category_mapping:
