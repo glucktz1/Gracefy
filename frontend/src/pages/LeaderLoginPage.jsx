@@ -40,8 +40,12 @@ export default function LeaderLoginPage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center">
-            <BookOpen className="w-10 h-10 text-white" />
+          <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+            <img 
+              src="/gracefy-logo-dark.png" 
+              alt="Gracefy" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Gracefy Leaders</h1>
           <p className="text-zinc-400">Portal ya Viongozi wa Dini</p>
