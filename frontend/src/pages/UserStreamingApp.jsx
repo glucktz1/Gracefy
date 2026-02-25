@@ -1101,7 +1101,7 @@ const SectionHeader = ({ title, subtitle, onSeeMore }) => (
     </div>
     {onSeeMore && (
       <button onClick={onSeeMore} className="text-xs font-bold text-zinc-400 hover:text-white uppercase tracking-wider">
-        Show all
+        Ona Zote
       </button>
     )}
   </div>
