@@ -102,6 +102,21 @@ async def send_sms(
         endpoints_to_try = [
             # SMS Gateways often use these patterns
             {
+                "name": "sms/send POST JSON with api_token",
+                "method": "POST",
+                "url": f"{base_url}/sms/send",
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                "json": {
+                    "api_token": MIA_SMS_API_TOKEN,
+                    "recipient": phone,
+                    "sender_id": sender,
+                    "message": message
+                }
+            },
+            {
                 "name": "sms/send POST JSON Bearer",
                 "method": "POST",
                 "url": f"{base_url}/sms/send",
