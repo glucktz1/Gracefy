@@ -2484,3 +2484,54 @@ async def get_location_growth_trend(
         "daily_growth": daily_growth
     }
 
+
+@router.get("/analytics/location/realtime-stats")
+async def get_realtime_location_stats():
+    """
+    Get real-time location statistics without caching.
+    Use this for live dashboards that need instant updates.
+    """
+    db = get_db()
+    
+    # Total users
+    total_users = await db.app_users.count_documents({})
+    
+    # Users with location
+    total_with_location = await db.app_users.count_documents({"country": {"$ne": None, "$ne": ""}})
+    
+    # Country breakdown (real-time)
+    country_pipeline = [
+        {"$match": {"country": {"$ne": None, "$ne": ""}}},
+        {"$group": {
+            "_id": "$country",
+            "users": {"$sum": 1}
+        }},
+        {"$sort": {"users": -1}}
+    ]
+    countries = await db.app_users.aggregate(country_pipeline).to_list(50)
+    
+    # Recent location updates (last 24 hours)
+    from datetime import timedelta
+    yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    recent_updates = await db.user_locations.count_documents({
+        "timestamp": {"$gte": yesterday}
+    })
+    
+    # New users today
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    new_today = await db.app_users.count_documents({
+        "created_at": {"$gte": today_start}
+    })
+    
+    return {
+        "total_users": total_users,
+        "users_with_location": total_with_location,
+        "location_coverage": round(total_with_location / total_users * 100, 1) if total_users > 0 else 0,
+        "countries_count": len(countries),
+        "countries": [{"country": c["_id"], "users": c["users"]} for c in countries],
+        "recent_location_updates_24h": recent_updates,
+        "new_users_today": new_today,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "is_realtime": True
+    }
+
