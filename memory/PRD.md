@@ -696,6 +696,40 @@ REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
 - POST `/api/payment/azampay/test-confirm/{txn_id}` - Confirms test payment
 - GET `/api/payment/azampay/status/{txn_id}` - Gets transaction status
 
+## Session Update: Feb 25, 2026 (Part 2)
+
+### Authentication System - TESTED & VERIFIED
+- [x] Auth settings toggle working correctly:
+  - Admin can toggle: email_password_enabled, google_enabled, phone_enabled
+  - `/api/auth/available-methods` reflects current settings
+  - Login endpoint returns 403 when respective auth method is disabled
+- [x] Web app AuthModal now fetches and respects auth settings
+- [x] Mobile app already respects auth settings (was implemented)
+- [x] Verification: require_email_verification, require_phone_verification settings available
+
+### "See All" Functionality - IMPLEMENTED & TESTED
+- [x] New backend endpoint: `/api/user/section/{section_id}` with pagination and search
+- [x] New frontend page: `/app/see-all/:sectionId` (SeeAllPage.jsx)
+- [x] Features:
+  - Grid/List view toggle for albums
+  - Search input with live filtering
+  - "Pakia Zaidi" (Load More) button for pagination
+  - Back navigation
+  - Swahili UI (Tafuta..., Ona Zote, matokeo)
+- [x] SectionHeader updated with "Ona Zote" button linking to See All page
+
+### Hero Section Content Linkage - FIXED
+- [x] Hero section now correctly uses `hero_config` collection (not layout_sections)
+- [x] Synced layout_sections hero with hero_config content_ids
+- [x] Hero displays 3 albums: "Umenilisha kwa unono", "Baraka zako bwana", "Huyu ni nani"
+- [x] Auto-rotate and navigation working correctly
+
+### Layout Manager - VERIFIED
+- [x] Web app and mobile app use same sections from layout_sections
+- [x] Sections correctly filter content based on link_category_id
+- [x] Hero section skipped from sections loop (handled separately)
+- [x] 15 sections displayed correctly on both platforms
+
 ## Remaining Tasks
 
 ### P0 - Critical
@@ -703,7 +737,6 @@ REACT_APP_BACKEND_URL=https://catholic-streaming.preview.emergentagent.com
 - [ ] Verify mobile fixes for downloads and mini-player sync (user verification pending)
 
 ### P1 - High Priority
-- [ ] "See All" functionality for home sections with search
 - [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
 - [ ] Web App Filters display in Swahili
 
