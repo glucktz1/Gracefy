@@ -543,6 +543,7 @@ function AppRouter() {
         <Route path="/church/dashboard" element={<ChurchLeaderDashboard />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><EnhancedAnalyticsPage /></ProtectedRoute>} />
+        <Route path="/analytics/location" element={<ProtectedRoute><LocationAnalyticsPage /></ProtectedRoute>} />
         <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
         <Route path="/monetization" element={<ProtectedRoute><MonetizationSettingsPage /></ProtectedRoute>} />
         <Route path="/app-settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
