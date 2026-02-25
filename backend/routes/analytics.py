@@ -1970,3 +1970,509 @@ async def delete_error_report(error_id: str):
     
     return {"success": True}
 
+
+# ============== LOCATION ANALYTICS ==============
+
+# Tanzania cities/regions
+TANZANIA_REGIONS = [
+    "Dar es Salaam", "Dodoma", "Arusha", "Mwanza", "Mbeya", "Morogoro", 
+    "Tanga", "Zanzibar", "Kilimanjaro", "Iringa", "Kagera", "Mara",
+    "Kigoma", "Shinyanga", "Tabora", "Rukwa", "Ruvuma", "Singida",
+    "Lindi", "Mtwara", "Pwani", "Geita", "Katavi", "Njombe", "Simiyu",
+    "Songwe"
+]
+
+# Kenya cities/regions
+KENYA_REGIONS = [
+    "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Thika", 
+    "Malindi", "Kitale", "Garissa", "Nyeri", "Machakos", "Meru",
+    "Lamu", "Kilifi", "Naivasha", "Kajiado", "Kiambu", "Muranga"
+]
+
+# Country list
+SUPPORTED_COUNTRIES = ["Tanzania", "Kenya", "Uganda", "Rwanda", "Burundi", "DRC", "Other"]
+
+
+@router.post("/analytics/track-location")
+async def track_user_location(data: dict):
+    """
+    Track user's GPS location for analytics.
+    Called from mobile app when location permission is granted.
+    
+    Body:
+    - user_id: User ID
+    - latitude: GPS latitude
+    - longitude: GPS longitude
+    - country: Country name (can be resolved from coords)
+    - region: Region/State name
+    - city: City name
+    - accuracy: GPS accuracy in meters
+    - platform: 'android' | 'ios' | 'web'
+    """
+    db = get_db()
+    import uuid
+    
+    user_id = data.get("user_id")
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+    country = data.get("country", "Unknown")
+    region = data.get("region", "")
+    city = data.get("city", "")
+    
+    # Normalize country names
+    country_lower = country.lower()
+    if "tanzania" in country_lower:
+        country = "Tanzania"
+    elif "kenya" in country_lower:
+        country = "Kenya"
+    elif "uganda" in country_lower:
+        country = "Uganda"
+    elif "rwanda" in country_lower:
+        country = "Rwanda"
+    
+    # Create location record
+    location_record = {
+        "location_id": f"loc_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "latitude": latitude,
+        "longitude": longitude,
+        "country": country,
+        "region": region,
+        "city": city,
+        "accuracy": data.get("accuracy"),
+        "platform": data.get("platform", "unknown"),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.user_locations.insert_one(location_record)
+    
+    # Update user profile with latest location
+    if user_id:
+        await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "location": {
+                    "country": country,
+                    "region": region,
+                    "city": city,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                },
+                "country": country,
+                "region": region,
+                "city": city
+            }}
+        )
+    
+    return {
+        "success": True,
+        "location_id": location_record["location_id"],
+        "country": country,
+        "region": region,
+        "city": city
+    }
+
+
+@router.get("/analytics/location/overview")
+async def get_location_analytics_overview():
+    """Get overview of user locations by country"""
+    db = get_db()
+    
+    cache_key = "analytics:location:overview"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+    
+    # Aggregate users by country
+    country_pipeline = [
+        {"$match": {"country": {"$ne": None, "$ne": ""}}},
+        {"$group": {
+            "_id": "$country",
+            "users": {"$sum": 1}
+        }},
+        {"$sort": {"users": -1}}
+    ]
+    countries = await db.app_users.aggregate(country_pipeline).to_list(50)
+    
+    # Total users with location data
+    total_with_location = await db.app_users.count_documents({"country": {"$ne": None, "$ne": ""}})
+    total_users = await db.app_users.count_documents({})
+    
+    result = {
+        "total_users": total_users,
+        "users_with_location": total_with_location,
+        "location_coverage": round(total_with_location / total_users * 100, 1) if total_users > 0 else 0,
+        "countries": [{"country": c["_id"], "users": c["users"]} for c in countries],
+        "available_countries": SUPPORTED_COUNTRIES
+    }
+    
+    await cache.set(cache_key, result, 300)
+    return result
+
+
+@router.get("/analytics/location/by-country/{country}")
+async def get_location_analytics_by_country(
+    country: str,
+    period: str = Query("30d", description="Time period: 7d, 30d, 90d")
+):
+    """
+    Get detailed location analytics for a specific country.
+    Shows user distribution by region/city.
+    """
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period, 30)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # Normalize country name
+    country_normalized = country.title()
+    
+    # Get users in this country by region
+    region_pipeline = [
+        {"$match": {
+            "country": {"$regex": f"^{country_normalized}$", "$options": "i"}
+        }},
+        {"$group": {
+            "_id": {"$ifNull": ["$region", "$city"]},
+            "users": {"$sum": 1}
+        }},
+        {"$sort": {"users": -1}},
+        {"$limit": 30}
+    ]
+    regions = await db.app_users.aggregate(region_pipeline).to_list(30)
+    
+    # Get users by city within this country
+    city_pipeline = [
+        {"$match": {
+            "country": {"$regex": f"^{country_normalized}$", "$options": "i"},
+            "city": {"$ne": None, "$ne": ""}
+        }},
+        {"$group": {
+            "_id": "$city",
+            "users": {"$sum": 1}
+        }},
+        {"$sort": {"users": -1}},
+        {"$limit": 30}
+    ]
+    cities = await db.app_users.aggregate(city_pipeline).to_list(30)
+    
+    # Total users in this country
+    total_in_country = await db.app_users.count_documents({
+        "country": {"$regex": f"^{country_normalized}$", "$options": "i"}
+    })
+    
+    # New users in this country during period
+    new_users = await db.app_users.count_documents({
+        "country": {"$regex": f"^{country_normalized}$", "$options": "i"},
+        "created_at": {"$gte": start_date.isoformat()}
+    })
+    
+    # Active users (who listened) in this country during period
+    active_users_pipeline = [
+        {"$match": {
+            "start_time": {"$gte": start_date.isoformat()},
+            "user_id": {"$ne": None}
+        }},
+        {"$lookup": {
+            "from": "app_users",
+            "localField": "user_id",
+            "foreignField": "user_id",
+            "as": "user"
+        }},
+        {"$unwind": "$user"},
+        {"$match": {
+            "user.country": {"$regex": f"^{country_normalized}$", "$options": "i"}
+        }},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "total"}
+    ]
+    active_result = await db.listening_sessions.aggregate(active_users_pipeline).to_list(1)
+    active_users = active_result[0]["total"] if active_result else 0
+    
+    # Get expected regions based on country
+    expected_regions = []
+    if country_normalized.lower() == "tanzania":
+        expected_regions = TANZANIA_REGIONS
+    elif country_normalized.lower() == "kenya":
+        expected_regions = KENYA_REGIONS
+    
+    return {
+        "country": country_normalized,
+        "period": period,
+        "total_users": total_in_country,
+        "new_users_in_period": new_users,
+        "active_users_in_period": active_users,
+        "regions": [{"region": r["_id"] or "Unknown", "users": r["users"]} for r in regions],
+        "cities": [{"city": c["_id"], "users": c["users"]} for c in cities],
+        "expected_regions": expected_regions
+    }
+
+
+@router.get("/analytics/location/countries-chart")
+async def get_countries_chart_data(
+    period: str = Query("30d"),
+    limit: int = Query(10, ge=5, le=50)
+):
+    """Get country distribution data formatted for bar charts"""
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90, "all": 365*10}.get(period, 30)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # All-time country distribution
+    country_pipeline = [
+        {"$match": {"country": {"$ne": None, "$ne": ""}}},
+        {"$group": {
+            "_id": "$country",
+            "total_users": {"$sum": 1}
+        }},
+        {"$sort": {"total_users": -1}},
+        {"$limit": limit}
+    ]
+    all_time = await db.app_users.aggregate(country_pipeline).to_list(limit)
+    
+    # New users by country in period
+    new_by_country_pipeline = [
+        {"$match": {
+            "country": {"$ne": None, "$ne": ""},
+            "created_at": {"$gte": start_date.isoformat()}
+        }},
+        {"$group": {
+            "_id": "$country",
+            "new_users": {"$sum": 1}
+        }},
+        {"$sort": {"new_users": -1}},
+        {"$limit": limit}
+    ]
+    new_users = await db.app_users.aggregate(new_by_country_pipeline).to_list(limit)
+    new_users_map = {n["_id"]: n["new_users"] for n in new_users}
+    
+    # Format for charts
+    chart_data = []
+    for item in all_time:
+        country = item["_id"]
+        chart_data.append({
+            "country": country,
+            "total_users": item["total_users"],
+            "new_users": new_users_map.get(country, 0)
+        })
+    
+    # Total stats
+    total_users = sum(c["total_users"] for c in chart_data)
+    total_new = sum(c["new_users"] for c in chart_data)
+    
+    return {
+        "period": period,
+        "chart_data": chart_data,
+        "totals": {
+            "total_users": total_users,
+            "new_users_in_period": total_new,
+            "countries_count": len(chart_data)
+        }
+    }
+
+
+@router.get("/analytics/location/cities-chart/{country}")
+async def get_cities_chart_data(
+    country: str,
+    period: str = Query("30d"),
+    limit: int = Query(15, ge=5, le=50)
+):
+    """Get city distribution data for a country formatted for bar charts"""
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90, "all": 365*10}.get(period, 30)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    country_normalized = country.title()
+    
+    # City distribution
+    city_pipeline = [
+        {"$match": {
+            "country": {"$regex": f"^{country_normalized}$", "$options": "i"},
+            "$or": [
+                {"city": {"$ne": None, "$ne": ""}},
+                {"region": {"$ne": None, "$ne": ""}}
+            ]
+        }},
+        {"$addFields": {
+            "location_name": {"$ifNull": ["$city", "$region"]}
+        }},
+        {"$group": {
+            "_id": "$location_name",
+            "total_users": {"$sum": 1}
+        }},
+        {"$sort": {"total_users": -1}},
+        {"$limit": limit}
+    ]
+    cities = await db.app_users.aggregate(city_pipeline).to_list(limit)
+    
+    # New users by city in period
+    new_by_city_pipeline = [
+        {"$match": {
+            "country": {"$regex": f"^{country_normalized}$", "$options": "i"},
+            "$or": [
+                {"city": {"$ne": None, "$ne": ""}},
+                {"region": {"$ne": None, "$ne": ""}}
+            ],
+            "created_at": {"$gte": start_date.isoformat()}
+        }},
+        {"$addFields": {
+            "location_name": {"$ifNull": ["$city", "$region"]}
+        }},
+        {"$group": {
+            "_id": "$location_name",
+            "new_users": {"$sum": 1}
+        }},
+        {"$sort": {"new_users": -1}}
+    ]
+    new_users = await db.app_users.aggregate(new_by_city_pipeline).to_list(100)
+    new_users_map = {n["_id"]: n["new_users"] for n in new_users}
+    
+    # Active users by city in period
+    active_by_city_pipeline = [
+        {"$match": {
+            "start_time": {"$gte": start_date.isoformat()},
+            "user_id": {"$ne": None}
+        }},
+        {"$lookup": {
+            "from": "app_users",
+            "localField": "user_id",
+            "foreignField": "user_id",
+            "as": "user"
+        }},
+        {"$unwind": "$user"},
+        {"$match": {
+            "user.country": {"$regex": f"^{country_normalized}$", "$options": "i"}
+        }},
+        {"$addFields": {
+            "location_name": {"$ifNull": ["$user.city", "$user.region"]}
+        }},
+        {"$group": {
+            "_id": "$location_name",
+            "active_users": {"$addToSet": "$user_id"}
+        }},
+        {"$project": {
+            "active_users": {"$size": "$active_users"}
+        }}
+    ]
+    active_users = await db.listening_sessions.aggregate(active_by_city_pipeline).to_list(100)
+    active_users_map = {a["_id"]: a["active_users"] for a in active_users}
+    
+    # Format for charts
+    chart_data = []
+    for item in cities:
+        city_name = item["_id"]
+        if city_name:
+            chart_data.append({
+                "city": city_name,
+                "total_users": item["total_users"],
+                "new_users": new_users_map.get(city_name, 0),
+                "active_users": active_users_map.get(city_name, 0)
+            })
+    
+    # Total stats for this country
+    total_in_country = await db.app_users.count_documents({
+        "country": {"$regex": f"^{country_normalized}$", "$options": "i"}
+    })
+    
+    return {
+        "country": country_normalized,
+        "period": period,
+        "chart_data": chart_data,
+        "totals": {
+            "total_users": total_in_country,
+            "cities_count": len(chart_data)
+        }
+    }
+
+
+@router.get("/analytics/location/map-data")
+async def get_location_map_data():
+    """Get location data formatted for map visualization"""
+    db = get_db()
+    
+    # Get users with coordinates
+    users_with_coords = await db.app_users.find(
+        {
+            "location.latitude": {"$ne": None},
+            "location.longitude": {"$ne": None}
+        },
+        {"_id": 0, "location": 1, "country": 1, "city": 1, "region": 1}
+    ).limit(1000).to_list(1000)
+    
+    # Aggregate by location (rounded to reduce points)
+    location_clusters = {}
+    for user in users_with_coords:
+        loc = user.get("location", {})
+        lat = loc.get("latitude")
+        lon = loc.get("longitude")
+        
+        if lat and lon:
+            # Round to 2 decimal places for clustering
+            key = f"{round(lat, 2)},{round(lon, 2)}"
+            if key not in location_clusters:
+                location_clusters[key] = {
+                    "latitude": round(lat, 2),
+                    "longitude": round(lon, 2),
+                    "city": user.get("city") or loc.get("city") or "",
+                    "country": user.get("country") or loc.get("country") or "",
+                    "users": 0
+                }
+            location_clusters[key]["users"] += 1
+    
+    return {
+        "clusters": list(location_clusters.values()),
+        "total_points": len(location_clusters)
+    }
+
+
+@router.get("/analytics/location/growth/{country}")
+async def get_location_growth_trend(
+    country: str,
+    period: str = Query("30d")
+):
+    """Get user growth trend for a specific country"""
+    db = get_db()
+    from datetime import timedelta
+    
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period, 30)
+    now = datetime.now(timezone.utc)
+    country_normalized = country.title()
+    
+    # Daily growth
+    daily_growth = []
+    for i in range(days, 0, -1):
+        day = now - timedelta(days=i)
+        day_str = day.strftime("%Y-%m-%d")
+        day_start = f"{day_str}T00:00:00"
+        day_end = f"{day_str}T23:59:59"
+        
+        # New users on this day
+        new_users = await db.app_users.count_documents({
+            "country": {"$regex": f"^{country_normalized}$", "$options": "i"},
+            "created_at": {"$gte": day_start, "$lte": day_end}
+        })
+        
+        # Cumulative users up to this day
+        cumulative = await db.app_users.count_documents({
+            "country": {"$regex": f"^{country_normalized}$", "$options": "i"},
+            "created_at": {"$lte": day_end}
+        })
+        
+        daily_growth.append({
+            "date": day_str,
+            "new_users": new_users,
+            "cumulative_users": cumulative
+        })
+    
+    return {
+        "country": country_normalized,
+        "period": period,
+        "daily_growth": daily_growth
+    }
+
