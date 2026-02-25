@@ -2623,6 +2623,11 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
           /* Normal Login/Register Mode */
           <>
             <div className="text-center mb-6">
+              <img 
+                src="/gracefy-logo-dark.png" 
+                alt="Gracefy" 
+                className="w-16 h-16 mx-auto mb-3 object-contain"
+              />
               <h2 className="text-2xl font-bold mb-1">{authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
               <p className="text-sm text-zinc-400">Sign in to save your music</p>
             </div>
