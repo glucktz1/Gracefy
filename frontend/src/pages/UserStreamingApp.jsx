@@ -2751,14 +2751,26 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
               </Button>
             </>
+          ) : (
+            /* No email auth - show only Google if enabled */
+            <>
+              {!authMethods.email_password && !authMethods.phone && (
+                <p className="text-center text-zinc-400 text-sm">
+                  Use the options below to sign in
+                </p>
+              )}
+            </>
           )}
 
-          {loginMethod === 'email' && !otpStep && (
+          {/* Google Login - Only show if enabled and not in OTP step */}
+          {authMethods.google && !otpStep && (
             <>
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-700" /></div>
-                <div className="relative flex justify-center text-xs"><span className="bg-zinc-900 px-2 text-zinc-500">or</span></div>
-              </div>
+              {(authMethods.email_password || authMethods.phone) && (
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-700" /></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-zinc-900 px-2 text-zinc-500">or</span></div>
+                </div>
+              )}
 
               <Button 
                 variant="outline" 
@@ -2777,11 +2789,16 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
           )}
             </div>
 
-            {loginMethod === 'email' && !otpStep && (
+            {/* Toggle signup/signin - Only show if registration is enabled */}
+            {authMethods.email_password && !otpStep && (
               <p className="text-center text-sm text-zinc-400 mt-4">
                 {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-                <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-emerald-400 hover:underline">
-                  {authMode === 'login' ? 'Sign up' : 'Sign in'}
+                <button 
+                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} 
+                  className="text-emerald-400 hover:underline"
+                  disabled={!authMethods.registration_enabled && authMode === 'login'}
+                >
+                  {authMode === 'login' ? (authMethods.registration_enabled ? 'Sign up' : 'Registration disabled') : 'Sign in'}
                 </button>
               </p>
             )}
