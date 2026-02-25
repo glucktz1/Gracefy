@@ -45,8 +45,12 @@ export default function ChoirLoginPage() {
         <div className="relative bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-xl shadow-2xl shadow-black/50">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600/20 mb-4">
-              <span className="text-3xl text-emerald-400">🎵</span>
+            <div className="inline-flex items-center justify-center mb-4">
+              <img 
+                src="/gracefy-logo-dark.png" 
+                alt="Gracefy" 
+                className="w-20 h-20 object-contain"
+              />
             </div>
             <h1 className="text-2xl font-bold text-white font-[Figtree]">Choir Portal</h1>
             <p className="text-zinc-400 text-sm mt-2">Gracefy Revenue Dashboard</p>
