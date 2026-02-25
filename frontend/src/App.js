@@ -504,9 +504,10 @@ const ProtectedRoute = ({ children }) => {
         >
           <Menu size={24} />
         </button>
-        <h1 className="text-lg font-bold text-white ml-3 flex items-center gap-2">
-          <span className="text-violet-500">♱</span> Gracefy
-        </h1>
+        <div className="flex items-center gap-2 ml-3">
+          <img src="/gracefy-logo-dark.png" alt="Gracefy" className="w-8 h-8 object-contain" />
+          <h1 className="text-lg font-bold text-white">Gracefy</h1>
+        </div>
       </div>
       
       {/* Main content */}
