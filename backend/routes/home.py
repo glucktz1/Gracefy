@@ -204,12 +204,27 @@ async def fetch_section_content(db, section: dict) -> dict:
         section_data["items"] = items
         section_data["content_type"] = "categories"
         
-    elif section_type in ["featured_albums", "trending"]:
+    elif section_type == "trending":
+        # Trending shows most played albums
         items = await db.albums.find(
             {"status": "active"},
             ALBUM_LIST_PROJECTION
-        ).sort("created_at", -1).limit(content_count).to_list(content_count)
+        ).sort("total_plays", -1).limit(content_count).to_list(content_count)
         section_data["items"] = optimize_thumbnails(items)
+        section_data["content_type"] = "albums"
+        
+    elif section_type == "featured_albums":
+        # Featured albums without a linked category - return empty to avoid showing unrelated content
+        # Admins should configure link_category_id or content_ids for this section type
+        logger.warning(f"Section '{section_name}' has type 'featured_albums' but no link_category_id or content_ids configured")
+        section_data["items"] = []
+        section_data["content_type"] = "albums"
+        
+    elif section_type == "seasonal":
+        # Seasonal sections without a linked category - return empty
+        # Admins should configure link_category_id for seasonal content
+        logger.warning(f"Section '{section_name}' has type 'seasonal' but no link_category_id configured")
+        section_data["items"] = []
         section_data["content_type"] = "albums"
         
     elif section_type == "choirs":
