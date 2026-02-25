@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import * as Application from 'expo-application';
 import { AppState, Platform } from 'react-native';
 import { authAPI, trackingAPI } from '../services/api';
+import locationService from '../services/locationService';
 
 const AuthContext = createContext(null);
 
