@@ -2065,6 +2065,9 @@ async def track_user_location(data: dict):
             }}
         )
     
+    # Clear location analytics cache to reflect new data immediately
+    await cache.delete("analytics:location:overview")
+    
     return {
         "success": True,
         "location_id": location_record["location_id"],
