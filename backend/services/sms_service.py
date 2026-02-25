@@ -74,7 +74,7 @@ async def send_sms(
         result["note"] = "SMS not actually sent - test mode enabled"
         
         # Log to database if available
-        if db:
+        if db is not None:
             await log_sms_to_db(db, result)
         
         return result
