@@ -100,10 +100,10 @@ export default function LocationAnalyticsPage() {
     }
   }, [selectedCountry, selectedPeriod]);
 
-  const fetchAllData = useCallback(async () => {
+  const fetchAllData = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     await Promise.all([
-      fetchOverview(),
+      fetchOverview(forceRefresh),
       fetchCountriesChart(),
       fetchCitiesChart(),
       fetchGrowthData()
@@ -111,9 +111,27 @@ export default function LocationAnalyticsPage() {
     setLoading(false);
   }, [fetchOverview, fetchCountriesChart, fetchCitiesChart, fetchGrowthData]);
 
+  // Initial fetch
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Auto-refresh setup
+  useEffect(() => {
+    if (autoRefresh) {
+      refreshIntervalRef.current = setInterval(() => {
+        fetchOverview(true);
+        fetchCountriesChart();
+        fetchCitiesChart();
+      }, AUTO_REFRESH_INTERVAL);
+    }
+    
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [autoRefresh, fetchOverview, fetchCountriesChart, fetchCitiesChart]);
 
   useEffect(() => {
     fetchCountriesChart();
