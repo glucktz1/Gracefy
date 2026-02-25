@@ -34,6 +34,23 @@ def normalize_phone_number(phone: str) -> str:
         return "+255" + phone
 
 
+async def try_sms_endpoint(client: httpx.AsyncClient, endpoint: str, method: str, **kwargs) -> Dict[str, Any]:
+    """Try sending SMS to a specific endpoint"""
+    try:
+        if method == "GET":
+            response = await client.get(endpoint, **kwargs)
+        else:
+            response = await client.post(endpoint, **kwargs)
+        
+        return {
+            "status_code": response.status_code,
+            "text": response.text[:500],
+            "success": response.status_code in [200, 201, 202]
+        }
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
+
 async def send_sms(
     phone: str,
     message: str,
@@ -42,15 +59,7 @@ async def send_sms(
 ) -> Dict[str, Any]:
     """
     Send SMS via MIA SMS API
-    
-    Args:
-        phone: Recipient phone number
-        message: SMS message content
-        sender_id: Optional sender ID (defaults to config)
-        db: Optional database connection for logging
-    
-    Returns:
-        Dict with status, message_id, and other details
+    Tries multiple common API formats
     """
     phone = normalize_phone_number(phone)
     sender = sender_id or MIA_SMS_SENDER_ID
@@ -58,7 +67,7 @@ async def send_sms(
     result = {
         "success": False,
         "phone": phone,
-        "message": message[:160],  # SMS limit
+        "message": message[:160],
         "sender_id": sender,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "provider": "mia_sms",
@@ -73,7 +82,6 @@ async def send_sms(
         result["status"] = "test_sent"
         result["note"] = "SMS not actually sent - test mode enabled"
         
-        # Log to database if available
         if db is not None:
             await log_sms_to_db(db, result)
         
@@ -85,46 +93,151 @@ async def send_sms(
         result["error"] = "SMS service not configured"
         return result
     
-    try:
-        # Try HTTP API endpoint first
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Common bulk SMS API format
-            # Format 1: Query parameters
-            params = {
-                "api_token": MIA_SMS_API_TOKEN,
-                "to": phone,
-                "from": sender,
-                "message": message,
-                "type": "plain"  # or "unicode" for special characters
+    base_url = MIA_SMS_HTTP_ENDPOINT.rstrip('/')
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # Try multiple endpoint formats commonly used by bulk SMS providers
+        
+        # Format 1: Query params with api_token (common for many bulk SMS providers)
+        endpoints_to_try = [
+            # SMS Gateways often use these patterns
+            {
+                "name": "sms/send POST JSON Bearer",
+                "method": "POST",
+                "url": f"{base_url}/sms/send",
+                "headers": {
+                    "Authorization": f"Bearer {MIA_SMS_API_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                "json": {
+                    "recipient": phone,
+                    "sender_id": sender,
+                    "message": message,
+                    "to": phone,
+                    "from": sender
+                }
+            },
+            {
+                "name": "sms POST JSON with api_key header",
+                "method": "POST",
+                "url": f"{base_url}/sms",
+                "headers": {
+                    "api-key": MIA_SMS_API_TOKEN,
+                    "Content-Type": "application/json"
+                },
+                "json": {
+                    "to": phone,
+                    "from": sender,
+                    "message": message
+                }
+            },
+            {
+                "name": "send GET with api_token param",
+                "method": "GET",
+                "url": f"{base_url}/send",
+                "params": {
+                    "api_token": MIA_SMS_API_TOKEN,
+                    "to": phone,
+                    "from": sender,
+                    "message": message,
+                    "type": "plain"
+                }
+            },
+            {
+                "name": "sms/send GET params",
+                "method": "GET",
+                "url": f"{base_url}/sms/send",
+                "params": {
+                    "api_token": MIA_SMS_API_TOKEN,
+                    "recipient": phone,
+                    "sender_id": sender,
+                    "message": message
+                }
+            },
+            {
+                "name": "sendsms POST form data",
+                "method": "POST",
+                "url": f"{base_url}/sendsms",
+                "data": {
+                    "api_token": MIA_SMS_API_TOKEN,
+                    "to": phone,
+                    "from": sender,
+                    "message": message
+                }
+            },
+            # Ultimate SMS format
+            {
+                "name": "campaign/send POST JSON",
+                "method": "POST",
+                "url": f"{base_url}/campaign/send",
+                "headers": {
+                    "Authorization": f"Bearer {MIA_SMS_API_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                "json": {
+                    "phone_number": phone,
+                    "sender_id": sender,
+                    "message": message,
+                    "sms_type": "plain"
+                }
+            },
+            # Generic send endpoint with query params
+            {
+                "name": "direct GET params",
+                "method": "GET",
+                "url": base_url,
+                "params": {
+                    "api_token": MIA_SMS_API_TOKEN,
+                    "action": "send",
+                    "to": phone,
+                    "from": sender,
+                    "message": message
+                }
             }
-            
-            response = await client.get(
-                f"{MIA_SMS_HTTP_ENDPOINT}send",
-                params=params
-            )
-            
-            logger.info(f"MIA SMS Response: {response.status_code} - {response.text[:200]}")
-            
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    result["success"] = data.get("status") in ["success", "sent", "queued", True, 1, "1"]
-                    result["message_id"] = data.get("message_id") or data.get("id") or data.get("sms_id")
-                    result["api_response"] = data
-                except:
-                    # Some APIs return plain text
-                    result["success"] = "success" in response.text.lower() or "sent" in response.text.lower()
-                    result["api_response"] = response.text
-            else:
-                result["error"] = f"API returned status {response.status_code}"
-                result["api_response"] = response.text
+        ]
+        
+        for endpoint in endpoints_to_try:
+            try:
+                kwargs = {}
+                if "headers" in endpoint:
+                    kwargs["headers"] = endpoint["headers"]
+                if "params" in endpoint:
+                    kwargs["params"] = endpoint["params"]
+                if "json" in endpoint:
+                    kwargs["json"] = endpoint["json"]
+                if "data" in endpoint:
+                    kwargs["data"] = endpoint["data"]
                 
-    except httpx.TimeoutException:
-        logger.error(f"SMS timeout for {phone}")
-        result["error"] = "Request timeout"
-    except Exception as e:
-        logger.error(f"SMS error for {phone}: {str(e)}")
-        result["error"] = str(e)
+                resp = await try_sms_endpoint(client, endpoint["url"], endpoint["method"], **kwargs)
+                
+                logger.info(f"[SMS] Tried {endpoint['name']}: {resp.get('status_code', 'error')} - {resp.get('text', resp.get('error', ''))[:100]}")
+                
+                if resp.get("success"):
+                    # Check if response indicates success
+                    text = resp.get("text", "").lower()
+                    if any(word in text for word in ["success", "sent", "queued", "ok", "accepted"]):
+                        result["success"] = True
+                        result["endpoint_used"] = endpoint["name"]
+                        try:
+                            import json
+                            data = json.loads(resp.get("text", "{}"))
+                            result["message_id"] = data.get("message_id") or data.get("id") or data.get("sms_id")
+                            result["api_response"] = data
+                        except:
+                            result["api_response"] = resp.get("text")
+                        break
+                    elif "404" not in text and "not found" not in text:
+                        # This endpoint exists but might have different success criteria
+                        result["endpoint_responded"] = endpoint["name"]
+                        result["api_response"] = resp.get("text")
+                        
+            except Exception as e:
+                logger.error(f"[SMS] Error with {endpoint['name']}: {str(e)}")
+                continue
+        
+        if not result["success"]:
+            result["error"] = "All SMS endpoint attempts failed"
+            result["note"] = "Please verify API token and endpoint configuration with MIA SMS provider"
     
     # Log to database
     if db is not None:
