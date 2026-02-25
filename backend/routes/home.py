@@ -689,3 +689,176 @@ async def get_geo_filtered_home(
     
     return response_data
 
+
+@router.get("/user/section/{section_id}")
+async def get_section_content(
+    section_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    search: Optional[str] = Query(None)
+):
+    """
+    Get all content for a specific section with pagination and search.
+    Used for "See All" functionality on both web and mobile.
+    """
+    db = get_db()
+    
+    # Find section configuration
+    section = await db.layout_sections.find_one({"section_id": section_id}, {"_id": 0})
+    if not section:
+        # Try by name as fallback
+        section = await db.layout_sections.find_one({"name": section_id}, {"_id": 0})
+    
+    if not section:
+        return {"items": [], "total": 0, "page": page, "limit": limit, "message": "Section not found"}
+    
+    skip = (page - 1) * limit
+    items = []
+    total = 0
+    content_type = section.get("content_type", "albums")
+    section_type = section.get("section_type", "")
+    link_category_id = section.get("link_category_id")
+    content_ids = section.get("content_ids", [])
+    
+    # Build search query
+    search_query = {}
+    if search:
+        search_regex = {"$regex": search, "$options": "i"}
+        search_query = {"$or": [
+            {"title": search_regex},
+            {"name": search_regex},
+            {"artist_name": search_regex},
+        ]}
+    
+    # Category mapping for old vs new category IDs
+    category_mapping = {
+        "cat_f3cce0507446": ["songcat_f13791e16795"],  # Lent
+        "songcat_f13791e16795": ["cat_f3cce0507446"],
+    }
+    
+    # Determine content source
+    if content_ids and len(content_ids) > 0:
+        # Manual content IDs
+        if content_type == "albums":
+            query = {"album_id": {"$in": content_ids}, "status": "active"}
+            if search_query:
+                query.update(search_query)
+            total = await db.albums.count_documents(query)
+            items = await db.albums.find(query, ALBUM_LIST_PROJECTION).skip(skip).limit(limit).to_list(limit)
+        elif content_type == "choirs":
+            query = {"singer_id": {"$in": content_ids}}
+            if search_query:
+                query.update(search_query)
+            total = await db.singers.count_documents(query)
+            items = await db.singers.find(query, CHOIR_LIST_PROJECTION).skip(skip).limit(limit).to_list(limit)
+        elif content_type == "churches":
+            query = {"church_id": {"$in": content_ids}}
+            if search_query:
+                query.update(search_query)
+            total = await db.churches.count_documents(query)
+            items = await db.churches.find(query, CHURCH_LIST_PROJECTION).skip(skip).limit(limit).to_list(limit)
+        elif content_type == "teachings":
+            query = {"teaching_id": {"$in": content_ids}}
+            if search_query:
+                query.update(search_query)
+            total = await db.teachings.count_documents(query)
+            items = await db.teachings.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        elif content_type == "special_mixes":
+            query = {"mix_id": {"$in": content_ids}}
+            if search_query:
+                query.update(search_query)
+            total = await db.special_mixes.count_documents(query)
+            items = await db.special_mixes.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+            
+    elif link_category_id:
+        # Category linked content
+        category_ids = [link_category_id]
+        if link_category_id in category_mapping:
+            mapped = category_mapping[link_category_id]
+            if isinstance(mapped, list):
+                category_ids.extend(mapped)
+            else:
+                category_ids.append(mapped)
+        
+        query = {
+            "$or": [
+                {"category_id": {"$in": category_ids}},
+                {"song_category_id": {"$in": category_ids}}
+            ],
+            "status": "active"
+        }
+        if search_query:
+            query = {"$and": [query, search_query]}
+        
+        total = await db.albums.count_documents(query)
+        items = await db.albums.find(query, ALBUM_LIST_PROJECTION).sort("total_plays", -1).skip(skip).limit(limit).to_list(limit)
+        content_type = "albums"
+        
+    elif section_type == "featured_choirs":
+        query = search_query if search_query else {}
+        total = await db.singers.count_documents(query)
+        items = await db.singers.find(query, CHOIR_LIST_PROJECTION).sort("followers_count", -1).skip(skip).limit(limit).to_list(limit)
+        content_type = "choirs"
+        
+    elif section_type == "churches":
+        query = search_query if search_query else {}
+        total = await db.churches.count_documents(query)
+        items = await db.churches.find(query, CHURCH_LIST_PROJECTION).sort("followers_count", -1).skip(skip).limit(limit).to_list(limit)
+        content_type = "churches"
+        
+    elif section_type == "trending":
+        query = {"status": "active"}
+        if search_query:
+            query.update(search_query)
+        total = await db.albums.count_documents(query)
+        items = await db.albums.find(query, ALBUM_LIST_PROJECTION).sort("total_plays", -1).skip(skip).limit(limit).to_list(limit)
+        content_type = "albums"
+        
+    elif section_type in ["featured_albums", "seasonal", "new_releases"]:
+        query = {"status": "active"}
+        if search_query:
+            query.update(search_query)
+        total = await db.albums.count_documents(query)
+        items = await db.albums.find(query, ALBUM_LIST_PROJECTION).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+        content_type = "albums"
+        
+    elif section_type == "special_mixes":
+        query = search_query if search_query else {}
+        total = await db.special_mixes.count_documents(query)
+        items = await db.special_mixes.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        content_type = "special_mixes"
+        
+    elif section_type == "teachings":
+        query = search_query if search_query else {}
+        total = await db.teachings.count_documents(query)
+        items = await db.teachings.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        content_type = "teachings"
+    
+    # Add entity_type to items
+    for item in items:
+        if content_type == "albums":
+            item["entity_type"] = "album"
+        elif content_type == "choirs":
+            item["entity_type"] = "choir"
+        elif content_type == "churches":
+            item["entity_type"] = "church"
+        elif content_type == "teachings":
+            item["entity_type"] = "teaching"
+        elif content_type == "special_mixes":
+            item["entity_type"] = "special_mix"
+    
+    return {
+        "section": {
+            "section_id": section.get("section_id"),
+            "name": section.get("name"),
+            "title": section.get("title"),
+            "section_type": section_type,
+            "content_type": content_type
+        },
+        "items": optimize_thumbnails(items),
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "has_more": total > (skip + len(items))
+    }
+
