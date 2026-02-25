@@ -239,9 +239,17 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
           {/* Logo */}
           <div className="p-6 border-b border-zinc-800">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-violet-500">♱</span> Gracefy
-              </h1>
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/gracefy-logo-dark.png" 
+                  alt="Gracefy" 
+                  className="w-10 h-10 object-contain"
+                />
+                <div>
+                  <h1 className="text-xl font-bold text-white">Gracefy</h1>
+                  <p className="text-xs text-zinc-500">Admin Dashboard</p>
+                </div>
+              </div>
               <button 
                 className="lg:hidden text-zinc-400 hover:text-white"
                 onClick={() => setIsOpen(false)}
@@ -249,7 +257,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
                 <X size={20} />
               </button>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">Admin Dashboard</p>
           </div>
 
           {/* Navigation */}
