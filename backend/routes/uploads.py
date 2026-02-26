@@ -735,25 +735,75 @@ async def upload_thumbnail(
 @router.post("/content/upload-audio")
 async def upload_audio(
     file: UploadFile = File(...),
-    song_id: str = Form(...)
+    song_id: str = Form(...),
+    encode: bool = Form(True)  # Enable encoding by default
 ):
-    """Upload audio file for a song"""
+    """
+    Upload audio file for a song with optional encoding.
+    Converts to MP3 128kbps for optimal streaming.
+    """
     db = get_db()
     
     # Validate file type
-    allowed_types = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/m4a"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Invalid audio type")
+    allowed_types = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/m4a", "audio/x-m4a", "audio/aac", "audio/flac"]
+    if file.content_type not in allowed_types and not file.filename.lower().endswith(('.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac')):
+        raise HTTPException(status_code=400, detail="Invalid audio type. Supported: MP3, WAV, M4A, OGG, AAC, FLAC")
     
     content = await file.read()
+    original_size = len(content)
+    
+    # Encode audio to MP3 if enabled and not already MP3
+    if encode and file.content_type not in ["audio/mpeg", "audio/mp3"]:
+        try:
+            import subprocess
+            import tempfile
+            
+            # Save original file to temp
+            with tempfile.NamedTemporaryFile(suffix=os.path.splitext(file.filename)[1], delete=False) as tmp_in:
+                tmp_in.write(content)
+                tmp_in_path = tmp_in.name
+            
+            # Output file path
+            tmp_out_path = tmp_in_path + ".mp3"
+            
+            # Convert using ffmpeg (128kbps MP3, mono for smaller size)
+            process = subprocess.run([
+                "ffmpeg", "-y",
+                "-i", tmp_in_path,
+                "-codec:a", "libmp3lame",
+                "-b:a", "128k",
+                "-ar", "44100",
+                "-ac", "2",  # Stereo
+                tmp_out_path
+            ], capture_output=True, timeout=300)
+            
+            if process.returncode == 0 and os.path.exists(tmp_out_path):
+                with open(tmp_out_path, "rb") as f:
+                    content = f.read()
+                logger.info(f"Audio encoded: {original_size} bytes -> {len(content)} bytes")
+            else:
+                logger.warning(f"FFmpeg encoding failed: {process.stderr.decode()}")
+            
+            # Cleanup temp files
+            try:
+                os.unlink(tmp_in_path)
+                if os.path.exists(tmp_out_path):
+                    os.unlink(tmp_out_path)
+            except:
+                pass
+                
+        except Exception as e:
+            logger.warning(f"Audio encoding skipped: {e}")
+            # Continue with original file if encoding fails
     
     if is_cdn_enabled():
         try:
             import httpx
-            ext = os.path.splitext(file.filename)[1].lower() or ".mp3"
+            # Always save as .mp3 after encoding
+            ext = ".mp3" if encode else (os.path.splitext(file.filename)[1].lower() or ".mp3")
             filename = f"{song_id}{ext}"
             folder = "audio"
-            storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
             
             async with httpx.AsyncClient() as client:
                 response = await client.put(
@@ -761,7 +811,7 @@ async def upload_audio(
                     content=content,
                     headers={
                         "AccessKey": BUNNY_API_KEY,
-                        "Content-Type": file.content_type
+                        "Content-Type": "audio/mpeg"
                     },
                     timeout=120.0
                 )
@@ -771,10 +821,21 @@ async def upload_audio(
                     
                     await db.songs.update_one(
                         {"song_id": song_id},
-                        {"$set": {"audio_url": cdn_url}}
+                        {"$set": {
+                            "audio_url": cdn_url,
+                            "audio_size_bytes": len(content),
+                            "original_size_bytes": original_size,
+                            "encoded": encode
+                        }}
                     )
                     
-                    return {"url": cdn_url, "size_bytes": len(content)}
+                    return {
+                        "url": cdn_url, 
+                        "size_bytes": len(content),
+                        "original_size_bytes": original_size,
+                        "encoded": encode,
+                        "compression_ratio": round(original_size / len(content), 2) if len(content) > 0 else 1
+                    }
         except Exception as e:
             logger.error(f"Audio upload error: {e}")
             raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
