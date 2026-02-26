@@ -673,6 +673,34 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
+  // Dynamic section renderer - renders sections in layout manager order
+  const renderDynamicSection = (section) => {
+    if (!section || section.section_type === 'hero') return null; // Hero is rendered separately
+    
+    const items = section.items || [];
+    if (items.length === 0) return null;
+    
+    const sectionTitle = section.display_name || section.name || 'Section';
+    
+    return (
+      <View key={section.section_id} style={styles.sectionContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{sectionTitle}</Text>
+          {items.length > 4 && (
+            <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { 
+              type: section.content_type || 'albums', 
+              title: sectionTitle,
+              sectionId: section.section_id 
+            })}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {renderSectionContent(section, items)}
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
