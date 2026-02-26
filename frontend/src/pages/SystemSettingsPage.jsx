@@ -94,7 +94,6 @@ const LANGUAGES = [
 ];
 
 const SIDEBAR_ITEMS = [
-  { id: "branding", label: "Branding", icon: Palette },
   { id: "language", label: "Language & Currency", icon: Globe },
   { id: "geolocking", label: "Geo-Locking", icon: MapPin },
   { id: "payments", label: "Payment Gateways", icon: CreditCard },
@@ -105,7 +104,6 @@ const SIDEBAR_ITEMS = [
   { id: "streaming", label: "Streaming", icon: Wifi },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "social", label: "Social Media", icon: Share2 },
-  { id: "legal", label: "Legal & Compliance", icon: FileText },
 ];
 
 // Translation Management Card Component
