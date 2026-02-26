@@ -42,11 +42,7 @@ export default function LeaderLoginPage() {
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-            <img 
-              src="/gracefy-logo-dark.png" 
-              alt="Gracefy" 
-              className="w-full h-full object-contain"
-            />
+            <BrandLogo type="icon" className="w-full h-full object-contain" alt="Logo" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Gracefy Leaders</h1>
           <p className="text-zinc-400">Portal ya Viongozi wa Dini</p>
