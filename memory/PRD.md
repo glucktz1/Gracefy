@@ -802,6 +802,21 @@ REACT_APP_BACKEND_URL=https://faithsongs-app.preview.emergentagent.com
 - [x] Root cause: FastAPI Query default parameter not passed correctly when calling internally
 - [x] Solution: Explicitly pass `platform="app"` in `get_home_app()` function
 
+### Session Update: Legal & Compliance + Category Fix (Feb 26, 2026)
+- [x] **Legal & Compliance Feature Complete**:
+  - Added LegalPageView component to UserStreamingApp.jsx
+  - Terms of Service, Privacy Policy, Contact Us pages accessible from sidebar
+  - Content loads in English or Swahili based on language setting
+  - Admin can edit legal content via /api/legal endpoints
+- [x] **Branding Settings UI Fix**:
+  - Fixed handleUpload variable naming conflict (formData -> uploadFormData)
+  - Added uploading state indicator for logo upload buttons
+  - Logo upload and color picker functionality now working
+- [x] **Category Mix-up Fix**:
+  - Fixed Lent section (section_922b32cfdfbf) to use link_category_id: songcat_f13791e16795
+  - "Nasikia Yesu waniita" now correctly shows only in "Kusifu na Kuabudu" (Praise & Worship)
+  - Lent section now properly filters to show only Lent-tagged albums (8 albums)
+
 ## Remaining Tasks
 
 ### P0 - Critical
@@ -812,7 +827,10 @@ REACT_APP_BACKEND_URL=https://faithsongs-app.preview.emergentagent.com
 ### P1 - High Priority
 - [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
 - [ ] Web App Filters display in Swahili
-- [ ] Dynamic Branding System (admin-managed logo uploads)
+- [ ] Song metadata not updating on track change (web player)
+- [ ] Mobile App Scrolling Performance (refactor ScrollView to FlatList)
+- [ ] Admin Payment Notifications (real-time beep alerts)
+- [ ] Layout Manager Sync Verification (build v1.0.132 needs user testing)
 
 ### P2 - Medium Priority
 - [ ] Radio stations single row on web home page
