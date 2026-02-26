@@ -231,6 +231,7 @@ async def toggle_section(section_id: str):
     )
     
     await invalidate_home_cache()
+    await invalidate_layout_cache()
     return {"message": f"Section {'activated' if new_status else 'deactivated'}", "is_active": new_status}
 
 
