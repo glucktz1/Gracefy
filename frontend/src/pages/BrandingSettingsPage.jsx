@@ -66,6 +66,7 @@ export default function BrandingSettingsPage() {
 
   const handleUpload = async (file, logoType) => {
     try {
+      setUploading(logoType);
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
       
@@ -73,11 +74,26 @@ export default function BrandingSettingsPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
+      // Update local formData immediately with the new URL
+      const fieldMap = {
+        'icon': 'logo_url',
+        'full': 'logo_with_text_url',
+        'favicon': 'favicon_url'
+      };
+      if (res.data?.url) {
+        setFormData(prev => ({
+          ...prev,
+          [fieldMap[logoType]]: res.data.url
+        }));
+      }
+      
       toast.success(`${logoType === 'icon' ? 'Logo' : logoType === 'full' ? 'Full Logo' : 'Favicon'} uploaded successfully`);
       fetchBranding();
     } catch (error) {
       console.error('Error uploading:', error);
-      toast.error('Failed to upload image');
+      toast.error(`Failed to upload image: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setUploading(null);
     }
   };
 
