@@ -65,10 +65,10 @@ export default function BrandingSettingsPage() {
 
   const handleUpload = async (file, logoType) => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
       
-      const res = await axios.post(`${API}/admin/branding/upload-logo?logo_type=${logoType}`, formData, {
+      const res = await axios.post(`${API}/admin/branding/upload-logo?logo_type=${logoType}`, uploadFormData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
