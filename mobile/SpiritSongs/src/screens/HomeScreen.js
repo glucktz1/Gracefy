@@ -1478,6 +1478,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  // Dynamic Section Container
+  sectionContainer: {
+    marginBottom: SPACING.lg,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
