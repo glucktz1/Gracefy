@@ -3805,9 +3805,14 @@ export default function UserStreamingApp() {
       <main className={`${player.currentSong ? 'pb-28' : 'pb-16'} lg:pb-24 lg:ml-64`}>
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 bg-black/95 backdrop-blur-xl z-40 px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <span className="text-emerald-500">♱</span> Gracefy
-          </h1>
+          <a href="/app" className="flex items-center gap-2">
+            <img 
+              src="https://gracefy-cdn.b-cdn.net/branding/icon_6d883800.png" 
+              alt="Gracefy" 
+              className="w-8 h-8 rounded-lg"
+            />
+            <span className="text-xl font-bold text-white">Gracefy</span>
+          </a>
           {user ? (
             <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">
               {user.name?.charAt(0) || 'U'}
