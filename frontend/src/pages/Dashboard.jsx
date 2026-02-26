@@ -113,23 +113,32 @@ export default function Dashboard() {
       {/* Live Streaming Banner */}
       {streamingStats && (
         <div className="bg-gradient-to-r from-emerald-900/30 via-zinc-900 to-violet-900/30 rounded-xl p-4 mb-6 border border-zinc-800">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-emerald-400 font-medium">Live</span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-emerald-400 font-medium">Live</span>
+                </div>
+                <div className="text-zinc-300">
+                  <span className="font-semibold text-white">{streamingStats.active_streams || 0}</span> active streams
+                </div>
+                <div className="text-zinc-500">•</div>
+                <div className="text-zinc-300">
+                  <span className="font-semibold text-white">{streamingStats.active_listeners || 0}</span> listeners now
+                </div>
+                <div className="text-zinc-500">•</div>
+                <div className="text-zinc-300">
+                  <span className="font-semibold text-white">{streamingStats.plays_today || 0}</span> plays today
+                </div>
               </div>
-              <div className="text-zinc-300">
-                <span className="font-semibold text-white">{streamingStats.active_streams || 0}</span> active streams
-              </div>
-              <div className="text-zinc-500">•</div>
-              <div className="text-zinc-300">
-                <span className="font-semibold text-white">{streamingStats.active_listeners || 0}</span> listeners now
-              </div>
-              <div className="text-zinc-500">•</div>
-              <div className="text-zinc-300">
-                <span className="font-semibold text-white">{streamingStats.plays_today || 0}</span> plays today
-              </div>
+            </div>
+            <div className="text-xs text-zinc-500 pl-4 flex flex-wrap gap-x-6 gap-y-1">
+              <span>Active streams = songs currently being played</span>
+              <span>•</span>
+              <span>Listeners now = unique users streaming right now</span>
+              <span>•</span>
+              <span>Plays today = total song plays in last 24hrs</span>
             </div>
           </div>
         </div>
