@@ -613,6 +613,61 @@ export default function SystemSettingsPage() {
     </div>
   );
 
+  const renderThemes = () => (
+    <div className="space-y-6">
+      <Card className="bg-slate-900/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="w-5 h-5 text-blue-400" />
+            Themes & Appearance
+          </CardTitle>
+          <p className="text-sm text-slate-400 mt-1">
+            Customize the look and feel of your app. For full branding options including logo upload, 
+            visit <a href="/branding-settings" className="text-blue-400 hover:underline">Settings → Branding</a>.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="text-sm text-slate-400 mb-2 block">Primary Color</label>
+              <div className="flex gap-2">
+                <div 
+                  className="w-12 h-10 rounded border border-slate-600"
+                  style={{ backgroundColor: settings.primaryColor }}
+                />
+                <Input
+                  value={settings.primaryColor}
+                  onChange={(e) => updateSetting("primaryColor", e.target.value)}
+                  className="bg-slate-800 border-slate-600"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-2 block">Secondary Color</label>
+              <div className="flex gap-2">
+                <div 
+                  className="w-12 h-10 rounded border border-slate-600"
+                  style={{ backgroundColor: settings.secondaryColor }}
+                />
+                <Input
+                  value={settings.secondaryColor}
+                  onChange={(e) => updateSetting("secondaryColor", e.target.value)}
+                  className="bg-slate-800 border-slate-600"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+            <p className="text-sm text-slate-300">
+              💡 <strong>Tip:</strong> Use the dedicated <a href="/branding-settings" className="text-blue-400 hover:underline">Branding Settings</a> page for complete control over logos, app name, tagline, and visual identity.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderLanguageCurrency = () => (
     <div className="space-y-6">
       <Card className="bg-slate-900/50 border-slate-700">
