@@ -242,11 +242,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
           <div className="p-6 border-b border-zinc-800">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img 
-                  src="/gracefy-logo-dark.png" 
-                  alt="Gracefy" 
-                  className="w-10 h-10 object-contain"
-                />
+                <BrandLogo type="icon" className="w-10 h-10 object-contain" alt="Logo" />
                 <div>
                   <h1 className="text-xl font-bold text-white">Gracefy</h1>
                   <p className="text-xs text-zinc-500">Admin Dashboard</p>
