@@ -158,6 +158,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
         { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
         { path: "/branding", icon: Palette, label: "Branding", permissions: ["platform_settings"] },
+        { path: "/legal", icon: FileText, label: "Legal & Compliance", permissions: ["platform_settings"] },
         { path: "/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
         { path: "/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
       ]
