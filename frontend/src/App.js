@@ -78,7 +78,7 @@ const SeeAllPage = lazy(() => import("@/pages/SeeAllPage"));
 import { 
   LayoutDashboard, Users, FolderTree, Music2, Church, 
   Mic2, Video, Radio, Heart, MessageSquare,
-  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe, Palette,
+  CalendarCheck, CheckCircle, LogOut, Menu, X, TrendingUp, Wallet, CreditCard, Settings, Layout, Activity, Shield, Disc, BookOpen, Globe, Palette, FileText,
   ChevronDown, ChevronRight, UsersRound, BookMarked, Cloud, Tags, Megaphone, MessageCircle, Headphones, Brain, Smartphone, Sparkles, MapPin
 } from "lucide-react";
 
