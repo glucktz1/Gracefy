@@ -86,6 +86,8 @@ async def fetch_section_content(db, section: dict) -> dict:
         "description": section.get("description", ""),
         "section_type": section["section_type"],
         "layout_style": section.get("layout_style", "horizontal_small"),  # Add layout_style for frontend rendering
+        "sort_order": section.get("sort_order", 99),  # Include sort_order for frontend ordering
+        "is_active": section.get("is_active", True),  # Include active status
     }
     
     content_count = section.get("content_count", 10)
