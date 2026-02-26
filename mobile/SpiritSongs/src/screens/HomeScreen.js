@@ -296,15 +296,15 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const loadLayoutSections = (sections, albums, mixes) => {
-    // Find Lent songs section
+    // Find Lent songs section - use 'items' from unified home response
     const lentSection = sections.find(s => 
       s.name?.toLowerCase().includes('lent') || 
       s.name?.toLowerCase().includes('kwaresima') ||
       s.name?.toLowerCase().includes('kwaresma') ||
       s.section_type === 'seasonal' && s.filter_category === 'lent'
     );
-    if (lentSection?.content_items?.length > 0) {
-      setLentSongs(lentSection.content_items);
+    if (lentSection?.items?.length > 0) {
+      setLentSongs(lentSection.items);
     } else if (albums.length > 0) {
       const lentFallback = albums.slice(0, 4).map(a => ({
         ...a,
@@ -321,8 +321,8 @@ const HomeScreen = ({ navigation }) => {
       s.name?.toLowerCase().includes('krismasi') ||
       s.section_type === 'seasonal' && s.filter_category === 'christmas'
     );
-    if (christmasSection?.content_items?.length > 0) {
-      setChristmasSongs(christmasSection.content_items);
+    if (christmasSection?.items?.length > 0) {
+      setChristmasSongs(christmasSection.items);
     } else if (albums.length > 2) {
       const christmasFallback = albums.slice(2, 6).map(a => ({
         ...a,
