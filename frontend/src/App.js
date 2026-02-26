@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate, NavLink } from 
 import axios from "axios";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandingProvider, useBranding, BrandLogo } from "@/context/BrandingContext";
+import AdminNotifications from "@/components/AdminNotifications";
 
 // Loading component for lazy-loaded pages
 const PageLoader = () => (
