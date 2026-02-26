@@ -4519,6 +4519,15 @@ export default function UserStreamingApp() {
             />
           )}
 
+          {/* LEGAL PAGE VIEWS */}
+          {(view === 'legal-terms' || view === 'legal-privacy' || view === 'legal-contact') && (
+            <LegalPageView 
+              pageType={view.replace('legal-', '')}
+              language={language}
+              onBack={() => setView('home')}
+            />
+          )}
+
           {/* TEACHING DETAIL VIEW */}
           {view === 'teaching' && selectedTeaching && (
             <div className="pb-32">
