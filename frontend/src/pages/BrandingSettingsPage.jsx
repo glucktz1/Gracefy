@@ -12,6 +12,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export default function BrandingSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(null); // 'icon', 'full', 'favicon' or null
   const [branding, setBranding] = useState(null);
   const [formData, setFormData] = useState({
     app_name: '',
