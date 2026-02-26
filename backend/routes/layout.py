@@ -12,9 +12,11 @@ import logging
 from core.database import get_db
 from core.cache import cache
 try:
-    from core.redis_cache import invalidate_home_cache
+    from core.cache import invalidate_home_cache, invalidate_layout_cache
 except ImportError:
     async def invalidate_home_cache():
+        pass
+    async def invalidate_layout_cache():
         pass
 
 logger = logging.getLogger(__name__)
