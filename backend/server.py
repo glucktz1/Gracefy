@@ -270,14 +270,15 @@ app = create_app()
 # Background task references
 cache_cleanup_task = None
 traffic_monitoring_task_ref = None
+queue_worker_task_ref = None
 
 
 @app.on_event("startup")
 async def startup():
     """Initialize services on startup"""
-    global cache_cleanup_task, traffic_monitoring_task_ref
+    global cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref
     
-    logger.info("🚀 Starting Gracefy API v3.0.0...")
+    logger.info("🚀 Starting Gracefy API v3.0.0 (High Availability Mode)...")
     
     # Initialize MongoDB connection (via core.database)
     await connect_db()
@@ -294,6 +295,37 @@ async def startup():
     else:
         logger.info("⚠️ Redis not available - using in-memory fallback")
     
+    # Initialize message queue (RabbitMQ with fallback)
+    try:
+        from core.message_queue import message_queue, register_default_handlers, queue_worker_task
+        queue_connected = await message_queue.connect()
+        register_default_handlers()
+        if queue_connected:
+            logger.info("🐰 RabbitMQ connected - distributed queue enabled")
+        else:
+            logger.info("⚠️ RabbitMQ not available - using in-memory queue fallback")
+        
+        # Start queue worker for fallback processing
+        queue_worker_task_ref = asyncio.create_task(queue_worker_task(5))
+        logger.info("✅ Queue worker started")
+    except Exception as e:
+        logger.warning(f"Message queue initialization skipped: {e}")
+    
+    # Initialize health checks for load balancer
+    try:
+        from core.load_balancer import health_checker, register_default_checks
+        register_default_checks()
+        logger.info("✅ Health checks registered for load balancer")
+    except Exception as e:
+        logger.warning(f"Health check initialization skipped: {e}")
+    
+    # Initialize circuit breakers
+    try:
+        from core.circuit_breaker import circuit_registry
+        logger.info(f"⚡ Circuit breakers initialized: {list(circuit_registry.keys())}")
+    except Exception as e:
+        logger.warning(f"Circuit breaker initialization skipped: {e}")
+    
     # Start background cache cleanup
     cache_cleanup_task = asyncio.create_task(periodic_cache_cleanup(300))
     logger.info("✅ Cache cleanup task started (every 5 minutes)")
@@ -306,28 +338,46 @@ async def startup():
     await run_migrations()
     
     logger.info("="*60)
-    logger.info("✅ Gracefy API startup complete")
-    logger.info("   🔧 Architecture: Modular Routers")
+    logger.info("✅ Gracefy API startup complete (HIGH AVAILABILITY)")
+    logger.info("   🔧 Architecture: Modular Routers + HA Components")
     logger.info("   📊 Traffic levels: low (<50 req/s) → critical (>300)")
-    logger.info("   🔄 Cache TTL auto-adjusts: 1x (low) → 4x (critical)")
+    logger.info("   🔄 Cache: Redis with in-memory fallback")
+    logger.info("   📬 Queue: RabbitMQ with in-memory fallback")
+    logger.info("   ⚡ Circuit Breakers: cdn, payment, sms, external_api")
+    logger.info("   🏥 Health Probes: /api/health/live, /ready, /startup")
     logger.info("="*60)
 
 
 @app.on_event("shutdown")
 async def shutdown():
     """Cleanup on shutdown"""
-    global cache_cleanup_task, traffic_monitoring_task_ref
+    global cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref
     
     logger.info("Shutting down Gracefy API...")
     
+    # Signal graceful shutdown for load balancer draining
+    try:
+        from core.load_balancer import graceful_shutdown
+        graceful_shutdown.start_shutdown()
+        await graceful_shutdown.wait_for_requests()
+    except Exception as e:
+        logger.warning(f"Graceful shutdown error: {e}")
+    
     # Cancel background tasks
-    for task in [cache_cleanup_task, traffic_monitoring_task_ref]:
+    for task in [cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref]:
         if task:
             task.cancel()
             try:
                 await task
             except asyncio.CancelledError:
                 pass
+    
+    # Disconnect message queue
+    try:
+        from core.message_queue import message_queue
+        await message_queue.disconnect()
+    except Exception:
+        pass
     
     # Disconnect services
     await legacy_cache.disconnect()
