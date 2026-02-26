@@ -715,6 +715,8 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
