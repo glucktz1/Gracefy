@@ -1073,51 +1073,11 @@ const HomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Nyimbo za Kwaresma (Lent Songs) */}
-        {lentSongs.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Nyimbo za Kwaresma</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Nyimbo za Kwaresma', category: 'lent' })}>
-                <Text style={styles.seeAll}>Ona zote</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {lentSongs.map((item, index) => (
-                <TouchableOpacity 
-                  key={item.album_id || item.song_id || index} 
-                  style={styles.smallSquareCard}
-                  onPress={() => item.album_id ? handleAlbumPress(item) : handlePlaySong(item, lentSongs)}
-                >
-                  <Image
-                    source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
-                    style={styles.smallSquareImage}
-                  />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
-                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Nyimbo za Krismasi (Christmas Songs) */}
-        {christmasSongs.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Nyimbo za Krismasi</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Nyimbo za Krismasi', category: 'christmas' })}>
-                <Text style={styles.seeAll}>Ona zote</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {christmasSongs.map((item, index) => (
-                <TouchableOpacity 
-                  key={item.album_id || item.song_id || index} 
-                  style={styles.smallSquareCard}
-                  onPress={() => item.album_id ? handleAlbumPress(item) : handlePlaySong(item, christmasSongs)}
-                >
-                  <Image
+        {/* Dynamic Sections - Rendered in Layout Manager Order */}
+        {layoutSections
+          .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
+          .map(section => renderDynamicSection(section))
+        }
                     source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
                     style={styles.smallSquareImage}
                   />
