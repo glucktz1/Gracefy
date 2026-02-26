@@ -237,9 +237,10 @@ export default function BrandingSettingsPage() {
                       accept="image/*"
                       className="hidden"
                       onChange={(e) => e.target.files[0] && handleUpload(e.target.files[0], 'full')}
+                      disabled={uploading === 'full'}
                     />
-                    <Button type="button" variant="outline" className="border-zinc-700" asChild>
-                      <span><Upload className="w-4 h-4" /></span>
+                    <Button type="button" variant="outline" className="border-zinc-700" asChild disabled={uploading === 'full'}>
+                      <span>{uploading === 'full' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}</span>
                     </Button>
                   </label>
                 </div>
