@@ -128,7 +128,9 @@ async def upload_logo(file: UploadFile = File(...), logo_type: str = "icon"):
     
     # Upload to Bunny CDN
     try:
-        storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{filename}"
+        # Bunny Storage API endpoint
+        storage_hostname = f"storage.bunnycdn.com"
+        storage_url = f"https://{storage_hostname}/{BUNNY_STORAGE_ZONE}/{filename}"
         
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.put(
@@ -174,6 +176,8 @@ async def upload_logo(file: UploadFile = File(...), logo_type: str = "icon"):
             "field_updated": field_name
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
