@@ -121,6 +121,20 @@ const useAudioPlayer = () => {
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
+  
+  // Use refs to track latest values for event handlers (avoids stale closures)
+  const queueRef = useRef(queue);
+  const queueIndexRef = useRef(queueIndex);
+  const currentAlbumRef = useRef(currentAlbum);
+  const repeatRef = useRef(repeat);
+  const shuffleRef = useRef(shuffle);
+  
+  // Keep refs in sync with state
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
+  useEffect(() => { currentAlbumRef.current = currentAlbum; }, [currentAlbum]);
+  useEffect(() => { repeatRef.current = repeat; }, [repeat]);
+  useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
 
   // Track plays when leaving page
   useEffect(() => {
