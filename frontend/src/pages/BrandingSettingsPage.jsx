@@ -289,9 +289,10 @@ export default function BrandingSettingsPage() {
                       accept="image/*,.ico"
                       className="hidden"
                       onChange={(e) => e.target.files[0] && handleUpload(e.target.files[0], 'favicon')}
+                      disabled={uploading === 'favicon'}
                     />
-                    <Button type="button" variant="outline" className="border-zinc-700" asChild>
-                      <span><Upload className="w-4 h-4" /></span>
+                    <Button type="button" variant="outline" className="border-zinc-700" asChild disabled={uploading === 'favicon'}>
+                      <span>{uploading === 'favicon' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}</span>
                     </Button>
                   </label>
                 </div>
