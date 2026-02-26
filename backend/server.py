@@ -142,6 +142,7 @@ def create_app() -> FastAPI:
     app.include_router(radio_router)          # /api/radio/*
     app.include_router(leaders_router)        # /api/leaders/*, /api/leader/*
     app.include_router(branding_router)       # /api/branding/*
+    app.include_router(legal_router)          # /api/legal/*
     
     # Import and include geo_content router
     from routes.geo_content import router as geo_content_router
