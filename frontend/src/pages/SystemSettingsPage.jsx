@@ -392,7 +392,7 @@ const TranslationManagementCard = () => {
 };
 
 export default function SystemSettingsPage() {
-  const [activeTab, setActiveTab] = useState("branding");
+  const [activeTab, setActiveTab] = useState("language");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
