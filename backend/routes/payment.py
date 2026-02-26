@@ -271,6 +271,27 @@ async def azampay_callback(request: Request):
                 }}
             )
             
+            # Get user details for notification
+            user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+            user_name = user.get("name") or user.get("email") or user.get("phone", "Unknown User")
+            
+            # Create admin notification for successful payment
+            await db.admin_notifications.insert_one({
+                "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+                "type": "payment_success",
+                "title": "New Payment Received!",
+                "message": f"{user_name} subscribed to {plan_name} - {txn.get('amount', 0):,.0f} TZS",
+                "data": {
+                    "user_id": user_id,
+                    "user_name": user_name,
+                    "plan_name": plan_name,
+                    "amount": txn.get("amount", 0),
+                    "transaction_id": txn["transaction_id"]
+                },
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            
             logger.info(f"Subscription activated for user {user_id}")
         
         elif payment_status == "failed":
