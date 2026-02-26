@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/LanguageContext";
+import { useBranding, BrandLogo } from "@/context/BrandingContext";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
