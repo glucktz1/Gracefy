@@ -1078,16 +1078,6 @@ const HomeScreen = ({ navigation }) => {
           .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
           .map(section => renderDynamicSection(section))
         }
-                    source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
-                    style={styles.smallSquareImage}
-                  />
-                  <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
-                  <Text style={styles.smallSquareArtist} numberOfLines={1}>{item.artist_name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
         {/* Mchanganyiko Maalumu (Special Mixes) */}
         {specialMixes.length > 0 && (
