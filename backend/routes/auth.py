@@ -1167,7 +1167,19 @@ async def process_mobile_google_login(session_id: str, mobile_redirect: str = No
         redirect_url = f"{mobile_redirect}?token={token}&user_id={user_id}"
         return RedirectResponse(url=redirect_url)
     
-    return {"token": token, "user_id": user_id, "email": email, "name": name}
+    # Get full user object for response
+    user = await db.app_users.find_one(
+        {"user_id": user_id},
+        {"_id": 0, "password_hash": 0}
+    )
+    
+    return {
+        "token": token, 
+        "user_id": user_id, 
+        "email": email, 
+        "name": name,
+        "user": user  # Include full user object for frontend
+    }
 
 
 @router.post("/user/auth/google-callback")
