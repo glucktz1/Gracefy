@@ -285,7 +285,7 @@ const HomeScreen = ({ navigation }) => {
       }
 
       // Load additional sections from layout manager with content_items
-      loadLayoutSections(activeSections, albums, mixes);
+      loadLayoutSections(activeSections, finalAlbums, mixes);
 
     } catch (error) {
       // Silent error handling - app will show empty sections gracefully
