@@ -495,18 +495,26 @@ const ProtectedRoute = ({ children }) => {
       <Sidebar user={user} userPermissions={userPermissions} onLogout={handleLogout} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800 z-30 flex items-center px-4">
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="p-2 text-zinc-400 hover:text-white"
-          data-testid="mobile-menu-btn"
-        >
-          <Menu size={24} />
-        </button>
-        <div className="flex items-center gap-2 ml-3">
-          <BrandLogo type="icon" className="w-8 h-8 object-contain" alt="Logo" />
-          <h1 className="text-lg font-bold text-white">Gracefy</h1>
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800 z-30 flex items-center justify-between px-4">
+        <div className="flex items-center">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 text-zinc-400 hover:text-white"
+            data-testid="mobile-menu-btn"
+          >
+            <Menu size={24} />
+          </button>
+          <div className="flex items-center gap-2 ml-3">
+            <BrandLogo type="icon" className="w-8 h-8 object-contain" alt="Logo" />
+            <h1 className="text-lg font-bold text-white">Gracefy</h1>
+          </div>
         </div>
+        <AdminNotifications />
+      </div>
+      
+      {/* Desktop notification bell - top right */}
+      <div className="hidden lg:block fixed top-4 right-6 z-30">
+        <AdminNotifications />
       </div>
       
       {/* Main content */}
