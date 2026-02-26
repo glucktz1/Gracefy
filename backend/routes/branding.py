@@ -47,18 +47,29 @@ async def get_branding():
     if cached:
         return cached
     
-    # Fetch from database
-    branding = await db.branding_settings.find_one({"setting_id": "main"}, {"_id": 0})
+    # Fetch from database - exclude _id
+    branding = await db.branding_settings.find_one(
+        {"setting_id": "main"}, 
+        {"_id": 0}
+    )
     
     if not branding:
         # Return defaults
         branding = {**DEFAULT_BRANDING, "setting_id": "main"}
-        await db.branding_settings.insert_one(branding)
+        await db.branding_settings.insert_one({**branding})
+        # Fetch again without _id
+        branding = await db.branding_settings.find_one(
+            {"setting_id": "main"}, 
+            {"_id": 0}
+        )
+    
+    # Ensure it's a plain dict (not MongoDB document)
+    branding_dict = dict(branding) if branding else DEFAULT_BRANDING
     
     # Cache for 5 minutes
-    await cache.set(cache_key, branding, 300)
+    await cache.set(cache_key, branding_dict, 300)
     
-    return branding
+    return branding_dict
 
 
 @router.put("/admin/branding")
