@@ -338,8 +338,8 @@ const HomeScreen = ({ navigation }) => {
       s.name?.toLowerCase().includes('zinazosikilizwa') ||
       s.section_type === 'trending'
     );
-    if (mostListenedSection?.content_items?.length > 0) {
-      setMostListenedAlbums(mostListenedSection.content_items);
+    if (mostListenedSection?.items?.length > 0) {
+      setMostListenedAlbums(mostListenedSection.items);
     } else {
       setMostListenedAlbums(albums.slice(0, 6));
     }
@@ -350,8 +350,8 @@ const HomeScreen = ({ navigation }) => {
       s.name?.toLowerCase().includes('mpya') ||
       s.section_type === 'cta'
     );
-    if (hotSection?.content_items?.length > 0) {
-      setHotNewReleases(hotSection.content_items);
+    if (hotSection?.items?.length > 0) {
+      setHotNewReleases(hotSection.items);
     } else {
       setHotNewReleases(albums.slice(0, 6));
     }
