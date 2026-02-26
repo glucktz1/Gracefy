@@ -600,11 +600,13 @@ function AppRouter() {
 function App() {
   return (
     <div className="App">
-      <LanguageProvider>
-        <BrowserRouter>
-          <AppRouter />
-        </BrowserRouter>
-      </LanguageProvider>
+      <BrandingProvider>
+        <LanguageProvider>
+          <BrowserRouter>
+            <AppRouter />
+          </BrowserRouter>
+        </LanguageProvider>
+      </BrandingProvider>
       <Toaster position="top-right" richColors />
     </div>
   );
