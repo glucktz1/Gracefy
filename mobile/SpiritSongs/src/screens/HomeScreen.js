@@ -173,7 +173,6 @@ const HomeScreen = ({ navigation }) => {
 
       // Home filters from admin panel (new endpoint)
       const homeFilters = filtersRes.data?.filters || [];
-      const homeFilters = filtersRes.data?.filters || [];
       if (homeFilters.length > 0) {
         // Use filters from admin-managed endpoint with Swahili names
         const categoryFilters = [
