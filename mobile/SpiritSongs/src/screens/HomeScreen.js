@@ -209,12 +209,14 @@ const HomeScreen = ({ navigation }) => {
       let churches = [];
       let mafundisho = [];
       
-      // Extract content from each section
+      // Extract content from each section - backend returns 'items', not 'content_items'
       activeSections.forEach(section => {
-        const items = section.content_items || [];
+        const items = section.items || [];
         
         switch(section.content_type || section.section_type) {
           case 'albums':
+          case 'featured_albums':
+          case 'seasonal':
             albums = [...albums, ...items];
             break;
           case 'mixes':
