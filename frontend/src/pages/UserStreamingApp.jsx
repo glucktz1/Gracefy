@@ -2843,6 +2843,92 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
   );
 };
 
+// ==================== LEGAL PAGE VIEW ====================
+const LegalPageView = ({ pageType, language, onBack }) => {
+  const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  const pageTypeMap = {
+    'terms': 'terms_of_service',
+    'privacy': 'privacy_policy', 
+    'contact': 'contact'
+  };
+  
+  const pageTitles = {
+    'terms': { en: 'Terms of Service', sw: 'Masharti ya Huduma' },
+    'privacy': { en: 'Privacy Policy', sw: 'Sera ya Faragha' },
+    'contact': { en: 'Contact Us', sw: 'Wasiliana Nasi' }
+  };
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        setLoading(true);
+        const pageId = pageTypeMap[pageType] || pageType;
+        const res = await axios.get(`${API}/legal/${pageId}?lang=${language}`);
+        setContent(res.data);
+      } catch (error) {
+        console.error('Error fetching legal page:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContent();
+  }, [pageType, language]);
+
+  // Simple markdown-like renderer
+  const renderContent = (text) => {
+    if (!text) return null;
+    
+    return text.split('\n').map((line, i) => {
+      if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold text-white mt-6 mb-3">{line.slice(2)}</h1>;
+      if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-semibold text-white mt-5 mb-2">{line.slice(3)}</h2>;
+      if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-medium text-white mt-4 mb-2">{line.slice(4)}</h3>;
+      if (line.startsWith('- ')) return <li key={i} className="ml-6 text-zinc-300 mb-1">• {line.slice(2)}</li>;
+      if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-semibold text-white">{line.slice(2, -2)}</p>;
+      if (line.trim() === '') return <div key={i} className="h-2" />;
+      return <p key={i} className="text-zinc-300 mb-2 leading-relaxed">{line}</p>;
+    });
+  };
+
+  return (
+    <div className="pb-32" data-testid={`legal-page-${pageType}`}>
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <button 
+          onClick={onBack}
+          className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+          data-testid="legal-back-btn"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="text-xl font-bold">
+          {pageTitles[pageType]?.[language] || pageTitles[pageType]?.['en'] || 'Legal'}
+        </h1>
+      </div>
+
+      {/* Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        </div>
+      ) : (
+        <div className="bg-zinc-900/50 rounded-xl p-6 max-w-3xl">
+          {content?.title && <h1 className="text-2xl font-bold text-white mb-4">{content.title}</h1>}
+          <div className="prose prose-invert prose-sm max-w-none">
+            {renderContent(content?.content)}
+          </div>
+          {content?.updated_at && (
+            <p className="text-xs text-zinc-500 mt-6 pt-4 border-t border-zinc-800">
+              {language === 'sw' ? 'Imesasishwa' : 'Last updated'}: {new Date(content.updated_at).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ==================== MAIN APP ====================
 export default function UserStreamingApp() {
   const [user, setUser] = useState(null);
