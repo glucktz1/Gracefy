@@ -199,26 +199,53 @@ const HomeScreen = ({ navigation }) => {
         setCategories([{ id: 'all', name: 'Zote', icon: null }]);
       }
 
-      // Hero content
-      const heroData = heroRes.data || { items: [] };
-      setHeroContent(heroData);
-      
-      // Use geo-filtered albums if available, otherwise use regular albums
+      // Extract content from unified home response sections
       const geoAlbums = geoAlbumsRes?.data?.albums || [];
-      const regularAlbums = albumsRes.data?.albums || albumsRes.data || [];
       
-      // If geo filtering returned albums, use those; otherwise use regular albums
-      const albums = (useGeoFiltering && geoAlbums.length > 0) ? geoAlbums : regularAlbums;
+      // Get content from sections
+      let albums = [];
+      let mixes = [];
+      let songs = [];
+      let snippets = [];
+      let churches = [];
+      let mafundisho = [];
+      
+      // Extract content from each section
+      activeSections.forEach(section => {
+        const items = section.content_items || [];
+        
+        switch(section.content_type || section.section_type) {
+          case 'albums':
+            albums = [...albums, ...items];
+            break;
+          case 'mixes':
+          case 'special_mixes':
+            mixes = [...mixes, ...items];
+            break;
+          case 'songs':
+            songs = [...songs, ...items];
+            break;
+          case 'bible_snippets':
+            snippets = [...snippets, ...items];
+            break;
+          case 'churches':
+            churches = [...churches, ...items];
+            break;
+          case 'mafundisho':
+          case 'teachings':
+            mafundisho = [...mafundisho, ...items];
+            break;
+        }
+      });
+      
+      // Use geo-filtered albums if available, otherwise use section albums
+      const finalAlbums = (useGeoFiltering && geoAlbums.length > 0) ? geoAlbums : albums;
 
-      // Special mixes
-      const mixes = mixesRes.data?.mixes || mixesRes.data || [];
+      // Set content from unified response
       setSpecialMixes(mixes);
+      setRecentAlbums(finalAlbums);
 
-      // Albums - already defined above with geo-filtering
-      setRecentAlbums(albums);
-
-      // Songs
-      const songs = songsRes.data?.songs || [];
+      // Process songs with thumbnails
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
           const album = albums.find(a => a.album_id === song.album_id);
