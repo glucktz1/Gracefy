@@ -3660,6 +3660,33 @@ export default function UserStreamingApp() {
           </div>
         </div>
 
+        {/* Legal Links */}
+        <div className="mt-4 pt-4 border-t border-zinc-800">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
+            <button 
+              onClick={() => setView('legal-terms')}
+              className="hover:text-white transition-colors"
+              data-testid="footer-terms-link"
+            >
+              {language === 'sw' ? 'Masharti' : 'Terms'}
+            </button>
+            <button 
+              onClick={() => setView('legal-privacy')}
+              className="hover:text-white transition-colors"
+              data-testid="footer-privacy-link"
+            >
+              {language === 'sw' ? 'Faragha' : 'Privacy'}
+            </button>
+            <button 
+              onClick={() => setView('legal-contact')}
+              className="hover:text-white transition-colors"
+              data-testid="footer-contact-link"
+            >
+              {language === 'sw' ? 'Wasiliana' : 'Contact'}
+            </button>
+          </div>
+        </div>
+
         {/* User */}
         <div className="mt-auto pt-4 border-t border-zinc-800">
           {user ? (
