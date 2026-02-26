@@ -194,7 +194,8 @@ const useAudioPlayer = () => {
     if (index < 0 || index >= q.length) return;
     const item = q[index];
     const song = item.song || item;
-    const album = item.album || currentAlbum;
+    // Use album from queue item, or fall back to current album ref (not stale state)
+    const album = item.album || currentAlbumRef.current || currentAlbum;
     
     setQueueIndex(index);
     setCurrentSong(song);
