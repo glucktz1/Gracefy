@@ -2873,6 +2873,10 @@ export default function UserStreamingApp() {
   
   // Radio stations state for home view
   const [homeRadioStations, setHomeRadioStations] = useState([]);
+  
+  // Home radio playing state
+  const [homeRadioPlaying, setHomeRadioPlaying] = useState(null);
+  const [homeRadioAudio, setHomeRadioAudio] = useState(null);
 
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
