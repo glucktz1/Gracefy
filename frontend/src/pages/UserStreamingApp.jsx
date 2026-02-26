@@ -3659,9 +3659,14 @@ export default function UserStreamingApp() {
       {/* Sidebar - Desktop */}
       <aside className="fixed left-0 top-0 w-64 h-full bg-black p-6 hidden lg:flex flex-col z-40">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span className="text-emerald-500">♱</span> Gracefy
-          </h1>
+          <a href="/app" className="flex items-center gap-3">
+            <img 
+              src="https://gracefy-cdn.b-cdn.net/branding/icon_6d883800.png" 
+              alt="Gracefy" 
+              className="w-10 h-10 rounded-lg"
+            />
+            <span className="text-2xl font-bold text-white">Gracefy</span>
+          </a>
         </div>
         
         <nav className="space-y-1">
