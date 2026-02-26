@@ -392,7 +392,7 @@ async def get_home_app():
     Alias for /user/home - Mobile app home endpoint.
     Returns home screen data for the mobile app.
     """
-    return await get_user_home()
+    return await get_user_home(platform="app")
 
 
 @router.get("/user/home/quick")
