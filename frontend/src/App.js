@@ -3,6 +3,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, NavLink } from "react-router-dom";
 import axios from "axios";
 import { Toaster } from "@/components/ui/sonner";
+import { BrandingProvider, useBranding, BrandLogo } from "@/context/BrandingContext";
 
 // Loading component for lazy-loaded pages
 const PageLoader = () => (
