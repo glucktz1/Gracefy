@@ -1435,19 +1435,17 @@ export default function SystemSettingsPage() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case "branding": return renderBranding();
       case "language": return renderLanguageCurrency();
       case "geolocking": return renderGeoLocking();
       case "payments": return renderPayments();
-      case "themes": return renderBranding(); // Reuse branding for now
+      case "themes": return renderThemes();
       case "content": return renderContentSettings();
       case "notifications": return renderNotifications();
       case "security": return renderSecurity();
       case "streaming": return renderStreaming();
       case "analytics": return renderAnalytics();
       case "social": return renderSocialMedia();
-      case "legal": return renderLegal();
-      default: return renderBranding();
+      default: return renderLanguageCurrency();
     }
   };
 
