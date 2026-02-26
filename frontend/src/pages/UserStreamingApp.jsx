@@ -3072,6 +3072,61 @@ export default function UserStreamingApp() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Play radio directly from home page
+  const handlePlayRadioFromHome = async (station) => {
+    try {
+      // Stop regular music playback if playing
+      if (player.isPlaying) {
+        player.pause();
+      }
+      
+      // If same station, toggle play/pause
+      if (homeRadioPlaying?.station_id === station.station_id) {
+        if (homeRadioAudio) {
+          homeRadioAudio.pause();
+          homeRadioAudio.src = '';
+          setHomeRadioAudio(null);
+        }
+        setHomeRadioPlaying(null);
+        return;
+      }
+      
+      // Stop current radio if playing
+      if (homeRadioAudio) {
+        homeRadioAudio.pause();
+        homeRadioAudio.src = '';
+      }
+      
+      toast.info(`Loading ${station.name}...`);
+      
+      // Track play
+      try {
+        await axios.post(`${API}/radio/play`, {
+          station_id: station.station_id,
+          platform: 'web'
+        });
+      } catch (e) {}
+      
+      // Create and play audio
+      const audio = new Audio(station.url_resolved || station.url);
+      audio.onplay = () => setHomeRadioPlaying(station);
+      audio.onpause = () => {};
+      audio.onerror = () => {
+        toast.error("Failed to play station");
+        setHomeRadioPlaying(null);
+        setHomeRadioAudio(null);
+      };
+      
+      await audio.play();
+      setHomeRadioAudio(audio);
+      setHomeRadioPlaying(station);
+      toast.success(`Now playing: ${station.name}`);
+    } catch (error) {
+      console.error("Error playing radio:", error);
+      toast.error("Failed to play station");
+    }
+  };
+
   // Category filter
   const handleCategorySelect = async (category) => {
     setActiveCategory(category);
