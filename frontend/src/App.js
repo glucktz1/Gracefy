@@ -503,7 +503,7 @@ const ProtectedRoute = ({ children }) => {
           <Menu size={24} />
         </button>
         <div className="flex items-center gap-2 ml-3">
-          <img src="/gracefy-logo-dark.png" alt="Gracefy" className="w-8 h-8 object-contain" />
+          <BrandLogo type="icon" className="w-8 h-8 object-contain" alt="Logo" />
           <h1 className="text-lg font-bold text-white">Gracefy</h1>
         </div>
       </div>
