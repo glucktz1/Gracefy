@@ -197,6 +197,67 @@ def create_app() -> FastAPI:
             "requests_per_minute": traffic_stats.requests_per_minute if hasattr(traffic_stats, 'requests_per_minute') else 0
         }
     
+    # ============== KUBERNETES HEALTH PROBES ==============
+    
+    @app.get("/api/health/live")
+    async def liveness_probe():
+        """Kubernetes liveness probe - is the app alive?"""
+        from core.load_balancer import health_checker
+        return await health_checker.liveness_check()
+    
+    @app.get("/api/health/ready")
+    async def readiness_probe():
+        """Kubernetes readiness probe - can it receive traffic?"""
+        from core.load_balancer import health_checker
+        result = await health_checker.readiness_check()
+        from fastapi.responses import JSONResponse
+        status_code = 200 if result.get("ready") else 503
+        return JSONResponse(content=result, status_code=status_code)
+    
+    @app.get("/api/health/startup")
+    async def startup_probe():
+        """Kubernetes startup probe - has it finished starting?"""
+        from core.load_balancer import health_checker
+        result = await health_checker.startup_check()
+        from fastapi.responses import JSONResponse
+        status_code = 200 if result.get("ready") else 503
+        return JSONResponse(content=result, status_code=status_code)
+    
+    # ============== HIGH AVAILABILITY ENDPOINTS ==============
+    
+    @app.get("/api/system/status")
+    async def system_status():
+        """Comprehensive system status for monitoring dashboards"""
+        from core.load_balancer import health_checker, lb_info, graceful_shutdown
+        from core.circuit_breaker import get_all_circuits_stats
+        from core.message_queue import message_queue
+        
+        health_results = await health_checker.check_all()
+        
+        return {
+            "instance": lb_info.get_info(),
+            "health": {
+                name: {
+                    "status": h.status.value,
+                    "latency_ms": h.latency_ms,
+                    "error": h.error
+                }
+                for name, h in health_results.items()
+            },
+            "cache": await redis_cache.get_stats(),
+            "queue": message_queue.get_stats(),
+            "circuits": get_all_circuits_stats(),
+            "shutdown": graceful_shutdown.get_status(),
+            "traffic": await traffic_monitor.get_stats() if traffic_monitor else {}
+        }
+    
+    @app.post("/api/admin/circuits/reset")
+    async def reset_circuits():
+        """Reset all circuit breakers (admin only)"""
+        from core.circuit_breaker import reset_all_circuits
+        await reset_all_circuits()
+        return {"status": "success", "message": "All circuit breakers reset"}
+    
     return app
 
 
