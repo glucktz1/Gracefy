@@ -674,4 +674,89 @@ async def get_all_payment_gateways():
     
     return {"gateways": gateways}
 
+
+# ============== ADMIN NOTIFICATIONS ==============
+
+@router.get("/admin/notifications")
+async def get_admin_notifications(limit: int = 50, unread_only: bool = False):
+    """Get admin notifications for payments and other events."""
+    db = get_db()
+    
+    query = {}
+    if unread_only:
+        query["is_read"] = False
+    
+    notifications = await db.admin_notifications.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Count unread
+    unread_count = await db.admin_notifications.count_documents({"is_read": False})
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count
+    }
+
+
+@router.post("/admin/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str):
+    """Mark a notification as read."""
+    db = get_db()
+    
+    result = await db.admin_notifications.update_one(
+        {"notification_id": notification_id},
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": result.modified_count > 0}
+
+
+@router.post("/admin/notifications/mark-all-read")
+async def mark_all_notifications_read():
+    """Mark all notifications as read."""
+    db = get_db()
+    
+    result = await db.admin_notifications.update_many(
+        {"is_read": False},
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "marked_count": result.modified_count}
+
+
+@router.get("/admin/notifications/settings")
+async def get_notification_settings():
+    """Get admin notification settings."""
+    db = get_db()
+    
+    settings = await db.admin_settings.find_one({"setting_id": "notifications"}, {"_id": 0})
+    
+    if not settings:
+        settings = {
+            "setting_id": "notifications",
+            "payment_notifications": True,
+            "sound_enabled": True,
+            "browser_notifications": True
+        }
+        await db.admin_settings.insert_one(settings)
+    
     return settings
+
+
+@router.put("/admin/notifications/settings")
+async def update_notification_settings(settings: dict):
+    """Update admin notification settings."""
+    db = get_db()
+    
+    await db.admin_settings.update_one(
+        {"setting_id": "notifications"},
+        {"$set": {
+            **settings,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {"success": True, "settings": settings}
