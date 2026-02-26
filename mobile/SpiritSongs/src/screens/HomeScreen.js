@@ -132,31 +132,19 @@ const HomeScreen = ({ navigation }) => {
       const useGeoFiltering = geoEnabled && userCountry && userCountry !== 'GLOBAL';
       
       const [
-        sectionsRes, 
-        heroRes,
-        mixesRes, 
-        albumsRes, 
-        songsRes, 
+        // Use unified home endpoint that returns sections with content in correct order
+        homeRes,
         playlistsRes, 
         likesRes,
-        snippetsRes,
-        churchesRes,
-        mafundishoRes,
         filtersRes,
         tagsRes,
         radioRes,
         geoAlbumsRes,
       ] = await Promise.all([
-        homeAPI.getSections().catch(() => ({ data: { sections: [] } })),
-        homeAPI.getHeroContent().catch(() => ({ data: { items: [] } })),
-        homeAPI.getSpecialMixes().catch(() => ({ data: { mixes: [] } })),
-        contentAPI.getAlbums().catch(() => ({ data: { albums: [] } })),
-        contentAPI.getAllSongs().catch(() => ({ data: { songs: [] } })),
+        // Get home data with sections, hero, and burners in correct layout order
+        homeAPI.getAppHome().catch(() => ({ data: { sections: [], hero: { items: [] }, burners: [] } })),
         libraryAPI.getPlaylists().catch(() => ({ data: [] })),
         libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
-        bibleAPI.getFeaturedSnippets().catch(() => ({ data: [] })),
-        churchAPI.getChurches().catch(() => ({ data: { churches: [] } })),
-        leaderContentAPI.getMafundisho().catch(() => ({ data: { mafundisho: [] } })),
         homeAPI.getHomeFilters().catch(() => ({ data: { filters: [] } })),
         homeAPI.getTags().catch(() => ({ data: { tags: [] } })),
         radioAPI.getStations().catch(() => ({ data: { stations: [] } })),
@@ -170,14 +158,21 @@ const HomeScreen = ({ navigation }) => {
       const tags = tagsRes.data?.tags || [];
       setAvailableTags(tags);
 
-      // Layout sections - handle both nested and direct response
-      const rawSections = sectionsRes.data?.sections || sectionsRes.data || [];
+      // Extract data from unified home response
+      const homeData = homeRes.data || {};
+      const rawSections = homeData.sections || [];
+      const heroData = homeData.hero || { items: [] };
+      const burnersData = homeData.burners || [];
       
-      // Filter active sections - check for is_active being true or not explicitly false
-      const activeSections = rawSections.filter(s => s.is_active === true || s.is_active === undefined);
+      // Filter active sections (they should already be filtered by backend, but double-check)
+      const activeSections = rawSections.filter(s => s.is_active !== false);
       setLayoutSections(activeSections);
+      
+      // Set hero content from unified endpoint
+      setHeroContent(heroData);
 
       // Home filters from admin panel (new endpoint)
+      const homeFilters = filtersRes.data?.filters || [];
       const homeFilters = filtersRes.data?.filters || [];
       if (homeFilters.length > 0) {
         // Use filters from admin-managed endpoint with Swahili names
