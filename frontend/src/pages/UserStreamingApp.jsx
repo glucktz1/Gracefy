@@ -3706,7 +3706,7 @@ export default function UserStreamingApp() {
                       {homeRadioStations.map(station => (
                         <div
                           key={station.station_id}
-                          onClick={() => setView('radio')}
+                          onClick={() => handlePlayRadioFromHome(station)}
                           className="flex-shrink-0 w-36 bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
                         >
                           <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center relative">
@@ -3722,7 +3722,11 @@ export default function UserStreamingApp() {
                             )}
                             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center">
-                                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                {homeRadioPlaying?.station_id === station.station_id ? (
+                                  <Pause className="w-5 h-5 text-white fill-white" />
+                                ) : (
+                                  <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                )}
                               </div>
                             </div>
                           </div>
