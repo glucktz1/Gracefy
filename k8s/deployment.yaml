@@ -1,0 +1,185 @@
+# Gracefy API Kubernetes Deployment
+# Optimized for high-traffic scenarios with auto-scaling
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gracefy-api
+  labels:
+    app: gracefy-api
+    version: v3.0.0
+spec:
+  replicas: 2  # Minimum replicas (HPA will scale from here)
+  selector:
+    matchLabels:
+      app: gracefy-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: gracefy-api
+        version: v3.0.0
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: gracefy-api
+        image: gracefy/api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8001
+          name: http
+        
+        # Environment variables
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_NAME
+          value: "gracefy-api"
+        - name: SHUTDOWN_TIMEOUT
+          value: "30"
+        
+        # Secrets from ConfigMap/Secret
+        envFrom:
+        - configMapRef:
+            name: gracefy-config
+        - secretRef:
+            name: gracefy-secrets
+        
+        # Resource limits for auto-scaling
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        
+        # Liveness probe - is the container alive?
+        livenessProbe:
+          httpGet:
+            path: /api/health/live
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe - can it receive traffic?
+        readinessProbe:
+          httpGet:
+            path: /api/health/ready
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Startup probe - has it finished starting?
+        startupProbe:
+          httpGet:
+            path: /api/health/startup
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 30  # Allow 2.5 minutes for startup
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+
+---
+# Service for internal communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: gracefy-api
+  labels:
+    app: gracefy-api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8001
+    protocol: TCP
+    name: http
+  selector:
+    app: gracefy-api
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gracefy-api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gracefy-api
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  # Scale based on CPU utilization
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Scale based on memory utilization
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 min before scaling down
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0  # Scale up immediately
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gracefy-api-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gracefy-api
