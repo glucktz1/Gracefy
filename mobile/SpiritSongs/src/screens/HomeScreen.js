@@ -248,7 +248,7 @@ const HomeScreen = ({ navigation }) => {
       // Process songs with thumbnails
       const songsWithThumbnails = songs.map(song => {
         if (!song.thumbnail && !song.thumbnail_url) {
-          const album = albums.find(a => a.album_id === song.album_id);
+          const album = finalAlbums.find(a => a.album_id === song.album_id);
           if (album) {
             return { ...song, thumbnail: album.thumbnail || album.thumbnail_url };
           }
@@ -265,16 +265,9 @@ const HomeScreen = ({ navigation }) => {
       const likes = likesRes.data?.songs || likesRes.data || [];
       setLikedSongsCount(Array.isArray(likes) ? likes.length : 0);
 
-      // Bible snippets
-      const snippets = snippetsRes.data?.snippets || snippetsRes.data || [];
+      // Set content from unified response
       setBibleSnippets(Array.isArray(snippets) ? snippets : []);
-
-      // Churches
-      const churchesData = churchesRes.data?.churches || churchesRes.data || [];
-      setChurches(Array.isArray(churchesData) ? churchesData : []);
-
-      // Mafundisho na Katekesi content
-      const mafundisho = mafundishoRes.data?.teachings || mafundishoRes.data?.mafundisho || [];
+      setChurches(Array.isArray(churches) ? churches : []);
       setMafundishoContent(Array.isArray(mafundisho) ? mafundisho : []);
 
       // Radio Stations
