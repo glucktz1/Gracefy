@@ -1,0 +1,59 @@
+# Gracefy ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gracefy-config
+data:
+  # Application settings
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  
+  # Database
+  DB_NAME: "gracefy_production"
+  
+  # Redis
+  REDIS_ENABLED: "true"
+  REDIS_URL: "redis://gracefy-redis:6379"
+  REDIS_PREFIX: "gracefy:"
+  
+  # RabbitMQ
+  RABBITMQ_ENABLED: "true"
+  RABBITMQ_URL: "amqp://gracefy-rabbitmq:5672/"
+  
+  # CDN
+  BUNNY_CDN_URL: "https://gracefy-cdn.b-cdn.net"
+  
+  # CORS
+  CORS_ORIGINS: "*"
+  
+  # Cache TTL settings
+  CACHE_TTL_HOME: "60"
+  CACHE_TTL_ALBUMS: "120"
+  CACHE_TTL_DEFAULT: "60"
+  
+  # Auto-scaling thresholds
+  TRAFFIC_LOW_THRESHOLD: "50"
+  TRAFFIC_MEDIUM_THRESHOLD: "150"
+  TRAFFIC_HIGH_THRESHOLD: "300"
+
+---
+# Gracefy Secrets (template - actual values should be managed securely)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gracefy-secrets
+type: Opaque
+stringData:
+  # MongoDB connection string
+  MONGO_URL: "mongodb://mongodb:27017"
+  
+  # RabbitMQ credentials
+  RABBITMQ_USER: "gracefy"
+  RABBITMQ_PASS: "change-in-production"
+  
+  # API Keys (replace with actual keys)
+  # BUNNY_API_KEY: "your-bunny-api-key"
+  # AZAMPAY_CLIENT_ID: "your-azampay-client-id"
+  # AZAMPAY_CLIENT_SECRET: "your-azampay-client-secret"
+  # MIA_SMS_API_TOKEN: "your-mia-sms-token"
