@@ -386,7 +386,7 @@ const useAudioPlayer = () => {
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('canplay', onCanPlay);
     };
-  }, [currentSong, currentAlbum, queue, queueIndex, repeat, shuffle, savePlaybackState, playFromQueueInternal]);
+  }, [currentSong, savePlaybackState, playFromQueueInternal]); // Removed stale state dependencies, using refs instead
 
   const playFromQueue = useCallback((index) => {
     playFromQueueInternal(index, queue);
