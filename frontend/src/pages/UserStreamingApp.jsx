@@ -4207,33 +4207,47 @@ export default function UserStreamingApp() {
                       {/* Songs Grid Section */}
                       {isSongsSection && (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                          {items.slice(0, 20).map(song => (
-                            <div
-                              key={song.song_id}
-                              className="bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
-                              onClick={() => {
-                                // Play this song
-                                if (playSong) playSong(song, null, [song]);
-                              }}
-                            >
-                              <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-zinc-700 to-zinc-800 relative">
-                                {song.thumbnail ? (
-                                  <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Music2 className="w-8 h-8 text-zinc-600" />
-                                  </div>
-                                )}
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                                    <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                          {items.slice(0, 20).map(song => {
+                            // Fix thumbnail URL - handle relative paths and CDN URLs
+                            const thumbnailUrl = song.thumbnail 
+                              ? (song.thumbnail.startsWith('http') 
+                                ? song.thumbnail 
+                                : `${process.env.REACT_APP_BACKEND_URL}${song.thumbnail}${song.thumbnail.includes('/stream') ? '' : '/stream'}`)
+                              : null;
+                            
+                            return (
+                              <div
+                                key={song.song_id}
+                                className="bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
+                                onClick={() => {
+                                  // Play this song
+                                  if (playSong) playSong(song, null, [song]);
+                                }}
+                              >
+                                <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-zinc-700 to-zinc-800 relative">
+                                  {thumbnailUrl ? (
+                                    <img 
+                                      src={thumbnailUrl} 
+                                      alt={song.title} 
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Music2 className="w-8 h-8 text-zinc-600" />
+                                    </div>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                                      <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                    </div>
                                   </div>
                                 </div>
+                                <h3 className="font-medium text-sm truncate">{song.title}</h3>
+                                <p className="text-xs text-zinc-400 truncate">{song.artist_name || 'Unknown Artist'}</p>
                               </div>
-                              <h3 className="font-medium text-sm truncate">{song.title}</h3>
-                              <p className="text-xs text-zinc-400 truncate">{song.artist_name}</p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
