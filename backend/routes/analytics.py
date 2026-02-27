@@ -200,8 +200,10 @@ async def get_user_demographics():
     current_year = datetime.now().year
     
     for user in app_users:
-        # Location
+        # Location - handle both string and dict formats
         location = user.get("location") or user.get("country") or "Unknown"
+        if isinstance(location, dict):
+            location = location.get("country") or location.get("name") or "Unknown"
         location_stats[location] = location_stats.get(location, 0) + 1
         
         # Age calculation
