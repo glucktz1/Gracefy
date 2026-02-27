@@ -3750,6 +3750,12 @@ export default function UserStreamingApp() {
   };
 
   const handlePlaySong = (song, album, allSongs, index) => {
+    // Check guest play limit first
+    if (!checkGuestPlayLimit()) return;
+    
+    // Increment play count for guests
+    incrementGuestPlayCount();
+    
     const queue = allSongs.map(s => ({ song: s, album }));
     player.playSong(song, album, queue, index);
   };
