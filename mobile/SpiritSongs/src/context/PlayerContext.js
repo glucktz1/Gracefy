@@ -585,18 +585,36 @@ export const PlayerProvider = ({ children }) => {
   };
 
   /**
-   * Skip to next track
+   * Skip to next track - optimized for speed
    */
   const skipNext = async () => {
     if (!setupCompleteRef.current) return;
 
     try {
-      const queue = await TrackPlayer.getQueue();
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
+      const queueLength = queueRef.current.length;
 
-      if (currentIndex !== null && currentIndex < queue.length - 1) {
+      if (currentIndex !== null && currentIndex < queueLength - 1) {
+        // Pre-update UI state for faster response
+        const nextTrack = queueRef.current[currentIndex + 1];
+        if (nextTrack) {
+          setQueueIndex(currentIndex + 1);
+          setCurrentTrack({
+            ...nextTrack,
+            thumbnail: nextTrack.thumbnail || nextTrack.album_thumbnail,
+          });
+        }
         await TrackPlayer.skipToNext();
-      } else if (repeat === 'all' && queue.length > 0) {
+      } else if (repeat === 'all' && queueLength > 0) {
+        // Pre-update UI state
+        const firstTrack = queueRef.current[0];
+        if (firstTrack) {
+          setQueueIndex(0);
+          setCurrentTrack({
+            ...firstTrack,
+            thumbnail: firstTrack.thumbnail || firstTrack.album_thumbnail,
+          });
+        }
         await TrackPlayer.skip(0);
         await TrackPlayer.play();
       }
