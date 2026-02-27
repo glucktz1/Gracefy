@@ -4366,7 +4366,7 @@ export default function UserStreamingApp() {
                       {/* Album Sections */}
                       {isAlbumSection && (
                         <>
-                          {/* Layout 0: Wide Cards (Carousel) */}
+                          {/* Layout 0: Wide Cards (Carousel) for first featured_albums */}
                           {layoutType === 0 && section.section_type === 'featured_albums' && (
                             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                               {items.slice(0, 5).map(album => (
@@ -4375,8 +4375,17 @@ export default function UserStreamingApp() {
                             </div>
                           )}
 
-                          {/* Layout 1: Standard Cards (default) */}
-                          {(layoutType === 1 || (layoutType === 0 && section.section_type !== 'featured_albums') || section.section_type === 'seasonal' || section.section_type === 'quick_access') && (
+                          {/* Standard Cards - default for most album sections including featured_albums */}
+                          {(section.section_type === 'featured_albums' && layoutType !== 0) && (
+                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                              {items.slice(0, 10).map(album => (
+                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} availableTags={availableTags} />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Layout 1: Standard Cards for non-featured_albums */}
+                          {(layoutType === 1 || section.section_type === 'seasonal' || section.section_type === 'quick_access' || section.section_type === 'trending') && section.section_type !== 'featured_albums' && (
                             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
                               {items.slice(0, 10).map(album => (
                                 <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} availableTags={availableTags} />
@@ -4385,7 +4394,7 @@ export default function UserStreamingApp() {
                           )}
 
                           {/* Layout 2: Compact List */}
-                          {layoutType === 2 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && (
+                          {layoutType === 2 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && section.section_type !== 'featured_albums' && section.section_type !== 'trending' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                               {items.slice(0, 6).map((album, i) => (
                                 <ListItem 
@@ -4401,10 +4410,19 @@ export default function UserStreamingApp() {
                           )}
 
                           {/* Layout 3: Grid */}
-                          {layoutType === 3 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && (
+                          {layoutType === 3 && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && section.section_type !== 'featured_albums' && section.section_type !== 'trending' && (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                               {items.slice(0, 10).map(album => (
                                 <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} size="sm" availableTags={availableTags} />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Default layout for other album sections */}
+                          {layoutType === 0 && section.section_type !== 'featured_albums' && section.section_type !== 'seasonal' && section.section_type !== 'quick_access' && section.section_type !== 'trending' && (
+                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                              {items.slice(0, 10).map(album => (
+                                <AlbumCard key={album.album_id} album={album} onOpen={openAlbum} availableTags={availableTags} />
                               ))}
                             </div>
                           )}
