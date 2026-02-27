@@ -194,8 +194,11 @@ const useAudioPlayer = () => {
     if (index < 0 || index >= q.length) return;
     const item = q[index];
     const song = item.song || item;
-    // Use album from queue item, or fall back to current album ref (not stale state)
+    // Get album from queue item first, ensuring we use the right album for each song
     const album = item.album || currentAlbumRef.current || currentAlbum;
+    
+    // Debug log for thumbnail issues
+    console.log('[Player] Playing:', song.title, 'Album:', album?.title, 'Thumbnail:', album?.thumbnail || song?.thumbnail);
     
     setQueueIndex(index);
     setCurrentSong(song);
@@ -206,7 +209,14 @@ const useAudioPlayer = () => {
 
     // Update MediaSession for lock screen controls with new song metadata
     if ('mediaSession' in navigator && song) {
-      const artworkUrl = getImageUrl(album?.thumbnail || album?.thumbnail_url || song?.thumbnail || song?.thumbnail_url);
+      // Get thumbnail from multiple possible sources
+      const artworkUrl = getImageUrl(
+        album?.thumbnail || 
+        album?.thumbnail_url || 
+        song?.thumbnail || 
+        song?.thumbnail_url ||
+        song?.album_thumbnail
+      );
       navigator.mediaSession.metadata = new MediaMetadata({
         title: song.title || 'Unknown Track',
         artist: album?.artist_name || song?.artist_name || 'Gracefy',
