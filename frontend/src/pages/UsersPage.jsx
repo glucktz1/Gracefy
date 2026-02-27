@@ -388,6 +388,9 @@ export default function UsersPage() {
             <TabsTrigger value="listening" className="data-[state=active]:bg-violet-600">
               Listening History
             </TabsTrigger>
+            <TabsTrigger value="downloads" className="data-[state=active]:bg-violet-600">
+              Downloads
+            </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-violet-600">
               Transactions
             </TabsTrigger>
