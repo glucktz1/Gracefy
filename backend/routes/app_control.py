@@ -99,6 +99,39 @@ async def delete_crash_report(report_id: str):
     return {"success": True}
 
 
+@router.get("/app-settings")
+async def get_public_app_settings():
+    """Get public app settings for the frontend"""
+    db = get_db()
+    
+    # Get guest limits
+    guest_limits = await db.app_settings.find_one(
+        {"setting_type": "guest_limits"},
+        {"_id": 0}
+    )
+    
+    # Get billing settings
+    billing = await db.app_settings.find_one(
+        {"setting_type": "billing"},
+        {"_id": 0}
+    )
+    
+    defaults = {
+        "max_plays": 3,
+        "max_skips": 3,
+        "max_listen_minutes": 10
+    }
+    
+    config = guest_limits.get("config", defaults) if guest_limits else defaults
+    
+    return {
+        "guest_play_limit": config.get("max_plays", 3),
+        "guest_skip_limit": config.get("max_skips", 3),
+        "guest_listen_minutes": config.get("max_listen_minutes", 10),
+        "billing_enabled": billing.get("enabled", False) if billing else False
+    }
+
+
 @router.get("/admin/app-settings")
 async def get_app_settings():
     """Get app settings and configuration"""
