@@ -261,6 +261,7 @@ export default function TeachingsPage() {
       leader_name: teaching.leader_name || "",
       category_id: teaching.category_id || "",
       category_name: teaching.category_name || "",
+      song_category_id: teaching.song_category_id || "",
       monetization_type: teaching.monetization_type || "free",
       release_date: teaching.release_date || "",
       status: teaching.status || "draft",
