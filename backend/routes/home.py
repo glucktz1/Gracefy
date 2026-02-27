@@ -270,10 +270,14 @@ async def fetch_section_content(db, section: dict) -> dict:
         link_category_ids = section.get("link_category_ids", [])
         link_category_id = section.get("link_category_id")
         
+        logger.info(f"Teachings section: link_category_id={link_category_id}, link_category_ids={link_category_ids}")
+        
         if link_category_ids:
             query["song_category_id"] = {"$in": link_category_ids}
         elif link_category_id:
             query["song_category_id"] = link_category_id
+        
+        logger.info(f"Teachings query: {query}")
         
         # Fetch teachings with topics and lesson counts
         teachings = await db.teachings.find(
@@ -281,6 +285,8 @@ async def fetch_section_content(db, section: dict) -> dict:
             {"_id": 0, "teaching_id": 1, "title": 1, "title_sw": 1, "thumbnail": 1, 
              "leader_name": 1, "leader_id": 1, "category_id": 1, "song_category_id": 1, "description": 1}
         ).sort("created_at", -1).limit(content_count).to_list(content_count)
+        
+        logger.info(f"Teachings found: {len(teachings)}")
         
         # Enrich with topic and lesson counts
         for teaching in teachings:
