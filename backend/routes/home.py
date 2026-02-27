@@ -206,11 +206,29 @@ async def fetch_section_content(db, section: dict) -> dict:
         section_data["content_type"] = "categories"
         
     elif section_type == "trending":
-        # Trending shows most played albums
-        items = await db.albums.find(
-            {"status": "active"},
-            ALBUM_LIST_PROJECTION
-        ).sort("total_plays", -1).limit(content_count).to_list(content_count)
+        # Trending shows most played albums based on total_plays or stream counts
+        section_name_lower = section.get("name", "").lower()
+        
+        if "most_listened" in section_name_lower or "zilizosikilizwa" in section.get("display_name_sw", "").lower():
+            # Most listened - sort by total_plays descending
+            items = await db.albums.find(
+                {"status": "active", "total_plays": {"$gt": 0}},
+                ALBUM_LIST_PROJECTION
+            ).sort("total_plays", -1).limit(content_count).to_list(content_count)
+            
+            # If no albums with plays, get recent albums
+            if not items:
+                items = await db.albums.find(
+                    {"status": "active"},
+                    ALBUM_LIST_PROJECTION
+                ).sort("created_at", -1).limit(content_count).to_list(content_count)
+        else:
+            # Default trending - most played
+            items = await db.albums.find(
+                {"status": "active"},
+                ALBUM_LIST_PROJECTION
+            ).sort("total_plays", -1).limit(content_count).to_list(content_count)
+        
         section_data["items"] = optimize_thumbnails(items)
         section_data["content_type"] = "albums"
         
