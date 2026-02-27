@@ -843,6 +843,32 @@ export default function TeachingsPage() {
               </Select>
             </div>
 
+            {/* Content Category (for layout section linking) */}
+            <div>
+              <label className="text-sm text-zinc-400 block mb-1">Content Category (for home page display)</label>
+              <Select
+                value={teachingForm.song_category_id || "none"}
+                onValueChange={(val) => {
+                  setTeachingForm({ ...teachingForm, song_category_id: val === "none" ? "" : val });
+                }}
+              >
+                <SelectTrigger className="bg-zinc-950 border-zinc-800">
+                  <SelectValue placeholder="Select content category" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="none">None</SelectItem>
+                  {songCategories.map((cat) => (
+                    <SelectItem key={cat.song_category_id} value={cat.song_category_id}>
+                      {cat.name} {cat.name_sw && cat.name_sw !== cat.name ? `(${cat.name_sw})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-zinc-500 mt-1">
+                Linking to a content category will make this teaching appear in layout sections mapped to that category
+              </p>
+            </div>
+
             {/* Monetization & Status */}
             <div className="grid grid-cols-2 gap-3">
               <div>
