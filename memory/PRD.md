@@ -802,6 +802,21 @@ REACT_APP_BACKEND_URL=https://faithsongs-app.preview.emergentagent.com
 - [x] Root cause: FastAPI Query default parameter not passed correctly when calling internally
 - [x] Solution: Explicitly pass `platform="app"` in `get_home_app()` function
 
+### Session Update: Song Metadata + Mobile Performance (Feb 27, 2026)
+- [x] **Song Metadata Fix on Track Change (Web):**
+  - Fixed `playFromQueueInternal` to update MediaSession metadata when transitioning to next song
+  - Album art, title, and artist now correctly update in browser notification controls
+  - Added immediate `currentAlbumRef` update for UI consistency
+- [x] **Mobile HomeScreen FlatList Refactor:**
+  - Converted from ScrollView to FlatList for virtualized rendering
+  - Added `useMemo` for building section data efficiently
+  - Implemented `maxToRenderPerBatch`, `windowSize`, `initialNumToRender` optimizations
+  - Each section now renders independently for better performance
+  - Version bumped to 1.0.134
+- [x] **Mobile Build Trigger:**
+  - Build requires EAS login as `gracefy2` account owner
+  - Instructions provided for manual build trigger
+
 ### Session Update: Legal & Compliance + Category Fix (Feb 26, 2026)
 - [x] **Legal & Compliance Feature Complete**:
   - Added LegalPageView component to UserStreamingApp.jsx
