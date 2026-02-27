@@ -513,6 +513,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.lg,
   },
+  logoImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
+  },
   illustrationGradient: {
     width: 80,
     height: 80,
