@@ -106,7 +106,6 @@ async def fetch_section_content(db, section: dict) -> dict:
     # This works for sections with content_source='category' OR sections with link_category_id set
     # BUT only for album-type sections, not for teachings
     link_category_id = section.get("link_category_id") or section.get("category_id")
-    content_source = section.get("content_source", "")
     
     # Check if this section should fetch ALBUMS by category (only for album-type sections)
     should_fetch_albums_by_category = link_category_id and (
