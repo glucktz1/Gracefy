@@ -139,23 +139,26 @@ export default function UsersPage() {
 
   const fetchUserDetails = async (userId) => {
     try {
-      const [profileRes, historyRes, transactionsRes] = await Promise.all([
+      const [profileRes, historyRes, transactionsRes, downloadsRes] = await Promise.all([
         axios.get(`${API}/admin/users/${userId}`, { withCredentials: true }).catch(() => null),
         axios.get(`${API}/admin/users/${userId}/listening-history`, { withCredentials: true }).catch(() => ({ data: { history: [] } })),
-        axios.get(`${API}/admin/users/${userId}/transactions`, { withCredentials: true }).catch(() => ({ data: { transactions: [] } }))
+        axios.get(`${API}/admin/users/${userId}/transactions`, { withCredentials: true }).catch(() => ({ data: { transactions: [] } })),
+        axios.get(`${API}/admin/users/${userId}/downloads`, { withCredentials: true }).catch(() => ({ data: { downloads: [] } }))
       ]);
       
       setUserDetails({
         profile: profileRes?.data || viewingUser,
         listeningHistory: historyRes?.data?.history || [],
-        transactions: transactionsRes?.data?.transactions || []
+        transactions: transactionsRes?.data?.transactions || [],
+        downloads: downloadsRes?.data?.downloads || []
       });
     } catch (error) {
       console.error("Error fetching user details:", error);
       setUserDetails({
         profile: viewingUser,
         listeningHistory: [],
-        transactions: []
+        transactions: [],
+        downloads: []
       });
     }
   };
