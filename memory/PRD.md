@@ -903,6 +903,19 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
   - "Nasikia Yesu waniita" now correctly shows only in "Kusifu na Kuabudu" (Praise & Worship)
   - Lent section now properly filters to show only Lent-tagged albums (8 albums)
 
+## Session Update: Feb 27, 2026
+
+### Web App Swahili Filters - COMPLETE
+- [x] Fixed category filter pills to display Swahili names (`name_sw`) when language is set to Swahili
+- [x] Updated `QuickAccessCard` component to accept `language` prop and display Swahili names
+- [x] Updated category filter header to show Swahili name in filtered view
+- [x] Filters now correctly show: "Kusifu & Kuabudu", "Ekarist", "Roho Mtakatifu", "Bikira Maria", "Shukrani", etc.
+
+### Verified Working Features
+- [x] Radio stations already display as single horizontal row
+- [x] Web player metadata (song title, artist, thumbnail) updates correctly
+- [x] Guest play limit logic implemented (respects billing status)
+
 ## Remaining Tasks
 
 ### P0 - Critical
@@ -912,14 +925,14 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
 
 ### P1 - High Priority
 - [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
-- [ ] Web App Filters display in Swahili
-- [ ] Song metadata not updating on track change (web player)
-- [ ] Mobile App Scrolling Performance (refactor ScrollView to FlatList)
+- [x] ~~Web App Filters display in Swahili~~ - COMPLETED Feb 27, 2026
+- [x] ~~Song metadata not updating on track change (web player)~~ - VERIFIED WORKING
+- [ ] Mobile App Scrolling Performance - Build v1.0.136 ready (FlatList refactor included)
 - [ ] Admin Payment Notifications (real-time beep alerts)
-- [ ] Layout Manager Sync Verification (build v1.0.132 needs user testing)
+- [ ] Layout Manager Sync Verification (build v1.0.136 needs user testing)
 
 ### P2 - Medium Priority
-- [ ] Radio stations single row on web home page
+- [x] ~~Radio stations single row on web home page~~ - ALREADY WORKING
 - [ ] Audio Ad System (admin configurable frequency)
 - [ ] Complete Advertising & Campaigns module
 - [ ] Implement Firebase push notifications
