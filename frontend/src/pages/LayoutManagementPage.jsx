@@ -1431,8 +1431,9 @@ export default function LayoutManagementPage() {
       link_target: section.link_target || "",
       layout_style: section.layout_style || "horizontal_small",
       quick_access_items: section.quick_access_items || [],
-      content_source: section.link_category_id ? "category" : "manual",
-      link_category_id: section.link_category_id || ""
+      content_source: section.link_category_id || (section.link_category_ids && section.link_category_ids.length > 0) ? "category" : "manual",
+      link_category_id: section.link_category_id || "",
+      link_category_ids: section.link_category_ids || []
     });
     setIsSectionModalOpen(true);
   };
@@ -1446,7 +1447,8 @@ export default function LayoutManagementPage() {
       layout_style: "horizontal_small",
       quick_access_items: [],
       content_source: "manual",
-      link_category_id: ""
+      link_category_id: "",
+      link_category_ids: []
     });
   };
 
