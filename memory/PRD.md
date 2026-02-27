@@ -802,6 +802,31 @@ REACT_APP_BACKEND_URL=https://faithsongs-app.preview.emergentagent.com
 - [x] Root cause: FastAPI Query default parameter not passed correctly when calling internally
 - [x] Solution: Explicitly pass `platform="app"` in `get_home_app()` function
 
+### Session Update: User History, Analytics & Mobile Build (Feb 27, 2026)
+- [x] **User Listening History Fix:**
+  - Updated `/api/admin/users/{user_id}/listening-history` to return enriched data
+  - Added song_title, artist_name, thumbnail, duration_listened fields
+  - Updated UsersPage.jsx to display thumbnails and proper formatting
+  - Note: Listening history is empty because no play sessions exist yet
+- [x] **Analytics Demographics Fix:**
+  - Fixed `TypeError: unhashable type: 'dict'` in user-demographics endpoint
+  - Now handles location as both string and dict formats
+- [x] **Added Logos to Login Pages:**
+  - ChoirLoginPage.jsx - Added BrandLogo component
+  - ChurchLeaderLoginPage.jsx - Added BrandLogo component
+  - LeaderLoginPage.jsx - Already had BrandLogo (verified)
+- [x] **Verified Analytics APIs Working:**
+  - /api/analytics/overview ✅
+  - /api/analytics/user-demographics ✅
+  - /api/analytics/location/overview ✅
+  - /api/analytics/revenue ✅
+  - /api/admin/transactions ✅
+  - /api/withdrawal/requests ✅
+- [x] **Mobile App Build v1.0.134 Complete:**
+  - APK: https://expo.dev/artifacts/eas/oyEB7fxvVBWcKtqjPyBses.apk
+  - Includes FlatList refactor for better scrolling performance
+  - Purple splash screen background
+
 ### Session Update: Song Metadata + Mobile Performance (Feb 27, 2026)
 - [x] **Song Metadata Fix on Track Change (Web):**
   - Fixed `playFromQueueInternal` to update MediaSession metadata when transitioning to next song
