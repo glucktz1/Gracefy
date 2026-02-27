@@ -101,7 +101,7 @@ export default function UsersPage() {
         register_by: registerByFilter !== "all" ? registerByFilter : undefined,
       };
       
-      const response = await axios.get(`${API}/admin/users`, {
+      const response = await axios.get(`${API}/admin/all-users`, {
         params,
         withCredentials: true
       });
