@@ -494,24 +494,38 @@ export default function UsersPage() {
                 <CardTitle className="text-white text-lg flex items-center gap-2">
                   <Music2 size={18} className="text-violet-400" /> Listening History
                 </CardTitle>
+                <p className="text-xs text-zinc-500">Recent songs and content consumed by this user</p>
               </CardHeader>
               <CardContent>
                 {userDetails?.listeningHistory?.length > 0 ? (
                   <div className="space-y-2">
-                    {userDetails.listeningHistory.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg">
+                    {userDetails.listeningHistory.slice(0, 15).map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg hover:bg-zinc-800/50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
-                            <Music2 size={16} className="text-zinc-400" />
-                          </div>
+                          {item.thumbnail ? (
+                            <img src={item.thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-zinc-700 flex items-center justify-center">
+                              <Music2 size={20} className="text-zinc-400" />
+                            </div>
+                          )}
                           <div>
-                            <p className="text-white font-medium">{item.song_title || item.title}</p>
+                            <p className="text-white font-medium">{item.song_title || item.title || "Unknown Track"}</p>
                             <p className="text-xs text-zinc-500">{item.artist_name || "Unknown Artist"}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-zinc-700 text-zinc-400">
+                                {item.content_type || "song"}
+                              </Badge>
+                              <span className="text-[10px] text-zinc-600">{item.platform || "web"}</span>
+                            </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-zinc-400">{item.duration_listened || "-"}</p>
-                          <p className="text-xs text-zinc-500">{formatDateTime(item.listened_at)}</p>
+                          <p className="text-sm text-emerald-400 font-medium">{item.duration_listened || "-"}</p>
+                          <p className="text-xs text-zinc-500">{formatDateTime(item.listened_at || item.start_time)}</p>
+                          {item.counted_as_play && (
+                            <Badge className="bg-violet-500/20 text-violet-400 text-[10px] mt-1">Counted</Badge>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -520,6 +534,7 @@ export default function UsersPage() {
                   <div className="text-center py-8 text-zinc-500">
                     <Music2 size={48} className="mx-auto mb-3 opacity-30" />
                     <p>No listening history available</p>
+                    <p className="text-xs mt-1">User hasn't played any content yet</p>
                   </div>
                 )}
               </CardContent>
