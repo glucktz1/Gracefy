@@ -534,7 +534,7 @@ const useAudioPlayer = () => {
 // ==================== COMPONENTS ====================
 
 // Quick Access Card - Spotify-style compact tile
-const QuickAccessCard = ({ item, onClick }) => {
+const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
   // Determine icon and gradient based on item type
   let IconComponent = categoryIcons[item.name?.toLowerCase()] || categoryIcons.default;
   let gradient = 'from-emerald-600 to-teal-700';
@@ -556,6 +556,9 @@ const QuickAccessCard = ({ item, onClick }) => {
   
   const thumbUrl = getThumbnail(item);
   
+  // Get display name - prefer Swahili when language is 'sw' and name_sw exists
+  const displayName = (language === 'sw' && item.name_sw) ? item.name_sw : (item.name || item.title);
+  
   return (
     <button
       onClick={onClick}
@@ -569,7 +572,7 @@ const QuickAccessCard = ({ item, onClick }) => {
           <IconComponent size={22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
       </div>
-      <span className="font-semibold text-sm text-white pr-3 truncate">{item.name || item.title}</span>
+      <span className="font-semibold text-sm text-white pr-3 truncate">{displayName}</span>
     </button>
   );
 };
