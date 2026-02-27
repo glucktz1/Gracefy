@@ -116,6 +116,12 @@ async def get_public_app_settings():
         {"_id": 0}
     )
     
+    # Get app config with store links
+    app_config = await db.app_settings.find_one(
+        {"setting_type": "app_config"},
+        {"_id": 0}
+    )
+    
     defaults = {
         "max_plays": 3,
         "max_skips": 3,
@@ -123,12 +129,16 @@ async def get_public_app_settings():
     }
     
     config = guest_limits.get("config", defaults) if guest_limits else defaults
+    app_settings = app_config.get("config", {}) if app_config else {}
     
     return {
         "guest_play_limit": config.get("max_plays", 3),
         "guest_skip_limit": config.get("max_skips", 3),
         "guest_listen_minutes": config.get("max_listen_minutes", 10),
-        "billing_enabled": billing.get("enabled", False) if billing else False
+        "billing_enabled": billing.get("enabled", False) if billing else False,
+        "playstore_url": app_settings.get("playstore_url", "https://play.google.com/store/apps/details?id=com.gracefy.app"),
+        "appstore_url": app_settings.get("appstore_url", ""),
+        "app_download_message": app_settings.get("app_download_message", "")
     }
 
 
