@@ -260,6 +260,35 @@ async def fetch_section_content(db, section: dict) -> dict:
             item.pop("songs", None)  # Remove songs array after counting
         section_data["items"] = optimize_thumbnails(items)
         section_data["content_type"] = "special_mixes"
+    
+    elif section_type == "custom":
+        # Handle custom section types based on content_type
+        custom_content_type = section.get("content_type", "")
+        
+        if custom_content_type == "radio":
+            # Fetch radio stations
+            items = await db.radio_stations.find(
+                {"status": "active"},
+                {"_id": 0, "station_id": 1, "name": 1, "thumbnail": 1, "stream_url": 1, "description": 1}
+            ).sort("listeners_count", -1).limit(content_count).to_list(content_count)
+            for item in items:
+                item["entity_type"] = "radio"
+            section_data["items"] = optimize_thumbnails(items)
+            section_data["content_type"] = "radio"
+            
+        elif custom_content_type == "songs":
+            # Fetch all songs
+            items = await db.songs.find(
+                {"status": "active"},
+                {"_id": 0, "song_id": 1, "title": 1, "thumbnail": 1, "artist_name": 1, "album_id": 1, "duration": 1, "play_count": 1}
+            ).sort("created_at", -1).limit(content_count).to_list(content_count)
+            for item in items:
+                item["entity_type"] = "song"
+            section_data["items"] = optimize_thumbnails(items)
+            section_data["content_type"] = "songs"
+        else:
+            section_data["items"] = []
+            section_data["content_type"] = "custom"
         
     elif section_type in ["sermons", "teachings", "mafundisho"]:
         # Build query - filter by category if link_category_id or link_category_ids is set
