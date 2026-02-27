@@ -905,6 +905,37 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
 
 ## Session Update: Feb 27, 2026
 
+### Home Page Reorganization - COMPLETE
+- [x] Reorganized home page sections for both app and web in specific order:
+  1. Quick Access Grid
+  2. Filters (plain text, no icons, Swahili names)
+  3. Nyimbo za Kwaresma
+  4. Nyimbo za Kusifu na Kuabudu (renamed from "Changuo")
+  5. Radio za Kikristu
+  6. Mafundisho na Katekesi
+  7. Mpya za Moto (Hot New Releases)
+  8. Biblia na Masomo
+  9. Album Zilizosikilizwa Zaidi (Most Listened - auto-populated by stream counts)
+  10. Makanisa
+  11. Neno na Tafakari
+  12. Mchanganyiko Maalumu
+  13. Nyimbo Zote (All Songs)
+- [x] Deactivated unused sections (Pasaka, Advent, Christmas, Sermons, Hero)
+- [x] Created new sections: Radio za Kikristu, Mpya za Moto, Album Zilizosikilizwa Zaidi, Nyimbo Zote
+- [x] Fixed radio stations to display (handled missing status field)
+- [x] Fixed bible content section to display
+- [x] Removed filter icons from mobile app (was showing '?')
+
+### Neno na Tafakari Section - COMPLETE
+- [x] Created "Neno na Tafakari" content category (`songcat_1d4815df580c`)
+- [x] Created new "Neno na Tafakari" section with category mapping
+- [x] Moved "Sala na shukrani" teaching to the new category
+
+### Song Thumbnail Advancement Fix
+- [x] Enhanced mobile PlayerContext to update currentTrack with thumbnail on track change event
+- [x] Enhanced web playFromQueueInternal to better extract album thumbnails from multiple sources
+- [x] Added debug logging for thumbnail issues
+
 ### Mafundisho Content Category System - COMPLETE
 - [x] Created new "Mafundisho" content category (`songcat_2735604a4457`)
 - [x] Bulk-linked all 10 existing teachings to the Mafundisho category
@@ -929,7 +960,8 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
 - [x] Radio stations already display as single horizontal row
 - [x] Web player metadata (song title, artist, thumbnail) updates correctly
 - [x] Guest play limit logic implemented (respects billing status)
-- [x] Mafundisho na Katekesi section displays 5 published teachings
+- [x] Mafundisho na Katekesi section displays 4 published teachings
+- [x] Home page sections properly ordered for app and web
 
 ## Remaining Tasks
 
@@ -949,6 +981,7 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
 ### P2 - Medium Priority
 - [x] ~~Radio stations single row on web home page~~ - ALREADY WORKING
 - [x] ~~Mafundisho content category and layout mapping~~ - COMPLETED Feb 27, 2026
+- [x] ~~Home page section reorganization~~ - COMPLETED Feb 27, 2026
 - [ ] Audio Ad System (admin configurable frequency)
 - [ ] Complete Advertising & Campaigns module
 - [ ] Implement Firebase push notifications
