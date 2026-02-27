@@ -716,6 +716,43 @@ const AppControlPage = () => {
                     className="mt-1"
                   />
                 </div>
+                
+                {/* Store Links */}
+                <div className="pt-4 border-t border-slate-700">
+                  <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                    <Download size={16} /> App Store Links
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-slate-400">Google Play Store URL</label>
+                      <Input
+                        value={appSettings.playstore_url}
+                        onChange={(e) => setAppSettings(prev => ({ ...prev, playstore_url: e.target.value }))}
+                        placeholder="https://play.google.com/store/apps/details?id=..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-400">Apple App Store URL</label>
+                      <Input
+                        value={appSettings.appstore_url}
+                        onChange={(e) => setAppSettings(prev => ({ ...prev, appstore_url: e.target.value }))}
+                        placeholder="https://apps.apple.com/app/..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-400">App Download Message (shown to web users)</label>
+                      <Input
+                        value={appSettings.app_download_message}
+                        onChange={(e) => setAppSettings(prev => ({ ...prev, app_download_message: e.target.value }))}
+                        placeholder="Download our app for a better experience!"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
                 <Button onClick={saveAppSettings} className="w-full">
                   Save App Settings
                 </Button>
