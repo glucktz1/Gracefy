@@ -615,3 +615,60 @@ async def create_lessons_bulk(teaching_id: str, topic_id: str, data: dict):
         created_lessons.append(lesson)
     
     return {"lessons": created_lessons, "count": len(created_lessons)}
+
+
+
+@router.post("/teachings/bulk-assign-category")
+async def bulk_assign_category_to_teachings(data: dict):
+    """
+    Bulk assign a song_category_id to all teachings.
+    This links teachings to the unified category system.
+    
+    Body: { "song_category_id": "songcat_xxx" }
+    """
+    db = get_db()
+    
+    song_category_id = data.get("song_category_id")
+    if not song_category_id:
+        raise HTTPException(status_code=400, detail="song_category_id is required")
+    
+    # Verify category exists
+    category = await db.song_categories.find_one({"song_category_id": song_category_id})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Update all teachings
+    result = await db.teachings.update_many(
+        {},
+        {"$set": {
+            "song_category_id": song_category_id,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {
+        "message": f"Updated {result.modified_count} teachings",
+        "category_id": song_category_id,
+        "category_name": category.get("name"),
+        "modified_count": result.modified_count
+    }
+
+
+@router.get("/teachings/by-category/{category_id}")
+async def get_teachings_by_category(category_id: str):
+    """Get all teachings linked to a specific song_category_id"""
+    db = get_db()
+    
+    teachings = await db.teachings.find(
+        {"song_category_id": category_id, "status": "published"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    # Enrich with topic and lesson counts
+    for teaching in teachings:
+        topic_count = await db.teaching_topics.count_documents({"teaching_id": teaching["teaching_id"]})
+        lesson_count = await db.teaching_lessons.count_documents({"teaching_id": teaching["teaching_id"]})
+        teaching["topic_count"] = topic_count
+        teaching["lesson_count"] = lesson_count
+    
+    return {"teachings": teachings, "count": len(teachings)}
