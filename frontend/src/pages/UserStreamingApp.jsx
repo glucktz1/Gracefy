@@ -200,7 +200,22 @@ const useAudioPlayer = () => {
     setQueueIndex(index);
     setCurrentSong(song);
     setCurrentAlbum(album);
+    // Update ref immediately so UI reflects the new album
+    currentAlbumRef.current = album;
     setIsLoading(true);
+
+    // Update MediaSession for lock screen controls with new song metadata
+    if ('mediaSession' in navigator && song) {
+      const artworkUrl = getImageUrl(album?.thumbnail || album?.thumbnail_url || song?.thumbnail || song?.thumbnail_url);
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.title || 'Unknown Track',
+        artist: album?.artist_name || song?.artist_name || 'Gracefy',
+        album: album?.title || 'Gracefy',
+        artwork: artworkUrl ? [
+          { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }
+        ] : []
+      });
+    }
 
     // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
     const audioUrl = getAudioUrl(song.audio_url);
