@@ -802,6 +802,24 @@ REACT_APP_BACKEND_URL=https://faithsongs-app.preview.emergentagent.com
 - [x] Root cause: FastAPI Query default parameter not passed correctly when calling internally
 - [x] Solution: Explicitly pass `platform="app"` in `get_home_app()` function
 
+### Session Update: User Registration & Listening History Fix (Feb 27, 2026)
+- [x] **Fixed User Registration Issue:**
+  - Root cause: Duplicate `/admin/users` routes in `auth.py` and `admin.py`
+  - `auth.py` route (protected, loaded first) only returned admin users (6 users)
+  - `admin.py` route (unprotected) returns all users but was shadowed
+  - Solution: Renamed `admin.py` endpoint to `/admin/all-users` to avoid conflict
+  - Now correctly shows **47 users** (41 app users + 6 admin users)
+- [x] **Fixed User Stats Summary:**
+  - Updated `/admin/users/stats/summary` to count both admin and app users
+  - Added breakdown by subscription type and registration method
+- [x] **Verified Listening History:**
+  - User `gudytz2000@gmail.com` has **56 listening sessions** correctly recorded
+  - Listening sessions include songs like "Nasikia Yesu waniita", "Mama Pale Msalabani"
+  - History displays with thumbnails, duration, timestamps, and "Counted" badges
+- [x] **Google Login Users:**
+  - Confirmed Google-authenticated users ARE being saved to `app_users` collection
+  - Example: `gudytz2000@gmail.com` (Goodluck Charos) correctly registered
+
 ### Session Update: User History, Analytics & Mobile Build (Feb 27, 2026)
 - [x] **User Listening History Fix:**
   - Updated `/api/admin/users/{user_id}/listening-history` to return enriched data
