@@ -657,17 +657,27 @@ async def get_geo_filtered_home(
         
         # Apply geo-filter for album-based sections
         if section_type in ["featured_albums", "new_releases", "top_albums", "albums"]:
+            # If geo filtering is enabled but no content is tagged
+            # OR there's no geo setup at all, show all content
             query = {"status": "active"}
             
-            if allowed_content_ids:
-                # Filter by country-tagged content OR default fallback
+            if allowed_content_ids and not using_fallback:
+                # Only apply geo filter if we have valid geo content IDs
                 query["$or"] = [
                     {"album_id": {"$in": allowed_content_ids}},
-                    {"is_geo_default": True}
+                    {"is_geo_default": True},
+                    {"country_codes": {"$exists": False}},  # Include content with no country restrictions
+                    {"country_codes": {"$in": ["GLOBAL", user_country]}}
                 ]
-            elif using_fallback:
-                # Only show default fallback content
-                query["is_geo_default"] = True
+            # else: show all active content (no additional filter)
+            
+            # Use category filter if section has linked category
+            link_category_id = section.get("link_category_id")
+            if link_category_id:
+                query["$or"] = [
+                    {"category_id": link_category_id},
+                    {"song_category_id": link_category_id}
+                ]
             
             items = await db.albums.find(
                 query,
@@ -680,13 +690,14 @@ async def get_geo_filtered_home(
         elif section_type in ["trending", "most_played"]:
             query = {"status": "active"}
             
-            if allowed_content_ids:
+            # Same logic - be permissive with geo filtering
+            if allowed_content_ids and not using_fallback:
                 query["$or"] = [
                     {"album_id": {"$in": allowed_content_ids}},
-                    {"is_geo_default": True}
+                    {"is_geo_default": True},
+                    {"country_codes": {"$exists": False}},
+                    {"country_codes": {"$in": ["GLOBAL", user_country]}}
                 ]
-            elif using_fallback:
-                query["is_geo_default"] = True
             
             items = await db.albums.find(
                 query,
