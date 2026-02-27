@@ -1262,7 +1262,8 @@ export default function LayoutManagementPage() {
     layout_style: "horizontal_small",
     quick_access_items: [],
     content_source: "manual", // "manual" or "category"
-    link_category_id: ""
+    link_category_id: "",
+    link_category_ids: [] // Support for multiple categories
   });
 
   const [burnerForm, setBurnerForm] = useState({
