@@ -249,7 +249,7 @@ async def update_translations(lang: str, data: dict):
 
 # ============== USER MANAGEMENT ==============
 
-@router.get("/admin/users")
+@router.get("/admin/all-users")
 async def get_admin_users(
     role: Optional[str] = None,
     status: Optional[str] = None,
