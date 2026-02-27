@@ -375,8 +375,16 @@ export const PlayerProvider = ({ children }) => {
           setQueueIndex(idx);
         }
         if (!currentTrack || currentTrack.song_id !== queue[idx].song_id) {
-          setCurrentTrack(queue[idx]);
-          checkLikedStatus(queue[idx].song_id);
+          // Update current track with full info from queue
+          const trackFromQueue = queue[idx];
+          // Also try to get artwork from activeTrack if queue item doesn't have it
+          const updatedTrack = {
+            ...trackFromQueue,
+            thumbnail: trackFromQueue.thumbnail || trackFromQueue.album_thumbnail || trackFromQueue.cover_url || activeTrack?.artwork,
+            album_thumbnail: trackFromQueue.album_thumbnail || trackFromQueue.thumbnail || activeTrack?.artwork,
+          };
+          setCurrentTrack(updatedTrack);
+          checkLikedStatus(updatedTrack.song_id);
         }
       }
     }
