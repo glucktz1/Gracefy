@@ -582,21 +582,43 @@ async def create_admin_user(data: dict):
 
 @router.get("/admin/users/stats/summary")
 async def get_user_stats_summary():
-    """Get user statistics summary"""
+    """Get user statistics summary - includes both admin and app users"""
     db = get_db()
     
-    total = await db.users.count_documents({})
-    by_role = await db.users.aggregate([
+    # Count admin users
+    admin_total = await db.users.count_documents({})
+    admin_by_role = await db.users.aggregate([
         {"$group": {"_id": "$role", "count": {"$sum": 1}}}
     ]).to_list(20)
-    by_status = await db.users.aggregate([
+    admin_by_status = await db.users.aggregate([
         {"$group": {"_id": "$status", "count": {"$sum": 1}}}
     ]).to_list(10)
     
+    # Count app users
+    app_total = await db.app_users.count_documents({})
+    app_by_subscription = await db.app_users.aggregate([
+        {"$group": {"_id": "$subscription_type", "count": {"$sum": 1}}}
+    ]).to_list(10)
+    app_by_status = await db.app_users.aggregate([
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]).to_list(10)
+    
+    # Count app users by registration method
+    app_by_register = await db.app_users.aggregate([
+        {"$group": {"_id": {"$ifNull": ["$register_by", "email"]}, "count": {"$sum": 1}}}
+    ]).to_list(10)
+    
     return {
-        "total": total,
-        "by_role": {r["_id"]: r["count"] for r in by_role},
-        "by_status": {s["_id"]: s["count"] for s in by_status}
+        "total": admin_total + app_total,
+        "admin_users": admin_total,
+        "app_users": app_total,
+        "by_role": {r["_id"]: r["count"] for r in admin_by_role},
+        "by_status": {
+            **({"admin_" + str(s["_id"]): s["count"] for s in admin_by_status}),
+            **({"app_" + str(s["_id"]): s["count"] for s in app_by_status})
+        },
+        "by_subscription": {str(s["_id"] or "free"): s["count"] for s in app_by_subscription},
+        "by_register_method": {str(r["_id"]): r["count"] for r in app_by_register}
     }
 
 
