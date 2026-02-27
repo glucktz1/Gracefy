@@ -802,6 +802,34 @@ REACT_APP_BACKEND_URL=https://faithsongs-app.preview.emergentagent.com
 - [x] Root cause: FastAPI Query default parameter not passed correctly when calling internally
 - [x] Solution: Explicitly pass `platform="app"` in `get_home_app()` function
 
+### Session Update: Guest Play Limits, Downloads Tab & Mobile Legal (Feb 27, 2026)
+- [x] **Users with Listening History:**
+  - anonymous: 275 sessions (guest plays)
+  - user_00c70ed2816c (gudytz2000@gmail.com): 56 sessions
+  - gluck@gmail.com: 37 sessions
+  - And more users with 1-140 sessions each
+- [x] **Added Downloads Tab to User Profile:**
+  - New `/api/admin/users/{user_id}/downloads` endpoint
+  - Shows downloaded songs with thumbnail, title, artist
+  - Displays "No downloaded songs" if empty
+- [x] **Guest Play Limit Feature:**
+  - Added `guestPlayCount` and `guestPlayLimit` state tracking
+  - Persists to localStorage for guest users
+  - Shows GuestLimitModal when limit reached (default: 3 plays)
+  - Respects billing on/off setting
+- [x] **Billing Logic Respect:**
+  - When billing OFF: everyone is premium, unlimited plays
+  - When billing ON: guest limits enforced, premium features restricted
+  - Added `/api/app-settings` public endpoint for frontend
+- [x] **Mobile Legal Screens:**
+  - Created LegalScreen.js component for Terms/Privacy
+  - Added navigation from ProfileScreen to Legal pages
+  - Fetches content from `/api/legal/{page_id}` endpoint
+  - Supports English and Swahili
+- [x] **Mobile Build v1.0.135 Triggered:**
+  - Build ID: b1f3bf55-ae16-4c17-95cf-64a9999bc98f
+  - Includes Legal screens and FlatList optimizations
+
 ### Session Update: User Registration & Listening History Fix (Feb 27, 2026)
 - [x] **Fixed User Registration Issue:**
   - Root cause: Duplicate `/admin/users` routes in `auth.py` and `admin.py`
