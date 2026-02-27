@@ -4076,7 +4076,7 @@ export default function UserStreamingApp() {
                         onClick={() => handleCategorySelect(cat)}
                         className="px-4 py-2 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 text-sm font-medium whitespace-nowrap"
                       >
-                        {cat.name}
+                        {language === 'sw' && cat.name_sw ? cat.name_sw : cat.name}
                       </button>
                     ))}
                   </div>
@@ -4089,7 +4089,7 @@ export default function UserStreamingApp() {
                       <button onClick={() => setActiveCategory(null)} className="text-zinc-400 hover:text-white">
                         <ChevronLeft size={24} />
                       </button>
-                      <h2 className="text-xl font-bold">{activeCategory.name}</h2>
+                      <h2 className="text-xl font-bold">{language === 'sw' && activeCategory.name_sw ? activeCategory.name_sw : activeCategory.name}</h2>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                       {categoryAlbums.map(album => (
