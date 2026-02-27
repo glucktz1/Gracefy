@@ -181,6 +181,7 @@ async def create_teaching(data: dict):
         "leader_name": data.get("leader_name"),
         "category_id": data.get("category_id"),
         "category_name": data.get("category_name"),
+        "song_category_id": data.get("song_category_id"),  # Link to unified category system
         "monetization_type": data.get("monetization_type", "free"),
         "release_date": data.get("release_date"),
         "status": data.get("status", "draft"),
