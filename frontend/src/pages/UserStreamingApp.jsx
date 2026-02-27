@@ -5021,6 +5021,18 @@ export default function UserStreamingApp() {
         />
       )}
 
+      {/* Guest Play Limit Modal */}
+      <GuestLimitModal 
+        show={showGuestLimitModal}
+        onClose={() => setShowGuestLimitModal(false)}
+        onSignIn={() => {
+          setShowGuestLimitModal(false);
+          setShowAuth(true);
+        }}
+        remainingPlays={Math.max(0, guestPlayLimit - guestPlayCount)}
+        language={language}
+      />
+
       {/* Auth Modal */}
       {showAuth && (
         <AuthModal 
