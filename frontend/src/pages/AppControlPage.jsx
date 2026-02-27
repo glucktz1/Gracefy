@@ -40,7 +40,10 @@ const AppControlPage = () => {
     maintenance_mode: false,
     force_update_version: '',
     min_app_version: '1.0.0',
-    feature_flags: {}
+    feature_flags: {},
+    playstore_url: '',
+    appstore_url: '',
+    app_download_message: ''
   });
   
   // Filters
