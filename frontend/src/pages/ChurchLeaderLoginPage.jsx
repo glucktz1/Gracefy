@@ -82,8 +82,8 @@ export default function ChurchLeaderLoginPage() {
         <div className="relative bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-xl shadow-2xl shadow-black/50">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-violet-600/20 mb-4">
-              <Church size={32} className="text-violet-400" />
+            <div className="inline-flex items-center justify-center mb-4">
+              <BrandLogo type="icon" className="w-16 h-16 object-contain" alt="Gracefy" />
             </div>
             <h1 className="text-2xl font-bold text-white font-[Figtree]">Church Portal</h1>
             <p className="text-zinc-400 text-sm mt-2">Manage announcements & church info</p>
