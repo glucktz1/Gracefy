@@ -265,12 +265,11 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.loginPrompt}>
-          <LinearGradient
-            colors={[COLORS.primary, '#1ed760']}
-            style={styles.loginIcon}
-          >
-            <Ionicons name="person" size={48} color={COLORS.background} />
-          </LinearGradient>
+          <Image
+            source={{ uri: 'https://gracefy-cdn.b-cdn.net/branding/icon_6d883800.png' }}
+            style={styles.loginLogo}
+            resizeMode="contain"
+          />
           <Text style={styles.loginTitle}>Karibu Gracefy</Text>
           <Text style={styles.loginSubtitle}>
             Ingia ili kuona wasifu wako, playlist zako, na nyimbo unazopenda
