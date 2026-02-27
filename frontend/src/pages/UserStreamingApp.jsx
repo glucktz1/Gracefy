@@ -4297,6 +4297,7 @@ export default function UserStreamingApp() {
                               key={item.category_id || item.name} 
                               item={item} 
                               onClick={() => handleCategorySelect(item)}
+                              language={language}
                             />
                           ))}
                         </div>
