@@ -92,6 +92,7 @@ async def create_section(data: dict):
         "content_count": data.get("content_count", 10),
         "content_source": data.get("content_source", "manual"),
         "link_category_id": data.get("link_category_id"),
+        "link_category_ids": data.get("link_category_ids", []),  # Support for multiple categories
         "background_image": data.get("background_image"),
         "background_color": data.get("background_color"),
         "background_gradient": data.get("background_gradient"),
