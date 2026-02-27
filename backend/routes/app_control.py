@@ -201,7 +201,10 @@ async def save_app_settings(data: dict):
                 "maintenance_mode": data.get("maintenance_mode", False),
                 "force_update_version": data.get("force_update_version", ""),
                 "min_app_version": data.get("min_app_version", "1.0.0"),
-                "feature_flags": data.get("feature_flags", {})
+                "feature_flags": data.get("feature_flags", {}),
+                "playstore_url": data.get("playstore_url", ""),
+                "appstore_url": data.get("appstore_url", ""),
+                "app_download_message": data.get("app_download_message", "")
             },
             "updated_at": datetime.now(timezone.utc).isoformat()
         }},
