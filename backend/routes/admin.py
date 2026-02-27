@@ -386,27 +386,63 @@ async def get_user_listening_history(
     history = []
     for session in sessions:
         content_type = session.get("content_type")
-        content_id = session.get("content_id")
+        content_id = session.get("content_id") or session.get("song_id")
         content_info = None
+        song_title = None
+        artist_name = None
+        thumbnail = None
         
-        if content_type == "song":
+        if content_type == "song" or (not content_type and content_id):
             content_info = await db.songs.find_one(
                 {"song_id": content_id},
-                {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+                {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1, "thumbnail_url": 1}
             )
+            if content_info:
+                song_title = content_info.get("title")
+                artist_name = content_info.get("artist_name")
+                thumbnail = content_info.get("thumbnail") or content_info.get("thumbnail_url")
         elif content_type == "teaching_lesson":
             content_info = await db.teaching_lessons.find_one(
                 {"lesson_id": content_id},
                 {"_id": 0, "lesson_id": 1, "title": 1, "title_sw": 1}
             )
+            if content_info:
+                song_title = content_info.get("title") or content_info.get("title_sw")
+                artist_name = "Mafundisho"
         elif content_type == "album":
             content_info = await db.albums.find_one(
                 {"album_id": content_id},
-                {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+                {"_id": 0, "album_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1, "thumbnail_url": 1}
             )
+            if content_info:
+                song_title = content_info.get("title")
+                artist_name = content_info.get("artist_name")
+                thumbnail = content_info.get("thumbnail") or content_info.get("thumbnail_url")
+        elif content_type == "radio":
+            song_title = session.get("station_name", "Radio Station")
+            artist_name = "Live Radio"
+        
+        # Format duration
+        duration_seconds = session.get("duration_seconds", 0)
+        if duration_seconds >= 3600:
+            duration_str = f"{duration_seconds // 3600}h {(duration_seconds % 3600) // 60}m"
+        elif duration_seconds >= 60:
+            duration_str = f"{duration_seconds // 60}m {duration_seconds % 60}s"
+        else:
+            duration_str = f"{duration_seconds}s"
         
         history.append({
-            **session,
+            "session_id": session.get("session_id"),
+            "content_type": content_type or "song",
+            "content_id": content_id,
+            "song_title": song_title or "Unknown Track",
+            "artist_name": artist_name or "Unknown Artist",
+            "thumbnail": thumbnail,
+            "duration_listened": duration_str,
+            "duration_seconds": duration_seconds,
+            "listened_at": session.get("start_time") or session.get("end_time"),
+            "platform": session.get("platform", "unknown"),
+            "counted_as_play": session.get("counted_as_play", False),
             "content_info": content_info
         })
     
