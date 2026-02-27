@@ -3989,18 +3989,22 @@ export default function UserStreamingApp() {
                     <QuickAccessCard 
                       item={{ type: 'liked_songs', name: t('library.likedSongs', 'Liked Songs') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('liked'); }}
+                      language={language}
                     />
                     <QuickAccessCard 
                       item={{ type: 'playlists', name: t('library.playlists', 'Playlists') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('playlists'); }}
+                      language={language}
                     />
                     <QuickAccessCard 
                       item={{ type: 'downloads', name: t('library.downloads', 'Downloads') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('downloads'); }}
+                      language={language}
                     />
                     <QuickAccessCard 
                       item={{ type: 'library', name: t('library.yourLibrary', 'My Library') }} 
                       onClick={() => setView('library')}
+                      language={language}
                     />
                     {/* Admin configured items (up to 4 more) */}
                     {quickAccessItems.slice(0, 4).map((item, i) => (
@@ -4008,6 +4012,7 @@ export default function UserStreamingApp() {
                         key={item.category_id || item.album_id || i} 
                         item={item} 
                         onClick={() => item.category_id ? handleCategorySelect(item) : openAlbum(item.album_id)}
+                        language={language}
                       />
                     ))}
                   </div>
