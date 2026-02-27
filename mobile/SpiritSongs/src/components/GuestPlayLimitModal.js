@@ -23,6 +23,7 @@ import {
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
+  Image,
   Platform,
   Linking,
 } from 'react-native';
