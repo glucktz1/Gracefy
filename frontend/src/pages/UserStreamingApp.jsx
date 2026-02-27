@@ -194,33 +194,47 @@ const useAudioPlayer = () => {
     if (index < 0 || index >= q.length) return;
     const item = q[index];
     const song = item.song || item;
-    // Get album from queue item first, ensuring we use the right album for each song
-    const album = item.album || currentAlbumRef.current || currentAlbum;
     
-    // Debug log for thumbnail issues
-    console.log('[Player] Playing:', song.title, 'Album:', album?.title, 'Thumbnail:', album?.thumbnail || song?.thumbnail);
+    // Get album from queue item - this is critical for cross-album playback
+    // Each queue item MUST have its own album reference attached
+    const album = item.album || null;
+    
+    // Get thumbnail from multiple sources in priority order
+    const thumbnail = album?.thumbnail || 
+                      album?.thumbnail_url || 
+                      song?.album_thumbnail || 
+                      song?.thumbnail || 
+                      song?.thumbnail_url ||
+                      currentAlbumRef.current?.thumbnail;
+    
+    // Ensure album has thumbnail for UI display
+    const enrichedAlbum = album ? {
+      ...album,
+      thumbnail: thumbnail || album.thumbnail
+    } : currentAlbumRef.current;
+    
+    console.log('[Player] Track change:', {
+      title: song.title,
+      album: enrichedAlbum?.title,
+      thumbnail: thumbnail ? 'YES' : 'NO'
+    });
     
     setQueueIndex(index);
     setCurrentSong(song);
-    setCurrentAlbum(album);
+    setCurrentAlbum(enrichedAlbum);
     // Update ref immediately so UI reflects the new album
-    currentAlbumRef.current = album;
+    if (enrichedAlbum) {
+      currentAlbumRef.current = enrichedAlbum;
+    }
     setIsLoading(true);
 
     // Update MediaSession for lock screen controls with new song metadata
     if ('mediaSession' in navigator && song) {
-      // Get thumbnail from multiple possible sources
-      const artworkUrl = getImageUrl(
-        album?.thumbnail || 
-        album?.thumbnail_url || 
-        song?.thumbnail || 
-        song?.thumbnail_url ||
-        song?.album_thumbnail
-      );
+      const artworkUrl = getImageUrl(thumbnail);
       navigator.mediaSession.metadata = new MediaMetadata({
         title: song.title || 'Unknown Track',
-        artist: album?.artist_name || song?.artist_name || 'Gracefy',
-        album: album?.title || 'Gracefy',
+        artist: enrichedAlbum?.artist_name || song?.artist_name || 'Gracefy',
+        album: enrichedAlbum?.title || 'Gracefy',
         artwork: artworkUrl ? [
           { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }
         ] : []
