@@ -284,9 +284,9 @@ async def fetch_section_content(db, section: dict) -> dict:
         custom_content_type = section.get("content_type", "")
         
         if custom_content_type == "radio":
-            # Fetch radio stations
+            # Fetch radio stations (status field may not exist)
             items = await db.radio_stations.find(
-                {"status": "active"},
+                {"$or": [{"status": "active"}, {"status": None}, {"status": {"$exists": False}}]},
                 {"_id": 0, "station_id": 1, "name": 1, "thumbnail": 1, "stream_url": 1, "description": 1}
             ).sort("listeners_count", -1).limit(content_count).to_list(content_count)
             for item in items:
