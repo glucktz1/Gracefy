@@ -327,7 +327,12 @@ const useAudioPlayer = () => {
                   if (fetchedAlbum.album_id !== album.album_id) {
                     const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
                     const songs = albumRes.data.songs || [];
-                    moreSongs.push(...songs.map(s => ({ song: s, album: fetchedAlbum })));
+                    // Use the detailed album data from albumRes which includes thumbnail
+                    const detailedAlbum = albumRes.data.album || fetchedAlbum;
+                    moreSongs.push(...songs.map(s => ({ 
+                      song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
+                      album: detailedAlbum 
+                    })));
                     if (moreSongs.length >= 10) break;
                   }
                 }
