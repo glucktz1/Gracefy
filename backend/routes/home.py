@@ -308,6 +308,17 @@ async def fetch_section_content(db, section: dict) -> dict:
             section_data["items"] = []
             section_data["content_type"] = "custom"
         
+    elif section_type == "bible_content":
+        # Fetch bible snippets/content
+        items = await db.bible_snippets.find(
+            {},
+            {"_id": 0, "snippet_id": 1, "title": 1, "content": 1, "book": 1, "chapter": 1, "verse": 1, "thumbnail": 1}
+        ).sort("created_at", -1).limit(content_count).to_list(content_count)
+        for item in items:
+            item["entity_type"] = "bible"
+        section_data["items"] = optimize_thumbnails(items)
+        section_data["content_type"] = "bible_content"
+    
     elif section_type in ["sermons", "teachings", "mafundisho"]:
         # Build query - filter by category if link_category_id or link_category_ids is set
         query = {"status": "published"}
