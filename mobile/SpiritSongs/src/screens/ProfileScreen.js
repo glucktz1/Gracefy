@@ -704,6 +704,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.lg,
   },
+  loginLogo: {
+    width: 120,
+    height: 120,
+    borderRadius: 24,
+    marginBottom: SPACING.lg,
+  },
   loginTitle: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
