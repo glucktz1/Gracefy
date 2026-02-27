@@ -1697,7 +1697,11 @@ export default function LayoutManagementPage() {
                         {getPlatformBadge(section.platforms)}
                         <Badge className="bg-zinc-700 text-zinc-300">{section.section_type}</Badge>
                         {section.layout_style && <Badge className="bg-blue-500/20 text-blue-400">{section.layout_style}</Badge>}
-                        {section.link_category_id && <Badge className="bg-violet-500/20 text-violet-400">Category Linked</Badge>}
+                        {(section.link_category_id || (section.link_category_ids && section.link_category_ids.length > 0)) && (
+                          <Badge className="bg-violet-500/20 text-violet-400">
+                            {section.link_category_ids?.length > 1 ? `${section.link_category_ids.length} Categories` : 'Category Linked'}
+                          </Badge>
+                        )}
                         {!section.is_active && <Badge className="bg-red-500/20 text-red-400">Hidden</Badge>}
                         {section.is_active && <Badge className="bg-emerald-500/20 text-emerald-400">Live</Badge>}
                       </div>
@@ -1705,8 +1709,14 @@ export default function LayoutManagementPage() {
                       {section.content_type && (
                         <p className="text-xs text-zinc-600 mt-1">
                           Content: {section.content_type} 
-                          {section.link_category_id 
-                            ? ` (Auto from: ${categories.find(c => c.song_category_id === section.link_category_id || c.category_id === section.link_category_id)?.name || section.link_category_id})`
+                          {(section.link_category_id || section.link_category_ids?.length > 0)
+                            ? ` (Auto from: ${
+                                section.link_category_ids?.length > 0
+                                  ? section.link_category_ids.map(id => 
+                                      categories.find(c => c.song_category_id === id || c.category_id === id)?.name || id
+                                    ).join(', ')
+                                  : categories.find(c => c.song_category_id === section.link_category_id || c.category_id === section.link_category_id)?.name || section.link_category_id
+                              })`
                             : ` (${section.content_ids?.length || 0} manual items)`
                           }
                         </p>
