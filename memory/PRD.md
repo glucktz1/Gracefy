@@ -905,16 +905,31 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
 
 ## Session Update: Feb 27, 2026
 
+### Mafundisho Content Category System - COMPLETE
+- [x] Created new "Mafundisho" content category (`songcat_2735604a4457`)
+- [x] Bulk-linked all 10 existing teachings to the Mafundisho category
+- [x] Updated Layout Manager to support multiple category selection for sections
+- [x] Fixed `fetch_section_content` to properly filter teachings by `song_category_id`
+- [x] Updated "Mafundisho na Katekesi" section to use category-based content fetching
+- [x] Added `song_category_id` field to teaching creation/edit form
+- [x] Teachings admin page now has "Content Category" dropdown for linking teachings to layout sections
+
 ### Web App Swahili Filters - COMPLETE
 - [x] Fixed category filter pills to display Swahili names (`name_sw`) when language is set to Swahili
 - [x] Updated `QuickAccessCard` component to accept `language` prop and display Swahili names
 - [x] Updated category filter header to show Swahili name in filtered view
 - [x] Filters now correctly show: "Kusifu & Kuabudu", "Ekarist", "Roho Mtakatifu", "Bikira Maria", "Shukrani", etc.
 
+### Mobile App Build v1.0.136 - COMPLETE
+- [x] Build triggered and completed successfully
+- [x] APK available at: https://expo.dev/artifacts/eas/hLhwA9rYSmDbfFWpQDqqda.apk
+- [x] Includes: FlatList refactor, legal pages, player fixes, logos on modals
+
 ### Verified Working Features
 - [x] Radio stations already display as single horizontal row
 - [x] Web player metadata (song title, artist, thumbnail) updates correctly
 - [x] Guest play limit logic implemented (respects billing status)
+- [x] Mafundisho na Katekesi section displays 5 published teachings
 
 ## Remaining Tasks
 
@@ -927,12 +942,13 @@ REACT_APP_BACKEND_URL=https://spiritsongs-app.preview.emergentagent.com
 - [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
 - [x] ~~Web App Filters display in Swahili~~ - COMPLETED Feb 27, 2026
 - [x] ~~Song metadata not updating on track change (web player)~~ - VERIFIED WORKING
-- [ ] Mobile App Scrolling Performance - Build v1.0.136 ready (FlatList refactor included)
+- [x] ~~Mobile App Scrolling Performance~~ - Build v1.0.136 ready (FlatList refactor included)
 - [ ] Admin Payment Notifications (real-time beep alerts)
 - [ ] Layout Manager Sync Verification (build v1.0.136 needs user testing)
 
 ### P2 - Medium Priority
 - [x] ~~Radio stations single row on web home page~~ - ALREADY WORKING
+- [x] ~~Mafundisho content category and layout mapping~~ - COMPLETED Feb 27, 2026
 - [ ] Audio Ad System (admin configurable frequency)
 - [ ] Complete Advertising & Campaigns module
 - [ ] Implement Firebase push notifications
