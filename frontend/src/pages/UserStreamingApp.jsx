@@ -4084,8 +4084,16 @@ export default function UserStreamingApp() {
                   const isSpecialMixSection = section.content_type === 'special_mixes' || 
                     section.section_type === 'special_mixes' ||
                     (items[0] && items[0].mix_id);
+                  const isRadioSection = section.content_type === 'radio' || 
+                    section.section_type === 'radio' ||
+                    (items[0] && items[0].station_id);
+                  const isBibleSection = section.content_type === 'bible_content' || 
+                    section.section_type === 'bible_content' ||
+                    (items[0] && items[0].snippet_id);
+                  const isSongsSection = section.content_type === 'songs' ||
+                    (items[0] && items[0].song_id && !items[0].album_id);
                   const isAlbumSection = section.content_type === 'albums' || 
-                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection && !isSpecialMixSection && !isTeachingsSection);
+                    (items[0] && (items[0].album_id || items[0].title) && !isChurchSection && !isChoirSection && !isSpecialMixSection && !isTeachingsSection && !isRadioSection && !isBibleSection && !isSongsSection);
 
                   // Alternate layouts for variety
                   const layoutType = idx % 4;
