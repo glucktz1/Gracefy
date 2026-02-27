@@ -337,6 +337,18 @@ export const PlayerProvider = ({ children }) => {
     const trackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
       if (!event?.track) return;
       
+      // Update current track state with the new track info
+      const trackIndex = await TrackPlayer.getActiveTrackIndex();
+      if (trackIndex !== null && queueRef.current[trackIndex]) {
+        const trackFromQueue = queueRef.current[trackIndex];
+        setQueueIndex(trackIndex);
+        setCurrentTrack({
+          ...trackFromQueue,
+          thumbnail: trackFromQueue.thumbnail || trackFromQueue.album_thumbnail || trackFromQueue.cover_url || event.track?.artwork,
+          album_thumbnail: trackFromQueue.album_thumbnail || trackFromQueue.thumbnail || event.track?.artwork,
+        });
+      }
+      
       // When we're near the end of the queue, pre-fetch more recommendations
       if (continuousPlayRef.current && !shuffleRef.current) {
         const currentIndex = await TrackPlayer.getActiveTrackIndex();
