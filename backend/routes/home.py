@@ -333,7 +333,7 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     db = get_db()
     
     # Check cache first (separate cache for app vs web)
-    cache_key = f"home:{platform}:main:v2"
+    cache_key = f"home:{platform}:main:v3"  # Incremented version to bust cache
     cached_result = await cache.get(cache_key)
     if cached_result:
         logger.debug(f"Home data ({platform}) served from cache")
