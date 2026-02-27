@@ -300,8 +300,27 @@ async def fetch_section_content(db, section: dict) -> dict:
                 {"status": "active"},
                 {"_id": 0, "song_id": 1, "title": 1, "thumbnail": 1, "artist_name": 1, "album_id": 1, "duration": 1, "play_count": 1}
             ).sort("created_at", -1).limit(content_count).to_list(content_count)
+            
+            # Enrich songs with album thumbnails if song doesn't have its own
+            album_ids = list(set([s.get("album_id") for s in items if s.get("album_id")]))
+            albums_map = {}
+            if album_ids:
+                albums = await db.albums.find(
+                    {"album_id": {"$in": album_ids}},
+                    {"_id": 0, "album_id": 1, "thumbnail": 1, "artist_name": 1}
+                ).to_list(len(album_ids))
+                albums_map = {a["album_id"]: a for a in albums}
+            
             for item in items:
                 item["entity_type"] = "song"
+                # Use album thumbnail if song doesn't have one
+                if not item.get("thumbnail") and item.get("album_id"):
+                    album = albums_map.get(item["album_id"])
+                    if album:
+                        item["thumbnail"] = album.get("thumbnail")
+                        if not item.get("artist_name"):
+                            item["artist_name"] = album.get("artist_name")
+            
             section_data["items"] = optimize_thumbnails(items)
             section_data["content_type"] = "songs"
         else:
