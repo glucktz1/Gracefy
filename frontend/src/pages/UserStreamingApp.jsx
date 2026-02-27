@@ -2347,6 +2347,50 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
   );
 };
 
+// Guest Play Limit Modal
+const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+      <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-violet-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Music className="w-8 h-8 text-violet-400" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            {language === 'sw' ? 'Ingia ili Kuendelea' : 'Sign In to Continue'}
+          </h3>
+          <p className="text-zinc-400 mb-6">
+            {language === 'sw' 
+              ? 'Umesikiliza nyimbo zako za bure. Ingia au jiandikishe ili kuendelea kusikiliza muziki usio na kikomo.'
+              : 'You\'ve used your free plays. Sign in or register to enjoy unlimited music streaming.'}
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={onSignIn}
+              className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-full transition-colors"
+            >
+              {language === 'sw' ? 'Ingia / Jisajili' : 'Sign In / Register'}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
+            >
+              {language === 'sw' ? 'Baadaye' : 'Later'}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500 mt-4">
+            {language === 'sw' 
+              ? '✨ Ingia ili kupata huduma kamili za premium'
+              : '✨ Sign in to unlock all premium features'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Auth Modal with Phone OTP support
 const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, setAuthForm, handleLogin, handleRegister, setToken, setUser }) => {
   const [loginMethod, setLoginMethod] = useState('email'); // email, phone
