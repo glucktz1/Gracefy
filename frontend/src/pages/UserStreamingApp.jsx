@@ -3118,9 +3118,10 @@ export default function UserStreamingApp() {
     const fetchData = async () => {
       try {
         // First, fetch billing status and detect user country
-        const [billingRes, geoRes] = await Promise.all([
+        const [billingRes, geoRes, appSettingsRes] = await Promise.all([
           axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } })),
-          axios.get(`${API}/geo/detect-country`).catch(() => ({ data: { country_code: 'GLOBAL' } }))
+          axios.get(`${API}/geo/detect-country`).catch(() => ({ data: { country_code: 'GLOBAL' } })),
+          axios.get(`${API}/app-settings`).catch(() => ({ data: {} }))
         ]);
         
         // Set billing state - if billing is disabled, everyone is premium
@@ -3129,6 +3130,10 @@ export default function UserStreamingApp() {
         if (!billingStatus) {
           setIsPremium(true); // When billing is OFF, everyone is premium
         }
+        
+        // Set guest play limit from app settings
+        const guestLimit = appSettingsRes.data?.guest_play_limit ?? 3;
+        setGuestPlayLimit(guestLimit);
         
         // Set geo state
         const detectedCountry = geoRes.data?.country_code || 'GLOBAL';
