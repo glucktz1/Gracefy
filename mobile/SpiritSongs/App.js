@@ -43,6 +43,7 @@ import FeedbackScreen from './src/screens/FeedbackScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import RadioScreen from './src/screens/RadioScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import LegalScreen from './src/screens/LegalScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
