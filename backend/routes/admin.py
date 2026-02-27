@@ -451,6 +451,52 @@ async def get_user_listening_history(
     return {"history": history, "total": total, "skip": skip, "limit": limit}
 
 
+@router.get("/admin/users/{user_id}/downloads")
+async def get_user_downloads(
+    user_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """Get user's downloaded songs"""
+    db = get_db()
+    
+    # Get user's downloads from app_users collection
+    user = await db.app_users.find_one(
+        {"user_id": user_id},
+        {"_id": 0, "downloads": 1}
+    )
+    
+    downloads = user.get("downloads", []) if user else []
+    
+    # Enrich with song details
+    enriched_downloads = []
+    for download in downloads[skip:skip+limit]:
+        song_id = download.get("song_id") if isinstance(download, dict) else download
+        
+        # Get song details
+        song = await db.songs.find_one(
+            {"song_id": song_id},
+            {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1, "thumbnail_url": 1, "duration": 1}
+        )
+        
+        if song:
+            enriched_downloads.append({
+                "song_id": song_id,
+                "title": song.get("title", "Unknown Track"),
+                "artist_name": song.get("artist_name", "Unknown Artist"),
+                "thumbnail": song.get("thumbnail") or song.get("thumbnail_url"),
+                "duration": song.get("duration", 0),
+                "downloaded_at": download.get("downloaded_at") if isinstance(download, dict) else None
+            })
+    
+    return {
+        "downloads": enriched_downloads,
+        "total": len(downloads),
+        "skip": skip,
+        "limit": limit
+    }
+
+
 @router.get("/admin/users/{user_id}/transactions")
 async def get_user_transactions(
     user_id: str,
