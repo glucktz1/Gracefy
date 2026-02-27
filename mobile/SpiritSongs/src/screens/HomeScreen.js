@@ -702,6 +702,598 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
+  // Build flat list data for virtualized rendering
+  const flatListData = useMemo(() => {
+    const sections = [];
+    
+    // Header section
+    sections.push({ type: 'header', key: 'header' });
+    
+    // Hero carousel
+    if (heroContent?.items?.length > 0) {
+      sections.push({ type: 'hero', key: 'hero', data: heroContent });
+    }
+    
+    // Quick Access
+    sections.push({ type: 'quickAccess', key: 'quickAccess' });
+    
+    // Category Filters
+    if (categories.length > 0) {
+      sections.push({ type: 'categoryFilters', key: 'categoryFilters', data: categories });
+    }
+    
+    // Mafundisho
+    if (mafundishoContent.length > 0) {
+      sections.push({ type: 'mafundisho', key: 'mafundisho', data: mafundishoContent });
+    }
+    
+    // Dynamic Sections from Layout Manager
+    layoutSections
+      .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
+      .forEach(section => {
+        sections.push({ type: 'dynamicSection', key: section.section_id, data: section });
+      });
+    
+    // Special Mixes
+    if (specialMixes.length > 0) {
+      sections.push({ type: 'specialMixes', key: 'specialMixes', data: specialMixes });
+    }
+    
+    // Radio Stations
+    if (radioStations.length > 0) {
+      sections.push({ type: 'radioStations', key: 'radioStations', data: radioStations });
+    }
+    
+    // Most Listened Albums
+    if (mostListenedAlbums.length > 0) {
+      sections.push({ type: 'mostListened', key: 'mostListened', data: mostListenedAlbums });
+    }
+    
+    // Hot New Releases
+    if (hotNewReleases.length > 0) {
+      sections.push({ type: 'hotReleases', key: 'hotReleases', data: hotNewReleases });
+    }
+    
+    // Bible Section
+    sections.push({ type: 'bibleSection', key: 'bibleSection', data: bibleSnippets });
+    
+    // Churches
+    if (churches.length > 0) {
+      sections.push({ type: 'churches', key: 'churches', data: churches });
+    }
+    
+    // Popular Songs
+    if (allSongs.length > 0) {
+      sections.push({ type: 'popularSongs', key: 'popularSongs', data: allSongs });
+    }
+    
+    // All Albums
+    if (recentAlbums.length > 0) {
+      sections.push({ type: 'allAlbums', key: 'allAlbums', data: recentAlbums });
+    }
+    
+    // No content fallback
+    if (recentAlbums.length === 0 && specialMixes.length === 0 && churches.length === 0) {
+      sections.push({ type: 'noContent', key: 'noContent' });
+    }
+    
+    // Bottom spacer
+    sections.push({ type: 'spacer', key: 'spacer' });
+    
+    return sections;
+  }, [heroContent, categories, mafundishoContent, layoutSections, specialMixes, radioStations, 
+      mostListenedAlbums, hotNewReleases, bibleSnippets, churches, allSongs, recentAlbums]);
+
+  // Render item for FlatList
+  const renderFlatListItem = useCallback(({ item }) => {
+    switch (item.type) {
+      case 'header':
+        return (
+          <View style={styles.header}>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <View style={styles.headerIcons}>
+              <TouchableOpacity style={styles.headerIcon}>
+                <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Profile')}>
+                <Ionicons name="person-circle-outline" size={28} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      
+      case 'hero':
+        return renderHeroSection(item.data);
+      
+      case 'quickAccess':
+        return renderQuickAccessSection();
+      
+      case 'categoryFilters':
+        return renderCategoryFilters(item.data);
+      
+      case 'mafundisho':
+        return renderMafundishoSection(item.data);
+      
+      case 'dynamicSection':
+        return renderDynamicSection(item.data);
+      
+      case 'specialMixes':
+        return renderSpecialMixesSection(item.data);
+      
+      case 'radioStations':
+        return renderRadioSection(item.data);
+      
+      case 'mostListened':
+        return renderMostListenedSection(item.data);
+      
+      case 'hotReleases':
+        return renderHotReleasesSection(item.data);
+      
+      case 'bibleSection':
+        return renderBibleSection(item.data);
+      
+      case 'churches':
+        return renderChurchesSection(item.data);
+      
+      case 'popularSongs':
+        return renderPopularSongsSection(item.data);
+      
+      case 'allAlbums':
+        return renderAllAlbumsSection(item.data);
+      
+      case 'noContent':
+        return renderNoContentSection();
+      
+      case 'spacer':
+        return <View style={{ height: 150 }} />;
+      
+      default:
+        return null;
+    }
+  }, [greeting, navigation, heroContent, categories, userPlaylists, recentAlbums, user, 
+      mafundishoContent, specialMixes, radioStations, mostListenedAlbums, hotNewReleases,
+      bibleSnippets, churches, allSongs, currentTrack, isPlaying, activeCategory]);
+
+  // Helper render functions for FlatList sections
+  const renderHeroSection = (heroData) => {
+    if (!heroData?.items?.length) return null;
+    return (
+      <View style={styles.heroSection}>
+        <ScrollView
+          ref={heroScrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleHeroScroll}
+          contentContainerStyle={styles.heroScrollContent}
+        >
+          {heroData.items.map((item, index) => {
+            const thumbnailUrl = item.thumbnail || item.thumbnail_url || item.image_url || item.cover_image;
+            const hasImage = thumbnailUrl && thumbnailUrl.length > 0;
+            const gradientColors = [
+              ['#667eea', '#764ba2'],
+              ['#f093fb', '#f5576c'],
+              ['#4facfe', '#00f2fe'],
+              ['#43e97b', '#38f9d7'],
+              ['#fa709a', '#fee140'],
+              ['#30cfd0', '#330867'],
+            ];
+            const colorIndex = index % gradientColors.length;
+            
+            return (
+              <TouchableOpacity 
+                key={item.album_id || item.mix_id || item.banner_id || `hero-${index}`}
+                style={styles.heroContainer}
+                onPress={() => handleHeroPress(item)}
+                activeOpacity={0.9}
+              >
+                {hasImage ? (
+                  <ImageBackground
+                    source={{ uri: getImageUrl(thumbnailUrl) }}
+                    style={styles.heroImage}
+                    imageStyle={styles.heroImageStyle}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.7)', COLORS.background]}
+                      style={styles.heroGradient}
+                    >
+                      <Text style={styles.heroLabel}>FEATURED</Text>
+                      <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.name}</Text>
+                      <Text style={styles.heroSubtitle} numberOfLines={1}>
+                        {item.artist_name || item.subtitle || item.description || 'Curated for you'}
+                      </Text>
+                      <View style={styles.heroButtons}>
+                        <TouchableOpacity style={styles.heroPlayButton} onPress={() => handleHeroPress(item)}>
+                          <Ionicons name="play" size={20} color={COLORS.background} />
+                          <Text style={styles.heroPlayText}>Cheza</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
+                ) : (
+                  <LinearGradient
+                    colors={gradientColors[colorIndex]}
+                    style={[styles.heroImage, styles.heroImageStyle]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.5)', COLORS.background]}
+                      style={styles.heroGradient}
+                    >
+                      <Text style={styles.heroLabel}>FEATURED</Text>
+                      <Text style={styles.heroTitle} numberOfLines={2}>{item.title || item.name}</Text>
+                      <Text style={styles.heroSubtitle} numberOfLines={1}>
+                        {item.artist_name || item.subtitle || 'Curated for you'}
+                      </Text>
+                      <View style={styles.heroButtons}>
+                        <TouchableOpacity style={styles.heroPlayButton} onPress={() => handleHeroPress(item)}>
+                          <Ionicons name="play" size={20} color={COLORS.background} />
+                          <Text style={styles.heroPlayText}>Cheza</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  </LinearGradient>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        {heroData.items.length > 1 && (
+          <View style={styles.heroPagination}>
+            {heroData.items.map((_, index) => (
+              <View key={index} style={[styles.heroDot, currentHeroIndex === index && styles.heroDotActive]} />
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderQuickAccessSection = () => (
+    <View style={styles.quickAccessContainer}>
+      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Library', { tab: 'liked' })}>
+        <LinearGradient colors={['#5D3FD3', '#7B68EE']} style={styles.quickAccessIcon}>
+          <Ionicons name="heart" size={20} color={COLORS.text} />
+        </LinearGradient>
+        <Text style={styles.quickAccessText} numberOfLines={2}>Nyimbo Pendwa</Text>
+      </TouchableOpacity>
+
+      {userPlaylists[0] ? (
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[0] })}>
+          <Image source={{ uri: getImageUrl(userPlaylists[0]?.thumbnail) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
+          <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[0]?.name || 'Playlist'}</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Library')}>
+          <LinearGradient colors={['#1DB954', '#169c46']} style={styles.quickAccessIcon}>
+            <Ionicons name="add" size={20} color={COLORS.text} />
+          </LinearGradient>
+          <Text style={styles.quickAccessText} numberOfLines={2}>Playlist Mpya</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Library', { tab: 'downloads' })}>
+        <LinearGradient colors={['#E91429', '#ff4757']} style={styles.quickAccessIcon}>
+          <Ionicons name="download" size={20} color={COLORS.text} />
+        </LinearGradient>
+        <Text style={styles.quickAccessText} numberOfLines={2}>Zilizopakuwa</Text>
+      </TouchableOpacity>
+
+      {userPlaylists[1] ? (
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[1] })}>
+          <Image source={{ uri: getImageUrl(userPlaylists[1]?.thumbnail) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
+          <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[1]?.name || 'Playlist'}</Text>
+        </TouchableOpacity>
+      ) : recentAlbums[0] ? (
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => handleAlbumPress(recentAlbums[0])}>
+          <Image source={{ uri: getImageUrl(recentAlbums[0].thumbnail || recentAlbums[0].thumbnail_url) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
+          <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[0].title}</Text>
+        </TouchableOpacity>
+      ) : <View style={styles.quickAccessItem} />}
+
+      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Bible')}>
+        <LinearGradient colors={['#1a472a', '#2d5a3d']} style={styles.quickAccessIcon}>
+          <Ionicons name="book" size={20} color={COLORS.text} />
+        </LinearGradient>
+        <Text style={styles.quickAccessText} numberOfLines={2}>Biblia</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Churches')}>
+        <LinearGradient colors={['#FF6B35', '#f5a623']} style={styles.quickAccessIcon}>
+          <Ionicons name="business" size={20} color={COLORS.text} />
+        </LinearGradient>
+        <Text style={styles.quickAccessText} numberOfLines={2}>Makanisa</Text>
+      </TouchableOpacity>
+
+      {recentAlbums[1] ? (
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => handleAlbumPress(recentAlbums[1])}>
+          <Image source={{ uri: getImageUrl(recentAlbums[1].thumbnail || recentAlbums[1].thumbnail_url) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
+          <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[1].title}</Text>
+        </TouchableOpacity>
+      ) : <View style={styles.quickAccessItem} />}
+
+      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Radio')}>
+        <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.quickAccessIcon}>
+          <Ionicons name="radio" size={20} color={COLORS.text} />
+        </LinearGradient>
+        <Text style={styles.quickAccessText} numberOfLines={2}>Redio</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderCategoryFilters = (cats) => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryFiltersContainer} contentContainerStyle={styles.categoryFiltersContent}>
+      {user?.name && (
+        <TouchableOpacity style={styles.userFilterButton} onPress={() => setActiveCategory('all')}>
+          <Text style={styles.userFilterText}>{user.name.charAt(0).toUpperCase()}</Text>
+        </TouchableOpacity>
+      )}
+      {cats.map((category) => (
+        <TouchableOpacity
+          key={category.id}
+          style={[styles.categoryFilterChip, activeCategory === category.id && styles.categoryFilterChipActive]}
+          onPress={() => handleCategoryFilter(category)}
+        >
+          {category.icon && category.icon !== '?' && (
+            <Ionicons name={category.icon} size={14} color={activeCategory === category.id ? COLORS.background : COLORS.text} style={styles.categoryFilterIcon} />
+          )}
+          <Text style={[styles.categoryFilterText, activeCategory === category.id && styles.categoryFilterTextActive]}>{category.name}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
+  const renderMafundishoSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Mafundisho na Katekesi</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'mafundisho', title: 'Mafundisho na Katekesi' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.map((item) => (
+          <TouchableOpacity key={item.teaching_id || item.container_id} style={styles.mafundishoCard} activeOpacity={0.9}
+            onPress={() => navigation.navigate('MafundishoDetail', { teachingId: item.teaching_id, containerId: item.container_id, mafundisho: item })}>
+            <View style={styles.mafundishoBand}><Text style={styles.mafundishoBandText}>MAFUNDISHO</Text></View>
+            <Image source={{ uri: getImageUrl(item.thumbnail || item.leader_photo) || 'https://via.placeholder.com/200' }} style={styles.mafundishoImage} />
+            <View style={styles.mafundishoInfo}>
+              <Text style={styles.mafundishoTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.mafundishoDesc} numberOfLines={1}>na {item.leader_name || 'Unknown'}</Text>
+              <Text style={styles.mafundishoEpisodes}>{item.topic_count || 0} mada • {item.lesson_count || 0} sehemu</Text>
+              <View style={styles.mafundishoActions}>
+                <TouchableOpacity style={styles.mafundishoAddBtn}>
+                  <Ionicons name="list-outline" size={28} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mafundishoPlayBtn}>
+                  <Ionicons name="play" size={24} color={COLORS.background} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderSpecialMixesSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Mchanganyiko Maalumu</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'mixes', title: 'Mchanganyiko Maalumu' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.map((mix) => (
+          <TouchableOpacity key={mix.mix_id} style={styles.largeMixCard} onPress={() => handleMixPress(mix)}>
+            <Image source={{ uri: getImageUrl(mix.thumbnail) || 'https://via.placeholder.com/280x150' }} style={styles.largeMixImage} />
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
+              <Text style={styles.largeMixTitle} numberOfLines={1}>{mix.title || mix.name}</Text>
+              <Text style={styles.largeMixSubtitle} numberOfLines={1}>{mix.songs_count || mix.songs?.length || 0} nyimbo</Text>
+            </LinearGradient>
+            <TouchableOpacity style={styles.mixPlayButton} onPress={() => handlePlayMix(mix)}>
+              <Ionicons name="play" size={24} color={COLORS.background} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderRadioSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderWithIcon}>
+          <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+            <Ionicons name="radio" size={18} color="#8B5CF6" />
+          </View>
+          <View>
+            <Text style={styles.sectionTitle}>Redio za Kikristo</Text>
+            <Text style={styles.sectionSubtitleText}>Sikiliza mubashara</Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Radio')}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.slice(0, 6).map((station) => {
+          const isCurrentlyPlaying = currentTrack?.isRadio && currentTrack?.song_id === station.station_id && isPlaying;
+          return (
+            <TouchableOpacity key={station.station_id} style={[styles.radioCard, isCurrentlyPlaying && styles.radioCardActive]} onPress={() => playRadio(station)}>
+              <View style={[styles.radioLogoContainer, isCurrentlyPlaying && styles.radioLogoActive]}>
+                {station.favicon ? (
+                  <Image source={{ uri: station.favicon }} style={styles.radioLogo} />
+                ) : (
+                  <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.radioLogoPlaceholder}>
+                    <Ionicons name="radio" size={24} color={COLORS.text} />
+                  </LinearGradient>
+                )}
+                {isCurrentlyPlaying && <View style={styles.radioPlayingIndicator}><View style={styles.radioPlayingDot} /></View>}
+              </View>
+              <Text style={styles.radioName} numberOfLines={1}>{station.name}</Text>
+              <Text style={styles.radioCountry} numberOfLines={1}>{station.country}</Text>
+              <View style={[styles.radioPlayButton, isCurrentlyPlaying && styles.radioPlayButtonActive]}>
+                <Ionicons name={isCurrentlyPlaying ? "pause" : "play"} size={16} color={isCurrentlyPlaying ? "#8B5CF6" : COLORS.text} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+
+  const renderMostListenedSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Album Zinazosikilizwa Zaidi</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Album Zinazosikilizwa Zaidi' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.map((album, index) => renderAlbumCard(album, index))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderHotReleasesSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Mpya za Moto 🔥</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Mpya za Moto' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.map((album, index) => renderAlbumCard(album, index))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderBibleSection = (snippets) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderWithIcon}>
+          <View style={styles.sectionIconBadge}><Ionicons name="book" size={20} color="#f97316" /></View>
+          <View>
+            <Text style={styles.sectionTitle}>Biblia na Masomo</Text>
+            <Text style={styles.sectionSubtitleText}>Sikiliza Neno la Mungu</Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Bible')}><Text style={styles.seeAll}>Ona yote</Text></TouchableOpacity>
+      </View>
+      <View style={styles.bibleTwoCardsRow}>
+        <TouchableOpacity style={styles.bibleColorCard} onPress={() => navigation.navigate('Bible')} activeOpacity={0.85}>
+          <LinearGradient colors={['#ea580c', '#f97316', '#fb923c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bibleColorGradient}>
+            <View style={styles.bibleCardIconWrap}><Ionicons name="book-outline" size={28} color="rgba(255,255,255,0.9)" /></View>
+            <Text style={styles.bibleColorTitle}>Biblia</Text>
+            <Text style={styles.bibleColorSubtitle}>Agano Jipya • Kiswahili</Text>
+            <Text style={styles.bibleColorDesc}>Soma na Sikiliza Neno</Text>
+            <View style={styles.bibleColorButton}><Ionicons name="headset" size={14} color="#333" /><Text style={styles.bibleColorButtonText}>Fungua</Text></View>
+          </LinearGradient>
+        </TouchableOpacity>
+        {snippets?.length > 0 ? (
+          <TouchableOpacity style={styles.bibleColorCard} onPress={() => navigation.navigate('Bible', { snippet: snippets[0] })} activeOpacity={0.85}>
+            <LinearGradient colors={['#7c3aed', '#8b5cf6', '#a78bfa']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bibleColorGradient}>
+              <View style={styles.featuredSnippetBadge}><Text style={styles.featuredSnippetBadgeText}>FEATURED</Text></View>
+              <Text style={styles.snippetLabelSmall}>SOMO LA LEO</Text>
+              <Text style={styles.bibleColorTitle} numberOfLines={1}>{snippets[0].reference || snippets[0].title}</Text>
+              <Text style={styles.bibleColorDesc} numberOfLines={2}>{snippets[0].description || snippets[0].subtitle}</Text>
+              <View style={styles.bibleColorButton}><Ionicons name="headset" size={14} color="#333" /><Text style={styles.bibleColorButtonText}>Sikiliza</Text></View>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.bibleColorCard} onPress={() => navigation.navigate('Bible')} activeOpacity={0.85}>
+            <LinearGradient colors={['#7c3aed', '#8b5cf6', '#a78bfa']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bibleColorGradient}>
+              <View style={styles.bibleCardIconWrap}><Ionicons name="sparkles" size={28} color="rgba(255,255,255,0.9)" /></View>
+              <Text style={styles.bibleColorTitle}>Masomo</Text>
+              <Text style={styles.bibleColorSubtitle}>Mafundisho</Text>
+              <Text style={styles.bibleColorDesc}>Sikiliza mafundisho ya Biblia</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderChurchesSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Makanisa</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'churches', title: 'Makanisa Yote' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.slice(0, 6).map((church) => (
+          <TouchableOpacity key={church.church_id} style={styles.churchCard} onPress={() => navigation.navigate('Churches', { selectedChurch: church })}>
+            <Image source={{ uri: getImageUrl(church.thumbnail) || 'https://via.placeholder.com/140?text=Kanisa' }} style={styles.churchImage} />
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.churchGradient}>
+              <Ionicons name="business" size={16} color={COLORS.primary} style={styles.churchIcon} />
+              <Text style={styles.churchName} numberOfLines={2}>{church.name}</Text>
+              <Text style={styles.churchLocation} numberOfLines={1}>{church.location || church.city}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderPopularSongsSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Nyimbo Maarufu</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'songs', title: 'Nyimbo Maarufu' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      {data.slice(0, 5).map((song, index) => (
+        <TouchableOpacity key={song.song_id} style={styles.songListItem} onPress={() => handlePlaySong(song, data)}>
+          <Text style={[styles.songIndex, currentTrack?.song_id === song.song_id && styles.songIndexActive]}>
+            {currentTrack?.song_id === song.song_id ? <Ionicons name="musical-note" size={14} color={COLORS.primary} /> : index + 1}
+          </Text>
+          <Image source={{ uri: getImageUrl(song.thumbnail || song.thumbnail_url) || 'https://via.placeholder.com/48' }} style={styles.songImage} />
+          <View style={styles.songInfo}>
+            <Text style={[styles.songTitle, currentTrack?.song_id === song.song_id && styles.songTitleActive]} numberOfLines={1}>{song.title}</Text>
+            <Text style={styles.songArtist} numberOfLines={1}>{song.artist_name}</Text>
+          </View>
+          <TouchableOpacity style={styles.songAddButton} onPress={() => handleAddToPlaylist(song)}>
+            <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const renderAllAlbumsSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Albums Zote</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Albums Zote' })}>
+          <Text style={styles.seeAll}>Ona zote</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.map((album, index) => renderAlbumCard(album, index))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderNoContentSection = () => (
+    <View style={styles.noContentContainer}>
+      <Ionicons name="cloud-offline-outline" size={64} color={COLORS.textSecondary} />
+      <Text style={styles.noContentTitle}>Hakuna Maudhui</Text>
+      <Text style={styles.noContentText}>Hatuwezi kupakia maudhui. Tafadhali angalia muunganisho wako wa mtandao na ujaribu tena.</Text>
+      <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+        <Ionicons name="refresh" size={20} color={COLORS.text} />
+        <Text style={styles.retryButtonText}>Jaribu Tena</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -713,53 +1305,36 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={flatListData}
+        renderItem={renderFlatListItem}
+        keyExtractor={(item) => item.key}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
-        scrollEventThrottle={16}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+        initialNumToRender={5}
+        updateCellsBatchingPeriod={50}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>{greeting}</Text>
-          <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.headerIcon}>
-              <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Profile')}>
-              <Ionicons name="person-circle-outline" size={28} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        getItemLayout={(data, index) => ({
+          length: 200, // Approximate item height
+          offset: 200 * index,
+          index,
+        })}
+      />
 
-        {/* Hero Carousel - Layout Manager Controlled */}
-        {heroContent?.items?.length > 0 && (
-          <View style={styles.heroSection}>
-            <ScrollView
-              ref={heroScrollRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={handleHeroScroll}
-              contentContainerStyle={styles.heroScrollContent}
-            >
-              {heroContent.items.map((item, index) => {
-                // Get the best available thumbnail URL
-                const thumbnailUrl = item.thumbnail || item.thumbnail_url || item.image_url || item.cover_image;
-                const hasImage = thumbnailUrl && thumbnailUrl.length > 0;
-                
-                // Default placeholder with gradient colors based on index
-                const gradientColors = [
-                  ['#667eea', '#764ba2'], // Purple-pink
-                  ['#f093fb', '#f5576c'], // Pink-red
-                  ['#4facfe', '#00f2fe'], // Blue-cyan
-                  ['#43e97b', '#38f9d7'], // Green-teal
-                  ['#fa709a', '#fee140'], // Pink-yellow
-                  ['#30cfd0', '#330867'], // Cyan-purple
-                ];
+      {/* Add to Playlist Modal */}
+      <AddToPlaylistModal
+        visible={showPlaylistModal}
+        onClose={() => setShowPlaylistModal(false)}
+        song={selectedSong}
+        isAuthenticated={isAuthenticated}
+      />
+    </SafeAreaView>
+  );
+};
                 const colorIndex = index % gradientColors.length;
                 
                 return (
