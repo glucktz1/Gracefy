@@ -547,6 +547,55 @@ export default function UsersPage() {
             </Card>
           </TabsContent>
 
+          {/* Downloads Tab */}
+          <TabsContent value="downloads">
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <Download size={18} className="text-blue-400" /> Downloaded Songs
+                </CardTitle>
+                <p className="text-xs text-zinc-500">Songs this user has downloaded for offline listening</p>
+              </CardHeader>
+              <CardContent>
+                {userDetails?.downloads?.length > 0 ? (
+                  <div className="space-y-2">
+                    {userDetails.downloads.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          {item.thumbnail ? (
+                            <img src={item.thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-zinc-700 flex items-center justify-center">
+                              <Music2 size={20} className="text-zinc-400" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-white font-medium">{item.title}</p>
+                            <p className="text-xs text-zinc-500">{item.artist_name}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant="outline" className="border-blue-500/30 text-blue-400">
+                            <Download size={12} className="mr-1" /> Downloaded
+                          </Badge>
+                          {item.downloaded_at && (
+                            <p className="text-xs text-zinc-500 mt-1">{formatDateTime(item.downloaded_at)}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-zinc-500">
+                    <Download size={48} className="mx-auto mb-3 opacity-30" />
+                    <p>No downloaded songs</p>
+                    <p className="text-xs mt-1">User hasn't downloaded any songs yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Transactions Tab */}
           <TabsContent value="transactions">
             <Card className="bg-zinc-900/50 border-zinc-800">
