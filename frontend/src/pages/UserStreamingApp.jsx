@@ -4069,10 +4069,6 @@ export default function UserStreamingApp() {
                   if (section.section_type === 'hero') return null;
                   
                   const items = section.items || [];
-                  
-                  // Debug logging
-                  console.log(`Section ${idx}: ${section.title} | type: ${section.section_type} | items: ${items.length}`);
-                  
                   if (items.length === 0) return null;
                   
                   // Determine content type from items
