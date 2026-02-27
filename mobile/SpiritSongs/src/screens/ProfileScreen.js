@@ -625,7 +625,10 @@ const ProfileScreen = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Legal', { type: 'terms' })}
+          >
             <View style={styles.menuIconContainer}>
               <Ionicons name="document-text" size={20} color={COLORS.primary} />
             </View>
@@ -633,7 +636,10 @@ const ProfileScreen = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Legal', { type: 'privacy' })}
+          >
             <View style={styles.menuIconContainer}>
               <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
             </View>
