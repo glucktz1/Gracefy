@@ -1035,10 +1035,7 @@ const HomeScreen = ({ navigation }) => {
           style={[styles.categoryFilterChip, activeCategory === category.id && styles.categoryFilterChipActive]}
           onPress={() => handleCategoryFilter(category)}
         >
-          {category.icon && category.icon !== '?' && (
-            <Ionicons name={category.icon} size={14} color={activeCategory === category.id ? COLORS.background : COLORS.text} style={styles.categoryFilterIcon} />
-          )}
-          <Text style={[styles.categoryFilterText, activeCategory === category.id && styles.categoryFilterTextActive]}>{category.name}</Text>
+          <Text style={[styles.categoryFilterText, activeCategory === category.id && styles.categoryFilterTextActive]}>{category.name_sw || category.name}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
