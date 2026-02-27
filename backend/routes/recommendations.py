@@ -390,10 +390,28 @@ async def get_next_song_recommendations(
     # Limit results
     final_recommendations = unique_recommendations[:limit]
     
-    # Clean up internal fields
+    # Clean up internal fields and enrich with album thumbnails
+    album_ids = list(set([s.get("album_id") for s in final_recommendations if s.get("album_id")]))
+    albums_map = {}
+    if album_ids:
+        albums = await db.albums.find(
+            {"album_id": {"$in": album_ids}},
+            {"_id": 0, "album_id": 1, "thumbnail": 1, "title": 1, "artist_name": 1}
+        ).to_list(len(album_ids))
+        albums_map = {a["album_id"]: a for a in albums}
+    
     for song in final_recommendations:
         song.pop("_score", None)
         song.pop("_reason", None)
+        # Add album thumbnail if song doesn't have its own
+        if song.get("album_id") and song["album_id"] in albums_map:
+            album_data = albums_map[song["album_id"]]
+            if not song.get("thumbnail"):
+                song["thumbnail"] = album_data.get("thumbnail")
+            song["album_thumbnail"] = album_data.get("thumbnail")
+            song["album_title"] = album_data.get("title")
+            if not song.get("artist_name"):
+                song["artist_name"] = album_data.get("artist_name")
     
     return {
         "songs": final_recommendations,
