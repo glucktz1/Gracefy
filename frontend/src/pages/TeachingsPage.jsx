@@ -93,6 +93,7 @@ export default function TeachingsPage() {
     leader_name: "",
     category_id: "",
     category_name: "",
+    song_category_id: "", // Link to unified content category system
     monetization_type: "free",
     release_date: "",
     status: "draft",
