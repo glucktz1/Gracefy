@@ -4,6 +4,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { BrandLogo } from "@/context/BrandingContext";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -46,11 +47,7 @@ export default function ChoirLoginPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center mb-4">
-              <img 
-                src="/gracefy-logo-dark.png" 
-                alt="Gracefy" 
-                className="w-20 h-20 object-contain"
-              />
+              <BrandLogo type="icon" className="w-20 h-20 object-contain" alt="Gracefy" />
             </div>
             <h1 className="text-2xl font-bold text-white font-[Figtree]">Choir Portal</h1>
             <p className="text-zinc-400 text-sm mt-2">Gracefy Revenue Dashboard</p>
