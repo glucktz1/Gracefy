@@ -334,6 +334,7 @@ const AppContent = () => {
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Radio" component={RadioScreen} />
           <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+          <Stack.Screen name="Legal" component={LegalScreen} />
         </Stack.Navigator>
 
         {/* Mini Player - Positioned directly above tab bar */}
