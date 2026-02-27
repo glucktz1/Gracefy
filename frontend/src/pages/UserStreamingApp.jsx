@@ -2971,6 +2971,26 @@ export default function UserStreamingApp() {
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   
+  // Guest play limit state
+  const [guestPlayCount, setGuestPlayCount] = useState(0);
+  const [guestPlayLimit, setGuestPlayLimit] = useState(3); // Default: 3 free plays
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  
+  // Load guest play count from localStorage
+  useEffect(() => {
+    const savedCount = localStorage.getItem('gracefy_guest_plays');
+    if (savedCount) {
+      setGuestPlayCount(parseInt(savedCount, 10));
+    }
+  }, []);
+  
+  // Save guest play count to localStorage
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('gracefy_guest_plays', guestPlayCount.toString());
+    }
+  }, [guestPlayCount, user]);
+  
   // Geo-content state
   const [userCountry, setUserCountry] = useState('GLOBAL');
   const [geoEnabled, setGeoEnabled] = useState(true);
