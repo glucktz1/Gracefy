@@ -57,6 +57,7 @@ export default function TeachingsPage() {
   const [teachings, setTeachings] = useState([]);
   const [leaders, setLeaders] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [songCategories, setSongCategories] = useState([]); // Unified content categories
   const [monetizationTypes, setMonetizationTypes] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
