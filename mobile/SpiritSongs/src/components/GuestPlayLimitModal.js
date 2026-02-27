@@ -198,18 +198,13 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
 
   const renderMainContent = () => (
     <>
-      {/* Illustration */}
+      {/* Logo */}
       <View style={styles.illustrationContainer}>
-        <LinearGradient
-          colors={isAppLocked ? ['#E74C3C', '#C0392B'] : ['#3498DB', '#1abc9c']}
-          style={styles.illustrationGradient}
-        >
-          <Ionicons 
-            name={isAppLocked ? 'lock-closed' : 'musical-notes'} 
-            size={48} 
-            color="#fff" 
-          />
-        </LinearGradient>
+        <Image
+          source={{ uri: 'https://gracefy-cdn.b-cdn.net/branding/icon_6d883800.png' }}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Title */}
