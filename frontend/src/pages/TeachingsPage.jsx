@@ -135,18 +135,20 @@ export default function TeachingsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [teachingsRes, leadersRes, catsRes, monTypesRes, statsRes] = await Promise.all([
+      const [teachingsRes, leadersRes, catsRes, monTypesRes, statsRes, songCatsRes] = await Promise.all([
         axios.get(`${API}/teachings`),
         axios.get(`${API}/admin/leaders`),  // Use admin endpoint to get all leaders
         axios.get(`${API}/teachings/categories`),
         axios.get(`${API}/teachings/monetization-types`),
-        axios.get(`${API}/teachings/stats`)
+        axios.get(`${API}/teachings/stats`),
+        axios.get(`${API}/song-categories/all`)
       ]);
       setTeachings(teachingsRes.data.teachings || []);
       setLeaders(leadersRes.data.leaders || []);
       setCategories(catsRes.data.categories || []);
       setMonetizationTypes(monTypesRes.data.types || []);
       setStats(statsRes.data || {});
+      setSongCategories(songCatsRes.data.categories || songCatsRes.data || []);
     } catch (err) {
       console.error("Fetch error:", err);
       toast.error("Failed to load data");
