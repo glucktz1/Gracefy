@@ -4141,6 +4141,102 @@ export default function UserStreamingApp() {
                         </div>
                       )}
 
+                      {/* Radio Stations Section */}
+                      {isRadioSection && (
+                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                          {items.map(station => (
+                            <div
+                              key={station.station_id}
+                              onClick={() => handlePlayRadioFromHome(station)}
+                              className="flex-shrink-0 w-36 bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
+                            >
+                              <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center relative">
+                                {station.thumbnail || station.favicon ? (
+                                  <img 
+                                    src={station.thumbnail || station.favicon} 
+                                    alt={station.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <Radio className="w-10 h-10 text-white/60" />
+                                )}
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center">
+                                    {homeRadioPlaying?.station_id === station.station_id ? (
+                                      <Pause className="w-5 h-5 text-white fill-white" />
+                                    ) : (
+                                      <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <h3 className="font-medium text-sm truncate text-center">{station.name}</h3>
+                              <p className="text-xs text-zinc-400 truncate text-center">{station.country || 'Live'}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Bible Content Section */}
+                      {isBibleSection && (
+                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+                          {/* Main Bible Card */}
+                          <div
+                            onClick={() => setView('bible')}
+                            className="flex-shrink-0 w-48 bg-gradient-to-br from-amber-600 to-orange-700 rounded-xl p-4 cursor-pointer hover:from-amber-500 hover:to-orange-600 transition-colors"
+                          >
+                            <BookOpen className="w-10 h-10 text-white mb-3" />
+                            <h3 className="text-xl font-bold text-white">Biblia</h3>
+                            <p className="text-white/80 text-sm mt-1">Soma Biblia</p>
+                          </div>
+                          {/* Bible Snippets */}
+                          {items.map(snippet => (
+                            <div
+                              key={snippet.snippet_id}
+                              className="flex-shrink-0 w-64 bg-zinc-900/80 rounded-xl p-4 cursor-pointer hover:bg-zinc-800/80 transition-colors"
+                              onClick={() => handlePlayBibleSnippet && handlePlayBibleSnippet(snippet)}
+                            >
+                              <p className="text-amber-400 text-xs mb-2">{snippet.book} {snippet.chapter}:{snippet.verse}</p>
+                              <p className="text-white text-sm line-clamp-3">{snippet.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Songs Grid Section */}
+                      {isSongsSection && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                          {items.slice(0, 20).map(song => (
+                            <div
+                              key={song.song_id}
+                              className="bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
+                              onClick={() => {
+                                // Play this song
+                                if (playSong) playSong(song, null, [song]);
+                              }}
+                            >
+                              <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-zinc-700 to-zinc-800 relative">
+                                {song.thumbnail ? (
+                                  <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Music2 className="w-8 h-8 text-zinc-600" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                                    <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                  </div>
+                                </div>
+                              </div>
+                              <h3 className="font-medium text-sm truncate">{song.title}</h3>
+                              <p className="text-xs text-zinc-400 truncate">{song.artist_name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Teachings / Mafundisho Section */}
                       {(section.content_type === 'teachings' || section.section_type === 'teachings') && (
                         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
