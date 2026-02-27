@@ -2054,25 +2054,49 @@ export default function LayoutManagementPage() {
                   
                   {sectionForm.content_source === "category" && (
                     <div>
-                      <label className="text-sm text-zinc-400 mb-1 block">Select Category</label>
-                      <Select 
-                        value={sectionForm.link_category_id} 
-                        onValueChange={(v) => setSectionForm({ ...sectionForm, link_category_id: v })}
-                      >
-                        <SelectTrigger className="bg-zinc-950 border-zinc-800 text-white">
-                          <SelectValue placeholder="Choose a category (e.g., Christmas, Lent)" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-zinc-800">
-                          {categories.map(cat => (
-                            <SelectItem key={cat.song_category_id || cat.category_id} value={cat.song_category_id || cat.category_id}>
-                              {cat.name} {cat.name_sw ? `(${cat.name_sw})` : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-zinc-500 mt-2">
-                        Albums tagged with this category will automatically appear in this section.
+                      <label className="text-sm text-zinc-400 mb-1 block">Select Category(ies)</label>
+                      <p className="text-xs text-zinc-500 mb-2">
+                        {sectionForm.section_type === 'teachings' 
+                          ? 'Select categories to show teachings from. Teachings linked to these categories will appear in this section.'
+                          : 'Albums tagged with selected categories will automatically appear in this section.'}
                       </p>
+                      
+                      {/* Multi-select category checkboxes */}
+                      <div className="max-h-48 overflow-y-auto bg-zinc-950 border border-zinc-800 rounded-md p-2 space-y-1">
+                        {categories.map(cat => {
+                          const catId = cat.song_category_id || cat.category_id;
+                          const isSelected = sectionForm.link_category_ids?.includes(catId) || sectionForm.link_category_id === catId;
+                          return (
+                            <label key={catId} className="flex items-center gap-2 p-2 hover:bg-zinc-800 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const newIds = e.target.checked 
+                                    ? [...(sectionForm.link_category_ids || []), catId]
+                                    : (sectionForm.link_category_ids || []).filter(id => id !== catId);
+                                  setSectionForm({ 
+                                    ...sectionForm, 
+                                    link_category_ids: newIds,
+                                    link_category_id: newIds[0] || "" // Keep single ID for backwards compatibility
+                                  });
+                                }}
+                                className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500"
+                              />
+                              <span className="text-white text-sm">{cat.name}</span>
+                              {cat.name_sw && cat.name_sw !== cat.name && (
+                                <span className="text-zinc-500 text-xs">({cat.name_sw})</span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      
+                      {sectionForm.link_category_ids?.length > 0 && (
+                        <p className="text-xs text-green-500 mt-2">
+                          ✓ {sectionForm.link_category_ids.length} categor{sectionForm.link_category_ids.length === 1 ? 'y' : 'ies'} selected
+                        </p>
+                      )}
                     </div>
                   )}
                   
