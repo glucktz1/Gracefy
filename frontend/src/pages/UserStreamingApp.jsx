@@ -3450,6 +3450,41 @@ export default function UserStreamingApp() {
     toast.success(`Inacheza masomo ${shuffled.length} kwa nasibu`);
   };
 
+  // Check if guest can play (returns true if can play, false if limit reached)
+  const checkGuestPlayLimit = () => {
+    // If user is logged in, always allow
+    if (user) return true;
+    
+    // If billing is disabled, allow unlimited plays
+    if (!billingEnabled) return true;
+    
+    // Check guest play count
+    if (guestPlayCount >= guestPlayLimit) {
+      setShowGuestLimitModal(true);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Increment guest play count
+  const incrementGuestPlayCount = () => {
+    if (!user && billingEnabled) {
+      setGuestPlayCount(prev => prev + 1);
+    }
+  };
+
+  // Wrapper for playing songs with guest limit check
+  const handlePlayWithGuestCheck = (song, album, songQueue = [], index = 0) => {
+    if (!checkGuestPlayLimit()) return;
+    
+    // Increment play count for guests
+    incrementGuestPlayCount();
+    
+    // Play the song
+    player.playSong(song, album, songQueue, index);
+  };
+
   // Open church detail modal
   const openChurchDetail = async (church) => {
     setSelectedChurch(church);
