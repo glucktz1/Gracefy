@@ -209,8 +209,11 @@ class TestCampaignTargeting:
     # Campaign Creation Tests
     def test_create_campaign_with_country_filter(self):
         """POST /api/advertising/campaigns - creates campaign with country filter"""
-        response = self.session.post(
+        # Remove JSON content-type for form data
+        headers = {"Authorization": f"Bearer {self.token}"}
+        response = requests.post(
             f"{self.base_url}/api/advertising/campaigns",
+            headers=headers,
             data={
                 "name": "TEST_Country_Filter_Campaign",
                 "type": "push",
@@ -225,7 +228,7 @@ class TestCampaignTargeting:
         
         # Cleanup
         campaign_id = data["campaign"]["campaign_id"]
-        self.session.delete(f"{self.base_url}/api/advertising/campaigns/{campaign_id}")
+        requests.delete(f"{self.base_url}/api/advertising/campaigns/{campaign_id}", headers=headers)
     
     def test_create_campaign_with_content_filters(self):
         """POST /api/advertising/campaigns - creates campaign with content filters"""
