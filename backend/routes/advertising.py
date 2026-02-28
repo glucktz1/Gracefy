@@ -758,7 +758,17 @@ async def update_campaign(
     message_title: Optional[str] = Form(None),
     message_body: Optional[str] = Form(None),
     target_filter_type: Optional[str] = Form(None),
-    target_filter_content_ids: Optional[str] = Form(None),
+    # Location filters
+    country: Optional[str] = Form(None),
+    region: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    # Content listening filters
+    listened_content_ids: Optional[str] = Form(None),
+    not_listened_content_ids: Optional[str] = Form(None),
+    # User selection filters
+    max_users: Optional[int] = Form(None),
+    excluded_user_ids: Optional[str] = Form(None),
+    selected_user_ids: Optional[str] = Form(None),
     scheduled_at: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_admin_user)
 ):
