@@ -99,11 +99,33 @@ export default function AdvertisingPage() {
     message_title: "",
     message_body: "",
     target_filter_type: "all",
-    target_filter_content_ids: "",
+    // Location filters
+    country: "",
+    region: "",
+    // Content filters
+    listened_content_ids: [],
+    not_listened_content_ids: [],
+    // User selection
+    max_users: "",
+    send_to_all: true,
+    excluded_user_ids: [],
+    selected_user_ids: [],
     scheduled_at: ""
   });
   const [targetPreviewCount, setTargetPreviewCount] = useState(null);
   const [submittingCampaign, setSubmittingCampaign] = useState(false);
+  
+  // Advanced targeting state
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [contentSearchQuery, setContentSearchQuery] = useState("");
+  const [contentSearchResults, setContentSearchResults] = useState([]);
+  const [contentSearchLoading, setContentSearchLoading] = useState(false);
+  const [showContentSearch, setShowContentSearch] = useState(false);
+  const [contentFilterType, setContentFilterType] = useState("listened"); // listened or not_listened
+  const [previewUsers, setPreviewUsers] = useState([]);
+  const [previewUsersLoading, setPreviewUsersLoading] = useState(false);
+  const [showUserPreview, setShowUserPreview] = useState(false);
 
   // Analytics state
   const [analytics, setAnalytics] = useState(null);
