@@ -33,7 +33,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Megaphone, Send, Mail, MessageSquare, Bell, Users, Upload, Play, Pause, Trash2, Edit, Eye } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Megaphone, Send, Mail, MessageSquare, Bell, Users, Upload, Play, Pause, Trash2, Edit, Eye, Search, MapPin, Music, X, UserMinus, Check } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
