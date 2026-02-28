@@ -83,7 +83,41 @@ Build a music streaming platform (SpiritSongs/Gracefy) with:
 - **APK Download**: https://expo.dev/artifacts/eas/dxMssAw6Ry9JEs7u2GZmnN.apk
 - **Features**: Spotify-like downloads, offline playback, background audio
 
-## Latest Updates (Feb 5, 2026)
+## Latest Updates (Feb 28, 2026)
+
+### Session Update: Billing Logic Bug Fix & Premium Feature Gating
+
+**Problem Solved**: 
+When billing was enabled → disabled, the app incorrectly continued prompting users to pay. This was caused by client-side caching of billing status that wasn't refreshing when admin changed settings.
+
+**Backend Changes**:
+1. `/app/backend/routes/user_library.py` - Added premium check on playlist creation endpoint
+   - Returns 403 "Playlist creation requires a Premium subscription" when billing is ON and user is not premium
+   - Allows all users when billing is OFF
+
+**Web Frontend Changes** (`/app/frontend/src/pages/UserStreamingApp.jsx`):
+1. Added periodic billing refresh every 60 seconds
+2. Added `focus` event listener to refresh billing when browser tab gains focus
+3. Added premium check in `createNewPlaylist` function
+
+**Mobile App Changes**:
+1. `/app/mobile/SpiritSongs/src/context/BillingContext.js`:
+   - Added 60-second interval for periodic billing refresh
+   - Added `AppState` listener to refresh billing when app comes to foreground
+2. `/app/mobile/SpiritSongs/src/screens/LibraryScreen.js`:
+   - Added premium gating on playlist creation
+   - Added premium gating on downloaded song playback
+3. `/app/mobile/SpiritSongs/src/screens/AlbumScreen.js`:
+   - Added premium gating on playing from user playlists
+
+**Test Results**: All 10 backend tests passed
+- Billing status endpoint returns correct `billing_enabled` flag
+- Playlist creation blocked for non-premium when billing enabled
+- Playlist creation allowed when billing disabled
+
+---
+
+## Previous Updates (Feb 5, 2026)
 
 ### Session Update 1: Dashboard & Analytics Fix
 - [x] Cleaned up 14,000+ demo listening sessions from database
