@@ -3221,6 +3221,48 @@ export default function UserStreamingApp() {
     fetchData();
   }, [geoEnabled]);
 
+  // Periodic refresh of billing status (every 60 seconds) to detect admin changes
+  useEffect(() => {
+    const refreshBillingStatus = async () => {
+      try {
+        const billingRes = await axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } }));
+        const newBillingStatus = billingRes.data?.billing_enabled ?? false;
+        setBillingEnabled(newBillingStatus);
+        
+        if (!newBillingStatus) {
+          // Billing is OFF - everyone is premium
+          setIsPremium(true);
+        } else if (token && user?.user_id) {
+          // Billing is ON - check user's subscription status
+          const subRes = await axios.get(`${API}/user/subscription-status?user_id=${user.user_id}`).catch(() => ({ data: { is_premium: false } }));
+          if (subRes.data?.billing_enabled === false) {
+            setIsPremium(true);
+            setBillingEnabled(false);
+          } else {
+            setIsPremium(subRes.data?.is_premium || false);
+          }
+        }
+      } catch (e) {
+        console.log("Failed to refresh billing status:", e);
+      }
+    };
+
+    // Set up interval for periodic refresh (60 seconds)
+    const intervalId = setInterval(refreshBillingStatus, 60000);
+
+    // Also refresh when window gains focus (user returns to tab)
+    const handleFocus = () => {
+      console.log("Window focused - refreshing billing status");
+      refreshBillingStatus();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [token, user?.user_id]);
+
   // Check auth
   useEffect(() => {
     if (token) {
