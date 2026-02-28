@@ -14,6 +14,12 @@ from core.database import get_db
 from core.cache import cache
 from models.schemas import Transaction
 
+# Import push notification service
+try:
+    from services.push_notification_service import send_payment_success_notification
+except ImportError:
+    send_payment_success_notification = None
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["payment"])
 
