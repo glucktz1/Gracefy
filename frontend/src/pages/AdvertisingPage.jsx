@@ -567,11 +567,22 @@ export default function AdvertisingPage() {
       message_title: "",
       message_body: "",
       target_filter_type: "all",
-      target_filter_content_ids: "",
+      country: "",
+      region: "",
+      listened_content_ids: [],
+      not_listened_content_ids: [],
+      max_users: "",
+      send_to_all: true,
+      excluded_user_ids: [],
+      selected_user_ids: [],
       scheduled_at: ""
     });
     setTargetPreviewCount(null);
     setEditingCampaign(null);
+    setPreviewUsers([]);
+    setShowUserPreview(false);
+    setContentSearchResults([]);
+    setContentSearchQuery("");
   };
 
   // Open edit dialogs
@@ -596,16 +607,25 @@ export default function AdvertisingPage() {
 
   const openEditCampaignDialog = (campaign) => {
     setEditingCampaign(campaign);
+    const filter = campaign.target_filter || {};
     setCampaignForm({
       name: campaign.name,
       description: campaign.description || "",
       type: campaign.type,
       message_title: campaign.message_title || "",
       message_body: campaign.message_body,
-      target_filter_type: campaign.target_filter?.type || "all",
-      target_filter_content_ids: campaign.target_filter?.content_ids?.join(",") || "",
+      target_filter_type: filter.type || "all",
+      country: filter.country || "",
+      region: filter.region || "",
+      listened_content_ids: filter.listened_content_ids || [],
+      not_listened_content_ids: filter.not_listened_content_ids || [],
+      max_users: filter.max_users?.toString() || "",
+      send_to_all: !filter.max_users,
+      excluded_user_ids: filter.excluded_user_ids || [],
+      selected_user_ids: filter.selected_user_ids || [],
       scheduled_at: campaign.scheduled_at ? campaign.scheduled_at.split("T")[0] + "T" + campaign.scheduled_at.split("T")[1]?.slice(0,5) : ""
     });
+    if (filter.country) fetchRegions(filter.country);
     setShowCampaignDialog(true);
   };
 
