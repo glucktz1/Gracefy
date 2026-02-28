@@ -30,6 +30,30 @@ async def get_current_admin_user(request: Request):
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    # First check admin_sessions for admin users (tokens starting with admin_)
+    if session_token.startswith("admin_"):
+        admin_session = await db.admin_sessions.find_one({"session_token": session_token}, {"_id": 0})
+        
+        if admin_session:
+            expires_at = admin_session["expires_at"]
+            if isinstance(expires_at, str):
+                expires_at = datetime.fromisoformat(expires_at)
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            if expires_at < datetime.now(timezone.utc):
+                raise HTTPException(status_code=401, detail="Session expired")
+            
+            admin_user = await db.admin_users.find_one(
+                {"admin_id": admin_session["admin_id"]}, 
+                {"_id": 0, "password_hash": 0}
+            )
+            
+            if admin_user:
+                admin_user["role"] = admin_user.get("role", "admin")
+                return admin_user
+    
+    # Check regular user sessions
     session = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
     
     if not session:
