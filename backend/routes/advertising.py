@@ -797,11 +797,63 @@ async def update_campaign(
     if message_body is not None:
         update_data["message_body"] = message_body
     
-    # Update target filter if provided
-    if target_filter_type is not None:
-        target_filter = {"type": target_filter_type}
-        if target_filter_type == "listened_content" and target_filter_content_ids:
-            target_filter["content_ids"] = [cid.strip() for cid in target_filter_content_ids.split(",")]
+    # Update target filter if any filter parameters are provided
+    if any([target_filter_type is not None, country is not None, region is not None, 
+            city is not None, listened_content_ids is not None, not_listened_content_ids is not None,
+            max_users is not None, excluded_user_ids is not None, selected_user_ids is not None]):
+        
+        # Start with existing filter or create new one
+        target_filter = campaign.get("target_filter", {}).copy()
+        
+        # Update filter type if provided
+        if target_filter_type is not None:
+            target_filter["type"] = target_filter_type
+        
+        # Update location filters
+        if country is not None:
+            if country:
+                target_filter["country"] = country
+            else:
+                target_filter.pop("country", None)
+        if region is not None:
+            if region:
+                target_filter["region"] = region
+            else:
+                target_filter.pop("region", None)
+        if city is not None:
+            if city:
+                target_filter["city"] = city
+            else:
+                target_filter.pop("city", None)
+        
+        # Update content listening filters
+        if listened_content_ids is not None:
+            if listened_content_ids:
+                target_filter["listened_content_ids"] = [cid.strip() for cid in listened_content_ids.split(",")]
+            else:
+                target_filter.pop("listened_content_ids", None)
+        if not_listened_content_ids is not None:
+            if not_listened_content_ids:
+                target_filter["not_listened_content_ids"] = [cid.strip() for cid in not_listened_content_ids.split(",")]
+            else:
+                target_filter.pop("not_listened_content_ids", None)
+        
+        # Update user selection filters
+        if max_users is not None:
+            if max_users and max_users > 0:
+                target_filter["max_users"] = max_users
+            else:
+                target_filter.pop("max_users", None)
+        if excluded_user_ids is not None:
+            if excluded_user_ids:
+                target_filter["excluded_user_ids"] = [uid.strip() for uid in excluded_user_ids.split(",")]
+            else:
+                target_filter.pop("excluded_user_ids", None)
+        if selected_user_ids is not None:
+            if selected_user_ids:
+                target_filter["selected_user_ids"] = [uid.strip() for uid in selected_user_ids.split(",")]
+            else:
+                target_filter.pop("selected_user_ids", None)
         
         # Add channel-specific requirements
         campaign_type = campaign.get("type", "push")
