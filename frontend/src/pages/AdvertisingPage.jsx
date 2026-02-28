@@ -1216,8 +1216,8 @@ export default function AdvertisingPage() {
                           </Label>
                           <div className="grid grid-cols-2 gap-2">
                             <Select 
-                              value={campaignForm.country} 
-                              onValueChange={(v) => setCampaignForm({ ...campaignForm, country: v, region: "" })}
+                              value={campaignForm.country || "__all__"} 
+                              onValueChange={(v) => setCampaignForm({ ...campaignForm, country: v === "__all__" ? "" : v, region: "" })}
                             >
                               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
                                 <SelectValue placeholder="Select Country" />
