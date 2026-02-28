@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Linking, Alert } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { Linking, Alert, AppState } from 'react-native';
 import { billingAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
 const BillingContext = createContext(null);
+
+// Refresh interval in milliseconds (60 seconds)
+const BILLING_REFRESH_INTERVAL = 60000;
 
 export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
@@ -23,6 +26,9 @@ export const BillingProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
   const [skipCount, setSkipCount] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const refreshIntervalRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
 
   // Load billing settings and user subscription
   const loadBillingData = useCallback(async () => {
