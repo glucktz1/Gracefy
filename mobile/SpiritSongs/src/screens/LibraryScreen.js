@@ -69,6 +69,12 @@ const LibraryScreen = ({ navigation, route }) => {
   const currentTrack = playerContext?.currentTrack ?? null;
   const isPlaying = playerContext?.isPlaying ?? false;
   
+  // Billing context - for premium feature gating
+  const billingEnabled = billingContext?.billingEnabled ?? false;
+  const isPremium = billingContext?.isPremium ?? false;
+  const canAccessFeature = billingContext?.canAccessFeature ?? (() => true);
+  const promptSubscription = billingContext?.promptSubscription ?? (() => 'show_plans');
+  
   // Download context - get the raw downloads object for reactivity
   const downloads = downloadContext?.downloads ?? {};
   const downloadCount = downloadContext?.downloadCount ?? 0;
