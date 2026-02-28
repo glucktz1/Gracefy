@@ -229,6 +229,7 @@ export const BillingProvider = ({ children }) => {
     premiumFeatures,
     loading,
     skipCount,
+    lastRefresh,
     canAccessFeature,
     canSkip,
     recordSkip,
