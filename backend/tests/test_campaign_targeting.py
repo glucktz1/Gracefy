@@ -258,8 +258,10 @@ class TestCampaignTargeting:
     
     def test_create_campaign_with_max_users(self):
         """POST /api/advertising/campaigns - creates campaign with max_users limit"""
-        response = self.session.post(
+        headers = {"Authorization": f"Bearer {self.token}"}
+        response = requests.post(
             f"{self.base_url}/api/advertising/campaigns",
+            headers=headers,
             data={
                 "name": "TEST_Max_Users_Campaign",
                 "type": "push",
@@ -274,7 +276,7 @@ class TestCampaignTargeting:
         
         # Cleanup
         campaign_id = data["campaign"]["campaign_id"]
-        self.session.delete(f"{self.base_url}/api/advertising/campaigns/{campaign_id}")
+        requests.delete(f"{self.base_url}/api/advertising/campaigns/{campaign_id}", headers=headers)
     
     def test_create_campaign_with_excluded_users(self):
         """POST /api/advertising/campaigns - creates campaign with excluded users"""
