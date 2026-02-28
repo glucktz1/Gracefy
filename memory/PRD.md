@@ -85,6 +85,34 @@ Build a music streaming platform (SpiritSongs/Gracefy) with:
 
 ## Latest Updates (Feb 28, 2026)
 
+### Session Update 3: Enhanced Campaign Targeting System
+
+**New Backend Endpoints**:
+- `GET /api/advertising/content/search?q={query}` - Search songs/albums for targeting
+- `GET /api/advertising/locations/countries` - Get available countries
+- `GET /api/advertising/locations/regions?country={country}` - Get regions for a country
+- `POST /api/advertising/campaigns/preview-users` - Preview matching users with all filters
+- `GET /api/advertising/preview-target-count` - Quick preview of target count
+
+**Campaign Creation Enhanced with New Filters**:
+- **Location Filters**: `country`, `region` parameters
+- **Content Filters**: 
+  - `listened_content_ids` - Target users who listened to specific content
+  - `not_listened_content_ids` - Target users who have NOT listened to content
+- **User Selection**: `max_users`, `excluded_user_ids`, `selected_user_ids`
+
+**Frontend UI Enhancements** (`/app/frontend/src/pages/AdvertisingPage.jsx`):
+- Location Filter dropdowns (Country → Region/City)
+- Content search with autocomplete (songs/albums)
+- "Listened to" vs "NOT listened to" toggle
+- "Send to all matching users" checkbox with max users input
+- User Preview list with select/deselect functionality
+- Real-time target count updates
+
+**Test Results**: All 25 tests PASSED (backend + frontend)
+
+---
+
 ### Session Update 2: Azam Pay Testing & Push Notifications Setup
 
 **Azam Pay Payment Feature - VERIFIED WORKING**:
