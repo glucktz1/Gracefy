@@ -674,8 +674,28 @@ async def create_campaign(
     
     # Build target filter
     target_filter = {"type": target_filter_type}
-    if target_filter_type == "listened_content" and target_filter_content_ids:
-        target_filter["content_ids"] = [cid.strip() for cid in target_filter_content_ids.split(",")]
+    
+    # Location filters
+    if country:
+        target_filter["country"] = country
+    if region:
+        target_filter["region"] = region
+    if city:
+        target_filter["city"] = city
+    
+    # Content listening filters
+    if listened_content_ids:
+        target_filter["listened_content_ids"] = [cid.strip() for cid in listened_content_ids.split(",")]
+    if not_listened_content_ids:
+        target_filter["not_listened_content_ids"] = [cid.strip() for cid in not_listened_content_ids.split(",")]
+    
+    # User selection filters
+    if max_users and max_users > 0:
+        target_filter["max_users"] = max_users
+    if excluded_user_ids:
+        target_filter["excluded_user_ids"] = [uid.strip() for uid in excluded_user_ids.split(",")]
+    if selected_user_ids:
+        target_filter["selected_user_ids"] = [uid.strip() for uid in selected_user_ids.split(",")]
     
     # Add channel-specific requirements
     if type == "email":
