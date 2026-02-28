@@ -1054,8 +1054,8 @@ async def get_next_ad(
         return {"should_play_ad": False, "ad": None, "reason": "ads_disabled"}
     
     if user_id and settings.get("free_users_only", True):
-        user = await db.users.find_one({"user_id": user_id})
-        if user and user.get("subscription_type") in ["premium", "family"]:
+        user = await db.app_users.find_one({"user_id": user_id})
+        if user and (user.get("subscription", {}).get("status") == "active" or user.get("is_premium")):
             return {"should_play_ad": False, "ad": None, "reason": "premium_user"}
     
     ads_interval_songs = settings.get("ads_interval_songs", 3)
