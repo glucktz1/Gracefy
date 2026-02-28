@@ -980,13 +980,47 @@ async def cancel_campaign(campaign_id: str, current_user: dict = Depends(get_cur
 async def preview_campaign_count(
     campaign_id: Optional[str] = None,
     target_filter_type: str = Query("all"),
-    campaign_type: str = Query("push")
+    campaign_type: str = Query("push"),
+    # Location filters
+    country: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
+    # Content listening filters
+    listened_content_ids: Optional[str] = Query(None),
+    not_listened_content_ids: Optional[str] = Query(None),
+    # User selection filters
+    max_users: Optional[int] = Query(None),
+    excluded_user_ids: Optional[str] = Query(None),
+    selected_user_ids: Optional[str] = Query(None)
 ):
-    """Preview how many users would receive a campaign"""
+    """Preview how many users would receive a campaign with advanced filtering"""
     db = get_db()
     
     target_filter = {"type": target_filter_type}
     
+    # Location filters
+    if country:
+        target_filter["country"] = country
+    if region:
+        target_filter["region"] = region
+    if city:
+        target_filter["city"] = city
+    
+    # Content listening filters
+    if listened_content_ids:
+        target_filter["listened_content_ids"] = [cid.strip() for cid in listened_content_ids.split(",")]
+    if not_listened_content_ids:
+        target_filter["not_listened_content_ids"] = [cid.strip() for cid in not_listened_content_ids.split(",")]
+    
+    # User selection filters
+    if max_users and max_users > 0:
+        target_filter["max_users"] = max_users
+    if excluded_user_ids:
+        target_filter["excluded_user_ids"] = [uid.strip() for uid in excluded_user_ids.split(",")]
+    if selected_user_ids:
+        target_filter["selected_user_ids"] = [uid.strip() for uid in selected_user_ids.split(",")]
+    
+    # Channel-specific requirements
     if campaign_type == "email":
         target_filter["has_email"] = True
     elif campaign_type == "sms":
@@ -998,7 +1032,8 @@ async def preview_campaign_count(
     
     return {
         "target_count": len(target_users),
-        "filter": target_filter
+        "filter": target_filter,
+        "sample_users": target_users[:5] if target_users else []  # Show first 5 users as sample
     }
 
 
