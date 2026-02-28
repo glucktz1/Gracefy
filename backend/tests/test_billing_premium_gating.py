@@ -64,7 +64,7 @@ class TestBillingToggle:
         session = requests.Session()
         
         # Login as admin
-        login_response = session.post(f"{BASE_URL}/api/admin/login", json={
+        login_response = session.post(f"{BASE_URL}/api/admin/users/login", json={
             "email": ADMIN_EMAIL,
             "password": ADMIN_PASSWORD
         })
@@ -131,7 +131,7 @@ class TestPlaylistPremiumGating:
         session = requests.Session()
         
         # Login as admin
-        login_response = session.post(f"{BASE_URL}/api/admin/login", json={
+        login_response = session.post(f"{BASE_URL}/api/admin/users/login", json={
             "email": ADMIN_EMAIL,
             "password": ADMIN_PASSWORD
         })
@@ -241,7 +241,7 @@ class TestUserSubscriptionStatus:
         session = requests.Session()
         
         # Login as admin
-        login_response = session.post(f"{BASE_URL}/api/admin/login", json={
+        login_response = session.post(f"{BASE_URL}/api/admin/users/login", json={
             "email": ADMIN_EMAIL,
             "password": ADMIN_PASSWORD
         })
