@@ -6,9 +6,9 @@ Test script for enhanced campaign targeting functionality
 import asyncio
 import sys
 import os
-sys.path.append('/app')
+sys.path.append('/app/backend')
 
-from backend.routes.advertising import get_target_users
+from routes.advertising import get_target_users
 from core.database import get_db
 
 async def test_enhanced_filtering():
