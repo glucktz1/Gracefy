@@ -344,12 +344,34 @@ async def get_playlists(request: Request):
 
 @router.post("/library/playlists")
 async def create_playlist(request: Request, data: dict):
-    """Create a new playlist"""
+    """Create a new playlist - requires premium when billing is enabled"""
     db = get_db()
     user = await get_user_from_token(request)
     
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check billing status - if billing is enabled, check user's premium status
+    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    billing_enabled = settings.get("billing_enabled", False) if settings else False
+    
+    if billing_enabled:
+        # Check if user is premium
+        user_id = user["user_id"]
+        subscription = user.get("subscription", {})
+        is_premium = user.get("is_premium", False)
+        
+        # Check if subscription is active and not expired
+        if subscription.get("status") == "active" and subscription.get("expires_at"):
+            from datetime import datetime, timezone
+            expires_at = datetime.fromisoformat(subscription["expires_at"].replace("Z", "+00:00"))
+            is_premium = expires_at > datetime.now(timezone.utc)
+        
+        if not is_premium:
+            raise HTTPException(
+                status_code=403, 
+                detail="Playlist creation requires a Premium subscription"
+            )
     
     playlist = {
         "playlist_id": f"pl_{uuid.uuid4().hex[:12]}",
