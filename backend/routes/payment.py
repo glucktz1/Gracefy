@@ -298,6 +298,13 @@ async def azampay_callback(request: Request):
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
             
+            # Send push notification to user
+            if send_payment_success_notification:
+                try:
+                    await send_payment_success_notification(db, user_id, plan_name, txn.get("amount", 0))
+                except Exception as e:
+                    logger.error(f"Failed to send push notification: {e}")
+            
             logger.info(f"Subscription activated for user {user_id}")
         
         elif payment_status == "failed":
