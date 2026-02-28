@@ -1370,7 +1370,7 @@ export default function AdvertisingPage() {
                           {targetPreviewCount !== null && (
                             <div className="flex items-center gap-2 text-green-500">
                               <Users className="w-4 h-4" />
-                              <span>Target: <strong>{targetPreviewCount.toLocaleString()}</strong> users</span>
+                              <span>Target: <strong>{(targetPreviewCount || 0).toLocaleString()}</strong> users</span>
                               {campaignForm.excluded_user_ids.length > 0 && (
                                 <span className="text-red-400 text-sm">
                                   (-{campaignForm.excluded_user_ids.length} excluded)
