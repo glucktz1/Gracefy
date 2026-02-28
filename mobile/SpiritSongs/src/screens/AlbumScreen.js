@@ -140,6 +140,19 @@ const AlbumScreen = ({ route, navigation }) => {
 
   const handlePlaySong = useCallback((song) => {
     if (!song) return;
+    
+    // Check if this is a user playlist (not an album or mix)
+    const isUserPlaylist = playlist && playlist.playlist_id && !album && !mix;
+    
+    // Gate playing from user playlists behind premium when billing is enabled
+    if (isUserPlaylist && billingEnabled && !isPremium) {
+      const result = billingContext?.promptSubscription?.('playlist');
+      if (result === 'show_plans') {
+        navigation.navigate('SubscriptionPlans');
+      }
+      return;
+    }
+    
     try {
       // Add album thumbnail to each song if it doesn't have one
       const albumThumbnail = item?.thumbnail || item?.thumbnail_url;
@@ -158,7 +171,7 @@ const AlbumScreen = ({ route, navigation }) => {
       console.error('Error playing song:', error);
       showToast('Imeshindwa kucheza', 'error');
     }
-  }, [playTrack, songs, item]);
+  }, [playTrack, songs, item, playlist, album, mix, billingEnabled, isPremium, billingContext, navigation]);
 
   const handlePlayAll = useCallback(() => {
     if (!songs?.length) return;
