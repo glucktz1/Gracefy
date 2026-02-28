@@ -108,15 +108,18 @@ async def upload_to_cdn(file: UploadFile, folder: str = "ads") -> str:
 
 
 async def get_target_users(db, filter_config: dict) -> List[dict]:
-    """Get users matching the campaign filter criteria"""
+    """
+    Get list of users matching the campaign filter criteria.
+    Enhanced with location, content listening history, and exclusion filters.
+    """
     query = {}
-    
     filter_type = filter_config.get("type", "all")
     
+    # Base filter types
     if filter_type == "all":
-        pass  # No filter
+        pass  # No additional filter
     elif filter_type == "active":
-        # Users who played content in the last 7 days
+        # Users who have played content in the last 7 days
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         query["last_active_at"] = {"$gte": week_ago}
     elif filter_type == "inactive":
@@ -130,36 +133,101 @@ async def get_target_users(db, filter_config: dict) -> List[dict]:
         # Users who joined in the last 7 days
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         query["created_at"] = {"$gte": week_ago}
-    elif filter_type == "listened_content":
-        # Users who listened to specific content
-        content_ids = filter_config.get("content_ids", [])
-        if content_ids:
-            # Would need to join with play history - simplified for now
-            pass
     elif filter_type == "premium":
-        query["subscription_type"] = {"$in": ["premium", "family"]}
-    elif filter_type == "free":
         query["$or"] = [
-            {"subscription_type": "free"},
-            {"subscription_type": None}
+            {"subscription.status": "active"},
+            {"is_premium": True}
+        ]
+    elif filter_type == "free":
+        query["$and"] = [
+            {"$or": [{"subscription.status": {"$ne": "active"}}, {"subscription": {"$exists": False}}]},
+            {"$or": [{"is_premium": {"$ne": True}}, {"is_premium": {"$exists": False}}]}
         ]
     
-    # Additional filters
+    # Location filters
+    if filter_config.get("country"):
+        query["country"] = filter_config["country"]
+    if filter_config.get("region"):
+        query["$or"] = [
+            {"region": filter_config["region"]},
+            {"city": filter_config["region"]}  # Some users may have city instead of region
+        ]
+    if filter_config.get("city"):
+        query["city"] = filter_config["city"]
+    
+    # Channel-specific requirements
     if filter_config.get("has_email"):
-        query["email"] = {"$ne": None, "$exists": True}
+        query["email"] = {"$ne": None, "$exists": True, "$regex": ".+@.+"}
     if filter_config.get("has_phone"):
-        query["phone_number"] = {"$ne": None, "$exists": True}
+        query["phone"] = {"$ne": None, "$exists": True}
     if filter_config.get("has_push_token"):
         query["push_token"] = {"$ne": None, "$exists": True}
     
-    users = await db.users.find(query, {
+    # Get base users
+    users = await db.app_users.find(query, {
         "_id": 0, 
         "user_id": 1, 
         "email": 1, 
-        "phone_number": 1, 
+        "phone": 1, 
         "push_token": 1,
-        "name": 1
+        "name": 1,
+        "country": 1,
+        "region": 1,
+        "city": 1,
+        "created_at": 1,
+        "last_active_at": 1,
+        "is_premium": 1
     }).to_list(100000)
+    
+    # Content listening filters (requires additional queries)
+    listened_content_ids = filter_config.get("listened_content_ids", [])
+    not_listened_content_ids = filter_config.get("not_listened_content_ids", [])
+    
+    if listened_content_ids:
+        # Get users who have listened to specific content
+        listened_user_ids = set()
+        for content_id in listened_content_ids:
+            plays = await db.listening_sessions.distinct("user_id", {
+                "$or": [
+                    {"song_id": content_id},
+                    {"album_id": content_id}
+                ]
+            })
+            if not listened_user_ids:
+                listened_user_ids = set(plays)
+            else:
+                listened_user_ids &= set(plays)  # Intersection - must have listened to ALL
+        
+        users = [u for u in users if u.get("user_id") in listened_user_ids]
+    
+    if not_listened_content_ids:
+        # Get users who have NOT listened to specific content
+        excluded_user_ids = set()
+        for content_id in not_listened_content_ids:
+            plays = await db.listening_sessions.distinct("user_id", {
+                "$or": [
+                    {"song_id": content_id},
+                    {"album_id": content_id}
+                ]
+            })
+            excluded_user_ids.update(plays)
+        
+        users = [u for u in users if u.get("user_id") not in excluded_user_ids]
+    
+    # Limit number of users if specified
+    max_users = filter_config.get("max_users")
+    if max_users and max_users > 0:
+        users = users[:max_users]
+    
+    # Exclude specific user IDs if provided
+    excluded_ids = filter_config.get("excluded_user_ids", [])
+    if excluded_ids:
+        users = [u for u in users if u.get("user_id") not in excluded_ids]
+    
+    # Include only specific user IDs if provided (for manual selection)
+    selected_ids = filter_config.get("selected_user_ids", [])
+    if selected_ids:
+        users = [u for u in users if u.get("user_id") in selected_ids]
     
     return users
 
