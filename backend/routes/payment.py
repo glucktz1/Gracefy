@@ -380,6 +380,31 @@ async def azampay_test_confirm(transaction_id: str, data: dict = None):
             }}
         )
         
+        # Get user details for notification
+        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        user_name = user.get("name") or user.get("email") or user.get("phone", "Unknown User")
+        plan_name = txn["plan_name"]
+        
+        # Create admin notification for successful payment
+        await db.admin_notifications.insert_one({
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "type": "payment_success",
+            "title": "New Payment Received!",
+            "message": f"{user_name} subscribed to {plan_name} - {txn.get('amount', 0):,.0f} TZS",
+            "data": {
+                "user_id": user_id,
+                "user_name": user_name,
+                "plan_name": plan_name,
+                "amount": txn.get("amount", 0),
+                "transaction_id": transaction_id,
+                "test_mode": True
+            },
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        logger.info(f"[TEST] Subscription activated for user {user_id}, notification created")
+        
         return {
             "success": True,
             "message": "Malipo yamekamilika! Akaunti yako imefunguliwa.",
