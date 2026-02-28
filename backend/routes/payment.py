@@ -208,7 +208,7 @@ async def azampay_checkout(data: dict):
         
         raise HTTPException(
             status_code=500,
-            detail=f"Payment initiation failed. Please try again."
+            detail="Payment initiation failed. Please try again."
         )
 
 

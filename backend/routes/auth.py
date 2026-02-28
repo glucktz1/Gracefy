@@ -1341,7 +1341,7 @@ async def get_available_auth_methods():
         }
         
         return methods
-    except Exception as e:
+    except Exception:
         # Return defaults on error
         return {
             "email_password": True,
