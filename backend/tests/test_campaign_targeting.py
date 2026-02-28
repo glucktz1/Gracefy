@@ -303,8 +303,10 @@ class TestCampaignTargeting:
     
     def test_create_campaign_with_all_filters(self):
         """POST /api/advertising/campaigns - creates campaign with all new filters"""
-        response = self.session.post(
+        headers = {"Authorization": f"Bearer {self.token}"}
+        response = requests.post(
             f"{self.base_url}/api/advertising/campaigns",
+            headers=headers,
             data={
                 "name": "TEST_All_Filters_Campaign",
                 "type": "push",
@@ -333,7 +335,7 @@ class TestCampaignTargeting:
         
         # Cleanup
         campaign_id = data["campaign"]["campaign_id"]
-        self.session.delete(f"{self.base_url}/api/advertising/campaigns/{campaign_id}")
+        requests.delete(f"{self.base_url}/api/advertising/campaigns/{campaign_id}", headers=headers)
 
 
 class TestCampaignTargetingEdgeCases:
