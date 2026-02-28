@@ -1188,6 +1188,7 @@ export default function AdvertisingPage() {
                           <Label className="text-white text-lg">Target Audience</Label>
                         </div>
                         
+                        {/* User Type Filter */}
                         <div className="space-y-2">
                           <Label className="text-white">User Filter</Label>
                           <Select 
@@ -1204,27 +1205,238 @@ export default function AdvertisingPage() {
                               <SelectItem value="recent">Recently Joined (last 7 days)</SelectItem>
                               <SelectItem value="premium">Premium Users</SelectItem>
                               <SelectItem value="free">Free Users</SelectItem>
-                              <SelectItem value="listened_content">Listened to Specific Content</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
 
-                        {campaignForm.target_filter_type === "listened_content" && (
-                          <div className="space-y-2">
-                            <Label className="text-white">Content IDs (comma-separated)</Label>
-                            <Input
-                              value={campaignForm.target_filter_content_ids}
-                              onChange={(e) => setCampaignForm({ ...campaignForm, target_filter_content_ids: e.target.value })}
-                              placeholder="song_id_1, album_id_2, ..."
-                              className="bg-zinc-800 border-zinc-700 text-white"
-                            />
+                        {/* Location Filters */}
+                        <div className="space-y-2">
+                          <Label className="text-white flex items-center gap-2">
+                            <MapPin className="w-4 h-4" /> Location Filter
+                          </Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Select 
+                              value={campaignForm.country} 
+                              onValueChange={(v) => setCampaignForm({ ...campaignForm, country: v, region: "" })}
+                            >
+                              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                                <SelectValue placeholder="Select Country" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-800 border-zinc-700">
+                                <SelectItem value="">All Countries</SelectItem>
+                                {countries.map(c => (
+                                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select 
+                              value={campaignForm.region} 
+                              onValueChange={(v) => setCampaignForm({ ...campaignForm, region: v })}
+                              disabled={!campaignForm.country}
+                            >
+                              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                                <SelectValue placeholder="Select Region/City" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-800 border-zinc-700">
+                                <SelectItem value="">All Regions</SelectItem>
+                                {regions.map(r => (
+                                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
+                        </div>
 
-                        {targetPreviewCount !== null && (
-                          <div className="flex items-center gap-2 text-green-500">
-                            <Users className="w-4 h-4" />
-                            <span>Target audience: <strong>{targetPreviewCount.toLocaleString()}</strong> users</span>
+                        {/* Content Listening Filters */}
+                        <div className="space-y-2">
+                          <Label className="text-white flex items-center gap-2">
+                            <Music className="w-4 h-4" /> Content Filter
+                          </Label>
+                          
+                          {/* Content Search */}
+                          <div className="relative">
+                            <div className="flex gap-2">
+                              <Select 
+                                value={contentFilterType} 
+                                onValueChange={setContentFilterType}
+                              >
+                                <SelectTrigger className="w-48 bg-zinc-800 border-zinc-700 text-white">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-800 border-zinc-700">
+                                  <SelectItem value="listened">Listened to</SelectItem>
+                                  <SelectItem value="not_listened">NOT listened to</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="flex-1 relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                <Input
+                                  value={contentSearchQuery}
+                                  onChange={(e) => {
+                                    setContentSearchQuery(e.target.value);
+                                    setShowContentSearch(true);
+                                  }}
+                                  onFocus={() => setShowContentSearch(true)}
+                                  placeholder="Search songs or albums..."
+                                  className="pl-10 bg-zinc-800 border-zinc-700 text-white"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Search Results Dropdown */}
+                            {showContentSearch && contentSearchResults.length > 0 && (
+                              <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                {contentSearchResults.map(item => (
+                                  <div
+                                    key={item.id}
+                                    className="p-2 hover:bg-zinc-700 cursor-pointer flex items-center gap-2"
+                                    onClick={() => addContentToFilter(item, contentFilterType)}
+                                  >
+                                    {item.thumbnail && (
+                                      <img src={item.thumbnail} alt="" className="w-8 h-8 rounded object-cover" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white text-sm truncate">{item.title}</p>
+                                      <p className="text-zinc-400 text-xs truncate">{item.subtitle}</p>
+                                    </div>
+                                    <Badge className="text-xs">{item.type}</Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Selected Content Tags */}
+                          {campaignForm.listened_content_ids.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-green-400">Users who listened to:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {campaignForm.listened_content_ids.map(id => (
+                                  <Badge key={id} variant="outline" className="text-green-400 border-green-600">
+                                    {id}
+                                    <X 
+                                      className="w-3 h-3 ml-1 cursor-pointer" 
+                                      onClick={() => removeContentFromFilter(id, "listened")}
+                                    />
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {campaignForm.not_listened_content_ids.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-red-400">Users who have NOT listened to:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {campaignForm.not_listened_content_ids.map(id => (
+                                  <Badge key={id} variant="outline" className="text-red-400 border-red-600">
+                                    {id}
+                                    <X 
+                                      className="w-3 h-3 ml-1 cursor-pointer" 
+                                      onClick={() => removeContentFromFilter(id, "not_listened")}
+                                    />
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Send to All or Limited */}
+                        <div className="space-y-2">
+                          <Label className="text-white">Audience Size</Label>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <Checkbox 
+                                id="send_to_all"
+                                checked={campaignForm.send_to_all}
+                                onCheckedChange={(checked) => setCampaignForm({ ...campaignForm, send_to_all: checked })}
+                              />
+                              <label htmlFor="send_to_all" className="text-white text-sm">Send to all matching users</label>
+                            </div>
+                            {!campaignForm.send_to_all && (
+                              <Input
+                                type="number"
+                                value={campaignForm.max_users}
+                                onChange={(e) => setCampaignForm({ ...campaignForm, max_users: e.target.value })}
+                                placeholder="Max users"
+                                className="w-32 bg-zinc-800 border-zinc-700 text-white"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Target Count & Preview */}
+                        <div className="flex items-center justify-between pt-2 border-t border-zinc-700">
+                          {targetPreviewCount !== null && (
+                            <div className="flex items-center gap-2 text-green-500">
+                              <Users className="w-4 h-4" />
+                              <span>Target: <strong>{targetPreviewCount.toLocaleString()}</strong> users</span>
+                              {campaignForm.excluded_user_ids.length > 0 && (
+                                <span className="text-red-400 text-sm">
+                                  (-{campaignForm.excluded_user_ids.length} excluded)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={previewTargetUsers}
+                            disabled={previewUsersLoading}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            {previewUsersLoading ? "Loading..." : "Preview Users"}
+                          </Button>
+                        </div>
+
+                        {/* User Preview List */}
+                        {showUserPreview && previewUsers.length > 0 && (
+                          <div className="border border-zinc-700 rounded-lg overflow-hidden">
+                            <div className="bg-zinc-700 p-2 flex items-center justify-between">
+                              <span className="text-white text-sm font-medium">
+                                {previewUsers.length} users found
+                              </span>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="ghost" onClick={selectAllUsers}>
+                                  <Check className="w-3 h-3 mr-1" /> Select All
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={deselectAllUsers}>
+                                  <UserMinus className="w-3 h-3 mr-1" /> Deselect All
+                                </Button>
+                              </div>
+                            </div>
+                            <ScrollArea className="h-48">
+                              <div className="divide-y divide-zinc-800">
+                                {previewUsers.map(user => (
+                                  <div 
+                                    key={user.user_id}
+                                    className={`p-2 flex items-center gap-2 cursor-pointer hover:bg-zinc-800 ${
+                                      campaignForm.excluded_user_ids.includes(user.user_id) ? 'bg-red-900/20' : ''
+                                    }`}
+                                    onClick={() => toggleUserSelection(user.user_id)}
+                                  >
+                                    <Checkbox 
+                                      checked={!campaignForm.excluded_user_ids.includes(user.user_id)}
+                                      className="pointer-events-none"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white text-sm truncate">{user.name || 'Unknown'}</p>
+                                      <p className="text-zinc-400 text-xs truncate">
+                                        {user.email || user.phone || user.user_id}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {user.country && (
+                                        <Badge variant="outline" className="text-xs">{user.country}</Badge>
+                                      )}
+                                      {user.is_premium && (
+                                        <Badge className="bg-violet-600 text-xs">Premium</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
                           </div>
                         )}
                       </div>
