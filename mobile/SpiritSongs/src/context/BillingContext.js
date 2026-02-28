@@ -81,6 +81,7 @@ export const BillingProvider = ({ children }) => {
         setIsPremium(false);
         setSubscription(null);
       }
+      setLastRefresh(Date.now());
     } catch (error) {
       console.error('Error loading billing data:', error);
       // On error, default to billing disabled (safer for users)
