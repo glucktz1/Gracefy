@@ -3786,6 +3786,12 @@ export default function UserStreamingApp() {
   };
 
   const createNewPlaylist = async (name) => {
+    // Check if user can create playlists (premium feature when billing is enabled)
+    if (billingEnabled && !isPremium) {
+      toast.error(t('premium.playlistRequired', 'Playlist creation requires a Premium subscription'));
+      return;
+    }
+    
     try {
       const res = await axios.post(`${API}/user/playlist/create`,
         { name, description: "" },
