@@ -268,7 +268,7 @@ class TestUserSubscriptionStatus:
         session.headers.update({"Authorization": f"Bearer {TEST_USER_TOKEN}"})
         
         # Get user info
-        user_response = session.get(f"{BASE_URL}/api/user/profile")
+        user_response = session.get(f"{BASE_URL}/api/user/me")
         if user_response.status_code != 200:
             pytest.skip(f"Could not get user profile: {user_response.status_code}")
         
