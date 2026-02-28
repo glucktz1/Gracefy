@@ -420,19 +420,9 @@ export default function AdvertisingPage() {
     }
   };
 
-  // Preview target count
+  // Preview target count (old - keep for backwards compat)
   const previewTargetCount = async () => {
-    try {
-      const params = new URLSearchParams({
-        target_filter_type: campaignForm.target_filter_type,
-        campaign_type: campaignForm.type
-      });
-      
-      const response = await axios.get(`${API}/advertising/campaigns/preview-count?${params}`, { withCredentials: true });
-      setTargetPreviewCount(response.data.target_count);
-    } catch (error) {
-      console.error("Error previewing count:", error);
-    }
+    await updateTargetCount();
   };
 
   // Create/Update campaign
@@ -440,11 +430,40 @@ export default function AdvertisingPage() {
     setSubmittingCampaign(true);
     try {
       const formData = new FormData();
-      Object.entries(campaignForm).forEach(([key, value]) => {
-        if (value !== "" && value !== null) {
-          formData.append(key, value.toString());
-        }
-      });
+      
+      // Basic fields
+      formData.append("name", campaignForm.name);
+      formData.append("description", campaignForm.description);
+      formData.append("type", campaignForm.type);
+      formData.append("message_title", campaignForm.message_title);
+      formData.append("message_body", campaignForm.message_body);
+      formData.append("target_filter_type", campaignForm.target_filter_type);
+      
+      // Location filters
+      if (campaignForm.country) formData.append("country", campaignForm.country);
+      if (campaignForm.region) formData.append("region", campaignForm.region);
+      
+      // Content filters
+      if (campaignForm.listened_content_ids.length > 0) {
+        formData.append("listened_content_ids", campaignForm.listened_content_ids.join(","));
+      }
+      if (campaignForm.not_listened_content_ids.length > 0) {
+        formData.append("not_listened_content_ids", campaignForm.not_listened_content_ids.join(","));
+      }
+      
+      // User selection
+      if (!campaignForm.send_to_all && campaignForm.max_users) {
+        formData.append("max_users", campaignForm.max_users);
+      }
+      if (campaignForm.excluded_user_ids.length > 0) {
+        formData.append("excluded_user_ids", campaignForm.excluded_user_ids.join(","));
+      }
+      if (campaignForm.selected_user_ids.length > 0) {
+        formData.append("selected_user_ids", campaignForm.selected_user_ids.join(","));
+      }
+      
+      // Schedule
+      if (campaignForm.scheduled_at) formData.append("scheduled_at", campaignForm.scheduled_at);
       
       if (editingCampaign) {
         await axios.put(`${API}/advertising/campaigns/${editingCampaign.campaign_id}`, formData, { withCredentials: true });
