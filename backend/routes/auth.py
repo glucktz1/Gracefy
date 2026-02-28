@@ -1433,3 +1433,87 @@ async def check_sms_balance():
     except ImportError:
         return {"error": "SMS service not available"}
 
+
+
+# ============== PUSH NOTIFICATIONS ==============
+
+@router.post("/user/push-token")
+async def save_push_token(request: Request, data: dict):
+    """Save user's push notification token"""
+    db = get_db()
+    
+    user_id = data.get("user_id")
+    push_token = data.get("push_token")
+    platform = data.get("platform", "unknown")
+    device_name = data.get("device_name", "Unknown Device")
+    
+    if not user_id or not push_token:
+        raise HTTPException(status_code=400, detail="user_id and push_token required")
+    
+    # Verify user exists
+    user = await db.app_users.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update user with push token
+    await db.app_users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "push_token": push_token,
+            "push_platform": platform,
+            "push_device_name": device_name,
+            "push_token_updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    logger.info(f"Push token saved for user {user_id}")
+    
+    return {"success": True, "message": "Push token saved"}
+
+
+@router.delete("/user/push-token")
+async def remove_push_token(request: Request):
+    """Remove user's push token (on logout)"""
+    db = get_db()
+    
+    # Get user from token
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.split(" ")[1]
+    user = await db.app_users.find_one({"token": token})
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Remove push token
+    await db.app_users.update_one(
+        {"user_id": user["user_id"]},
+        {"$unset": {"push_token": "", "push_platform": "", "push_device_name": ""}}
+    )
+    
+    return {"success": True, "message": "Push token removed"}
+
+
+@router.get("/admin/push-tokens/stats")
+async def get_push_token_stats():
+    """Get push notification statistics"""
+    db = get_db()
+    
+    total_users = await db.app_users.count_documents({})
+    users_with_tokens = await db.app_users.count_documents({"push_token": {"$exists": True, "$ne": None}})
+    
+    # Platform breakdown
+    android_users = await db.app_users.count_documents({"push_platform": "android"})
+    ios_users = await db.app_users.count_documents({"push_platform": "ios"})
+    
+    return {
+        "total_users": total_users,
+        "users_with_push_tokens": users_with_tokens,
+        "coverage_percentage": round((users_with_tokens / total_users * 100) if total_users > 0 else 0, 1),
+        "platform_breakdown": {
+            "android": android_users,
+            "ios": ios_users
+        }
+    }
