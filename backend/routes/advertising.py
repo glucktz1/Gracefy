@@ -712,38 +712,6 @@ async def preview_campaign_users(data: dict):
 
 
 @router.get("/campaigns/preview-count")
-async def preview_target_count(
-    filter_type: str = Query("all"),
-    country: Optional[str] = Query(None),
-    region: Optional[str] = Query(None),
-    listened_content_ids: Optional[str] = Query(None),  # comma-separated
-    not_listened_content_ids: Optional[str] = Query(None),  # comma-separated
-    max_users: Optional[int] = Query(None),
-    campaign_type: str = Query("push")
-):
-    """Quick preview of how many users match the filter criteria"""
-    db = get_db()
-    
-    filter_config = {
-        "type": filter_type,
-        "country": country if country else None,
-        "region": region if region else None,
-        "listened_content_ids": [x.strip() for x in listened_content_ids.split(",")] if listened_content_ids else [],
-        "not_listened_content_ids": [x.strip() for x in not_listened_content_ids.split(",")] if not_listened_content_ids else [],
-        "max_users": max_users
-    }
-    
-    # Add channel requirements
-    if campaign_type == "email":
-        filter_config["has_email"] = True
-    elif campaign_type == "sms":
-        filter_config["has_phone"] = True
-    elif campaign_type == "push":
-        filter_config["has_push_token"] = True
-    
-    users = await get_target_users(db, filter_config)
-    
-    return {"count": len(users), "filter": filter_config}
 
 
 # ==================== CAMPAIGN MANAGEMENT ENDPOINTS ====================
