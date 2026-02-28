@@ -1230,8 +1230,8 @@ export default function AdvertisingPage() {
                               </SelectContent>
                             </Select>
                             <Select 
-                              value={campaignForm.region} 
-                              onValueChange={(v) => setCampaignForm({ ...campaignForm, region: v })}
+                              value={campaignForm.region || "__all__"} 
+                              onValueChange={(v) => setCampaignForm({ ...campaignForm, region: v === "__all__" ? "" : v })}
                               disabled={!campaignForm.country}
                             >
                               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
