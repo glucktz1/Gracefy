@@ -646,8 +646,18 @@ async def create_campaign(
     type: str = Form(...),  # push, sms, email
     message_title: str = Form(""),
     message_body: str = Form(...),
-    target_filter_type: str = Form("all"),  # all, active, inactive, recent, premium, free, listened_content
-    target_filter_content_ids: Optional[str] = Form(None),  # comma-separated content IDs
+    target_filter_type: str = Form("all"),  # all, active, inactive, recent, premium, free
+    # Location filters
+    country: Optional[str] = Form(None),
+    region: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    # Content listening filters
+    listened_content_ids: Optional[str] = Form(None),  # comma-separated content IDs user MUST have listened to
+    not_listened_content_ids: Optional[str] = Form(None),  # comma-separated content IDs user must NOT have listened to
+    # User selection filters
+    max_users: Optional[int] = Form(None),  # Limit number of users
+    excluded_user_ids: Optional[str] = Form(None),  # comma-separated user IDs to exclude
+    selected_user_ids: Optional[str] = Form(None),  # comma-separated user IDs to include (manual selection)
     scheduled_at: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_admin_user)
 ):
