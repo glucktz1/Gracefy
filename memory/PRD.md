@@ -966,11 +966,17 @@ REACT_APP_BACKEND_URL=https://mafundisho-player.preview.emergentagent.com
 ## Remaining Tasks
 
 ### P0 - Critical
+- [x] ~~Billing Logic Bug Fix~~ - COMPLETED Feb 28, 2026
+  - Fixed: App now refreshes billing status every 60 seconds
+  - Fixed: Billing status refreshes when app/tab gains focus
+  - Added: Premium feature gating for playlist creation
+  - Added: Premium feature gating for downloaded song playback
 - [ ] Complete Premium Feature Enforcement (continuous play, background play blocking for free users)
 - [ ] Verify mobile fixes for downloads and mini-player sync (user verification pending)
 - [ ] SMS Integration - Need valid Sender ID from MIA SMS account (BLOCKED)
 
 ### P1 - High Priority
+- [ ] Mobile Build v1.0.139 with billing fixes (needs EXPO_TOKEN to trigger)
 - [ ] Player Autoplay/Shuffle Logic Fix (repeats same album instead of moving to recommended)
 - [x] ~~Web App Filters display in Swahili~~ - COMPLETED Feb 27, 2026
 - [x] ~~Song metadata not updating on track change (web player)~~ - VERIFIED WORKING
