@@ -583,6 +583,169 @@ async def toggle_ad_status(ad_id: str, current_user: dict = Depends(get_current_
     return {"message": f"Advertisement {'activated' if new_status else 'deactivated'}", "is_active": new_status}
 
 
+
+# ==================== CAMPAIGN TARGETING HELPER ENDPOINTS ====================
+
+@router.get("/content/search")
+async def search_content(
+    q: str = Query(..., description="Search query"),
+    content_type: str = Query("all", description="Content type: all, songs, albums")
+):
+    """Search for songs and albums to use in campaign targeting"""
+    db = get_db()
+    
+    results = []
+    search_regex = {"$regex": q, "$options": "i"}
+    
+    if content_type in ["all", "songs"]:
+        songs = await db.songs.find(
+            {"$or": [{"title": search_regex}, {"artist_name": search_regex}]},
+            {"_id": 0, "song_id": 1, "title": 1, "artist_name": 1, "thumbnail": 1, "album_name": 1}
+        ).limit(20).to_list(20)
+        
+        for song in songs:
+            results.append({
+                "id": song.get("song_id"),
+                "type": "song",
+                "title": song.get("title"),
+                "subtitle": f"{song.get('artist_name', 'Unknown')} • {song.get('album_name', '')}",
+                "thumbnail": song.get("thumbnail")
+            })
+    
+    if content_type in ["all", "albums"]:
+        albums = await db.albums.find(
+            {"$or": [{"name": search_regex}, {"title": search_regex}, {"artist_name": search_regex}]},
+            {"_id": 0, "album_id": 1, "name": 1, "title": 1, "artist_name": 1, "thumbnail": 1}
+        ).limit(20).to_list(20)
+        
+        for album in albums:
+            results.append({
+                "id": album.get("album_id"),
+                "type": "album",
+                "title": album.get("name") or album.get("title"),
+                "subtitle": album.get("artist_name", "Unknown Artist"),
+                "thumbnail": album.get("thumbnail")
+            })
+    
+    return {"results": results, "total": len(results)}
+
+
+@router.get("/locations/countries")
+async def get_available_countries():
+    """Get list of countries where users are located"""
+    db = get_db()
+    
+    countries = await db.app_users.distinct("country", {"country": {"$ne": None, "$exists": True}})
+    countries = [c for c in countries if c]  # Filter out empty strings
+    
+    return {"countries": sorted(countries)}
+
+
+@router.get("/locations/regions")
+async def get_regions_for_country(country: str = Query(...)):
+    """Get list of regions/cities for a specific country"""
+    db = get_db()
+    
+    # Get both regions and cities for the country
+    regions = await db.app_users.distinct("region", {"country": country, "region": {"$ne": None, "$exists": True}})
+    cities = await db.app_users.distinct("city", {"country": country, "city": {"$ne": None, "$exists": True}})
+    
+    # Combine and deduplicate
+    locations = list(set([r for r in regions if r] + [c for c in cities if c]))
+    
+    return {"regions": sorted(locations)}
+
+
+@router.post("/campaigns/preview-users")
+async def preview_campaign_users(data: dict):
+    """
+    Preview users matching campaign filters with full details.
+    Used to display user list in admin panel for selection.
+    """
+    db = get_db()
+    
+    # Build filter config from request data
+    filter_config = {
+        "type": data.get("filter_type", "all"),
+        "country": data.get("country"),
+        "region": data.get("region"),
+        "city": data.get("city"),
+        "listened_content_ids": data.get("listened_content_ids", []),
+        "not_listened_content_ids": data.get("not_listened_content_ids", []),
+        "max_users": data.get("max_users"),
+        "excluded_user_ids": data.get("excluded_user_ids", []),
+        "selected_user_ids": data.get("selected_user_ids", [])
+    }
+    
+    # Add channel requirements based on campaign type
+    campaign_type = data.get("campaign_type", "push")
+    if campaign_type == "email":
+        filter_config["has_email"] = True
+    elif campaign_type == "sms":
+        filter_config["has_phone"] = True
+    elif campaign_type == "push":
+        filter_config["has_push_token"] = True
+    
+    users = await get_target_users(db, filter_config)
+    
+    # Format users for display
+    user_list = []
+    for user in users:
+        user_list.append({
+            "user_id": user.get("user_id"),
+            "name": user.get("name") or "Unknown",
+            "email": user.get("email"),
+            "phone": user.get("phone"),
+            "country": user.get("country"),
+            "region": user.get("region") or user.get("city"),
+            "is_premium": user.get("is_premium", False),
+            "has_push_token": bool(user.get("push_token")),
+            "created_at": user.get("created_at"),
+            "last_active_at": user.get("last_active_at")
+        })
+    
+    return {
+        "users": user_list,
+        "total": len(user_list),
+        "filter_applied": filter_config
+    }
+
+
+@router.get("/campaigns/preview-count")
+async def preview_target_count(
+    filter_type: str = Query("all"),
+    country: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
+    listened_content_ids: Optional[str] = Query(None),  # comma-separated
+    not_listened_content_ids: Optional[str] = Query(None),  # comma-separated
+    max_users: Optional[int] = Query(None),
+    campaign_type: str = Query("push")
+):
+    """Quick preview of how many users match the filter criteria"""
+    db = get_db()
+    
+    filter_config = {
+        "type": filter_type,
+        "country": country if country else None,
+        "region": region if region else None,
+        "listened_content_ids": [x.strip() for x in listened_content_ids.split(",")] if listened_content_ids else [],
+        "not_listened_content_ids": [x.strip() for x in not_listened_content_ids.split(",")] if not_listened_content_ids else [],
+        "max_users": max_users
+    }
+    
+    # Add channel requirements
+    if campaign_type == "email":
+        filter_config["has_email"] = True
+    elif campaign_type == "sms":
+        filter_config["has_phone"] = True
+    elif campaign_type == "push":
+        filter_config["has_push_token"] = True
+    
+    users = await get_target_users(db, filter_config)
+    
+    return {"count": len(users), "filter": filter_config}
+
+
 # ==================== CAMPAIGN MANAGEMENT ENDPOINTS ====================
 
 @router.get("/campaigns")
