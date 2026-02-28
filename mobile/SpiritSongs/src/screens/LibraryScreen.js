@@ -443,6 +443,15 @@ const LibraryScreen = ({ navigation, route }) => {
   // Downloads Tab Content - Spotify-like offline songs section
   const renderDownloadsTab = () => {
     const handlePlayDownloadedSong = (song, index = 0) => {
+      // Check if user can play downloaded songs (premium feature when billing is enabled)
+      if (billingEnabled && !isPremium) {
+        const result = promptSubscription('offline');
+        if (result === 'show_plans') {
+          navigation.navigate('SubscriptionPlans');
+        }
+        return;
+      }
+      
       // Get all downloaded songs with local file paths
       const offlinePlaylist = downloadedSongs.map(s => ({
         ...s,
@@ -460,6 +469,15 @@ const LibraryScreen = ({ navigation, route }) => {
 
     const handlePlayAllDownloads = () => {
       if (downloadedSongs.length === 0) return;
+      
+      // Check if user can play downloaded songs (premium feature when billing is enabled)
+      if (billingEnabled && !isPremium) {
+        const result = promptSubscription('offline');
+        if (result === 'show_plans') {
+          navigation.navigate('SubscriptionPlans');
+        }
+        return;
+      }
       
       // Create offline playlist with local file paths
       const offlinePlaylist = downloadedSongs.map(s => ({
