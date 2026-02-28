@@ -652,7 +652,34 @@ export default function AdvertisingPage() {
     if (campaignForm.target_filter_type && campaignForm.type) {
       previewTargetCount();
     }
-  }, [campaignForm.target_filter_type, campaignForm.type]);
+  }, [campaignForm.target_filter_type, campaignForm.type, campaignForm.country, campaignForm.region, campaignForm.listened_content_ids, campaignForm.not_listened_content_ids, campaignForm.send_to_all, campaignForm.max_users]);
+
+  // Fetch countries when campaign dialog opens
+  useEffect(() => {
+    if (showCampaignDialog && countries.length === 0) {
+      fetchCountries();
+    }
+  }, [showCampaignDialog]);
+
+  // Fetch regions when country changes
+  useEffect(() => {
+    if (campaignForm.country) {
+      fetchRegions(campaignForm.country);
+    } else {
+      setRegions([]);
+      setCampaignForm(prev => ({ ...prev, region: "" }));
+    }
+  }, [campaignForm.country]);
+
+  // Debounced content search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (contentSearchQuery.length >= 2) {
+        searchContent(contentSearchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [contentSearchQuery]);
 
   const getCampaignTypeIcon = (type) => {
     switch(type) {
