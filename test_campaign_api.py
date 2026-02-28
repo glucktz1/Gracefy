@@ -42,7 +42,7 @@ def test_campaign_endpoints():
             "target_filter_type": "all",
             "campaign_type": "push"
         }
-        response = requests.get(f"{base_url}/campaigns/preview-count", params=params, timeout=5)
+        response = requests.get(f"{base_url}/preview-target-count", params=params, timeout=5)
         if response.status_code == 200:
             data = response.json()
             print(f"   ✅ Basic filter: {data.get('target_count', 0)} users")
@@ -59,7 +59,7 @@ def test_campaign_endpoints():
             "campaign_type": "push",
             "country": "US"
         }
-        response = requests.get(f"{base_url}/campaigns/preview-count", params=params, timeout=5)
+        response = requests.get(f"{base_url}/preview-target-count", params=params, timeout=5)
         if response.status_code == 200:
             data = response.json()
             print(f"   ✅ US users: {data.get('target_count', 0)} users")
@@ -76,7 +76,7 @@ def test_campaign_endpoints():
             "campaign_type": "push",
             "max_users": 10
         }
-        response = requests.get(f"{base_url}/campaigns/preview-count", params=params, timeout=5)
+        response = requests.get(f"{base_url}/preview-target-count", params=params, timeout=5)
         if response.status_code == 200:
             data = response.json()
             count = data.get('target_count', 0)
