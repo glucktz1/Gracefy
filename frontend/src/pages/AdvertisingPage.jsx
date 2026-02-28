@@ -135,6 +135,154 @@ export default function AdvertisingPage() {
   const [platformAnalytics, setPlatformAnalytics] = useState([]);
   const [analyticsPeriod, setAnalyticsPeriod] = useState(30);
 
+  // Fetch countries for location filter
+  const fetchCountries = async () => {
+    try {
+      const response = await axios.get(`${API}/advertising/locations/countries`, { withCredentials: true });
+      setCountries(response.data.countries || []);
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+    }
+  };
+
+  // Fetch regions for selected country
+  const fetchRegions = async (country) => {
+    if (!country) {
+      setRegions([]);
+      return;
+    }
+    try {
+      const response = await axios.get(`${API}/advertising/locations/regions?country=${encodeURIComponent(country)}`, { withCredentials: true });
+      setRegions(response.data.regions || []);
+    } catch (error) {
+      console.error("Error fetching regions:", error);
+    }
+  };
+
+  // Search for content (songs/albums)
+  const searchContent = async (query) => {
+    if (!query || query.length < 2) {
+      setContentSearchResults([]);
+      return;
+    }
+    setContentSearchLoading(true);
+    try {
+      const response = await axios.get(`${API}/advertising/content/search?q=${encodeURIComponent(query)}&content_type=all`, { withCredentials: true });
+      setContentSearchResults(response.data.results || []);
+    } catch (error) {
+      console.error("Error searching content:", error);
+    } finally {
+      setContentSearchLoading(false);
+    }
+  };
+
+  // Preview target users
+  const previewTargetUsers = async () => {
+    setPreviewUsersLoading(true);
+    try {
+      const response = await axios.post(`${API}/advertising/campaigns/preview-users`, {
+        filter_type: campaignForm.target_filter_type,
+        country: campaignForm.country || null,
+        region: campaignForm.region || null,
+        listened_content_ids: campaignForm.listened_content_ids,
+        not_listened_content_ids: campaignForm.not_listened_content_ids,
+        max_users: campaignForm.send_to_all ? null : parseInt(campaignForm.max_users) || null,
+        excluded_user_ids: campaignForm.excluded_user_ids,
+        selected_user_ids: campaignForm.selected_user_ids.length > 0 ? campaignForm.selected_user_ids : null,
+        campaign_type: campaignForm.type
+      }, { withCredentials: true });
+      setPreviewUsers(response.data.users || []);
+      setTargetPreviewCount(response.data.total);
+      setShowUserPreview(true);
+    } catch (error) {
+      console.error("Error previewing users:", error);
+      toast.error("Failed to load user preview");
+    } finally {
+      setPreviewUsersLoading(false);
+    }
+  };
+
+  // Update target preview count when filters change
+  const updateTargetCount = async () => {
+    try {
+      const params = new URLSearchParams({
+        target_filter_type: campaignForm.target_filter_type,
+        campaign_type: campaignForm.type
+      });
+      if (campaignForm.country) params.append("country", campaignForm.country);
+      if (campaignForm.region) params.append("region", campaignForm.region);
+      if (campaignForm.listened_content_ids.length > 0) {
+        params.append("listened_content_ids", campaignForm.listened_content_ids.join(","));
+      }
+      if (campaignForm.not_listened_content_ids.length > 0) {
+        params.append("not_listened_content_ids", campaignForm.not_listened_content_ids.join(","));
+      }
+      if (!campaignForm.send_to_all && campaignForm.max_users) {
+        params.append("max_users", campaignForm.max_users);
+      }
+      
+      const response = await axios.get(`${API}/advertising/preview-target-count?${params}`, { withCredentials: true });
+      setTargetPreviewCount(response.data.count);
+    } catch (error) {
+      console.error("Error fetching target count:", error);
+    }
+  };
+
+  // Add content to filter list
+  const addContentToFilter = (content, filterType) => {
+    const targetArray = filterType === "listened" ? "listened_content_ids" : "not_listened_content_ids";
+    if (!campaignForm[targetArray].includes(content.id)) {
+      setCampaignForm({
+        ...campaignForm,
+        [targetArray]: [...campaignForm[targetArray], content.id]
+      });
+    }
+    setContentSearchQuery("");
+    setContentSearchResults([]);
+    setShowContentSearch(false);
+  };
+
+  // Remove content from filter list
+  const removeContentFromFilter = (contentId, filterType) => {
+    const targetArray = filterType === "listened" ? "listened_content_ids" : "not_listened_content_ids";
+    setCampaignForm({
+      ...campaignForm,
+      [targetArray]: campaignForm[targetArray].filter(id => id !== contentId)
+    });
+  };
+
+  // Toggle user selection in preview
+  const toggleUserSelection = (userId) => {
+    const isExcluded = campaignForm.excluded_user_ids.includes(userId);
+    if (isExcluded) {
+      setCampaignForm({
+        ...campaignForm,
+        excluded_user_ids: campaignForm.excluded_user_ids.filter(id => id !== userId)
+      });
+    } else {
+      setCampaignForm({
+        ...campaignForm,
+        excluded_user_ids: [...campaignForm.excluded_user_ids, userId]
+      });
+    }
+  };
+
+  // Select all users in preview
+  const selectAllUsers = () => {
+    setCampaignForm({
+      ...campaignForm,
+      excluded_user_ids: []
+    });
+  };
+
+  // Deselect all users in preview
+  const deselectAllUsers = () => {
+    setCampaignForm({
+      ...campaignForm,
+      excluded_user_ids: previewUsers.map(u => u.user_id)
+    });
+  };
+
   // Fetch settings
   const fetchSettings = async () => {
     try {
