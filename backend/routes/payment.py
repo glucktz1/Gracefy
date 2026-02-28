@@ -409,6 +409,13 @@ async def azampay_test_confirm(transaction_id: str, data: dict = None):
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         
+        # Send push notification to user
+        if send_payment_success_notification:
+            try:
+                await send_payment_success_notification(db, user_id, plan_name, txn.get("amount", 0))
+            except Exception as e:
+                logger.error(f"Failed to send push notification: {e}")
+        
         logger.info(f"[TEST] Subscription activated for user {user_id}, notification created")
         
         return {
