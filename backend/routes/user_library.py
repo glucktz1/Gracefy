@@ -357,13 +357,11 @@ async def create_playlist(request: Request, data: dict):
     
     if billing_enabled:
         # Check if user is premium
-        user_id = user["user_id"]
         subscription = user.get("subscription", {})
         is_premium = user.get("is_premium", False)
         
         # Check if subscription is active and not expired
         if subscription.get("status") == "active" and subscription.get("expires_at"):
-            from datetime import datetime, timezone
             expires_at = datetime.fromisoformat(subscription["expires_at"].replace("Z", "+00:00"))
             is_premium = expires_at > datetime.now(timezone.utc)
         
