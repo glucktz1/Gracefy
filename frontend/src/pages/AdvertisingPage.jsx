@@ -1223,7 +1223,7 @@ export default function AdvertisingPage() {
                                 <SelectValue placeholder="Select Country" />
                               </SelectTrigger>
                               <SelectContent className="bg-zinc-800 border-zinc-700">
-                                <SelectItem value="">All Countries</SelectItem>
+                                <SelectItem value="__all__">All Countries</SelectItem>
                                 {countries.map(c => (
                                   <SelectItem key={c} value={c}>{c}</SelectItem>
                                 ))}
