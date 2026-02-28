@@ -154,6 +154,16 @@ const LibraryScreen = ({ navigation, route }) => {
       navigation.navigate('Auth');
       return;
     }
+    
+    // Check if user can create playlists (premium feature when billing is enabled)
+    if (billingEnabled && !isPremium) {
+      const result = promptSubscription('playlist');
+      if (result === 'show_plans') {
+        navigation.navigate('SubscriptionPlans');
+      }
+      return;
+    }
+    
     setShowCreatePlaylistModal(true);
   };
 
