@@ -91,8 +91,42 @@ export const BillingProvider = ({ children }) => {
     }
   }, [user?.user_id]);
 
+  // Initial load
   useEffect(() => {
     loadBillingData();
+  }, [loadBillingData]);
+
+  // Set up periodic refresh of billing status (every 60 seconds)
+  useEffect(() => {
+    // Start interval for periodic refresh
+    refreshIntervalRef.current = setInterval(() => {
+      console.log('[BillingContext] Periodic billing refresh');
+      loadBillingData();
+    }, BILLING_REFRESH_INTERVAL);
+
+    // Cleanup on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [loadBillingData]);
+
+  // Refresh billing when app comes to foreground
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[BillingContext] App came to foreground, refreshing billing status');
+        loadBillingData();
+      }
+      appStateRef.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
   }, [loadBillingData]);
 
   // Reset skip count daily
