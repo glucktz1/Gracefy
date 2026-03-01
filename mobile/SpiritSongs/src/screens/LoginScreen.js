@@ -25,7 +25,7 @@ import { authAPI, API_BASE_URL } from '../services/api';
 WebBrowser.maybeCompleteAuthSession();
 
 // Use the SAME auth URL as web - this is the key!
-const EMERGENT_AUTH_URL = "https://auth.emergentagent.com/";
+const GOOGLE_AUTH_URL = "https://auth.emergentagent.com";
 
 const LoginScreen = ({ navigation }) => {
   const [authMode, setAuthMode] = useState('login');
