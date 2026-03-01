@@ -19,6 +19,11 @@ class PushNotificationService {
     this.expoPushToken = null;
     this.notificationListener = null;
     this.responseListener = null;
+    this.userId = null;
+  }
+
+  setUserId(userId) {
+    this.userId = userId;
   }
 
   async registerForPushNotifications() {
@@ -78,6 +83,8 @@ class PushNotificationService {
       return false;
     }
 
+    this.userId = userId;
+
     try {
       await api.post('/user/push-token', {
         user_id: userId,
@@ -93,6 +100,27 @@ class PushNotificationService {
     }
   }
 
+  // Track notification open for analytics
+  async trackNotificationOpen(notificationId, userId = null) {
+    const trackUserId = userId || this.userId;
+    if (!notificationId || !trackUserId) {
+      console.log('Cannot track open: missing notification_id or user_id');
+      return false;
+    }
+
+    try {
+      await api.post('/notifications/track-open', {
+        notification_id: notificationId,
+        user_id: trackUserId,
+      });
+      console.log('Notification open tracked:', notificationId);
+      return true;
+    } catch (error) {
+      console.error('Error tracking notification open:', error);
+      return false;
+    }
+  }
+
   setupNotificationListeners(onNotificationReceived, onNotificationResponse) {
     // Listener for notifications received while app is foregrounded
     this.notificationListener = Notifications.addNotificationReceivedListener(notification => {
@@ -103,12 +131,34 @@ class PushNotificationService {
     });
 
     // Listener for when user taps on a notification
-    this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+    this.responseListener = Notifications.addNotificationResponseReceivedListener(async (response) => {
       console.log('Notification response:', response);
+      
+      // Extract notification data
+      const data = response.notification?.request?.content?.data || {};
+      
+      // Track the open if tracking is enabled
+      if (data.track_open && data.notification_id) {
+        await this.trackNotificationOpen(data.notification_id);
+      }
+      
+      // Call custom handler
       if (onNotificationResponse) {
         onNotificationResponse(response);
       }
     });
+  }
+
+  // Handle notification action (called when user taps notification)
+  getNotificationAction(response) {
+    const data = response.notification?.request?.content?.data || {};
+    return {
+      type: data.type || 'general',
+      action: data.action || 'open_app',
+      content_id: data.content_id,
+      content_type: data.content_type,
+      notification_id: data.notification_id,
+    };
   }
 
   removeNotificationListeners() {
