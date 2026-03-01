@@ -191,7 +191,7 @@ const LoginScreen = ({ navigation }) => {
       // Backend callback URL that will handle the OAuth response and redirect to mobile app
       const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
       
-      // Use Emergent Auth with 'redirect' parameter (same as web)
+      // Open Google OAuth flow
       const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
       
       // Use Linking.openURL to open in external browser
