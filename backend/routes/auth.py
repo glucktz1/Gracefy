@@ -1517,3 +1517,79 @@ async def get_push_token_stats():
             "ios": ios_users
         }
     }
+
+
+
+# ============== PUSH NOTIFICATION TRACKING ==============
+
+@router.post("/notifications/track-open")
+async def track_notification_open(data: dict):
+    """Track when a user opens/taps a notification"""
+    db = get_db()
+    
+    notification_id = data.get("notification_id")
+    user_id = data.get("user_id")
+    
+    if not notification_id or not user_id:
+        raise HTTPException(status_code=400, detail="notification_id and user_id required")
+    
+    try:
+        from services.push_notification_service import record_notification_opened
+        recorded = await record_notification_opened(db, notification_id, user_id)
+        return {"success": True, "recorded": recorded}
+    except Exception as e:
+        logger.error(f"Error tracking notification open: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/admin/notifications/analytics")
+async def get_notification_analytics(days: int = 7):
+    """Get push notification analytics for admin dashboard"""
+    db = get_db()
+    
+    try:
+        from services.push_notification_service import get_notification_analytics as get_analytics
+        return await get_analytics(db, days=days)
+    except Exception as e:
+        logger.error(f"Error getting notification analytics: {e}")
+        return {
+            "period_days": days,
+            "total_notifications": 0,
+            "total_sent": 0,
+            "total_opened": 0,
+            "total_failed": 0,
+            "open_rate": 0,
+            "notifications": [],
+            "error": str(e)
+        }
+
+
+@router.get("/admin/notifications/analytics/{notification_id}")
+async def get_single_notification_analytics(notification_id: str):
+    """Get analytics for a specific notification"""
+    db = get_db()
+    
+    notification = await db.push_notifications.find_one(
+        {"notification_id": notification_id},
+        {"_id": 0}
+    )
+    
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    # Get events for this notification
+    events = await db.push_notification_events.find(
+        {"notification_id": notification_id},
+        {"_id": 0}
+    ).sort("timestamp", -1).to_list(100)
+    
+    # Calculate open rate
+    sent = notification.get("sent_count", 0)
+    opened = notification.get("opened_count", 0)
+    open_rate = (opened / sent * 100) if sent > 0 else 0
+    
+    return {
+        "notification": notification,
+        "open_rate": round(open_rate, 2),
+        "events": events
+    }
