@@ -85,7 +85,7 @@ export const authAPI = {
   forgotPasswordVerify: (email, otp) => api.post('/auth/forgot-password/verify', { email, otp }),
   forgotPasswordReset: (email, otp, newPassword) => api.post('/auth/forgot-password/reset', { email, otp, new_password: newPassword }),
   
-  // Google OAuth - uses session_id from Emergent OAuth
+  // Google OAuth - uses session_id from OAuth provider
   googleStart: (redirectUri) => api.get(`/user/auth/google-start?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`),
   googleCallback: (sessionId) => api.post('/user/auth/google-callback', { session_id: sessionId }),
   
