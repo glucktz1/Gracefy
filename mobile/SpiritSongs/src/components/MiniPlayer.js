@@ -1,23 +1,102 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Animated, PanResponder } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
+import { useBilling } from '../context/BillingContext';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { getImageUrl } from '../services/api';
 import AnimatedEqualizer from './AnimatedEqualizer';
-import AddToPlaylistModal, { LoginRequiredModal } from './AddToPlaylistModal';
+import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from './AddToPlaylistModal';
 
 const { width } = Dimensions.get('window');
+const SWIPE_THRESHOLD = 50;
 
-const MiniPlayer = ({ onPress }) => {
-  const { currentTrack, isPlaying, isLoading, togglePlay, skipNext, position, duration, queue, queueIndex } = usePlayer();
+const MiniPlayer = ({ onPress, navigation }) => {
+  const { currentTrack, isPlaying, isLoading, togglePlay, skipNext, skipPrevious, position, duration, queue, queueIndex } = usePlayer();
   const { isAuthenticated } = useAuth();
+  const billingContext = useBilling();
+  
+  const billingEnabled = billingContext?.billingEnabled ?? false;
+  const isPremium = billingContext?.isPremium ?? false;
   
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  
+  // Swipe animation
+  const translateX = useRef(new Animated.Value(0)).current;
+  
+  // Pan responder for swipe gestures (premium only)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to horizontal swipes
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 20;
+      },
+      onPanResponderGrant: () => {
+        translateX.setOffset(0);
+        translateX.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Only allow swipe for premium users
+        if (billingEnabled && !isPremium) return;
+        translateX.setValue(gestureState.dx);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        translateX.flattenOffset();
+        
+        // Check if user is premium
+        if (billingEnabled && !isPremium) {
+          // Reset position
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+          return;
+        }
+        
+        if (gestureState.dx > SWIPE_THRESHOLD) {
+          // Swipe right - previous track
+          Animated.timing(translateX, {
+            toValue: width,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            skipPrevious();
+            translateX.setValue(-width);
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+          });
+        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+          // Swipe left - next track
+          Animated.timing(translateX, {
+            toValue: -width,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            skipNext();
+            translateX.setValue(width);
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+          });
+        } else {
+          // Return to original position
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   if (!currentTrack) return null;
 
@@ -38,6 +117,11 @@ const MiniPlayer = ({ onPress }) => {
       setShowLoginModal(true);
       return;
     }
+    // Premium feature check
+    if (billingEnabled && !isPremium) {
+      setShowSubscriptionModal(true);
+      return;
+    }
     setShowPlaylistModal(true);
   };
 
@@ -45,6 +129,13 @@ const MiniPlayer = ({ onPress }) => {
     e.stopPropagation();
     if (!isLoading) {
       await togglePlay();
+    }
+  };
+  
+  const handleSubscribe = () => {
+    setShowSubscriptionModal(false);
+    if (navigation) {
+      navigation.navigate('SubscriptionPlans');
     }
   };
 
