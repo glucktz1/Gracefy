@@ -91,7 +91,7 @@ export const usePlayer = () => {
 /**
  * Player Provider Component
  */
-export const PlayerProvider = ({ children }) => {
+export const PlayerProvider = ({ children, billingEnabled = false, isPremium = false }) => {
   // ============ AUTH CONTEXT ============
   const { isAuthenticated, incrementGuestPlayCount, user } = useAuth();
 
@@ -118,6 +118,8 @@ export const PlayerProvider = ({ children }) => {
   const continuousPlayRef = useRef(true);
   const setupCompleteRef = useRef(false);
   const isFetchingRecommendationsRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+  const wasPlayingBeforeBackgroundRef = useRef(false);
   
   // Analytics tracking
   const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
