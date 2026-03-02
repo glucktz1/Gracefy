@@ -385,6 +385,19 @@ const AppContent = () => {
   );
 };
 
+// Player Provider with Billing - needs to be inside BillingProvider to access billing context
+const PlayerProviderWithBilling = ({ children }) => {
+  const billingContext = useBilling();
+  const billingEnabled = billingContext?.billingEnabled ?? false;
+  const isPremium = billingContext?.isPremium ?? false;
+  
+  return (
+    <PlayerProvider billingEnabled={billingEnabled} isPremium={isPremium}>
+      {children}
+    </PlayerProvider>
+  );
+};
+
 // Root App Component
 export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(null);
