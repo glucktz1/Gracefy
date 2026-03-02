@@ -3761,6 +3761,11 @@ export default function UserStreamingApp() {
       setShowAuth(true);
       return;
     }
+    // Premium feature check - add to playlist requires subscription when billing is enabled
+    if (billingEnabled && !isPremium) {
+      toast.error(t('premium.playlistRequired', 'Kuongeza wimbo kwenye playlist kunahitaji usajili wa Premium'));
+      return;
+    }
     setSelectedSongForPlaylist(song);
     // Fetch user's playlists
     try {
