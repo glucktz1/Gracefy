@@ -141,64 +141,68 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
   return (
     <>
-      <TouchableOpacity 
-        style={styles.container} 
-        onPress={onPress}
-        activeOpacity={0.95}
+      <Animated.View
+        style={[styles.container, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
       >
-        <LinearGradient
-          colors={[COLORS.card, COLORS.surface]}
-          style={styles.gradient}
+        <TouchableOpacity 
+          style={styles.innerContainer} 
+          onPress={onPress}
+          activeOpacity={0.95}
         >
-          {/* Progress bar */}
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { width: `${progress}%` }]} />
-          </View>
-
-          <View style={styles.content}>
-            {/* Album art with equalizer overlay */}
-            <View style={styles.albumArtContainer}>
-              <Image
-                source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url || currentTrack.album_thumbnail) || 'https://via.placeholder.com/48' }}
-                style={styles.albumArt}
-              />
-              {/* Show equalizer on album art when playing */}
-              {isPlaying && (
-                <View style={styles.equalizerOverlay}>
-                  <AnimatedEqualizer 
-                    isPlaying={isPlaying} 
-                    barCount={3} 
-                    barWidth={3} 
-                    barHeight={16}
-                    color={COLORS.text}
-                    gap={2}
-                  />
-                </View>
-              )}
+          <LinearGradient
+            colors={[COLORS.card, COLORS.surface]}
+            style={styles.gradient}
+          >
+            {/* Progress bar */}
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${progress}%` }]} />
             </View>
 
-            {/* Track info */}
-            <View style={styles.trackInfo}>
-              <Text style={styles.trackTitle} numberOfLines={1}>
-                {currentTrack.title}
-              </Text>
-              <Text style={styles.trackArtist} numberOfLines={1}>
-                {getSubtitle()}
-              </Text>
-            </View>
-
-            {/* Controls */}
-            <View style={styles.controls}>
-              {/* Add to playlist button */}
-              <TouchableOpacity 
-                style={styles.controlButton}
-                onPress={handleAddToPlaylist}
-              >
-                <Ionicons 
-                  name="add-circle-outline" 
-                  size={26} 
-                  color={COLORS.text} 
+            <View style={styles.content}>
+              {/* Album art with equalizer overlay */}
+              <View style={styles.albumArtContainer}>
+                <Image
+                  source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url || currentTrack.album_thumbnail) || 'https://via.placeholder.com/48' }}
+                  style={styles.albumArt}
                 />
+                {/* Show equalizer on album art when playing */}
+                {isPlaying && (
+                  <View style={styles.equalizerOverlay}>
+                    <AnimatedEqualizer 
+                      isPlaying={isPlaying} 
+                      barCount={3} 
+                      barWidth={3} 
+                      barHeight={16}
+                      color={COLORS.text}
+                      gap={2}
+                    />
+                  </View>
+                )}
+              </View>
+
+              {/* Track info */}
+              <View style={styles.trackInfo}>
+                <Text style={styles.trackTitle} numberOfLines={1}>
+                  {currentTrack.title}
+                </Text>
+                <Text style={styles.trackArtist} numberOfLines={1}>
+                  {getSubtitle()}
+                </Text>
+              </View>
+
+              {/* Controls */}
+              <View style={styles.controls}>
+                {/* Add to playlist button */}
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={handleAddToPlaylist}
+                >
+                  <Ionicons 
+                    name="add-circle-outline" 
+                    size={26} 
+                    color={COLORS.text} 
+                  />
               </TouchableOpacity>
 
               {/* Play/Pause button */}
