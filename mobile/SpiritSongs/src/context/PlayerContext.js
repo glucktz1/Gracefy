@@ -25,12 +25,17 @@ import TrackPlayer, {
   useProgress,
   useActiveTrack,
 } from 'react-native-track-player';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { getAudioUrl, getImageUrl, playerAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
 // Create context
 const PlayerContext = createContext(null);
+
+// Callback for showing background play subscription prompt
+let showBackgroundPlayPromptCallback = null;
+export const setShowBackgroundPlayPromptCallback = (cb) => { showBackgroundPlayPromptCallback = cb; };
+export const clearShowBackgroundPlayPromptCallback = () => { showBackgroundPlayPromptCallback = null; };
 
 // External audio callback (for Bible TTS to stop music)
 let stopExternalAudioCallback = null;
