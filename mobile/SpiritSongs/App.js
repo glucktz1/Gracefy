@@ -10,8 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { PlayerProvider, usePlayer, setShowLoginPromptCallback, clearShowLoginPromptCallback } from './src/context/PlayerContext';
-import { BillingProvider } from './src/context/BillingContext';
+import { PlayerProvider, usePlayer, setShowLoginPromptCallback, clearShowLoginPromptCallback, setShowBackgroundPlayPromptCallback, clearShowBackgroundPlayPromptCallback } from './src/context/PlayerContext';
+import { BillingProvider, useBilling } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
 import { GeoProvider } from './src/context/GeoContext';
 
