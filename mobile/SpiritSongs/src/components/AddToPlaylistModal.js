@@ -73,7 +73,7 @@ export const BackgroundPlayPromptModal = ({ visible, onClose, onSubscribe }) => 
         <Ionicons name="phone-portrait-outline" size={48} color={COLORS.primary} />
         <Text style={styles.loginTitle}>Sikiliza Wakati Wote</Text>
         <Text style={styles.loginMessage}>
-          Kufurahia kusikiliza nyimbo zote simu yako ikiwa imejifunga (lock), tafadhali changia teknolojia hii iwafikie watu wengi zaidi.
+          Kuendelea kusikiliza simu yako ikiwa imejifunga (lock), changia kidogo gharama za teknolojia hii.
         </Text>
         <Text style={[styles.loginMessage, { marginTop: 8, fontStyle: 'italic', fontSize: 12 }]}>
           NB: Maudhui haya ni bure.
