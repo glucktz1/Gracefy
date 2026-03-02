@@ -48,6 +48,7 @@ import LegalScreen from './src/screens/LegalScreen';
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
 import { ToastProvider } from './src/components/Toast';
+import { BackgroundPlayPromptModal } from './src/components/AddToPlaylistModal';
 
 // Theme
 import { COLORS } from './src/config/theme';
