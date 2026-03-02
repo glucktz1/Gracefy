@@ -452,11 +452,11 @@ export default function App() {
           <BillingProvider>
             <GeoProvider>
               <DownloadProvider>
-                <PlayerProvider>
+                <PlayerProviderWithBilling>
                   <ToastProvider>
                     <AppContent />
                   </ToastProvider>
-                </PlayerProvider>
+                </PlayerProviderWithBilling>
               </DownloadProvider>
             </GeoProvider>
           </BillingProvider>
