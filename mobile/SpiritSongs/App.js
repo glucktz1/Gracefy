@@ -352,7 +352,8 @@ const AppContent = () => {
         {showMiniPlayer && (
           <View style={[styles.miniPlayerContainer, { bottom: miniPlayerBottom }]}>
             <MiniPlayer 
-              onPress={() => navigationRef.current?.navigate('NowPlaying')} 
+              onPress={() => navigationRef.current?.navigate('NowPlaying')}
+              navigation={navigationRef.current}
             />
           </View>
         )}
