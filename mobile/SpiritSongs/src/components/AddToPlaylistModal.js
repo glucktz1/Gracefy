@@ -64,6 +64,31 @@ export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe }) => 
   </Modal>
 );
 
+// Background Play Subscription Modal - shown when non-premium users try to play in background
+export const BackgroundPlayPromptModal = ({ visible, onClose, onSubscribe }) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.centeredOverlay}>
+      <TouchableOpacity style={styles.overlayBackground} activeOpacity={1} onPress={onClose} />
+      <View style={styles.loginModal}>
+        <Ionicons name="phone-portrait-outline" size={48} color={COLORS.primary} />
+        <Text style={styles.loginTitle}>Sikiliza Wakati Wote</Text>
+        <Text style={styles.loginMessage}>
+          Kufurahia kusikiliza nyimbo zote simu yako ikiwa imejifunga (lock), tafadhali changia teknolojia hii iwafikie watu wengi zaidi.
+        </Text>
+        <Text style={[styles.loginMessage, { marginTop: 8, fontStyle: 'italic', fontSize: 12 }]}>
+          NB: Maudhui haya ni bure.
+        </Text>
+        <TouchableOpacity style={styles.loginButton} onPress={onSubscribe}>
+          <Text style={styles.loginButtonText}>Changia Sasa</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelLink} onPress={onClose}>
+          <Text style={styles.cancelLinkText}>Baadaye</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
+
 // Song Actions Bottom Sheet (Three dots menu) - Without download
 export const SongActionsModal = ({ 
   visible, 
