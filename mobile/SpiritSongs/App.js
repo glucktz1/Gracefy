@@ -131,9 +131,11 @@ const AppContent = () => {
     user,
     login: authLogin
   } = useAuth();
+  const billingContext = useBilling();
   const navigationRef = React.useRef();
   const [currentRoute, setCurrentRoute] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showBackgroundPlayModal, setShowBackgroundPlayModal] = useState(false);
   const insets = useSafeAreaInsets();
 
   // Ad state
@@ -143,6 +145,21 @@ const AppContent = () => {
   const [songsPlayedCount, setSongsPlayedCount] = useState(0);
   const [lastAdTime, setLastAdTime] = useState(null);
   const deviceIdRef = useRef(`mobile_${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
+
+  // Hide mini player on NowPlaying screen
+  const showMiniPlayer = currentTrack && currentRoute !== 'NowPlaying';
+  
+  // Calculate bottom offset for mini player (directly above tab bar, minimal gap)
+  const tabBarHeight = 60 + Math.max(insets.bottom, 8);
+  const miniPlayerBottom = tabBarHeight + 4; // 4px gap above tab bar
+  
+  // Set up background play prompt callback
+  useEffect(() => {
+    setShowBackgroundPlayPromptCallback(() => {
+      setShowBackgroundPlayModal(true);
+    });
+    return () => clearShowBackgroundPlayPromptCallback();
+  }, []);
 
   // Hide mini player on NowPlaying screen
   const showMiniPlayer = currentTrack && currentRoute !== 'NowPlaying';
