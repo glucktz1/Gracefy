@@ -409,6 +409,48 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     }
   }, [activeTrack, queue]);
 
+  // ============ BACKGROUND PLAY RESTRICTION FOR NON-PREMIUM ============
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      console.log(`[Player] AppState changed: ${appStateRef.current} -> ${nextAppState}`);
+      
+      // App going to background
+      if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
+        // Check if playing and user is NOT premium
+        const state = await TrackPlayer.getPlaybackState();
+        wasPlayingBeforeBackgroundRef.current = state.state === State.Playing;
+        
+        if (billingEnabled && !isPremium && wasPlayingBeforeBackgroundRef.current) {
+          console.log('[Player] Non-premium user going to background - will pause after current song');
+          // Don't pause immediately, but set flag to show popup when song ends
+        }
+      }
+      
+      // App coming back to foreground
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        // Check if song stopped while in background for non-premium users
+        if (billingEnabled && !isPremium && wasPlayingBeforeBackgroundRef.current) {
+          const state = await TrackPlayer.getPlaybackState();
+          if (state.state !== State.Playing) {
+            // Song stopped while in background - show subscription prompt
+            if (showBackgroundPlayPromptCallback) {
+              showBackgroundPlayPromptCallback();
+            }
+          }
+        }
+        wasPlayingBeforeBackgroundRef.current = false;
+      }
+      
+      appStateRef.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [billingEnabled, isPremium]);
+
   // ============ ANALYTICS: STREAM TRACKING ============
   const startStreamTracking = async (track) => {
     await endStreamTracking();
