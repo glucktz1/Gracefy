@@ -410,32 +410,36 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   }, [activeTrack, queue]);
 
   // ============ BACKGROUND PLAY RESTRICTION FOR NON-PREMIUM ============
+  const isInBackgroundRef = useRef(false);
+  
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
       console.log(`[Player] AppState changed: ${appStateRef.current} -> ${nextAppState}`);
       
       // App going to background
       if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
+        isInBackgroundRef.current = true;
+        
         // Check if playing and user is NOT premium
         const state = await TrackPlayer.getPlaybackState();
         wasPlayingBeforeBackgroundRef.current = state.state === State.Playing;
         
         if (billingEnabled && !isPremium && wasPlayingBeforeBackgroundRef.current) {
-          console.log('[Player] Non-premium user going to background - will pause after current song');
-          // Don't pause immediately, but set flag to show popup when song ends
+          console.log('[Player] Non-premium user going to background - pausing playback');
+          // Pause immediately for non-premium users when going to background
+          await TrackPlayer.pause();
         }
       }
       
       // App coming back to foreground
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
-        // Check if song stopped while in background for non-premium users
+        isInBackgroundRef.current = false;
+        
+        // Show subscription prompt if music was playing before going to background
         if (billingEnabled && !isPremium && wasPlayingBeforeBackgroundRef.current) {
-          const state = await TrackPlayer.getPlaybackState();
-          if (state.state !== State.Playing) {
-            // Song stopped while in background - show subscription prompt
-            if (showBackgroundPlayPromptCallback) {
-              showBackgroundPlayPromptCallback();
-            }
+          // Show subscription prompt
+          if (showBackgroundPlayPromptCallback) {
+            showBackgroundPlayPromptCallback();
           }
         }
         wasPlayingBeforeBackgroundRef.current = false;
