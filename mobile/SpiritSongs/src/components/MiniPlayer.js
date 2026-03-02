@@ -235,7 +235,8 @@ const MiniPlayer = ({ onPress, navigation }) => {
             </View>
           </View>
         </LinearGradient>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Add to Playlist Modal */}
       <AddToPlaylistModal
@@ -255,6 +256,13 @@ const MiniPlayer = ({ onPress, navigation }) => {
         onClose={() => setShowLoginModal(false)}
         onLogin={() => setShowLoginModal(false)}
       />
+      
+      {/* Subscription Required Modal for Premium Features */}
+      <SubscriptionRequiredModal
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscribe={handleSubscribe}
+      />
     </>
   );
 };
@@ -269,6 +277,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  innerContainer: {
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
   },
   gradient: {
     borderRadius: BORDER_RADIUS.md,
