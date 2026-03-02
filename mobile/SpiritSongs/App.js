@@ -161,13 +161,6 @@ const AppContent = () => {
     return () => clearShowBackgroundPlayPromptCallback();
   }, []);
 
-  // Hide mini player on NowPlaying screen
-  const showMiniPlayer = currentTrack && currentRoute !== 'NowPlaying';
-  
-  // Calculate bottom offset for mini player (directly above tab bar, minimal gap)
-  const tabBarHeight = 60 + Math.max(insets.bottom, 8);
-  const miniPlayerBottom = tabBarHeight + 4; // 4px gap above tab bar
-
   // Handle deep links for Google OAuth callback
   useEffect(() => {
     const handleDeepLink = async (event) => {
