@@ -364,6 +364,16 @@ const AppContent = () => {
           onSuccess={handleLoginSuccess}
         />
 
+        {/* Background Play Subscription Prompt Modal */}
+        <BackgroundPlayPromptModal
+          visible={showBackgroundPlayModal}
+          onClose={() => setShowBackgroundPlayModal(false)}
+          onSubscribe={() => {
+            setShowBackgroundPlayModal(false);
+            navigationRef.current?.navigate('SubscriptionPlans');
+          }}
+        />
+
         {/* Ad Player Modal */}
         <AdPlayer
           visible={showAd}
