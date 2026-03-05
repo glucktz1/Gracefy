@@ -128,12 +128,29 @@ const MiniPlayer = ({ onPress, navigation }) => {
     setShowPlaylistModal(true);
   };
 
-  const handlePlayPause = async (e) => {
+  const handlePlayPause = useCallback(async (e) => {
     e.stopPropagation();
-    if (!isLoading) {
-      await togglePlay();
+    
+    // Prevent double-tap and rapid taps
+    if (isProcessingRef.current) {
+      console.log('[MiniPlayer] Ignoring tap - already processing');
+      return;
     }
-  };
+    
+    isProcessingRef.current = true;
+    
+    try {
+      // Don't wait for isLoading check - just call togglePlay immediately
+      await togglePlay();
+    } catch (error) {
+      console.error('[MiniPlayer] Play/pause error:', error);
+    } finally {
+      // Reset after a short delay to prevent rapid double-taps
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 300);
+    }
+  }, [togglePlay]);
   
   const handleSubscribe = () => {
     setShowSubscriptionModal(false);
