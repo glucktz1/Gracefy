@@ -99,6 +99,62 @@ export default function AdminSettingsPage() {
     setHasChanges(true);
   };
 
+  // Password change handler
+  const handleChangePassword = async () => {
+    if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
+      toast.error("All password fields are required");
+      return;
+    }
+    
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    
+    if (passwordData.new_password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    
+    setChangingPassword(true);
+    try {
+      await axios.post(`${API}/admin/change-password`, passwordData, { withCredentials: true });
+      toast.success("Password changed successfully!");
+      setPasswordData({ current_password: "", new_password: "", confirm_password: "" });
+    } catch (error) {
+      const msg = error.response?.data?.detail || "Failed to change password";
+      toast.error(msg);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // Backup handlers
+  const fetchBackups = async () => {
+    setLoadingBackups(true);
+    try {
+      const res = await axios.get(`${API}/admin/backup/list`, { withCredentials: true });
+      setBackups(res.data.backups || []);
+    } catch (error) {
+      console.error("Error fetching backups:", error);
+    } finally {
+      setLoadingBackups(false);
+    }
+  };
+
+  const createBackup = async () => {
+    setCreatingBackup(true);
+    try {
+      const res = await axios.post(`${API}/admin/backup/create`, {}, { withCredentials: true });
+      toast.success(`Backup created: ${res.data.backup_name} (${res.data.size_mb} MB)`);
+      fetchBackups();
+    } catch (error) {
+      toast.error("Failed to create backup");
+    } finally {
+      setCreatingBackup(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
