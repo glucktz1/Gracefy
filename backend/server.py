@@ -279,6 +279,7 @@ app = create_app()
 cache_cleanup_task = None
 traffic_monitoring_task_ref = None
 queue_worker_task_ref = None
+rate_limit_cleanup_task_ref = None
 
 
 @app.on_event("startup")
