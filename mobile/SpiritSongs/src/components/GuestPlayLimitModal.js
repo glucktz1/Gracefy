@@ -312,10 +312,10 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       {isAppLocked && (
         <View style={styles.lockWarning}>
           <Text style={styles.lockWarningText}>
-            Jisajili au ingia ili kuendelea kutumia app
+            Ingia ili kuendelea kutumia app
           </Text>
           <Text style={styles.helpText}>
-            Una tatizo? Wasiliana nasi: support@gracefy.com
+            Una tatizo? Wasiliana nasi:{'\n'}{supportEmail}
           </Text>
         </View>
       )}
