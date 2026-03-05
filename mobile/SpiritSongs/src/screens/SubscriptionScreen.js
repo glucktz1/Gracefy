@@ -260,11 +260,12 @@ const SubscriptionScreen = ({ navigation }) => {
           <View style={styles.featuresGrid}>
             {[
               { icon: 'download-outline', text: 'Pakua nyimbo' },
+              { icon: 'cloud-offline-outline', text: 'Sikiliza offline' },
               { icon: 'list-outline', text: 'Unda playlist' },
               { icon: 'play-skip-forward-outline', text: 'Ruka bila kikomo' },
-              { icon: 'cloud-offline-outline', text: 'Sikiliza offline' },
               { icon: 'musical-notes-outline', text: 'Ubora wa juu' },
               { icon: 'star-outline', text: 'Bila matangazo' },
+              { icon: 'lock-open-outline', text: 'Endelea kusikiliza simu ikilock' },
             ].map((feature, index) => (
               <View key={index} style={styles.featureItem}>
                 <Ionicons name={feature.icon} size={24} color="#8B5CF6" />
