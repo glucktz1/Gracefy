@@ -411,6 +411,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   // ============ BACKGROUND PLAY RESTRICTION FOR NON-PREMIUM ============
   const isInBackgroundRef = useRef(false);
+  const backgroundPlayBlockedRef = useRef(false); // Track if we should block next song
+  const pendingPaymentPromptRef = useRef(false); // Track if we need to show payment prompt on foreground
   
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
@@ -420,14 +422,24 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         isInBackgroundRef.current = true;
         
-        // Check if playing and user is NOT premium
+        // CRITICAL: Only apply restrictions if billing is ENABLED and user is NOT premium
+        // If billing is OFF, treat everyone as premium - no restrictions
+        if (!billingEnabled) {
+          console.log('[Player] Billing OFF - allowing background play for all users');
+          backgroundPlayBlockedRef.current = false;
+          return;
+        }
+        
+        // Check if playing and user is NOT premium (billing is ON)
         const state = await TrackPlayer.getPlaybackState();
         wasPlayingBeforeBackgroundRef.current = state.state === State.Playing;
         
-        if (billingEnabled && !isPremium && wasPlayingBeforeBackgroundRef.current) {
-          console.log('[Player] Non-premium user going to background - pausing playback');
-          // Pause immediately for non-premium users when going to background
-          await TrackPlayer.pause();
+        if (!isPremium && wasPlayingBeforeBackgroundRef.current) {
+          console.log('[Player] Non-premium user going to background - allowing current song to finish');
+          // Mark that we should block the next song, but let current song continue
+          backgroundPlayBlockedRef.current = true;
+          pendingPaymentPromptRef.current = true;
+          // DO NOT pause here - let the song finish
         }
       }
       
@@ -435,13 +447,16 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         isInBackgroundRef.current = false;
         
-        // Show subscription prompt if music was playing before going to background
-        if (billingEnabled && !isPremium && wasPlayingBeforeBackgroundRef.current) {
-          // Show subscription prompt
+        // Show subscription prompt if billing is ON and user is not premium
+        if (billingEnabled && !isPremium && pendingPaymentPromptRef.current) {
           if (showBackgroundPlayPromptCallback) {
             showBackgroundPlayPromptCallback();
           }
+          pendingPaymentPromptRef.current = false;
         }
+        
+        // Reset background play blocked flag when coming to foreground
+        backgroundPlayBlockedRef.current = false;
         wasPlayingBeforeBackgroundRef.current = false;
       }
       
@@ -452,6 +467,28 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
     return () => {
       subscription?.remove();
+    };
+  }, [billingEnabled, isPremium]);
+  
+  // ============ HANDLE TRACK END IN BACKGROUND FOR NON-PREMIUM ============
+  useEffect(() => {
+    // Listen for when a track ends - if in background and non-premium, don't auto-play next
+    const playbackTrackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
+      // CRITICAL: If billing is OFF, allow everything
+      if (!billingEnabled) {
+        return;
+      }
+      
+      // If in background and non-premium, block auto-play of next track
+      if (isInBackgroundRef.current && backgroundPlayBlockedRef.current && !isPremium) {
+        console.log('[Player] Track changed in background for non-premium user - pausing');
+        await TrackPlayer.pause();
+        pendingPaymentPromptRef.current = true;
+      }
+    });
+    
+    return () => {
+      playbackTrackChangedSub.remove();
     };
   }, [billingEnabled, isPremium]);
 
