@@ -524,6 +524,187 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security" className="space-y-6 mt-6">
+          {/* Change Password */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <Lock className="text-amber-500" size={22} />
+                Change Password
+              </CardTitle>
+              <CardDescription>Update your admin account password</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Current Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.current ? "text" : "password"}
+                    value={passwordData.current_password}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, current_password: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-700 pr-10"
+                    placeholder="Enter current password"
+                    data-testid="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                  >
+                    {showPasswords.current ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.new ? "text" : "password"}
+                    value={passwordData.new_password}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-700 pr-10"
+                    placeholder="Enter new password"
+                    data-testid="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                  >
+                    {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Min 8 characters, include uppercase, lowercase, and numbers
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Confirm New Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.confirm ? "text" : "password"}
+                    value={passwordData.confirm_password}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-700 pr-10"
+                    placeholder="Confirm new password"
+                    data-testid="confirm-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                  >
+                    {showPasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleChangePassword}
+                disabled={changingPassword}
+                className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto"
+                data-testid="change-password-btn"
+              >
+                {changingPassword ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Changing...
+                  </>
+                ) : (
+                  <>
+                    <Lock size={18} className="mr-2" />
+                    Change Password
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Database Backups */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <Database className="text-blue-500" size={22} />
+                Database Backups
+              </CardTitle>
+              <CardDescription>Create and manage database backups</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={createBackup}
+                  disabled={creatingBackup}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="create-backup-btn"
+                >
+                  {creatingBackup ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Creating Backup...
+                    </>
+                  ) : (
+                    <>
+                      <Database size={18} className="mr-2" />
+                      Create Backup Now
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={fetchBackups}
+                  disabled={loadingBackups}
+                  className="border-zinc-700"
+                >
+                  <RefreshCw size={18} className={loadingBackups ? "animate-spin mr-2" : "mr-2"} />
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <p className="text-sm font-medium mb-3">Recent Backups (Last 7 kept)</p>
+                {backups.length === 0 ? (
+                  <p className="text-zinc-500 text-sm">No backups found. Create your first backup above.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {backups.map((backup, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Database size={18} className="text-blue-400" />
+                          <div>
+                            <p className="font-medium text-sm">{backup.backup_name}</p>
+                            <p className="text-xs text-zinc-500">
+                              {new Date(backup.created_at).toLocaleString()} • {backup.size_mb || "?"} MB
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="border-blue-500/30 text-blue-400">
+                          {backup.backup_type === "json_export" ? "JSON" : "Full"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-amber-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-400">Backup Recommendation</p>
+                    <p className="text-sm text-zinc-400 mt-1">
+                      Create a backup before making major changes or deploying to production.
+                      Backups are stored on the server and the last 7 are kept automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
