@@ -468,9 +468,12 @@ const AlbumScreen = ({ route, navigation }) => {
         song={selectedSong}
         isLiked={selectedSong?.song_id ? likedSongs.has(selectedSong.song_id) : false}
         isAuthenticated={isAuthenticated}
+        billingEnabled={billingEnabled}
+        isPremium={isPremium}
         onLike={handleLikeSong}
         onAddToPlaylist={handleAddToPlaylist}
         onLoginRequired={() => navigation.navigate('Login')}
+        onSubscriptionRequired={() => navigation.navigate('SubscriptionPlans')}
         navigation={navigation}
       />
 
