@@ -39,6 +39,8 @@ export const BillingProvider = ({ children }) => {
       const billingRes = await billingAPI.getBillingStatus().catch(() => ({ data: { billing_enabled: false } }));
       const masterBillingEnabled = billingRes.data?.billing_enabled ?? false;
       
+      console.log(`[BillingContext] Master billing enabled: ${masterBillingEnabled}`);
+      
       // Set billing states from master settings
       setBillingEnabled(masterBillingEnabled);
       setBillingMode(billingRes.data?.billing_mode || 'full');
@@ -54,6 +56,7 @@ export const BillingProvider = ({ children }) => {
       
       // If billing is disabled, everyone is premium - no need to check user subscription
       if (!masterBillingEnabled) {
+        console.log('[BillingContext] Billing OFF - setting isPremium=true for all users');
         setIsPremium(true);
         setSubscription({ status: 'free_access', plan_name: 'Bure' });
         // Still get plans for display purposes
@@ -62,6 +65,9 @@ export const BillingProvider = ({ children }) => {
         setLoading(false);
         return;
       }
+      
+      // Billing is ON - check user subscription
+      console.log('[BillingContext] Billing ON - checking user subscription');
       
       // Get plans
       const plansRes = await billingAPI.getPlans().catch(() => ({ data: { plans: [] } }));
@@ -73,11 +79,13 @@ export const BillingProvider = ({ children }) => {
           data: { is_premium: false } 
         }));
         if (subRes.data) {
+          console.log(`[BillingContext] User subscription: is_premium=${subRes.data.is_premium}`);
           setIsPremium(subRes.data.is_premium || false);
           setSubscription(subRes.data.subscription || null);
         }
       } else {
         // Not logged in and billing is enabled - not premium
+        console.log('[BillingContext] User not logged in, billing ON - setting isPremium=false');
         setIsPremium(false);
         setSubscription(null);
       }
