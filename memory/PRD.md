@@ -1119,3 +1119,31 @@ REACT_APP_BACKEND_URL=https://swahili-music-stream.preview.emergentagent.com
 | Circuit Breakers | Active | cdn, payment, sms, external_api |
 | Health Probes | Active | Ready for Kubernetes deployment |
 
+## Production Readiness Features (Added March 5, 2026)
+
+### Security
+- [x] **Rate Limiting** - Token bucket algorithm protecting all API endpoints
+  - Auth endpoints: 20 req/min
+  - Login/Register: 10/5 req/min
+  - Payment: 30 req/min
+  - Content: 200 req/min
+  - Uploads: 20 req/min
+- [x] **Admin Password Change** - Secure password change with validation
+  - Min 8 characters, uppercase, lowercase, numbers
+  - Invalidates other sessions on change
+  - Located: Admin Settings → Security tab
+
+### Backup & Recovery
+- [x] **Database Backup Service** - JSON export backup system
+  - Manual backup via Admin Settings → Security tab
+  - Automatic cleanup (keeps last 7 backups)
+  - API: POST /api/admin/backup/create, GET /api/admin/backup/list
+
+### API Protection
+- Rate limit headers on all responses (X-RateLimit-Limit, X-RateLimit-Remaining)
+- 429 Too Many Requests response for exceeded limits
+
+## Payment Callback URL (for Azam Pay)
+**Production:** `https://gracefy.life/api/payment/callback/azampay`
+**Preview:** `https://swahili-music-stream.preview.emergentagent.com/api/payment/callback/azampay`
+
