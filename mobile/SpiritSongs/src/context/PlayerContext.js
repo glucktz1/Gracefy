@@ -773,11 +773,20 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Skip to previous track
+   * IMPORTANT: Respects billing rules - blocks skip from lock screen for non-premium when billing is ON
    */
   const skipPrevious = async () => {
     if (!setupCompleteRef.current) return;
 
     try {
+      // CRITICAL: Check billing rules before allowing skip
+      // If billing is OFF, allow skip for everyone
+      if (billingEnabled && !isPremium && isInBackgroundRef.current) {
+        console.log('[Player] Blocking skip from lock screen for non-premium user');
+        pendingPaymentPromptRef.current = true;
+        return;
+      }
+      
       // If more than 3 seconds in, restart current track
       if (progress.position > 3) {
         await TrackPlayer.seekTo(0);
