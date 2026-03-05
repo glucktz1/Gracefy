@@ -230,6 +230,10 @@ export default function AdminSettingsPage() {
             <Shield size={16} className="mr-2" />
             Playback Rules
           </TabsTrigger>
+          <TabsTrigger value="security" className="data-[state=active]:bg-violet-600" onClick={() => fetchBackups()}>
+            <Lock size={16} className="mr-2" />
+            Security
+          </TabsTrigger>
         </TabsList>
 
         {/* Billing Tab */}
