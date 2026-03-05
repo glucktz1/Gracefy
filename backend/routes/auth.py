@@ -487,6 +487,10 @@ async def admin_change_password(request: Request, data: dict):
         "user_id": session["user_id"],
         "session_token": {"$ne": session_token}
     })
+    await db.admin_sessions.delete_many({
+        "user_id": session["user_id"],
+        "session_token": {"$ne": session_token}
+    })
     
     logger.info(f"Password changed for user {session['user_id']}")
     
