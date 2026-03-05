@@ -725,11 +725,20 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Skip to next track - optimized for speed
+   * IMPORTANT: Respects billing rules - blocks skip from lock screen for non-premium when billing is ON
    */
   const skipNext = async () => {
     if (!setupCompleteRef.current) return;
 
     try {
+      // CRITICAL: Check billing rules before allowing skip
+      // If billing is OFF, allow skip for everyone
+      if (billingEnabled && !isPremium && isInBackgroundRef.current) {
+        console.log('[Player] Blocking skip from lock screen for non-premium user');
+        pendingPaymentPromptRef.current = true;
+        return;
+      }
+      
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
       const queueLength = queueRef.current.length;
 
