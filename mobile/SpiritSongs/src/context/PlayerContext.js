@@ -582,6 +582,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Play a track with optional queue
+   * IMPORTANT: Respects billing rules and guest limits
    */
   const playTrack = async (track, newQueue = null, startIndex = null) => {
     if (!track) return;
@@ -589,10 +590,22 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     // ============ GUEST PLAY LIMIT CHECK ============
     // Check if guest user has reached their play limit
     if (!isAuthenticated) {
-      const shouldPrompt = await incrementGuestPlayCount();
-      if (shouldPrompt && showLoginPromptCallback) {
-        showLoginPromptCallback();
-        // Still allow playing, but show prompt
+      const limitReached = await incrementGuestPlayCount();
+      if (limitReached) {
+        console.log('[Player] Guest play limit reached - stopping playback and showing login');
+        // Stop any current playback
+        if (setupCompleteRef.current) {
+          try {
+            await TrackPlayer.pause();
+            await TrackPlayer.reset();
+          } catch (e) {}
+        }
+        // Show login prompt
+        if (showLoginPromptCallback) {
+          showLoginPromptCallback();
+        }
+        // DO NOT allow playing - user must login
+        return;
       }
     }
 
