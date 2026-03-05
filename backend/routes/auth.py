@@ -396,7 +396,14 @@ async def admin_change_password(request: Request, data: dict):
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    session = await db.user_sessions.find_one({"session_token": session_token})
+    # Check both session collections (admin_sessions and user_sessions)
+    session = await db.admin_sessions.find_one({"session_token": session_token})
+    session_collection = "admin_sessions"
+    
+    if not session:
+        session = await db.user_sessions.find_one({"session_token": session_token})
+        session_collection = "user_sessions"
+    
     if not session:
         raise HTTPException(status_code=401, detail="Invalid session")
     
