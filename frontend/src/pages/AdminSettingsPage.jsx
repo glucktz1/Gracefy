@@ -37,6 +37,24 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState("billing");
+  
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: ""
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+  
+  // Backup state
+  const [backups, setBackups] = useState([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
 
   useEffect(() => {
     fetchSettings();
