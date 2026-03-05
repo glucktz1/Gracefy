@@ -96,6 +96,68 @@ async def invalidate_cache_pattern(data: dict):
     return {"message": f"Deleted {deleted} keys matching '{pattern}'"}
 
 
+# ============== DATABASE BACKUP ==============
+
+# Import backup service
+try:
+    from services.backup_service import backup_service
+except ImportError:
+    backup_service = None
+
+
+@router.post("/admin/backup/create")
+async def create_backup(data: dict = None):
+    """
+    Create a database backup.
+    Optional: provide backup_name in data.
+    """
+    if not backup_service:
+        raise HTTPException(status_code=500, detail="Backup service not available")
+    
+    backup_name = (data or {}).get("backup_name")
+    result = await backup_service.create_backup(backup_name)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result.get("error", "Backup failed"))
+    
+    return result
+
+
+@router.get("/admin/backup/list")
+async def list_backups():
+    """List all available backups."""
+    if not backup_service:
+        raise HTTPException(status_code=500, detail="Backup service not available")
+    
+    backups = await backup_service.list_backups()
+    return {"backups": backups, "max_backups_kept": 7}
+
+
+@router.post("/admin/backup/restore/{backup_name}")
+async def restore_backup(backup_name: str, data: dict = None):
+    """
+    Restore from a backup.
+    WARNING: This will overwrite existing data!
+    Requires confirmation: {"confirm": true}
+    """
+    if not backup_service:
+        raise HTTPException(status_code=500, detail="Backup service not available")
+    
+    # Require explicit confirmation
+    if not (data or {}).get("confirm"):
+        raise HTTPException(
+            status_code=400, 
+            detail="Restore requires confirmation. Send {\"confirm\": true}"
+        )
+    
+    result = await backup_service.restore_backup(backup_name)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result.get("error", "Restore failed"))
+    
+    return result
+
+
 # ============== SYSTEM SETTINGS ==============
 
 @router.get("/admin/system-settings")
