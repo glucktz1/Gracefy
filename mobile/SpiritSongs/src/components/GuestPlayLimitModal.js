@@ -647,25 +647,25 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   lockWarning: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.lg,
     padding: SPACING.md,
     backgroundColor: 'rgba(231, 76, 60, 0.1)',
     borderRadius: BORDER_RADIUS.md,
-    gap: 8,
   },
   lockWarningText: {
     fontSize: FONT_SIZES.sm,
     color: '#E74C3C',
     textAlign: 'center',
+    marginBottom: SPACING.xs,
   },
   helpText: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textMuted,
     textAlign: 'center',
-    marginTop: 4,
+    lineHeight: 18,
   },
   backButton: {
     position: 'absolute',
