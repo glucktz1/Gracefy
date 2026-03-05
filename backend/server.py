@@ -44,6 +44,9 @@ from core.auto_scaling import (
     traffic_monitoring_task,
 )
 
+# Rate limiting
+from middleware.rate_limiter import RateLimitMiddleware, rate_limit_cleanup_task
+
 # Import all modular routers
 from routes import (
     auth_router,
