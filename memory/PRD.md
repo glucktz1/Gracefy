@@ -299,7 +299,7 @@ BUNNY_CDN_URL=https://gracefy-cdn.b-cdn.net
 
 ### Frontend (.env)
 ```
-REACT_APP_BACKEND_URL=https://mafundisho-player.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://swahili-music-stream.preview.emergentagent.com
 ```
 
 ## EAS Build Credentials
