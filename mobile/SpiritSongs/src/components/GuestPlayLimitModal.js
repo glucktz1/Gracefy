@@ -50,6 +50,7 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [supportEmail, setSupportEmail] = useState('support@gracefy.life');
 
   const { 
     login, 
@@ -60,6 +61,22 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
     guestSkipCount,
     guestListenMinutes
   } = useAuth();
+
+  // Fetch support email from admin settings
+  useEffect(() => {
+    const fetchSupportEmail = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/settings`);
+        const data = await response.json();
+        if (data?.support_email) {
+          setSupportEmail(data.support_email);
+        }
+      } catch (error) {
+        console.log('Using default support email');
+      }
+    };
+    fetchSupportEmail();
+  }, []);
 
   const handleGoogleLogin = async () => {
     try {
