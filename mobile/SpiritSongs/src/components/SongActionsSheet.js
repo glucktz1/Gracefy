@@ -77,6 +77,9 @@ export const SongActionsSheet = ({
   onViewArtist,
   isAuthenticated,
   onLoginRequired,
+  onSubscriptionRequired,
+  billingEnabled = false,
+  isPremium = false,
   navigation,
 }) => {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
