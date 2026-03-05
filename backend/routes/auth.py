@@ -378,6 +378,117 @@ async def delete_admin_user(request: Request, user_id: str):
     return {"message": "User deleted successfully"}
 
 
+@router.post("/admin/change-password")
+async def admin_change_password(request: Request, data: dict):
+    """
+    Change password for the currently logged-in admin user.
+    Requires current password verification.
+    """
+    db = get_db()
+    
+    # Verify admin access
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    session = await db.user_sessions.find_one({"session_token": session_token})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    # Get current password and new password
+    current_password = data.get("current_password")
+    new_password = data.get("new_password")
+    confirm_password = data.get("confirm_password")
+    
+    if not all([current_password, new_password, confirm_password]):
+        raise HTTPException(
+            status_code=400, 
+            detail="Current password, new password, and confirmation required"
+        )
+    
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="New passwords do not match")
+    
+    # Password strength validation
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=400, 
+            detail="Password must be at least 8 characters long"
+        )
+    
+    if not any(c.isupper() for c in new_password):
+        raise HTTPException(
+            status_code=400, 
+            detail="Password must contain at least one uppercase letter"
+        )
+    
+    if not any(c.islower() for c in new_password):
+        raise HTTPException(
+            status_code=400, 
+            detail="Password must contain at least one lowercase letter"
+        )
+    
+    if not any(c.isdigit() for c in new_password):
+        raise HTTPException(
+            status_code=400, 
+            detail="Password must contain at least one number"
+        )
+    
+    # Find user in either users or admin_users collection
+    user = await db.users.find_one({"user_id": session["user_id"]})
+    collection_name = "users"
+    
+    if not user:
+        user = await db.admin_users.find_one({"admin_id": session["user_id"]})
+        collection_name = "admin_users"
+        
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    current_hash = hashlib.sha256(current_password.encode()).hexdigest()
+    if user.get("password_hash") != current_hash:
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    
+    # Update password
+    new_hash = hashlib.sha256(new_password.encode()).hexdigest()
+    
+    if collection_name == "users":
+        await db.users.update_one(
+            {"user_id": session["user_id"]},
+            {"$set": {
+                "password_hash": new_hash,
+                "password_changed_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    else:
+        await db.admin_users.update_one(
+            {"admin_id": session["user_id"]},
+            {"$set": {
+                "password_hash": new_hash,
+                "password_changed_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    
+    # Invalidate all other sessions for security
+    await db.user_sessions.delete_many({
+        "user_id": session["user_id"],
+        "session_token": {"$ne": session_token}
+    })
+    
+    logger.info(f"Password changed for user {session['user_id']}")
+    
+    return {
+        "success": True,
+        "message": "Password changed successfully. All other sessions have been logged out."
+    }
+
+
 @router.post("/admin/users/login")
 async def admin_user_login(data: dict, response: Response):
     """Login with username/email and password for admin users"""
