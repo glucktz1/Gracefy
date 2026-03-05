@@ -343,6 +343,10 @@ async def startup():
     traffic_monitoring_task_ref = asyncio.create_task(traffic_monitoring_task(30))
     logger.info("📊 Auto-scaling traffic monitor started")
     
+    # Start rate limit cleanup task
+    rate_limit_cleanup_task_ref = asyncio.create_task(rate_limit_cleanup_task())
+    logger.info("🛡️ Rate limiter started")
+    
     # Run database migrations
     await run_migrations()
     
