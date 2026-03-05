@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Animated, PanResponder } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,9 @@ const MiniPlayer = ({ onPress, navigation }) => {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  
+  // Prevent double-tap issues
+  const isProcessingRef = useRef(false);
   
   // Swipe animation
   const translateX = useRef(new Animated.Value(0)).current;
