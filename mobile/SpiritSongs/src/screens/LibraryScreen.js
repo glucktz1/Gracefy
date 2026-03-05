@@ -716,7 +716,10 @@ const LibraryScreen = ({ navigation, route }) => {
         onLike={handleLikeSong}
         onAddToPlaylist={handleAddToPlaylist}
         isAuthenticated={isAuthenticated}
+        billingEnabled={billingEnabled}
+        isPremium={isPremium}
         onLoginRequired={() => navigation.navigate('Auth')}
+        onSubscriptionRequired={() => navigation.navigate('SubscriptionPlans')}
       />
 
       {/* Create Playlist Modal */}
