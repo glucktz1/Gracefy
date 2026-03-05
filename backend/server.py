@@ -110,6 +110,9 @@ def create_app() -> FastAPI:
     # GZip compression
     app.add_middleware(GZipMiddleware, minimum_size=1000)
     
+    # Rate limiting (add before traffic tracking)
+    app.add_middleware(RateLimitMiddleware)
+    
     # Traffic tracking for auto-scaling
     app.add_middleware(TrafficTrackingMiddleware)
     
