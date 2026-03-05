@@ -564,11 +564,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
+    minHeight: 48,
   },
   featureText: {
     color: COLORS.text,
     fontSize: FONT_SIZES.sm,
     marginLeft: SPACING.sm,
+    flex: 1,
+    flexWrap: 'wrap',
   },
   planCard: {
     backgroundColor: COLORS.surface,
