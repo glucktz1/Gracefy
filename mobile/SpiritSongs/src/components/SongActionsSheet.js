@@ -169,6 +169,13 @@ export const SongActionsSheet = ({
         onLoginRequired?.();
         return;
       }
+      
+      // Check billing - if billing is ON and user is not premium, require subscription
+      if (billingEnabled && !isPremium) {
+        onSubscriptionRequired?.();
+        return;
+      }
+      
       // Start download
       const success = queueDownload(song);
       if (success) {
@@ -177,7 +184,7 @@ export const SongActionsSheet = ({
         showToast('Haiwezi kupakua', 'error');
       }
     }
-  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload, isAuthenticated, onLoginRequired]);
+  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload, isAuthenticated, onLoginRequired, billingEnabled, isPremium, onSubscriptionRequired]);
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) {
