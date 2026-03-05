@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { 
   Settings, Smartphone, CreditCard, Key, Shield, Save, RefreshCw,
-  CheckCircle, XCircle, Users, Crown, Mail, Phone, Globe, AlertTriangle
+  CheckCircle, XCircle, Users, Crown, Mail, Phone, Globe, AlertTriangle,
+  Lock, Eye, EyeOff, Database, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
