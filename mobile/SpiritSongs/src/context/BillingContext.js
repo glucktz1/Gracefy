@@ -5,8 +5,8 @@ import { useAuth } from './AuthContext';
 
 const BillingContext = createContext(null);
 
-// Refresh interval in milliseconds (60 seconds)
-const BILLING_REFRESH_INTERVAL = 60000;
+// Refresh interval in milliseconds (30 seconds for faster response to billing changes)
+const BILLING_REFRESH_INTERVAL = 30000;
 
 export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
