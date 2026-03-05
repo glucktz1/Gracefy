@@ -285,7 +285,7 @@ rate_limit_cleanup_task_ref = None
 @app.on_event("startup")
 async def startup():
     """Initialize services on startup"""
-    global cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref
+    global cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref, rate_limit_cleanup_task_ref
     
     logger.info("🚀 Starting Gracefy API v3.0.0 (High Availability Mode)...")
     
