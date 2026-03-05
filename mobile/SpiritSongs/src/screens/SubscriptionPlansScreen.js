@@ -157,6 +157,10 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+              <Text style={styles.featureText}>Sikiliza offline</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
               <Text style={styles.featureText}>Tengeneza playlist zako</Text>
             </View>
             <View style={styles.featureItem}>
@@ -165,7 +169,7 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-              <Text style={styles.featureText}>Sikiliza hata simu ikiwa locked</Text>
+              <Text style={styles.featureText}>Endelea kusikiliza simu ikilock</Text>
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
