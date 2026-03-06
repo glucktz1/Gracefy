@@ -421,6 +421,8 @@ const AddToPlaylistModal = ({
                     onChangeText={setNewPlaylistName}
                     autoFocus
                     maxLength={50}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCreatePlaylist}
                   />
                   <View style={styles.createButtonsRow}>
                     <TouchableOpacity 
