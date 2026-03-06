@@ -350,14 +350,15 @@ const AddToPlaylistModal = ({
     >
       <KeyboardAvoidingView 
         style={styles.modalOverlay} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <TouchableOpacity 
           style={StyleSheet.absoluteFill} 
           activeOpacity={1} 
           onPress={onClose} 
         />
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { maxHeight: '80%' }]}>
           {/* Handle */}
           <View style={styles.handleContainer}>
             <View style={styles.handle} />
