@@ -291,7 +291,11 @@ const MiniPlayer = ({ onPress, navigation }) => {
       <LoginRequiredModal
         visible={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        onLogin={() => setShowLoginModal(false)}
+        onLogin={() => {
+          setShowLoginModal(false);
+          // Navigate to login screen
+          navigation?.navigate('Auth');
+        }}
       />
       
       {/* Subscription Required Modal for Premium Features */}
