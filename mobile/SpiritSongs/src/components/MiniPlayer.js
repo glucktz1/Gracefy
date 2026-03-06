@@ -325,6 +325,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.sm,
   },
+  swipeableArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   albumArtContainer: {
     position: 'relative',
     width: 48,
