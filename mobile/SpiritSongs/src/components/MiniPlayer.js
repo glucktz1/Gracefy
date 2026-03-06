@@ -127,25 +127,22 @@ const MiniPlayer = ({ onPress, navigation }) => {
   const handleAddToPlaylist = useCallback((e) => {
     e?.stopPropagation?.();
     
-    console.log(`[MiniPlayer] handleAddToPlaylist - isAuthenticated=${isAuthenticated}, billingEnabled=${billingEnabled}, isPremium=${isPremium}`);
-    
-    // Check if authenticated
-    if (!isAuthenticated) {
-      console.log('[MiniPlayer] Not authenticated - showing login modal');
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
+    if (shouldPromptLogin) {
       setShowLoginModal(true);
       return;
     }
     
-    // Check billing - if billing is ON and user is not premium, show subscription modal
-    if (billingEnabled && !isPremium) {
-      console.log('[MiniPlayer] Billing ON and not premium - showing subscription modal');
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (shouldPromptPayment) {
       setShowSubscriptionModal(true);
       return;
     }
     
-    console.log('[MiniPlayer] Showing playlist modal');
+    // 3. Logged in + (billing OFF OR paid): Allow access
     setShowPlaylistModal(true);
-  }, [isAuthenticated, billingEnabled, isPremium]);
+  }, [shouldPromptLogin, shouldPromptPayment]);
 
   const handlePlayPause = useCallback(async (e) => {
     e.stopPropagation();
