@@ -102,6 +102,15 @@ export const SongActionsSheet = ({
   const isDownloading = downloadStatus === DOWNLOAD_STATUS.DOWNLOADING;
   const isQueued = downloadStatus === DOWNLOAD_STATUS.QUEUED;
 
+  /**
+   * BILLING LOGIC:
+   * 1. Guest (not logged in): NEVER prompt to pay, only prompt to login
+   * 2. Logged in + billing OFF: Full premium access
+   * 3. Logged in + billing ON + not paid: Prompt to pay
+   */
+  const shouldPromptLogin = !isAuthenticated;
+  const shouldPromptPayment = isAuthenticated && billingEnabled && !isPremium;
+
   useEffect(() => {
     if (visible) {
       Animated.parallel([
