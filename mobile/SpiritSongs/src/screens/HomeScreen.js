@@ -747,9 +747,13 @@ const HomeScreen = ({ navigation }) => {
       sections.push({ type: 'specialMixes', key: 'specialMixes', data: specialMixes });
     }
     
-    // Radio Stations (only if not already added from layout)
+    // Radio Stations (only if not already added from layout AND has valid data with images)
     if (radioStations.length > 0 && !addedSectionTypes.has('radio')) {
-      sections.push({ type: 'radioStations', key: 'radioStations', data: radioStations });
+      // Only show radio section if stations have favicon images
+      const validRadioStations = radioStations.filter(s => s.favicon || s.name);
+      if (validRadioStations.length > 0) {
+        sections.push({ type: 'radioStations', key: 'radioStations', data: validRadioStations });
+      }
     }
     
     // Most Listened Albums
