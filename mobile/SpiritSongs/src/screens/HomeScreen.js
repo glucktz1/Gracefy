@@ -706,6 +706,9 @@ const HomeScreen = ({ navigation }) => {
   const flatListData = useMemo(() => {
     const sections = [];
     
+    // Track which section types have been added from layout manager
+    const addedSectionTypes = new Set();
+    
     // Header section
     sections.push({ type: 'header', key: 'header' });
     
@@ -725,51 +728,64 @@ const HomeScreen = ({ navigation }) => {
     // Mafundisho
     if (mafundishoContent.length > 0) {
       sections.push({ type: 'mafundisho', key: 'mafundisho', data: mafundishoContent });
+      addedSectionTypes.add('mafundisho');
     }
     
-    // Dynamic Sections from Layout Manager
+    // Dynamic Sections from Layout Manager (excluding "all songs" type sections)
+    // These should not include "Nyimbo Zote" which goes at the end
     layoutSections
       .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
+      .filter(s => !s.title?.toLowerCase().includes('nyimbo zote')) // Exclude "Nyimbo Zote" - it goes last
       .forEach(section => {
         sections.push({ type: 'dynamicSection', key: section.section_id, data: section });
+        // Track the section type to avoid duplicates
+        if (section.section_type) addedSectionTypes.add(section.section_type);
       });
     
-    // Special Mixes
-    if (specialMixes.length > 0) {
+    // Special Mixes (only if not already added from layout)
+    if (specialMixes.length > 0 && !addedSectionTypes.has('special_mixes')) {
       sections.push({ type: 'specialMixes', key: 'specialMixes', data: specialMixes });
     }
     
-    // Radio Stations
-    if (radioStations.length > 0) {
+    // Radio Stations (only if not already added from layout)
+    if (radioStations.length > 0 && !addedSectionTypes.has('radio')) {
       sections.push({ type: 'radioStations', key: 'radioStations', data: radioStations });
     }
     
     // Most Listened Albums
-    if (mostListenedAlbums.length > 0) {
+    if (mostListenedAlbums.length > 0 && !addedSectionTypes.has('most_listened')) {
       sections.push({ type: 'mostListened', key: 'mostListened', data: mostListenedAlbums });
     }
     
     // Hot New Releases
-    if (hotNewReleases.length > 0) {
+    if (hotNewReleases.length > 0 && !addedSectionTypes.has('hot_releases')) {
       sections.push({ type: 'hotReleases', key: 'hotReleases', data: hotNewReleases });
     }
     
-    // Bible Section
-    sections.push({ type: 'bibleSection', key: 'bibleSection', data: bibleSnippets });
+    // Bible Section (always show)
+    if (!addedSectionTypes.has('bible')) {
+      sections.push({ type: 'bibleSection', key: 'bibleSection', data: bibleSnippets });
+    }
     
     // Churches
-    if (churches.length > 0) {
+    if (churches.length > 0 && !addedSectionTypes.has('churches')) {
       sections.push({ type: 'churches', key: 'churches', data: churches });
     }
     
-    // Popular Songs
-    if (allSongs.length > 0) {
+    // Popular Songs (Nyimbo Maarufu)
+    if (allSongs.length > 0 && !addedSectionTypes.has('popular_songs')) {
       sections.push({ type: 'popularSongs', key: 'popularSongs', data: allSongs });
     }
     
-    // All Albums
+    // All Albums (Nyimbo Zote) - THIS IS THE LAST CONTENT SECTION
     if (recentAlbums.length > 0) {
       sections.push({ type: 'allAlbums', key: 'allAlbums', data: recentAlbums });
+    }
+    
+    // "Nyimbo Zote" from layout manager if exists - add at the very end
+    const nyimboZoteSection = layoutSections.find(s => s.title?.toLowerCase().includes('nyimbo zote') && s.items?.length > 0);
+    if (nyimboZoteSection) {
+      sections.push({ type: 'dynamicSection', key: 'nyimbo_zote_final', data: nyimboZoteSection });
     }
     
     // No content fallback
@@ -777,7 +793,7 @@ const HomeScreen = ({ navigation }) => {
       sections.push({ type: 'noContent', key: 'noContent' });
     }
     
-    // Bottom spacer
+    // Bottom spacer - THE END
     sections.push({ type: 'spacer', key: 'spacer' });
     
     return sections;
