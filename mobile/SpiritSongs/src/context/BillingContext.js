@@ -93,11 +93,13 @@ export const BillingProvider = ({ children }) => {
         setSubscription(null);
       }
       setLastRefresh(Date.now());
+      setBillingDataLoaded(true);
     } catch (error) {
       console.error('Error loading billing data:', error);
       // On error, default to billing disabled (safer for users)
       setBillingEnabled(false);
       setIsPremium(true);
+      setBillingDataLoaded(true);
     } finally {
       setLoading(false);
     }
