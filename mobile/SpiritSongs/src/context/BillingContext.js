@@ -241,6 +241,7 @@ export const BillingProvider = ({ children }) => {
     subscription,
     premiumFeatures,
     loading,
+    billingDataLoaded,
     skipCount,
     lastRefresh,
     canAccessFeature,
