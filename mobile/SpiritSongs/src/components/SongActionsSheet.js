@@ -199,11 +199,18 @@ export const SongActionsSheet = ({
       onLoginRequired?.();
       return;
     }
+    
+    // Check billing - if billing is ON and user is not premium, require subscription
+    if (billingEnabled && !isPremium) {
+      onSubscriptionRequired?.();
+      return;
+    }
+    
     handleClose();
     setTimeout(() => {
       onAddToPlaylist?.();
     }, 300);
-  }, [isAuthenticated, onAddToPlaylist, onLoginRequired, handleClose]);
+  }, [isAuthenticated, onAddToPlaylist, onLoginRequired, handleClose, billingEnabled, isPremium, onSubscriptionRequired]);
 
   const handleShare = useCallback(async () => {
     try {
