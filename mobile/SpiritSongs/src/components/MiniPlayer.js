@@ -22,10 +22,6 @@ const MiniPlayer = ({ onPress, navigation }) => {
   // Get billing values directly from context
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
-  const billingDataLoaded = billingContext?.billingDataLoaded ?? false;
-  
-  // Debug logging - remove in production
-  console.log(`[MiniPlayer] billingEnabled=${billingEnabled}, isPremium=${isPremium}, billingDataLoaded=${billingDataLoaded}`);
   
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -33,6 +29,15 @@ const MiniPlayer = ({ onPress, navigation }) => {
   
   // Prevent double-tap issues
   const isProcessingRef = useRef(false);
+
+  /**
+   * BILLING LOGIC:
+   * 1. Guest (not logged in): NEVER prompt to pay, only prompt to login
+   * 2. Logged in + billing OFF: Full premium access
+   * 3. Logged in + billing ON + not paid: Prompt to pay
+   */
+  const shouldPromptLogin = !isAuthenticated;
+  const shouldPromptPayment = isAuthenticated && billingEnabled && !isPremium;
   
   // Swipe animation
   const translateX = useRef(new Animated.Value(0)).current;
