@@ -122,18 +122,23 @@ const MiniPlayer = ({ onPress, navigation }) => {
   const handleAddToPlaylist = useCallback((e) => {
     e?.stopPropagation?.();
     
+    console.log(`[MiniPlayer] handleAddToPlaylist - isAuthenticated=${isAuthenticated}, billingEnabled=${billingEnabled}, isPremium=${isPremium}`);
+    
     // Check if authenticated
     if (!isAuthenticated) {
+      console.log('[MiniPlayer] Not authenticated - showing login modal');
       setShowLoginModal(true);
       return;
     }
     
     // Check billing - if billing is ON and user is not premium, show subscription modal
     if (billingEnabled && !isPremium) {
+      console.log('[MiniPlayer] Billing ON and not premium - showing subscription modal');
       setShowSubscriptionModal(true);
       return;
     }
     
+    console.log('[MiniPlayer] Showing playlist modal');
     setShowPlaylistModal(true);
   }, [isAuthenticated, billingEnabled, isPremium]);
 
