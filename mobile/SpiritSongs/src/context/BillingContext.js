@@ -10,13 +10,15 @@ const BILLING_REFRESH_INTERVAL = 15000;
 
 export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
-  // CRITICAL: Default billingEnabled to false and isPremium to true
-  // This ensures users aren't blocked while billing data loads
+  // CRITICAL: Start with billing disabled state until we know the actual status
+  // This prevents any billing prompts during initial load
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [billingMode, setBillingMode] = useState('full'); // full, app_redirect, disabled
   const [appBillingEnabled, setAppBillingEnabled] = useState(true);
   const [webRedirectUrl, setWebRedirectUrl] = useState('https://www.gracefy.net');
-  const [isPremium, setIsPremium] = useState(true); // Default to true to avoid blocking users on load
+  // Start with isPremium = true only during initial load to prevent blocking
+  // This will be updated once billing data loads
+  const [isPremium, setIsPremium] = useState(true);
   const [plans, setPlans] = useState([]);
   const [subscription, setSubscription] = useState(null);
   const [premiumFeatures, setPremiumFeatures] = useState({
@@ -42,7 +44,10 @@ export const BillingProvider = ({ children }) => {
       const billingRes = await billingAPI.getBillingStatus().catch(() => ({ data: { billing_enabled: false } }));
       const masterBillingEnabled = billingRes.data?.billing_enabled ?? false;
       
+      console.log(`[BillingContext] ========== BILLING LOAD ==========`);
       console.log(`[BillingContext] Master billing enabled: ${masterBillingEnabled}`);
+      console.log(`[BillingContext] User authenticated: ${isAuthenticated}`);
+      console.log(`[BillingContext] User ID: ${user?.user_id || 'none'}`);
       
       // Set billing states from master settings
       setBillingEnabled(masterBillingEnabled);
@@ -59,9 +64,10 @@ export const BillingProvider = ({ children }) => {
       
       // If billing is disabled, everyone is premium - no need to check user subscription
       if (!masterBillingEnabled) {
-        console.log('[BillingContext] Billing OFF - setting isPremium=true for all users');
+        console.log('[BillingContext] Billing OFF - setting isPremium=TRUE for all users');
         setIsPremium(true);
         setSubscription({ status: 'free_access', plan_name: 'Bure' });
+        setBillingDataLoaded(true);
         // Still get plans for display purposes
         const plansRes = await billingAPI.getPlans().catch(() => ({ data: { plans: [] } }));
         setPlans(plansRes.data?.plans || []);
@@ -69,33 +75,40 @@ export const BillingProvider = ({ children }) => {
         return;
       }
       
-      // Billing is ON - check user subscription
-      console.log('[BillingContext] Billing ON - checking user subscription');
+      // ============ BILLING IS ON ============
+      console.log('[BillingContext] Billing ON - checking user subscription status');
       
       // Get plans
       const plansRes = await billingAPI.getPlans().catch(() => ({ data: { plans: [] } }));
       setPlans(plansRes.data?.plans || []);
       
-      // Only check user subscription if billing is enabled
-      if (user?.user_id) {
+      // Check user subscription if logged in
+      if (user?.user_id && isAuthenticated) {
         const subRes = await billingAPI.getUserSubscription(user.user_id).catch(() => ({ 
           data: { is_premium: false } 
         }));
         if (subRes.data) {
-          console.log(`[BillingContext] User subscription: is_premium=${subRes.data.is_premium}`);
-          setIsPremium(subRes.data.is_premium || false);
+          const userIsPremium = subRes.data.is_premium || false;
+          console.log(`[BillingContext] User has subscription: is_premium=${userIsPremium}`);
+          setIsPremium(userIsPremium);
           setSubscription(subRes.data.subscription || null);
+        } else {
+          console.log('[BillingContext] No subscription data - setting isPremium=FALSE');
+          setIsPremium(false);
+          setSubscription(null);
         }
       } else {
-        // Not logged in and billing is enabled - not premium
-        console.log('[BillingContext] User not logged in, billing ON - setting isPremium=false');
+        // Not logged in and billing is enabled - NOT premium
+        console.log('[BillingContext] User NOT logged in, billing ON - setting isPremium=FALSE');
         setIsPremium(false);
         setSubscription(null);
       }
-      setLastRefresh(Date.now());
+      
       setBillingDataLoaded(true);
+      setLastRefresh(Date.now());
+      console.log(`[BillingContext] ========== BILLING LOAD COMPLETE ==========`);
     } catch (error) {
-      console.error('Error loading billing data:', error);
+      console.error('[BillingContext] Error loading billing data:', error);
       // On error, default to billing disabled (safer for users)
       setBillingEnabled(false);
       setIsPremium(true);
@@ -103,7 +116,7 @@ export const BillingProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, isAuthenticated]);
 
   // Initial load
   useEffect(() => {
