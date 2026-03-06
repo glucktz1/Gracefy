@@ -5,16 +5,18 @@ import { useAuth } from './AuthContext';
 
 const BillingContext = createContext(null);
 
-// Refresh interval in milliseconds (30 seconds for faster response to billing changes)
-const BILLING_REFRESH_INTERVAL = 30000;
+// Refresh interval in milliseconds (15 seconds for faster response to billing changes)
+const BILLING_REFRESH_INTERVAL = 15000;
 
 export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
+  // CRITICAL: Default billingEnabled to false and isPremium to true
+  // This ensures users aren't blocked while billing data loads
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [billingMode, setBillingMode] = useState('full'); // full, app_redirect, disabled
   const [appBillingEnabled, setAppBillingEnabled] = useState(true);
   const [webRedirectUrl, setWebRedirectUrl] = useState('https://www.gracefy.net');
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(true); // Default to true to avoid blocking users on load
   const [plans, setPlans] = useState([]);
   const [subscription, setSubscription] = useState(null);
   const [premiumFeatures, setPremiumFeatures] = useState({
@@ -25,6 +27,7 @@ export const BillingProvider = ({ children }) => {
     high_quality: true
   });
   const [loading, setLoading] = useState(true);
+  const [billingDataLoaded, setBillingDataLoaded] = useState(false);
   const [skipCount, setSkipCount] = useState(0);
   const [lastRefresh, setLastRefresh] = useState(null);
   const refreshIntervalRef = useRef(null);
