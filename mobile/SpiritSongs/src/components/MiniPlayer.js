@@ -165,10 +165,7 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
   return (
     <>
-      <Animated.View
-        style={[styles.container, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
-      >
+      <View style={styles.container}>
         <TouchableOpacity 
           style={styles.innerContainer} 
           onPress={onPress}
@@ -184,38 +181,44 @@ const MiniPlayer = ({ onPress, navigation }) => {
             </View>
 
             <View style={styles.content}>
-              {/* Album art with equalizer overlay */}
-              <View style={styles.albumArtContainer}>
-                <Image
-                  source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url || currentTrack.album_thumbnail) || 'https://via.placeholder.com/48' }}
-                  style={styles.albumArt}
-                />
-                {/* Show equalizer on album art when playing */}
-                {isPlaying && (
-                  <View style={styles.equalizerOverlay}>
-                    <AnimatedEqualizer 
-                      isPlaying={isPlaying} 
-                      barCount={3} 
-                      barWidth={3} 
-                      barHeight={16}
-                      color={COLORS.text}
-                      gap={2}
-                    />
-                  </View>
-                )}
-              </View>
+              {/* Swipeable track info area - only this part swipes */}
+              <Animated.View 
+                style={[styles.swipeableArea, { transform: [{ translateX }] }]}
+                {...panResponder.panHandlers}
+              >
+                {/* Album art with equalizer overlay */}
+                <View style={styles.albumArtContainer}>
+                  <Image
+                    source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url || currentTrack.album_thumbnail) || 'https://via.placeholder.com/48' }}
+                    style={styles.albumArt}
+                  />
+                  {/* Show equalizer on album art when playing */}
+                  {isPlaying && (
+                    <View style={styles.equalizerOverlay}>
+                      <AnimatedEqualizer 
+                        isPlaying={isPlaying} 
+                        barCount={3} 
+                        barWidth={3} 
+                        barHeight={16}
+                        color={COLORS.text}
+                        gap={2}
+                      />
+                    </View>
+                  )}
+                </View>
 
-              {/* Track info */}
-              <View style={styles.trackInfo}>
-                <Text style={styles.trackTitle} numberOfLines={1}>
-                  {currentTrack.title}
-                </Text>
-                <Text style={styles.trackArtist} numberOfLines={1}>
-                  {getSubtitle()}
-                </Text>
-              </View>
+                {/* Track info */}
+                <View style={styles.trackInfo}>
+                  <Text style={styles.trackTitle} numberOfLines={1}>
+                    {currentTrack.title}
+                  </Text>
+                  <Text style={styles.trackArtist} numberOfLines={1}>
+                    {getSubtitle()}
+                  </Text>
+                </View>
+              </Animated.View>
 
-              {/* Controls */}
+              {/* Controls - fixed position, not swipeable */}
               <View style={styles.controls}>
                 {/* Add to playlist button */}
                 <TouchableOpacity 
