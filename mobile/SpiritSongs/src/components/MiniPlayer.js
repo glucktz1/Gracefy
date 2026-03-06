@@ -19,8 +19,13 @@ const MiniPlayer = ({ onPress, navigation }) => {
   const { isAuthenticated } = useAuth();
   const billingContext = useBilling();
   
+  // Get billing values directly from context
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
+  const billingDataLoaded = billingContext?.billingDataLoaded ?? false;
+  
+  // Debug logging - remove in production
+  console.log(`[MiniPlayer] billingEnabled=${billingEnabled}, isPremium=${isPremium}, billingDataLoaded=${billingDataLoaded}`);
   
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
