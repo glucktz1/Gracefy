@@ -657,10 +657,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
+  logoWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+    marginBottom: SPACING.sm,
+  },
   logoImage: {
     width: 100,
     height: 100,
-    marginBottom: SPACING.sm,
+    borderRadius: 50,
   },
   appName: {
     fontSize: 28,
