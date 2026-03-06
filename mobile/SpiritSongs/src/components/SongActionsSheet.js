@@ -196,25 +196,38 @@ export const SongActionsSheet = ({
   }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload, isAuthenticated, onLoginRequired, billingEnabled, isPremium, onSubscriptionRequired]);
 
   const handleLike = useCallback(async () => {
-    if (!isAuthenticated) {
-      onLoginRequired?.();
-      return;
-    }
-    await onLike?.();
-  }, [isAuthenticated, onLike, onLoginRequired]);
-
-  const handleAddToPlaylist = useCallback(() => {
-    if (!isAuthenticated) {
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
+    if (shouldPromptLogin) {
       onLoginRequired?.();
       return;
     }
     
-    // Check billing - if billing is ON and user is not premium, require subscription
-    if (billingEnabled && !isPremium) {
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (shouldPromptPayment) {
       onSubscriptionRequired?.();
       return;
     }
     
+    // 3. Logged in + (billing OFF OR paid): Allow like
+    await onLike?.();
+  }, [shouldPromptLogin, shouldPromptPayment, onLike, onLoginRequired, onSubscriptionRequired]);
+
+  const handleAddToPlaylist = useCallback(() => {
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
+    if (shouldPromptLogin) {
+      onLoginRequired?.();
+      return;
+    }
+    
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (shouldPromptPayment) {
+      onSubscriptionRequired?.();
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Allow access
     handleClose();
     setTimeout(() => {
       onAddToPlaylist?.();
