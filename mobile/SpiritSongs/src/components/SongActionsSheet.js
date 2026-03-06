@@ -173,19 +173,20 @@ export const SongActionsSheet = ({
       cancelDownload(song.song_id);
       showToast('Upakuaji umesitishwa', 'info');
     } else {
-      // Check authentication before downloading
-      if (!isAuthenticated) {
+      // BILLING LOGIC:
+      // 1. Guest: Prompt to login (NEVER prompt to pay)
+      if (shouldPromptLogin) {
         onLoginRequired?.();
         return;
       }
       
-      // Check billing - if billing is ON and user is not premium, require subscription
-      if (billingEnabled && !isPremium) {
+      // 2. Logged in + billing ON + not paid: Prompt to pay
+      if (shouldPromptPayment) {
         onSubscriptionRequired?.();
         return;
       }
       
-      // Start download
+      // 3. Logged in + (billing OFF OR paid): Allow download
       const success = queueDownload(song);
       if (success) {
         showToast('Inapakuliwa...', 'success');
@@ -193,7 +194,7 @@ export const SongActionsSheet = ({
         showToast('Haiwezi kupakua', 'error');
       }
     }
-  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload, isAuthenticated, onLoginRequired, billingEnabled, isPremium, onSubscriptionRequired]);
+  }, [song, downloaded, isDownloading, isQueued, queueDownload, removeDownload, cancelDownload, shouldPromptLogin, shouldPromptPayment, onLoginRequired, onSubscriptionRequired]);
 
   const handleLike = useCallback(async () => {
     // BILLING LOGIC:
