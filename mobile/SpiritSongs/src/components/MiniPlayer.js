@@ -263,7 +263,7 @@ const MiniPlayer = ({ onPress, navigation }) => {
           </View>
         </LinearGradient>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
       {/* Add to Playlist Modal */}
       <AddToPlaylistModal
