@@ -262,16 +262,18 @@ export const useBilling = () => {
   const context = useContext(BillingContext);
   if (!context) {
     // Return default values if not within provider
+    // CRITICAL: Default to billing disabled and premium true to avoid blocking users
     return {
       billingEnabled: false,
-      billingMode: 'full',
-      appBillingEnabled: true,
+      billingMode: 'disabled',
+      appBillingEnabled: false,
       webRedirectUrl: 'https://www.gracefy.net',
-      isPremium: false,
+      isPremium: true, // Default to premium when no context - don't block users
       plans: [],
       subscription: null,
       premiumFeatures: {},
       loading: false,
+      billingDataLoaded: false,
       skipCount: 0,
       canAccessFeature: () => true,
       canSkip: () => true,
