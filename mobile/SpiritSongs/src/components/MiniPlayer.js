@@ -114,19 +114,23 @@ const MiniPlayer = ({ onPress, navigation }) => {
     return currentTrack.artist_name || 'Zingine kama hizi';
   };
 
-  const handleAddToPlaylist = (e) => {
-    e.stopPropagation();
+  const handleAddToPlaylist = useCallback((e) => {
+    e?.stopPropagation?.();
+    
+    // Check if authenticated
     if (!isAuthenticated) {
       setShowLoginModal(true);
       return;
     }
-    // Premium feature check
+    
+    // Check billing - if billing is ON and user is not premium, show subscription modal
     if (billingEnabled && !isPremium) {
       setShowSubscriptionModal(true);
       return;
     }
+    
     setShowPlaylistModal(true);
-  };
+  }, [isAuthenticated, billingEnabled, isPremium]);
 
   const handlePlayPause = useCallback(async (e) => {
     e.stopPropagation();
