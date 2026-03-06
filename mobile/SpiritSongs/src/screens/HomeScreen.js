@@ -733,9 +733,24 @@ const HomeScreen = ({ navigation }) => {
     
     // Dynamic Sections from Layout Manager (excluding "all songs" type sections)
     // These should not include "Nyimbo Zote" which goes at the end
+    // Filter out sections with empty/invalid items
     layoutSections
       .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
       .filter(s => !s.title?.toLowerCase().includes('nyimbo zote')) // Exclude "Nyimbo Zote" - it goes last
+      .filter(s => {
+        // Filter out sections that are duplicates of static sections
+        const title = s.title?.toLowerCase() || '';
+        if (title.includes('biblia') || title.includes('masomo')) return false;
+        if (title.includes('radio') || title.includes('redio')) return false;
+        return true;
+      })
+      .filter(s => {
+        // Only include sections where items have actual content (not just placeholders)
+        const hasValidItems = s.items?.some(item => 
+          item.thumbnail || item.thumbnail_url || item.image_url || item.audio_url || item.title
+        );
+        return hasValidItems;
+      })
       .forEach(section => {
         sections.push({ type: 'dynamicSection', key: section.section_id, data: section });
         // Track the section type to avoid duplicates
