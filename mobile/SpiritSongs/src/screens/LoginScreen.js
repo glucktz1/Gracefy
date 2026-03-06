@@ -622,11 +622,13 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
           
           <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/gracefy-logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoWrapper}>
+              <Image
+                source={require('../../assets/gracefy-logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.appName}>Gracefy</Text>
           </View>
           
