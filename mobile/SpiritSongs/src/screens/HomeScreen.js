@@ -766,8 +766,14 @@ const HomeScreen = ({ navigation }) => {
       sections.push({ type: 'hotReleases', key: 'hotReleases', data: hotNewReleases });
     }
     
-    // Bible Section (always show)
-    if (!addedSectionTypes.has('bible')) {
+    // Bible Section - only show if not already added from layout sections
+    // Check if there's already a bible-related section in layoutSections
+    const hasBibleInLayout = layoutSections.some(s => 
+      s.section_type === 'bible' || 
+      s.title?.toLowerCase().includes('biblia') ||
+      s.title?.toLowerCase().includes('masomo')
+    );
+    if (!addedSectionTypes.has('bible') && !hasBibleInLayout) {
       sections.push({ type: 'bibleSection', key: 'bibleSection', data: bibleSnippets });
     }
     
