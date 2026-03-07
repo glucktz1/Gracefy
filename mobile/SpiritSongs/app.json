@@ -90,10 +90,10 @@
       ],
       "expo-task-manager"
     ],
-    "owner": "classlivetz",
+    "owner": "darasani3",
     "extra": {
       "eas": {
-        "projectId": "b2b1735d-ff01-4b76-895f-f5933c4371a3"
+        "projectId": ""
       }
     }
   }
