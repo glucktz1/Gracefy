@@ -695,7 +695,10 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Toggle play/pause - optimized for instant response
-   * IMPORTANT: Respects billing rules - blocks play from lock screen for non-premium when billing is ON
+   * BILLING LOGIC:
+   * - Guest users: Allow play (no payment prompt)
+   * - Logged in + billing OFF: Allow play
+   * - Logged in + billing ON + not paid: Block from lock screen
    */
   const togglePlay = async () => {
     if (!setupCompleteRef.current) {
@@ -721,16 +724,22 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         return;
       }
       
+      // Guest users (not logged in) - allow play (no payment restrictions)
+      if (!isAuthenticated) {
+        await TrackPlayer.play();
+        return;
+      }
+      
       // If billing is ON and user is premium, allow play
       if (isPremium) {
         await TrackPlayer.play();
         return;
       }
       
-      // If billing is ON, user is NOT premium, and app is in background
+      // If billing is ON, user is logged in, NOT premium, and app is in background
       // Block play and show prompt when they return to foreground
       if (isInBackgroundRef.current) {
-        console.log('[Player] Blocking play from lock screen for non-premium user');
+        console.log('[Player] Blocking play from lock screen for non-premium logged-in user');
         pendingPaymentPromptRef.current = true;
         return;
       }
