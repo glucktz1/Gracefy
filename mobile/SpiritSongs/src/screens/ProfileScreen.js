@@ -1080,6 +1080,85 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xs,
     fontWeight: '500',
   },
+  // Billing Status Indicator styles
+  billingStatusContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  billingStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  billingStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  billingStatusLabel: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  billingStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 6,
+  },
+  billingStatusOn: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+  },
+  billingStatusOff: {
+    backgroundColor: COLORS.background,
+  },
+  billingStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  billingStatusText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  billingStatusHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    marginTop: SPACING.sm,
+  },
+  // Free Access Card styles
+  freeAccessCard: {
+    backgroundColor: COLORS.primary + '15',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+    marginBottom: SPACING.md,
+  },
+  freeAccessContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  freeAccessText: {
+    marginLeft: SPACING.md,
+    flex: 1,
+  },
+  freeAccessTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  freeAccessSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
 });
 
 export default ProfileScreen;
