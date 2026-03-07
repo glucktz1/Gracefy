@@ -296,7 +296,7 @@ const MiniPlayer = ({ onPress, navigation }) => {
         onLogin={() => {
           setShowLoginModal(false);
           // Navigate to login screen
-          navigation?.navigate('Auth');
+          navigation?.navigate('Login');
         }}
       />
       
