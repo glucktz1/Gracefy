@@ -393,11 +393,12 @@ const AppContent = () => {
 // Player Provider with Billing - needs to be inside BillingProvider to access billing context
 const PlayerProviderWithBilling = ({ children }) => {
   const billingContext = useBilling();
+  const { isAuthenticated } = useAuth();
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
   
   return (
-    <PlayerProvider billingEnabled={billingEnabled} isPremium={isPremium}>
+    <PlayerProvider billingEnabled={billingEnabled} isPremium={isPremium} isAuthenticated={isAuthenticated}>
       {children}
     </PlayerProvider>
   );
