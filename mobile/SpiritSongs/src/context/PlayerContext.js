@@ -862,8 +862,13 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     if (!setupCompleteRef.current) return;
 
     try {
+      // Use refs to get CURRENT billing values
+      const currentBillingEnabled = billingEnabledRef.current;
+      const currentIsPremium = isPremiumRef.current;
+      const currentIsAuthenticated = isAuthenticatedRef.current;
+      
       // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
-      if (isAuthenticated && billingEnabled && !isPremium && isInBackgroundRef.current) {
+      if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
         console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
         pendingPaymentPromptRef.current = true;
         return;
