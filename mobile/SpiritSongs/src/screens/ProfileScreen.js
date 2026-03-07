@@ -402,12 +402,47 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Subscription Section - Only show if billing is enabled */}
-        {billingEnabled && (
-          <View style={styles.menuSection}>
-            <Text style={styles.menuSectionTitle}>Usajili</Text>
-            
-            {isPremium ? (
+        {/* Subscription Section */}
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Usajili</Text>
+          
+          {/* Billing Status Indicator - Always shown */}
+          <View style={styles.billingStatusContainer}>
+            <View style={styles.billingStatusRow}>
+              <View style={styles.billingStatusLeft}>
+                <Ionicons 
+                  name={billingEnabled ? "card" : "card-outline"} 
+                  size={20} 
+                  color={billingEnabled ? COLORS.warning : COLORS.textMuted} 
+                />
+                <Text style={styles.billingStatusLabel}>Hali ya Malipo</Text>
+              </View>
+              <View style={[
+                styles.billingStatusBadge,
+                billingEnabled ? styles.billingStatusOn : styles.billingStatusOff
+              ]}>
+                <View style={[
+                  styles.billingStatusDot,
+                  { backgroundColor: billingEnabled ? '#22C55E' : COLORS.textMuted }
+                ]} />
+                <Text style={[
+                  styles.billingStatusText,
+                  { color: billingEnabled ? '#22C55E' : COLORS.textMuted }
+                ]}>
+                  {billingEnabled ? 'IMEWASHWA' : 'IMEZIMWA'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.billingStatusHint}>
+              {billingEnabled 
+                ? 'Vipengele vya Premium vinahitaji malipo' 
+                : 'Vipengele vyote ni bure kwa sasa'}
+            </Text>
+          </View>
+          
+          {billingEnabled ? (
+            // Show subscription info when billing is ON
+            isPremium ? (
               <View style={styles.premiumCard}>
                 <LinearGradient
                   colors={[COLORS.primary, '#1ed760']}
@@ -441,10 +476,24 @@ const ProfileScreen = ({ navigation }) => {
                 </View>
                 <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
               </TouchableOpacity>
-            )}
+            )
+          ) : (
+            // Show free access message when billing is OFF
+            <View style={styles.freeAccessCard}>
+              <View style={styles.freeAccessContent}>
+                <Ionicons name="gift" size={32} color={COLORS.primary} />
+                <View style={styles.freeAccessText}>
+                  <Text style={styles.freeAccessTitle}>Huduma Bure!</Text>
+                  <Text style={styles.freeAccessSubtitle}>
+                    Vipengele vyote viko bure kwa sasa. Furahia muziki bila kikomo!
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
-            {/* Recent Transactions */}
-            {transactions.length > 0 && (
+          {/* Recent Transactions - Only show if billing is enabled */}
+          {billingEnabled && transactions.length > 0 && (
               <View style={styles.transactionsContainer}>
                 <Text style={styles.transactionsTitle}>Historia ya Malipo</Text>
                 {transactions.slice(0, 3).map((txn, index) => (
