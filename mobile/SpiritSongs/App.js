@@ -394,8 +394,12 @@ const AppContent = () => {
 const PlayerProviderWithBilling = ({ children }) => {
   const billingContext = useBilling();
   const { isAuthenticated } = useAuth();
-  const billingEnabled = billingContext?.billingEnabled ?? false;
-  const isPremium = billingContext?.isPremium ?? false;
+  
+  // CRITICAL: Only use billing values if billing status has been checked from server
+  // This prevents blocking users before we know the actual billing status
+  const billingStatusChecked = billingContext?.billingStatusChecked ?? false;
+  const billingEnabled = billingStatusChecked ? (billingContext?.billingEnabled ?? false) : false;
+  const isPremium = billingStatusChecked ? (billingContext?.isPremium ?? true) : true;
   
   return (
     <PlayerProvider billingEnabled={billingEnabled} isPremium={isPremium} isAuthenticated={isAuthenticated}>
