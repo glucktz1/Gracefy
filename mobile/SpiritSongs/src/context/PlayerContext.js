@@ -422,20 +422,27 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         isInBackgroundRef.current = true;
         
-        // CRITICAL: Only apply restrictions if billing is ENABLED and user is NOT premium
-        // If billing is OFF, treat everyone as premium - no restrictions
+        // CRITICAL: If billing is OFF, allow everyone to play in background
         if (!billingEnabled) {
           console.log('[Player] Billing OFF - allowing background play for all users');
           backgroundPlayBlockedRef.current = false;
           return;
         }
         
-        // Check if playing and user is NOT premium (billing is ON)
+        // CRITICAL: Guest users (not logged in) - DON'T prompt to pay, just let them play
+        // Guest limits are handled elsewhere (guest play count)
+        if (!isAuthenticated) {
+          console.log('[Player] Guest user - allowing background play (no payment prompt)');
+          backgroundPlayBlockedRef.current = false;
+          return;
+        }
+        
+        // Check if playing and user is NOT premium (billing is ON AND logged in)
         const state = await TrackPlayer.getPlaybackState();
         wasPlayingBeforeBackgroundRef.current = state.state === State.Playing;
         
         if (!isPremium && wasPlayingBeforeBackgroundRef.current) {
-          console.log('[Player] Non-premium user going to background - allowing current song to finish');
+          console.log('[Player] Logged-in non-premium user going to background - allowing current song to finish');
           // Mark that we should block the next song, but let current song continue
           backgroundPlayBlockedRef.current = true;
           pendingPaymentPromptRef.current = true;
@@ -447,8 +454,12 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         isInBackgroundRef.current = false;
         
-        // Show subscription prompt if billing is ON and user is not premium
-        if (billingEnabled && !isPremium && pendingPaymentPromptRef.current) {
+        // Show subscription prompt ONLY if:
+        // 1. User is logged in (NOT a guest)
+        // 2. Billing is ON
+        // 3. User is NOT premium
+        // 4. There's a pending prompt
+        if (isAuthenticated && billingEnabled && !isPremium && pendingPaymentPromptRef.current) {
           if (showBackgroundPlayPromptCallback) {
             showBackgroundPlayPromptCallback();
           }
@@ -468,7 +479,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     return () => {
       subscription?.remove();
     };
-  }, [billingEnabled, isPremium]);
+  }, [billingEnabled, isPremium, isAuthenticated]);
   
   // ============ HANDLE TRACK END IN BACKGROUND FOR NON-PREMIUM ============
   useEffect(() => {
