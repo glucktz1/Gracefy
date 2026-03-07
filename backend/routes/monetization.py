@@ -279,7 +279,8 @@ async def get_user_subscription_status(user_id: str = Query(...)):
     
     # Get billing settings
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
-    billing_enabled = settings.get("billing_enabled", True) if settings else True
+    # CRITICAL: Default billing to FALSE if not set
+    billing_enabled = settings.get("billing_enabled", False) if settings else False
     
     # If billing is disabled, everyone is "premium"
     if not billing_enabled:
