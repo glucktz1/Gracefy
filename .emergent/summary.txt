@@ -1,0 +1,206 @@
+<analysis>**original_problem_statement:**
+The user's primary goal is to stabilize the mobile app for a production launch. The core requirements from this session are:
+
+1.  **Critical Billing Logic:** The billing system is the highest priority and has failed repeatedly. The logic must be:
+    *   **Guest Users:** Never prompted to pay. After a usage threshold, they are prompted to **log in**.
+    *   **Logged-in Users (Billing OFF):** Receive full premium access with no restrictions.
+    *   **Logged-in, Non-Premium Users (Billing ON):** Are prompted to pay when attempting to use premium features.
+    *   **Premium Features:** Background/lock-screen playback (continue current song, but block next), creating/adding to a playlist, liking a song, downloading a song, and skipping multiple times.
+
+2.  **UI/UX Bug Fixes:**
+    *   Fix the login button on the MiniPlayer's add to playlist prompt, which is currently unresponsive.
+    *   Fix the home screen layout to remove duplicate sections (Biblia na Masomo, Radio za Kikristu) and stop the endless scroll after the Nyimbo Zote section.
+    *   Fix the swipe gesture on the MiniPlayer so it only swipes the track info, not the entire component.
+    *   Fix the keyboard covering the input field when creating a new playlist.
+    *   Fix the app logo on the login screen, which has a white background on a dark theme.
+
+3.  **Production Readiness:**
+    *   The user requested assistance with go-live preparations, leading to the implementation of rate-limiting, a password change feature, and a database backup script.
+
+4.  **Build Management:**
+    *   The user requested new builds to test fixes and eventually exhausted the free tier quota, requiring a switch to a new Expo account.
+
+**User's preferred language**: English
+
+**what currently exists?**
+- A full-stack music streaming application (React Native/FastAPI/MongoDB).
+- Multiple Android builds have been created, but none have successfully resolved the recurring billing logic issues. The latest working build is v1.0.149, but it still has critical bugs.
+- The backend has been enhanced with production-readiness features: API rate limiting, an admin password change endpoint, and a database backup service.
+- The Expo build process has been reconfigured to use a new user-provided account () after the previous one ran out of build credits.
+
+**Last working item**:
+-   **Last item agent was working:** The agent was attempting to fix a critical flaw in the billing logic where guest users were being prompted to pay. The proposed solution involved passing the  state into the . However, this introduced a variable conflict, causing the Android build (v1.0.150) to fail repeatedly.
+-   **Status:** BLOCKED
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** both. First, the build must be fixed. After a successful build, a  should be used to perform comprehensive testing on the mobile app's frontend and logic, covering all scenarios outlined by the user for the billing system.
+-   **User Testing Done:** N
+
+**All Pending/In progress Issue list**:
+-   Issue 1: Critical Billing Logic Failure & Broken Build (P0)
+-   Issue 2: Mobile Home Screen Layout Bugs (P1)
+-   Issue 3: Mobile UI/UX Interaction Bugs (P1)
+-   Issue 4: Stream/User Count Accuracy (P2)
+-   Issue 5: iOS Build Failure (P2)
+
+**Issues Detail:**
+-   **Issue 1: Critical Billing Logic Failure & Broken Build**
+    -   **Attempted fixes:** The agent's last attempt was to pass  as a prop to  and use it within the  to differentiate between guest and logged-in users. This caused a Metro bundler error because  was being passed as a prop AND destructured from the  hook inside the same component. The build is now failing.
+    -   **Next debug checklist:**
+        1.  **Fix the build:** In , remove the internal call to . The component should only use the  value passed down as a prop.
+        2.  Verify that  correctly sources  from  and passes it down to , which then passes it to .
+        3.  **Retest the entire billing flow:** After a successful build, perform rigorous testing against the user's latest requirements. Verify that guest users are *only* prompted to log in, and that payment prompts *only* appear for non-premium, logged-in users when billing is ON.
+    -   **Why fix this issue and what will be achieved with the fix?** This is the most critical blocker for the app's launch. It directly impacts user experience and monetization.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** None. This is the primary blocker.
+
+-   **Issue 2: Mobile Home Screen Layout Bugs**
+    -   **Attempted fixes:** The agent added filtering logic to  to prevent sections with no content (like Radio with no favicons) from rendering and to de-duplicate static sections if they are already present in the dynamic layout.
+    -   **Next debug checklist:**
+        1.  Once a working build is available, verify that duplicate Biblia na Masomo and Radio za Kikristu sections are gone.
+        2.  Confirm that the home screen scrolling stops after the Nyimbo Zote section.
+    -   **Why fix this issue and what will be achieved with the fix?** Improves the visual presentation and usability of the app's main screen.
+    -   **Status:** TESTING PENDING
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Issue 1 (Broken Build)
+
+-   **Issue 3: Mobile UI/UX Interaction Bugs**
+    -   **Attempted fixes:**
+        *   **Login Button:** The  callback in  was updated in  to navigate to the 'Auth' screen.
+        *   **Keyboard Overlay:**  was adjusted in .
+        *   **Swipe Gesture:** The  component was restructured to isolate the gesture handler to the track info area.
+        *   **Login Logo:** The  was updated to wrap the logo image to fix the background issue.
+    -   **Next debug checklist:** Verify all these fixes on the next successful build.
+    -   **Why fix this issue and what will be achieved with the fix?** These are direct user experience bugs that make the app feel broken.
+    -   **Status:** TESTING PENDING
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Issue 1 (Broken Build)
+
+-   **Issue 4: Stream/User Count Accuracy**
+    -   **Attempted fixes:** None. This was mentioned by the user but not addressed by the agent.
+    -   **Next debug checklist:**
+        1.  Investigate the backend code responsible for tracking song streams and user counts.
+        2.  Identify where the count is displayed in the admin panel.
+        3.  Verify if the counting logic is correct and propose a fix if it's not.
+    -   **Why fix this issue and what will be achieved with the fix?** Provides accurate analytics for the admin.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** backend
+    -   **Blocked on other issue:** None
+
+-   **Issue 5: iOS Build Failure**
+    -   **Attempted fixes:** None in this session. This is a carry-over issue.
+    -   **Next debug checklist:** Await user providing Apple Developer credentials.
+    -   **Why fix this issue and what will be achieved with the fix?** Allows for iOS app testing and deployment.
+    -   **Status:** BLOCKED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** User action required.
+
+**In progress Task List**:
+-   **Task 1: Fix the Broken Android Build (P0)**
+    -   **Where to resume:** .
+    -   **What will be achieved with this?** A working Android build (v1.0.150) that can be used to test the critical billing fixes and all other pending UI changes.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on something:** This is the main blocker for all other mobile-related tasks.
+
+**Upcoming and Future Tasks**
+-   **Upcoming Tasks:**
+    -   (P1) Implement Bible TTS voice selection from admin settings.
+    -   (P2) Implement admin language file upload feature.
+-   **Future Tasks:**
+    -   Audio Ad Integration.
+    -   Integrate SendGrid for email campaigns.
+    -   Integrate Firebase Auth (if user decides to proceed).
+
+**Completed work in this session**
+-   **Production Readiness Features:** Implemented and tested backend features for API rate limiting, a database backup service, and an admin password change UI/API.
+-   **Expo Account Migration:** Successfully authenticated and reconfigured the project to use a new Expo account () to overcome build quota limits.
+-   **Numerous UI Fixes (Pending Verification):** Implemented code changes for the login screen logo, mini-player swipe gesture, keyboard avoidance on playlist creation, and home screen layout.
+-   **Iterative Billing Fixes (Unsuccessful):** Made multiple attempts to fix the billing logic across several builds (v1.0.141 - v1.0.149), which have now culminated in the latest critical failure.
+
+**Earlier issues found/mentioned but not fixed**
+-   **Issue 1: Stream/User Count Accuracy**
+    -   **Debug checklist:** Investigate backend logic for stream/user counting and verify its implementation.
+    -   **Why to solve this issue and what will be achieved with this?** To provide the app administrator with accurate usage metrics.
+    -   **Should Test frontend/backend/both after fix:** backend
+    -   **Is recurring issue?** N
+
+**Known issue recurrence from previous fork**
+-   **Issue recurrence in previous fork:** The core billing logic (especially premium feature gating and handling of the billing ON/OFF toggle) has been a persistent, recurring problem throughout the project.
+-   **Recurrence count:** High (at least 5-6 cycles of fixing and re-reporting in this session alone).
+-   **Status:** IN PROGRESS
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+-   **React Native State Management:** Heavy reliance on React Context (, , ) to manage global state. The fragility of this implementation is a core problem.
+-   **API Rate Limiting:** A new middleware was added to the FastAPI backend to prevent API abuse.
+-   **Background Scripting:** A new service was created for handling database backups via a bash script, triggered by an API endpoint.
+-   **Expo Application Services (EAS):** Used for all Android builds. The agent had to re-authenticate and reconfigure the project for a new Expo account.
+
+**key DB schema**
+No changes were made to the database schema in this session.
+
+**All files of reference**
+-   : **(CRITICAL)** Currently broken and causing build failure. Contains logic for playback control and background play restrictions.
+-   : **(CRITICAL)** Contains the core logic for determining a user's premium status based on the global billing toggle and their subscription.
+-   : Modified to pass  state down the component tree.
+-   : Contains UI for the mini-player and logic for handling user interactions like add to playlist which must be gated by billing state.
+-   : Contains logic for like and download actions, which must also be gated.
+-   : Contains logic for rendering the main screen layout, which has duplication and scrolling issues.
+-   : New file for API rate limiting.
+-   : New file for database backups.
+
+**Critical Info for New Agent**
+-   **FIX THE BUILD FIRST:** You cannot proceed with any mobile app changes until you fix the build failure in . The error is in , where  is both a prop and a destructured variable from . Remove the  call inside .
+-   **THE BILLING LOGIC IS PARAMOUNT:** The user's latest message provides the definitive rules for the billing system. Read it carefully. Your primary goal is to implement this logic correctly and robustly. The recurring failures suggest the current approach of passing state through multiple contexts is fragile.
+-   **TEST SYSTEMATICALLY:** Once the build is fixed, do not rush. Test each scenario one by one: 1) Guest user tries premium feature. 2) Log in. 3) With billing OFF, try premium feature. 4) Turn billing ON. 5) As a non-premium user, try premium feature.
+-   **USER IS BLOCKED:** The user cannot test anything until you provide a stable build. Prioritize delivering a working APK with the correct billing logic.
+
+**documents and test reports created in this job**
+-    (updated with production-readiness features)
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **User:** Critically reiterated that guest users are still being prompted to pay, even with billing off. Provided the final, correct billing logic requirements again. (PENDING)
+2.  **User:** Reported that the login button on the MiniPlayer prompt is broken and the keyboard covers the playlist input. Requested stream/user count accuracy check. (Partially addressed, pending verification)
+3.  **User:** Checked build status. (Completed)
+4.  **User:** Provided a new Expo access token after the build quota was exhausted. (Completed)
+5.  **User:** Reported that the mini-player tap is unresponsive and song loading is slow. Requested verification of the billing toggle. (Partially addressed, pending verification)
+6.  **User:** Reported that billing prompts appear by default, whether billing is on or off. Also reported endless scroll and duplicate sections on the home screen. (Partially addressed, pending verification)
+7.  **User:** Reported issues with the subscription page text and a text overflow on the login prompt. (Completed)
+8.  **User:** Reported that with billing OFF, the app still prompts to pay. (Agent found and fixed a backend config mismatch). (Completed, but issue resurfaced)
+9.  **User:** Reported that with billing ON, payment triggers are not working. (Agent attempted a fix by shortening the refresh interval). (Partially addressed, pending verification)
+10. **User:** Triggered a new build. (Completed)
+
+**Project Health Check:**
+-   **Broken:**
+    -   **Mobile Build Process:** The latest code changes have broken the Android build.
+    -   **Core Billing Logic:** The app's monetization and feature-gating system is non-functional and does not follow the user's explicit requirements. This is a critical, recurring failure.
+-   **Mocked:** None.
+
+**3rd Party Integrations**
+-   **Expo (EAS Build):** Actively used for mobile builds. Currently configured for the  account with a user-provided . iOS builds are blocked.
+-   **Azam Pay:** Payment gateway.
+-   **MIA SMS:** SMS provider integration (Blocked).
+-   **Bunny.net CDN:** Used for file storage.
+
+**Testing status**
+-   **Testing agent used after significant changes:** NO
+-   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Test files created:** None
+-   **Known regressions:** The core billing logic is in a state of constant regression. Fixes for one scenario repeatedly break another.
+
+**Credentials to test flow:**
+-   **Admin Login:**
+    -   Email: 
+    -   Password: 
+
+**What agent forgot to execute**
+-   The user's request to ensure stream count/users count is correct was acknowledged but never investigated or implemented.
+-   The root cause of the recurring billing issue (likely fragile state management) was patched repeatedly rather than being refactored for stability.</analysis>
