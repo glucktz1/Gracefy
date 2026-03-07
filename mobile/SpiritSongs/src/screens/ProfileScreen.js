@@ -527,7 +527,7 @@ const ProfileScreen = ({ navigation }) => {
               </View>
             )}
           </View>
-        )}
+        </View>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
