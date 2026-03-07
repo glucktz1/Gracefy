@@ -515,18 +515,23 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   useEffect(() => {
     // Listen for when a track ends - if in background and non-premium logged-in user, don't auto-play next
     const playbackTrackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
+      // Use refs to get CURRENT values
+      const currentBillingEnabled = billingEnabledRef.current;
+      const currentIsPremium = isPremiumRef.current;
+      const currentIsAuthenticated = isAuthenticatedRef.current;
+      
       // CRITICAL: If billing is OFF, allow everything
-      if (!billingEnabled) {
+      if (!currentBillingEnabled) {
         return;
       }
       
       // CRITICAL: Guest users - allow everything (no payment restrictions)
-      if (!isAuthenticated) {
+      if (!currentIsAuthenticated) {
         return;
       }
       
       // If in background and logged-in non-premium, block auto-play of next track
-      if (isInBackgroundRef.current && backgroundPlayBlockedRef.current && !isPremium) {
+      if (isInBackgroundRef.current && backgroundPlayBlockedRef.current && !currentIsPremium) {
         console.log('[Player] Track changed in background for non-premium logged-in user - pausing');
         await TrackPlayer.pause();
         pendingPaymentPromptRef.current = true;
@@ -536,7 +541,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     return () => {
       playbackTrackChangedSub.remove();
     };
-  }, [billingEnabled, isPremium, isAuthenticated]);
+  }, []); // Empty deps - we use refs for current values
 
   // ============ ANALYTICS: STREAM TRACKING ============
   const startStreamTracking = async (track) => {
