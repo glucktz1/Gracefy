@@ -240,6 +240,36 @@ const AlbumScreen = ({ route, navigation }) => {
   const allSongsDownloaded = songs?.length > 0 && songs.every(s => isDownloaded(s.song_id));
   const someDownloading = queueCount > 0;
 
+  // Handle adding all songs to playlist
+  const handleAddAlbumToPlaylist = useCallback(() => {
+    if (!songs?.length) {
+      showToast('Hakuna nyimbo za kuongeza', 'warning');
+      return;
+    }
+    
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
+    if (!isAuthenticated) {
+      showToast('Tafadhali ingia kwanza', 'warning');
+      navigation.navigate('Login');
+      return;
+    }
+    
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (billingEnabled && !isPremium) {
+      const result = billingContext?.promptSubscription?.('playlist');
+      if (result === 'show_plans') {
+        navigation.navigate('SubscriptionPlans');
+      }
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Show playlist picker
+    // Set first song as selected (for the modal) but we'll add all songs
+    setSelectedSong(songs[0]);
+    setShowPlaylistPicker(true);
+  }, [songs, isAuthenticated, navigation, billingEnabled, isPremium, billingContext]);
+
   const handleSongMore = useCallback((song) => {
     setSelectedSong(song);
     setShowActionsSheet(true);
