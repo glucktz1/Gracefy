@@ -709,26 +709,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.lg,
-    gap: SPACING.lg,
+    gap: SPACING.md,
   },
-  downloadAlbumButton: {
-    width: 48,
-    height: 48,
+  actionButton: {
+    width: 44,
+    height: 44,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  downloadAlbumButtonDone: {
+  actionButtonDone: {
     backgroundColor: COLORS.primary + '20',
-  },
-  shuffleButton: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   playButton: {
     width: 56,
