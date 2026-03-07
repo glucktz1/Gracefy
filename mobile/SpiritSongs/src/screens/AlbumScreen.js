@@ -43,6 +43,7 @@ const AlbumScreen = ({ route, navigation }) => {
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
+  const [isAddingAllSongs, setIsAddingAllSongs] = useState(false); // Track if adding all songs
   
   // Create playlist modal
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
