@@ -757,21 +757,26 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         return;
       }
       
+      // Use refs to get CURRENT billing values
+      const currentBillingEnabled = billingEnabledRef.current;
+      const currentIsPremium = isPremiumRef.current;
+      const currentIsAuthenticated = isAuthenticatedRef.current;
+      
       // Trying to play - check billing rules
       // If billing is OFF, allow play for everyone
-      if (!billingEnabled) {
+      if (!currentBillingEnabled) {
         await TrackPlayer.play();
         return;
       }
       
       // Guest users (not logged in) - allow play (no payment restrictions)
-      if (!isAuthenticated) {
+      if (!currentIsAuthenticated) {
         await TrackPlayer.play();
         return;
       }
       
       // If billing is ON and user is premium, allow play
-      if (isPremium) {
+      if (currentIsPremium) {
         await TrackPlayer.play();
         return;
       }
@@ -802,8 +807,13 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     if (!setupCompleteRef.current) return;
 
     try {
+      // Use refs to get CURRENT billing values
+      const currentBillingEnabled = billingEnabledRef.current;
+      const currentIsPremium = isPremiumRef.current;
+      const currentIsAuthenticated = isAuthenticatedRef.current;
+      
       // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
-      if (isAuthenticated && billingEnabled && !isPremium && isInBackgroundRef.current) {
+      if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
         console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
         pendingPaymentPromptRef.current = true;
         return;
