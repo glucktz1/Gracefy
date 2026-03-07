@@ -803,16 +803,18 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Skip to previous track
-   * IMPORTANT: Respects billing rules - blocks skip from lock screen for non-premium when billing is ON
+   * BILLING LOGIC:
+   * - Guest users: Allow skip (no payment prompt)
+   * - Logged in + billing OFF: Allow skip
+   * - Logged in + billing ON + not paid + in background: Block skip
    */
   const skipPrevious = async () => {
     if (!setupCompleteRef.current) return;
 
     try {
-      // CRITICAL: Check billing rules before allowing skip
-      // If billing is OFF, allow skip for everyone
-      if (billingEnabled && !isPremium && isInBackgroundRef.current) {
-        console.log('[Player] Blocking skip from lock screen for non-premium user');
+      // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
+      if (isAuthenticated && billingEnabled && !isPremium && isInBackgroundRef.current) {
+        console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
         pendingPaymentPromptRef.current = true;
         return;
       }
