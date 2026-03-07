@@ -451,11 +451,20 @@ const AlbumScreen = ({ route, navigation }) => {
           
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
+            {/* Add to Playlist Button */}
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={handleAddAlbumToPlaylist}
+              data-testid="add-to-playlist-button"
+            >
+              <Ionicons name="add-circle-outline" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+
             {/* Download Album Button */}
             <TouchableOpacity 
               style={[
-                styles.downloadAlbumButton,
-                allSongsDownloaded && styles.downloadAlbumButtonDone
+                styles.actionButton,
+                allSongsDownloaded && styles.actionButtonDone
               ]}
               onPress={handleDownloadAlbum}
               data-testid="download-album-button"
@@ -472,7 +481,7 @@ const AlbumScreen = ({ route, navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.shuffleButton}
+              style={styles.actionButton}
               onPress={handleShuffle}
               data-testid="shuffle-button"
             >
