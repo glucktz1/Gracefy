@@ -205,11 +205,20 @@ const NowPlayingScreen = ({ navigation }) => {
   };
 
   const handleLike = async () => {
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
     if (!isAuthenticated) {
       setShowLoginModal(true);
       return;
     }
     
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (billingEnabled && !isPremium) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Allow like
     try {
       if (isLiked) {
         await libraryAPI.unlikeSong(currentTrack.song_id);
