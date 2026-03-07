@@ -483,16 +483,21 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   
   // ============ HANDLE TRACK END IN BACKGROUND FOR NON-PREMIUM ============
   useEffect(() => {
-    // Listen for when a track ends - if in background and non-premium, don't auto-play next
+    // Listen for when a track ends - if in background and non-premium logged-in user, don't auto-play next
     const playbackTrackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
       // CRITICAL: If billing is OFF, allow everything
       if (!billingEnabled) {
         return;
       }
       
-      // If in background and non-premium, block auto-play of next track
+      // CRITICAL: Guest users - allow everything (no payment restrictions)
+      if (!isAuthenticated) {
+        return;
+      }
+      
+      // If in background and logged-in non-premium, block auto-play of next track
       if (isInBackgroundRef.current && backgroundPlayBlockedRef.current && !isPremium) {
-        console.log('[Player] Track changed in background for non-premium user - pausing');
+        console.log('[Player] Track changed in background for non-premium logged-in user - pausing');
         await TrackPlayer.pause();
         pendingPaymentPromptRef.current = true;
       }
@@ -501,7 +506,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     return () => {
       playbackTrackChangedSub.remove();
     };
-  }, [billingEnabled, isPremium]);
+  }, [billingEnabled, isPremium, isAuthenticated]);
 
   // ============ ANALYTICS: STREAM TRACKING ============
   const startStreamTracking = async (track) => {
