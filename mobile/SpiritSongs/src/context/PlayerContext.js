@@ -415,26 +415,45 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const backgroundPlayBlockedRef = useRef(false); // Track if we should block next song
   const pendingPaymentPromptRef = useRef(false); // Track if we need to show payment prompt on foreground
   
+  // CRITICAL: Use refs to always have current billing values in event handlers
+  // This prevents race conditions when app comes to foreground
+  const billingEnabledRef = useRef(billingEnabled);
+  const isPremiumRef = useRef(isPremium);
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  
+  // Keep refs in sync with props
+  useEffect(() => { billingEnabledRef.current = billingEnabled; }, [billingEnabled]);
+  useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
+  useEffect(() => { isAuthenticatedRef.current = isAuthenticated; }, [isAuthenticated]);
+  
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
+      // Use refs to get CURRENT values, not stale closure values
+      const currentBillingEnabled = billingEnabledRef.current;
+      const currentIsPremium = isPremiumRef.current;
+      const currentIsAuthenticated = isAuthenticatedRef.current;
+      
       console.log(`[Player] AppState changed: ${appStateRef.current} -> ${nextAppState}`);
+      console.log(`[Player] Billing state - enabled: ${currentBillingEnabled}, premium: ${currentIsPremium}, auth: ${currentIsAuthenticated}`);
       
       // App going to background
       if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         isInBackgroundRef.current = true;
         
         // CRITICAL: If billing is OFF, allow everyone to play in background
-        if (!billingEnabled) {
+        if (!currentBillingEnabled) {
           console.log('[Player] Billing OFF - allowing background play for all users');
           backgroundPlayBlockedRef.current = false;
+          pendingPaymentPromptRef.current = false; // Reset any pending prompts
           return;
         }
         
         // CRITICAL: Guest users (not logged in) - DON'T prompt to pay, just let them play
         // Guest limits are handled elsewhere (guest play count)
-        if (!isAuthenticated) {
+        if (!currentIsAuthenticated) {
           console.log('[Player] Guest user - allowing background play (no payment prompt)');
           backgroundPlayBlockedRef.current = false;
+          pendingPaymentPromptRef.current = false; // Reset any pending prompts
           return;
         }
         
@@ -442,7 +461,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         const state = await TrackPlayer.getPlaybackState();
         wasPlayingBeforeBackgroundRef.current = state.state === State.Playing;
         
-        if (!isPremium && wasPlayingBeforeBackgroundRef.current) {
+        if (!currentIsPremium && wasPlayingBeforeBackgroundRef.current) {
           console.log('[Player] Logged-in non-premium user going to background - allowing current song to finish');
           // Mark that we should block the next song, but let current song continue
           backgroundPlayBlockedRef.current = true;
@@ -455,19 +474,29 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         isInBackgroundRef.current = false;
         
+        // Re-check billing status using CURRENT ref values
+        const foregroundBillingEnabled = billingEnabledRef.current;
+        const foregroundIsPremium = isPremiumRef.current;
+        const foregroundIsAuthenticated = isAuthenticatedRef.current;
+        
+        console.log(`[Player] Foreground check - billing: ${foregroundBillingEnabled}, premium: ${foregroundIsPremium}, auth: ${foregroundIsAuthenticated}, pending: ${pendingPaymentPromptRef.current}`);
+        
         // Show subscription prompt ONLY if:
         // 1. User is logged in (NOT a guest)
         // 2. Billing is ON
         // 3. User is NOT premium
         // 4. There's a pending prompt
-        if (isAuthenticated && billingEnabled && !isPremium && pendingPaymentPromptRef.current) {
+        if (foregroundIsAuthenticated && foregroundBillingEnabled && !foregroundIsPremium && pendingPaymentPromptRef.current) {
+          console.log('[Player] Showing background play subscription prompt');
           if (showBackgroundPlayPromptCallback) {
             showBackgroundPlayPromptCallback();
           }
-          pendingPaymentPromptRef.current = false;
+        } else {
+          console.log('[Player] NOT showing prompt - conditions not met');
         }
         
-        // Reset background play blocked flag when coming to foreground
+        // Always reset these flags when coming to foreground
+        pendingPaymentPromptRef.current = false;
         backgroundPlayBlockedRef.current = false;
         wasPlayingBeforeBackgroundRef.current = false;
       }
@@ -480,7 +509,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     return () => {
       subscription?.remove();
     };
-  }, [billingEnabled, isPremium, isAuthenticated]);
+  }, []); // Empty deps - we use refs for current values
   
   // ============ HANDLE TRACK END IN BACKGROUND FOR NON-PREMIUM ============
   useEffect(() => {
