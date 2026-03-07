@@ -266,8 +266,8 @@ const AlbumScreen = ({ route, navigation }) => {
     }
     
     // 3. Logged in + (billing OFF OR paid): Show playlist picker
-    // Set first song as selected (for the modal) but we'll add all songs
-    setSelectedSong(songs[0]);
+    setIsAddingAllSongs(true);
+    setSelectedSong(songs[0]); // For modal display
     setShowPlaylistPicker(true);
   }, [songs, isAuthenticated, navigation, billingEnabled, isPremium, billingContext]);
 
@@ -277,23 +277,40 @@ const AlbumScreen = ({ route, navigation }) => {
   }, []);
 
   const handleAddToPlaylist = useCallback((song) => {
+    setIsAddingAllSongs(false);
     setSelectedSong(song);
     setShowActionsSheet(false);
     setTimeout(() => setShowPlaylistPicker(true), 300);
   }, []);
 
   const handleSelectPlaylist = useCallback(async (playlist) => {
-    if (!selectedSong) return;
+    if (!selectedSong && !isAddingAllSongs) return;
     
     try {
-      await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
-      showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
+      if (isAddingAllSongs && songs?.length) {
+        // Add all songs to the playlist
+        let addedCount = 0;
+        for (const song of songs) {
+          try {
+            await libraryAPI.addToPlaylist(playlist.playlist_id, song.song_id);
+            addedCount++;
+          } catch (e) {
+            // Skip duplicates or errors silently
+          }
+        }
+        showToast(`Nyimbo ${addedCount} zimeongezwa kwenye "${playlist.name}"`, 'success');
+      } else if (selectedSong) {
+        // Add single song
+        await libraryAPI.addToPlaylist(playlist.playlist_id, selectedSong.song_id);
+        showToast(`Imeongezwa kwenye "${playlist.name}"`, 'success');
+      }
       setShowPlaylistPicker(false);
       setSelectedSong(null);
+      setIsAddingAllSongs(false);
     } catch (error) {
-      showToast('Imeshindwa kuongeza wimbo', 'error');
+      showToast('Imeshindwa kuongeza', 'error');
     }
-  }, [selectedSong]);
+  }, [selectedSong, isAddingAllSongs, songs]);
 
   const handleCreatePlaylist = useCallback(async () => {
     const name = newPlaylistName.trim();
