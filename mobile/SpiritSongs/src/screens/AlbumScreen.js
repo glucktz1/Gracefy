@@ -202,13 +202,24 @@ const AlbumScreen = ({ route, navigation }) => {
       return;
     }
     
-    // Check authentication before downloading
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
     if (!isAuthenticated) {
       showToast('Tafadhali ingia kwanza ili kupakua', 'warning');
-      navigation.navigate('Profile');
+      navigation.navigate('Login');
       return;
     }
     
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (billingEnabled && !isPremium) {
+      const result = billingContext?.promptSubscription?.('download');
+      if (result === 'show_plans') {
+        navigation.navigate('SubscriptionPlans');
+      }
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Allow download
     // Check how many songs are already downloaded
     const notDownloaded = songs.filter(s => !isDownloaded(s.song_id));
     
@@ -223,7 +234,7 @@ const AlbumScreen = ({ route, navigation }) => {
     } else {
       showToast(result.message || 'Haiwezi kupakua', 'error');
     }
-  }, [songs, queueAlbumDownload, isDownloaded, isAuthenticated, navigation]);
+  }, [songs, queueAlbumDownload, isDownloaded, isAuthenticated, navigation, billingEnabled, isPremium, billingContext]);
 
   // Check if all songs are downloaded
   const allSongsDownloaded = songs?.length > 0 && songs.every(s => isDownloaded(s.song_id));
