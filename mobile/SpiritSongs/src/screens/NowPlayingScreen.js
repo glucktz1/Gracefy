@@ -253,10 +253,20 @@ const NowPlayingScreen = ({ navigation }) => {
   }, [currentTrack?.song_id, isAuthenticated]);
 
   const handleAddToPlaylist = () => {
+    // BILLING LOGIC:
+    // 1. Guest: Prompt to login (NEVER prompt to pay)
     if (!isAuthenticated) {
       setShowLoginModal(true);
       return;
     }
+    
+    // 2. Logged in + billing ON + not paid: Prompt to pay
+    if (billingEnabled && !isPremium) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Show playlist modal
     setShowPlaylistModal(true);
   };
 
