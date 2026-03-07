@@ -93,7 +93,8 @@ export const usePlayer = () => {
  */
 export const PlayerProvider = ({ children, billingEnabled = false, isPremium = false, isAuthenticated = false }) => {
   // ============ AUTH CONTEXT ============
-  const { isAuthenticated, incrementGuestPlayCount, user } = useAuth();
+  // NOTE: isAuthenticated is passed as a prop from App.js to avoid duplicate variable
+  const { incrementGuestPlayCount, user } = useAuth();
 
   // ============ STATE ============
   const [currentTrack, setCurrentTrack] = useState(null);
