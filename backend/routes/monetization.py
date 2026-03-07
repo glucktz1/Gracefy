@@ -234,13 +234,15 @@ async def get_billing_status():
     if not settings:
         settings = {}
     
+    # CRITICAL: Default billing to FALSE (disabled) if not explicitly set
+    # This ensures users are never blocked by default
     return {
-        "billing_enabled": settings.get("billing_enabled", True),
-        "billing_mode": settings.get("billing_mode", "full"),  # full, app_redirect, disabled
-        "app_billing_enabled": settings.get("app_billing_enabled", True),
-        "web_billing_enabled": settings.get("web_billing_enabled", True),
+        "billing_enabled": settings.get("billing_enabled", False),
+        "billing_mode": settings.get("billing_mode", "disabled"),  # full, app_redirect, disabled
+        "app_billing_enabled": settings.get("app_billing_enabled", False),
+        "web_billing_enabled": settings.get("web_billing_enabled", False),
         "web_redirect_url": settings.get("web_redirect_url", "https://www.gracefy.net"),
-        "free_trial_enabled": settings.get("free_trial_enabled", True),
+        "free_trial_enabled": settings.get("free_trial_enabled", False),
         "free_trial_days": settings.get("free_trial_days", 7),
         "premium_features": settings.get("premium_features", {
             "downloads": True,
