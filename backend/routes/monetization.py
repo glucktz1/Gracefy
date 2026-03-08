@@ -229,20 +229,20 @@ async def get_billing_status():
     """Get billing status for the app - used by mobile and web to check billing mode"""
     db = get_db()
     
-    # CRITICAL: Read from app_settings collection where admin panel saves billing toggle
+    # CRITICAL: Read from admin_settings collection where admin panel saves billing toggle
     # This ensures mobile app uses the same billing status as shown in admin panel
-    billing_settings = await db.app_settings.find_one(
-        {"setting_type": "billing"},
-        {"_id": 0}
-    )
+    admin_settings = await db.admin_settings.find_one({}, {"_id": 0})
     
     # Also check monetization_settings for additional billing configuration
     monetization = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
     if not monetization:
         monetization = {}
     
-    # Get master billing toggle from app_settings (admin panel)
-    master_billing_enabled = billing_settings.get("enabled", False) if billing_settings else False
+    # Get master billing toggle from admin_settings (admin panel)
+    master_billing_enabled = admin_settings.get("billing_enabled", False) if admin_settings else False
+    
+    print(f"[BillingStatus] admin_settings: {admin_settings}")
+    print(f"[BillingStatus] master_billing_enabled: {master_billing_enabled}")
     
     # CRITICAL: Default billing to FALSE (disabled) if not explicitly set
     # This ensures users are never blocked by default
