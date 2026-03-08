@@ -725,15 +725,10 @@ const HomeScreen = ({ navigation }) => {
       sections.push({ type: 'categoryFilters', key: 'categoryFilters', data: categories });
     }
     
-    // Mafundisho
-    if (mafundishoContent.length > 0) {
-      sections.push({ type: 'mafundisho', key: 'mafundisho', data: mafundishoContent });
-      addedSectionTypes.add('mafundisho');
-    }
-    
     // Dynamic Sections from Layout Manager (excluding "all songs" type sections)
     // These should not include "Nyimbo Zote" which goes at the end
     // Filter out sections with empty/invalid items
+    // Also filter out Mafundisho - we'll add it separately to control order
     layoutSections
       .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
       .filter(s => !s.title?.toLowerCase().includes('nyimbo zote')) // Exclude "Nyimbo Zote" - it goes last
@@ -742,6 +737,7 @@ const HomeScreen = ({ navigation }) => {
         const title = s.title?.toLowerCase() || '';
         if (title.includes('biblia') || title.includes('masomo')) return false;
         if (title.includes('radio') || title.includes('redio')) return false;
+        if (title.includes('mafundisho') || title.includes('katekesi')) return false; // Exclude - added separately
         return true;
       })
       .filter(s => {
@@ -760,15 +756,6 @@ const HomeScreen = ({ navigation }) => {
     // Special Mixes (only if not already added from layout)
     if (specialMixes.length > 0 && !addedSectionTypes.has('special_mixes')) {
       sections.push({ type: 'specialMixes', key: 'specialMixes', data: specialMixes });
-    }
-    
-    // Radio Stations (only if not already added from layout AND has valid data with images)
-    if (radioStations.length > 0 && !addedSectionTypes.has('radio')) {
-      // Only show radio section if stations have favicon images
-      const validRadioStations = radioStations.filter(s => s.favicon || s.name);
-      if (validRadioStations.length > 0) {
-        sections.push({ type: 'radioStations', key: 'radioStations', data: validRadioStations });
-      }
     }
     
     // Most Listened Albums
@@ -800,6 +787,21 @@ const HomeScreen = ({ navigation }) => {
     // Popular Songs (Nyimbo Maarufu)
     if (allSongs.length > 0 && !addedSectionTypes.has('popular_songs')) {
       sections.push({ type: 'popularSongs', key: 'popularSongs', data: allSongs });
+    }
+    
+    // Radio Stations - MOVED HERE (after Nyimbo za kusifu sections from dynamic content)
+    if (radioStations.length > 0 && !addedSectionTypes.has('radio')) {
+      // Only show radio section if stations have favicon images
+      const validRadioStations = radioStations.filter(s => s.favicon || s.name);
+      if (validRadioStations.length > 0) {
+        sections.push({ type: 'radioStations', key: 'radioStations', data: validRadioStations });
+      }
+    }
+    
+    // Mafundisho na Katekesi - ADD ONCE at the end (before Nyimbo Zote)
+    if (mafundishoContent.length > 0 && !addedSectionTypes.has('mafundisho')) {
+      sections.push({ type: 'mafundisho', key: 'mafundisho', data: mafundishoContent });
+      addedSectionTypes.add('mafundisho');
     }
     
     // All Albums (Nyimbo Zote) - THIS IS THE LAST CONTENT SECTION
