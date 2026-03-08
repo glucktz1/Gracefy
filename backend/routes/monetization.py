@@ -229,22 +229,32 @@ async def get_billing_status():
     """Get billing status for the app - used by mobile and web to check billing mode"""
     db = get_db()
     
-    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    # CRITICAL: Read from app_settings collection where admin panel saves billing toggle
+    # This ensures mobile app uses the same billing status as shown in admin panel
+    billing_settings = await db.app_settings.find_one(
+        {"setting_type": "billing"},
+        {"_id": 0}
+    )
     
-    if not settings:
-        settings = {}
+    # Also check monetization_settings for additional billing configuration
+    monetization = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    if not monetization:
+        monetization = {}
+    
+    # Get master billing toggle from app_settings (admin panel)
+    master_billing_enabled = billing_settings.get("enabled", False) if billing_settings else False
     
     # CRITICAL: Default billing to FALSE (disabled) if not explicitly set
     # This ensures users are never blocked by default
     return {
-        "billing_enabled": settings.get("billing_enabled", False),
-        "billing_mode": settings.get("billing_mode", "disabled"),  # full, app_redirect, disabled
-        "app_billing_enabled": settings.get("app_billing_enabled", False),
-        "web_billing_enabled": settings.get("web_billing_enabled", False),
-        "web_redirect_url": settings.get("web_redirect_url", "https://www.gracefy.net"),
-        "free_trial_enabled": settings.get("free_trial_enabled", False),
-        "free_trial_days": settings.get("free_trial_days", 7),
-        "premium_features": settings.get("premium_features", {
+        "billing_enabled": master_billing_enabled,
+        "billing_mode": monetization.get("billing_mode", "disabled") if master_billing_enabled else "disabled",
+        "app_billing_enabled": monetization.get("app_billing_enabled", False) if master_billing_enabled else False,
+        "web_billing_enabled": monetization.get("web_billing_enabled", False) if master_billing_enabled else False,
+        "web_redirect_url": monetization.get("web_redirect_url", "https://www.gracefy.net"),
+        "free_trial_enabled": monetization.get("free_trial_enabled", False) if master_billing_enabled else False,
+        "free_trial_days": monetization.get("free_trial_days", 7),
+        "premium_features": monetization.get("premium_features", {
             "downloads": True,
             "playlists": True,
             "skip_limit": 3,
