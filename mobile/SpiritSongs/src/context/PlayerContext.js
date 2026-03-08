@@ -544,10 +544,13 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   }, []); // Empty deps - we use refs for current values
 
   // ============ ANALYTICS: STREAM TRACKING ============
+  const liveSessionIdRef = useRef(null);
+  
   const startStreamTracking = async (track) => {
     await endStreamTracking();
     
     try {
+      // Start legacy stream tracking
       const res = await playerAPI.startStream(track.song_id, deviceIdRef.current, {
         platform: Platform.OS,
         album_id: track.album_id
@@ -555,16 +558,51 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       
       if (res?.data?.stream_id) {
         streamIdRef.current = res.data.stream_id;
-        
-        // Heartbeat every 30 seconds
-        heartbeatRef.current = setInterval(async () => {
-          if (streamIdRef.current) {
-            try {
-              await playerAPI.heartbeat(streamIdRef.current, Math.floor(progress.position));
-            } catch (e) {}
-          }
-        }, 30000);
       }
+      
+      // Generate live session ID
+      liveSessionIdRef.current = `live_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      
+      // Start heartbeat for live listener tracking (every 15 seconds)
+      heartbeatRef.current = setInterval(async () => {
+        try {
+          // Send heartbeat to new live tracking API
+          await liveTrackingAPI.heartbeat({
+            session_id: liveSessionIdRef.current,
+            user_id: user?.user_id,
+            device_id: deviceIdRef.current,
+            content_type: 'song',
+            content_id: track.song_id,
+            song_title: track.title,
+            artist_name: track.artist_name,
+            position: Math.floor(progress.position),
+            platform: Platform.OS
+          });
+          
+          // Also send legacy heartbeat
+          if (streamIdRef.current) {
+            await playerAPI.heartbeat(streamIdRef.current, Math.floor(progress.position));
+          }
+        } catch (e) {
+          // Silently fail heartbeats
+        }
+      }, 15000);
+      
+      // Send initial heartbeat immediately
+      try {
+        await liveTrackingAPI.heartbeat({
+          session_id: liveSessionIdRef.current,
+          user_id: user?.user_id,
+          device_id: deviceIdRef.current,
+          content_type: 'song',
+          content_id: track.song_id,
+          song_title: track.title,
+          artist_name: track.artist_name,
+          position: 0,
+          platform: Platform.OS
+        });
+      } catch (e) {}
+      
     } catch (e) {
       console.log('[Player] Stream tracking error:', e.message);
     }
@@ -576,6 +614,15 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       heartbeatRef.current = null;
     }
     
+    // End live session
+    if (liveSessionIdRef.current) {
+      try {
+        await liveTrackingAPI.stopListening(liveSessionIdRef.current);
+      } catch (e) {}
+      liveSessionIdRef.current = null;
+    }
+    
+    // End legacy stream
     if (streamIdRef.current) {
       try {
         const duration = playStartTimeRef.current 
