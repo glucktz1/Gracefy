@@ -35,6 +35,7 @@ export const DOWNLOAD_STATUS = {
 };
 
 export const DownloadProvider = ({ children }) => {
+  const { user } = useAuth();
   const [downloads, setDownloads] = useState({});
   const [activeDownloads, setActiveDownloads] = useState({});
   const [downloadQueue, setDownloadQueue] = useState([]);
