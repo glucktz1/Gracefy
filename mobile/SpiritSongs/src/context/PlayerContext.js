@@ -26,7 +26,7 @@ import TrackPlayer, {
   useActiveTrack,
 } from 'react-native-track-player';
 import { Platform, AppState } from 'react-native';
-import { getAudioUrl, getImageUrl, playerAPI } from '../services/api';
+import { getAudioUrl, getImageUrl, playerAPI, liveTrackingAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
 // Create context
