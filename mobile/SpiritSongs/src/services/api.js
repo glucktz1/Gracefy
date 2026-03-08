@@ -317,6 +317,37 @@ export const billingAPI = {
   getUserTransactions: () => api.get('/user/transactions'),
 };
 
+// ============ DEVICE FINGERPRINTING API ============
+export const deviceAPI = {
+  // Register device for fraud prevention
+  registerDevice: (deviceData) => api.post('/analytics/register-device', deviceData),
+  // Check fraud status for a user
+  checkFraud: (userId) => api.get(`/analytics/device-fraud-check/${userId}`),
+};
+
+// ============ DOWNLOAD TRACKING API ============
+export const downloadTrackingAPI = {
+  // Record a download
+  recordDownload: (contentType, contentId, userId, deviceId) => api.post('/analytics/record-download', {
+    content_type: contentType,
+    content_id: contentId,
+    user_id: userId,
+    device_id: deviceId
+  }),
+  // Get user's download history
+  getUserDownloads: (userId) => api.get(`/analytics/user-downloads/${userId}`),
+};
+
+// ============ LIVE LISTENER TRACKING API ============
+export const liveTrackingAPI = {
+  // Send heartbeat while playing
+  heartbeat: (data) => api.post('/analytics/heartbeat', data),
+  // Stop listening
+  stopListening: (sessionId) => api.post('/analytics/stop-listening', { session_id: sessionId }),
+  // Get live listeners (admin)
+  getLiveListeners: () => api.get('/analytics/live-listeners'),
+};
+
 // ============ FEEDBACK API ============
 export const feedbackAPI = {
   // Submit feedback from mobile app
