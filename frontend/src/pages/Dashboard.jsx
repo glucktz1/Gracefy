@@ -3,7 +3,7 @@ import axios from "axios";
 import { 
   Users, Music2, Church, Heart, UserCheck, CheckCircle,
   TrendingUp, DollarSign, Play, MapPin, Calendar, Smartphone, Globe,
-  Headphones, Activity, Clock
+  Headphones, Activity, Clock, Download, Eye
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -19,21 +19,27 @@ export default function Dashboard() {
   const [trends, setTrends] = useState(null);
   const [demographics, setDemographics] = useState(null);
   const [streamingStats, setStreamingStats] = useState(null);
+  const [downloadStats, setDownloadStats] = useState(null);
+  const [liveListeners, setLiveListeners] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsRes, trendsRes, demographicsRes, streamingRes] = await Promise.all([
+        const [analyticsRes, trendsRes, demographicsRes, streamingRes, downloadRes, liveRes] = await Promise.all([
           axios.get(`${API}/analytics/overview`, { withCredentials: true }),
           axios.get(`${API}/analytics/trends`, { withCredentials: true }),
           axios.get(`${API}/analytics/user-demographics`, { withCredentials: true }),
-          axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch(() => ({ data: null }))
+          axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch(() => ({ data: null })),
+          axios.get(`${API}/analytics/download-stats`, { withCredentials: true }).catch(() => ({ data: null })),
+          axios.get(`${API}/analytics/live-listeners`, { withCredentials: true }).catch(() => ({ data: null }))
         ]);
         setAnalytics(analyticsRes.data);
         setTrends(trendsRes.data);
         setDemographics(demographicsRes.data);
         setStreamingStats(streamingRes.data);
+        setDownloadStats(downloadRes.data);
+        setLiveListeners(liveRes.data);
       } catch (error) {
         console.error("Error fetching analytics:", error);
       } finally {
@@ -42,13 +48,17 @@ export default function Dashboard() {
     };
     fetchData();
     
-    // Refresh streaming stats every 30 seconds
+    // Refresh streaming stats and live listeners every 15 seconds
     const interval = setInterval(async () => {
       try {
-        const res = await axios.get(`${API}/analytics/realtime`, { withCredentials: true });
+        const [res, liveRes] = await Promise.all([
+          axios.get(`${API}/analytics/realtime`, { withCredentials: true }),
+          axios.get(`${API}/analytics/live-listeners`, { withCredentials: true })
+        ]);
         setStreamingStats(res.data);
+        setLiveListeners(liveRes.data);
       } catch (e) {}
-    }, 30000);
+    }, 15000);
     
     return () => clearInterval(interval);
   }, []);
