@@ -328,6 +328,15 @@ export const DownloadProvider = ({ children }) => {
       console.log('[Downloads] ✓ SUCCESS:', song.title, '-', fileSize, 'bytes');
       showToast(`"${song.title}" imepakuliwa ✓`, 'success');
 
+      // Track download in analytics
+      try {
+        const deviceId = Application.androidId || Device.osBuildId || 'unknown';
+        await downloadTrackingAPI.recordDownload('song', songId, user?.user_id, deviceId);
+        console.log('[Downloads] Download tracked in analytics');
+      } catch (e) {
+        console.log('[Downloads] Analytics tracking failed:', e.message);
+      }
+
       // Clean up after delay
       setTimeout(() => {
         setActiveDownloads(prev => {
