@@ -1143,10 +1143,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
+  billingStatusRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  billingStatusHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+  },
   billingStatusHint: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textMuted,
-    marginTop: SPACING.sm,
+    flex: 1,
   },
   // Free Access Card styles
   freeAccessCard: {
