@@ -287,10 +287,13 @@ async def get_user_subscription_status(user_id: str = Query(...)):
                 {"$set": {"subscription.status": "expired", "is_premium": False}}
             )
     
-    # Get billing settings
-    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
+    # Get billing settings from app_settings (same as admin panel uses)
+    billing_settings = await db.app_settings.find_one(
+        {"setting_type": "billing"},
+        {"_id": 0}
+    )
     # CRITICAL: Default billing to FALSE if not set
-    billing_enabled = settings.get("billing_enabled", False) if settings else False
+    billing_enabled = billing_settings.get("enabled", False) if billing_settings else False
     
     # If billing is disabled, everyone is "premium"
     if not billing_enabled:
