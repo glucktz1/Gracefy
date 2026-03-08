@@ -302,8 +302,9 @@ export const advertisingAPI = {
 export const billingAPI = {
   getPlans: () => api.get('/monetization/plans'),
   getSettings: () => api.get('/monetization/settings'),
-  getBillingStatus: () => api.get('/billing-status'),
-  getUserSubscription: (userId) => api.get(`/user/subscription-status?user_id=${userId}`),
+  // Add cache-busting timestamp to ensure fresh billing status
+  getBillingStatus: () => api.get(`/billing-status?_t=${Date.now()}`),
+  getUserSubscription: (userId) => api.get(`/user/subscription-status?user_id=${userId}&_t=${Date.now()}`),
   getCurrentSubscription: (userId) => api.get(`/subscription/current?user_id=${userId}`),
   subscribe: (planId, paymentData) => api.post('/user/subscribe', { plan_id: planId, ...paymentData }),
   // Azam Pay specific endpoints
