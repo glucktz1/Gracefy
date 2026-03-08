@@ -910,6 +910,18 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     textTransform: 'uppercase',
   },
+  menuSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+    marginHorizontal: SPACING.md,
+  },
+  refreshButton: {
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primary + '20',
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
