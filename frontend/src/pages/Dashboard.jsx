@@ -121,7 +121,7 @@ export default function Dashboard() {
       </div>
 
       {/* Live Streaming Banner */}
-      {streamingStats && (
+      {(streamingStats || liveListeners) && (
         <div className="bg-gradient-to-r from-emerald-900/30 via-zinc-900 to-violet-900/30 rounded-xl p-4 mb-6 border border-zinc-800">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -131,26 +131,78 @@ export default function Dashboard() {
                   <span className="text-emerald-400 font-medium">Live</span>
                 </div>
                 <div className="text-zinc-300">
-                  <span className="font-semibold text-white">{streamingStats.active_streams || 0}</span> active streams
+                  <span className="font-semibold text-white">{liveListeners?.total_active_listeners || streamingStats?.active_streams || 0}</span> active listeners
                 </div>
                 <div className="text-zinc-500">•</div>
                 <div className="text-zinc-300">
-                  <span className="font-semibold text-white">{streamingStats.active_listeners || 0}</span> listeners now
+                  <span className="font-semibold text-white">{liveListeners?.unique_devices || streamingStats?.active_listeners || 0}</span> devices
                 </div>
                 <div className="text-zinc-500">•</div>
                 <div className="text-zinc-300">
-                  <span className="font-semibold text-white">{streamingStats.plays_today || 0}</span> plays today
+                  <span className="font-semibold text-white">{streamingStats?.plays_today || 0}</span> plays today
                 </div>
               </div>
             </div>
-            <div className="text-xs text-zinc-500 pl-4 flex flex-wrap gap-x-6 gap-y-1">
-              <span>Active streams = songs currently being played</span>
-              <span>•</span>
-              <span>Listeners now = unique users streaming right now</span>
-              <span>•</span>
-              <span>Plays today = total song plays in last 24hrs</span>
+            {/* Currently Playing */}
+            {liveListeners?.top_playing_now?.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-zinc-700/50">
+                <div className="text-xs text-zinc-400 mb-2">Now Playing:</div>
+                <div className="flex flex-wrap gap-2">
+                  {liveListeners.top_playing_now.slice(0, 3).map((item, i) => (
+                    <div key={i} className="bg-zinc-800/50 px-3 py-1 rounded-full text-xs">
+                      <span className="text-white">{item.title}</span>
+                      <span className="text-zinc-500 mx-1">•</span>
+                      <span className="text-emerald-400">{item.listeners} listening</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Download Stats Banner */}
+      {downloadStats && (
+        <div className="bg-gradient-to-r from-blue-900/30 via-zinc-900 to-indigo-900/30 rounded-xl p-4 mb-6 border border-zinc-800">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Download className="h-4 w-4 text-blue-400" />
+                <span className="text-blue-400 font-medium">Downloads</span>
+              </div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{downloadStats.total_downloads || 0}</span> total
+              </div>
+              <div className="text-zinc-500">•</div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{downloadStats.downloads_today || 0}</span> today
+              </div>
+              <div className="text-zinc-500">•</div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{downloadStats.downloads_this_week || 0}</span> this week
+              </div>
+              <div className="text-zinc-500">•</div>
+              <div className="text-zinc-300">
+                <span className="font-semibold text-white">{downloadStats.unique_downloaders || 0}</span> users
+              </div>
             </div>
           </div>
+          {/* Top Downloaded Songs */}
+          {downloadStats?.top_downloaded_songs?.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-zinc-700/50">
+              <div className="text-xs text-zinc-400 mb-2">Most Downloaded:</div>
+              <div className="flex flex-wrap gap-2">
+                {downloadStats.top_downloaded_songs.slice(0, 5).map((song, i) => (
+                  <div key={i} className="bg-zinc-800/50 px-3 py-1 rounded-full text-xs">
+                    <span className="text-white">{song.title}</span>
+                    <span className="text-zinc-500 mx-1">•</span>
+                    <span className="text-blue-400">{song.downloads} downloads</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
