@@ -21,7 +21,11 @@ import GuestPlayLimitModal from './src/components/GuestPlayLimitModal';
 import AdPlayer from './src/components/AdPlayer';
 
 // API
-import { advertisingAPI, authAPI } from './src/services/api';
+import { advertisingAPI, authAPI, deviceAPI } from './src/services/api';
+
+// Device info for fingerprinting
+import * as Device from 'expo-device';
+import * as Application from 'expo-application';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
