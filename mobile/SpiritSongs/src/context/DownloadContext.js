@@ -13,8 +13,11 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 // Use legacy API for createDownloadResumable (stable in SDK 54)
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { contentAPI } from '../services/api';
+import * as Application from 'expo-application';
+import * as Device from 'expo-device';
+import { contentAPI, downloadTrackingAPI } from '../services/api';
 import { showToast } from '../components/Toast';
+import { useAuth } from './AuthContext';
 
 const DownloadContext = createContext(null);
 
