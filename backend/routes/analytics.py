@@ -2537,3 +2537,442 @@ async def get_realtime_location_stats():
         "is_realtime": True
     }
 
+
+# ============== DEVICE FINGERPRINTING FOR FRAUD PREVENTION ==============
+
+@router.post("/analytics/register-device")
+async def register_device(data: dict, request: Request = None):
+    """
+    Register device fingerprint for fraud prevention.
+    Called on app launch and login.
+    
+    Body:
+    - user_id: Optional user ID
+    - device_id: Android ID or unique device identifier
+    - device_model: Phone model (e.g., "Samsung Galaxy S21")
+    - device_brand: Phone brand (e.g., "Samsung")
+    - os_version: OS version (e.g., "Android 12")
+    - app_version: App version
+    - location: Optional {latitude, longitude, city, country}
+    """
+    db = get_db()
+    
+    device_id = data.get("device_id")
+    user_id = data.get("user_id")
+    
+    if not device_id:
+        return {"error": "device_id required", "success": False}
+    
+    # Get IP address
+    client_ip = None
+    if request:
+        client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        if not client_ip:
+            client_ip = request.client.host if request.client else None
+    
+    # Build device record
+    device_record = {
+        "device_id": device_id,
+        "device_model": data.get("device_model", "Unknown"),
+        "device_brand": data.get("device_brand", "Unknown"),
+        "os_version": data.get("os_version", "Unknown"),
+        "app_version": data.get("app_version", "Unknown"),
+        "platform": data.get("platform", "android"),
+        "ip_address": client_ip,
+        "last_seen": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Add location if provided
+    location = data.get("location")
+    if location:
+        device_record["location"] = {
+            "latitude": location.get("latitude"),
+            "longitude": location.get("longitude"),
+            "city": location.get("city"),
+            "country": location.get("country"),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    
+    # Add user_id if provided
+    if user_id:
+        device_record["user_id"] = user_id
+        device_record["linked_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Check if device exists
+    existing = await db.device_fingerprints.find_one({"device_id": device_id})
+    
+    if existing:
+        # Update existing device
+        # Track all user_ids that have used this device
+        user_ids_on_device = existing.get("all_user_ids", [])
+        if user_id and user_id not in user_ids_on_device:
+            user_ids_on_device.append(user_id)
+        
+        device_record["all_user_ids"] = user_ids_on_device
+        device_record["first_seen"] = existing.get("first_seen", datetime.now(timezone.utc).isoformat())
+        device_record["login_count"] = existing.get("login_count", 0) + 1
+        
+        await db.device_fingerprints.update_one(
+            {"device_id": device_id},
+            {"$set": device_record}
+        )
+        
+        # Check for fraud: multiple accounts on same device
+        is_suspicious = len(user_ids_on_device) > 2  # More than 2 accounts = suspicious
+        
+        return {
+            "success": True,
+            "device_registered": True,
+            "is_new_device": False,
+            "accounts_on_device": len(user_ids_on_device),
+            "is_suspicious": is_suspicious,
+            "warning": "Multiple accounts detected on this device" if is_suspicious else None
+        }
+    else:
+        # New device
+        device_record["first_seen"] = datetime.now(timezone.utc).isoformat()
+        device_record["login_count"] = 1
+        device_record["all_user_ids"] = [user_id] if user_id else []
+        device_record["created_at"] = datetime.now(timezone.utc).isoformat()
+        
+        await db.device_fingerprints.insert_one(device_record)
+        
+        return {
+            "success": True,
+            "device_registered": True,
+            "is_new_device": True,
+            "accounts_on_device": 1,
+            "is_suspicious": False
+        }
+
+
+@router.get("/analytics/device-fraud-check/{user_id}")
+async def check_device_fraud(user_id: str):
+    """Check if a user has suspicious device activity"""
+    db = get_db()
+    
+    # Find all devices used by this user
+    devices = await db.device_fingerprints.find(
+        {"all_user_ids": user_id}
+    ).to_list(100)
+    
+    suspicious_devices = []
+    total_accounts_shared = 0
+    
+    for device in devices:
+        all_users = device.get("all_user_ids", [])
+        if len(all_users) > 1:
+            suspicious_devices.append({
+                "device_id": device.get("device_id"),
+                "device_model": device.get("device_model"),
+                "accounts_count": len(all_users),
+                "other_accounts": [u for u in all_users if u != user_id]
+            })
+            total_accounts_shared += len(all_users) - 1
+    
+    return {
+        "user_id": user_id,
+        "devices_used": len(devices),
+        "suspicious_devices": len(suspicious_devices),
+        "suspicious_device_details": suspicious_devices,
+        "total_other_accounts_on_devices": total_accounts_shared,
+        "fraud_risk": "high" if total_accounts_shared > 3 else ("medium" if total_accounts_shared > 0 else "low")
+    }
+
+
+# ============== DOWNLOAD TRACKING ==============
+
+@router.post("/analytics/record-download")
+async def record_download(data: dict, request: Request = None):
+    """
+    Record a song/content download.
+    
+    Body:
+    - content_type: "song" | "album" | "teaching"
+    - content_id: ID of the content
+    - user_id: User who downloaded
+    - device_id: Device used for download
+    """
+    db = get_db()
+    
+    content_type = data.get("content_type", "song")
+    content_id = data.get("content_id")
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    
+    if not content_id:
+        return {"error": "content_id required", "success": False}
+    
+    # Get content details
+    content_title = "Unknown"
+    artist_name = "Unknown"
+    
+    if content_type == "song":
+        song = await db.songs.find_one({"song_id": content_id}, {"_id": 0, "title": 1, "artist_name": 1, "album_id": 1})
+        if song:
+            content_title = song.get("title", "Unknown")
+            artist_name = song.get("artist_name", "Unknown")
+    
+    # Create download record
+    download_record = {
+        "download_id": f"dl_{__import__('uuid').uuid4().hex[:12]}",
+        "content_type": content_type,
+        "content_id": content_id,
+        "content_title": content_title,
+        "artist_name": artist_name,
+        "user_id": user_id,
+        "device_id": device_id,
+        "downloaded_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.downloads.insert_one(download_record)
+    
+    # Update download count on content
+    if content_type == "song":
+        await db.songs.update_one(
+            {"song_id": content_id},
+            {"$inc": {"download_count": 1}}
+        )
+    elif content_type == "album":
+        await db.albums.update_one(
+            {"album_id": content_id},
+            {"$inc": {"download_count": 1}}
+        )
+    
+    # Update user's download count
+    if user_id:
+        await db.users.update_one(
+            {"user_id": user_id},
+            {"$inc": {"total_downloads": 1}}
+        )
+        await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$inc": {"total_downloads": 1}}
+        )
+    
+    logger.info(f"Download recorded: {content_type}/{content_id} by {user_id or 'anonymous'}")
+    
+    return {
+        "success": True,
+        "download_id": download_record["download_id"]
+    }
+
+
+@router.get("/analytics/download-stats")
+async def get_download_stats():
+    """Get download analytics for admin dashboard"""
+    db = get_db()
+    
+    # Total downloads
+    total_downloads = await db.downloads.count_documents({})
+    
+    # Downloads today
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    downloads_today = await db.downloads.count_documents({"downloaded_at": {"$gte": today_start}})
+    
+    # Downloads this week
+    from datetime import timedelta
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    downloads_week = await db.downloads.count_documents({"downloaded_at": {"$gte": week_ago}})
+    
+    # Downloads this month
+    month_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    downloads_month = await db.downloads.count_documents({"downloaded_at": {"$gte": month_ago}})
+    
+    # Most downloaded songs (top 10)
+    top_songs_pipeline = [
+        {"$match": {"content_type": "song"}},
+        {"$group": {
+            "_id": "$content_id",
+            "title": {"$first": "$content_title"},
+            "artist": {"$first": "$artist_name"},
+            "downloads": {"$sum": 1}
+        }},
+        {"$sort": {"downloads": -1}},
+        {"$limit": 10}
+    ]
+    top_songs = await db.downloads.aggregate(top_songs_pipeline).to_list(10)
+    
+    # Downloads by day (last 7 days)
+    daily_pipeline = [
+        {"$match": {"downloaded_at": {"$gte": week_ago}}},
+        {"$addFields": {
+            "date": {"$substr": ["$downloaded_at", 0, 10]}
+        }},
+        {"$group": {
+            "_id": "$date",
+            "downloads": {"$sum": 1}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    daily_downloads = await db.downloads.aggregate(daily_pipeline).to_list(7)
+    
+    # Unique users who downloaded
+    unique_downloaders = await db.downloads.distinct("user_id", {"user_id": {"$ne": None}})
+    
+    return {
+        "total_downloads": total_downloads,
+        "downloads_today": downloads_today,
+        "downloads_this_week": downloads_week,
+        "downloads_this_month": downloads_month,
+        "unique_downloaders": len(unique_downloaders),
+        "top_downloaded_songs": [
+            {
+                "song_id": s["_id"],
+                "title": s["title"],
+                "artist": s["artist"],
+                "downloads": s["downloads"]
+            } for s in top_songs
+        ],
+        "daily_downloads": [{"date": d["_id"], "downloads": d["downloads"]} for d in daily_downloads],
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
+@router.get("/analytics/user-downloads/{user_id}")
+async def get_user_downloads(user_id: str):
+    """Get download history for a specific user"""
+    db = get_db()
+    
+    # Get user's downloads
+    downloads = await db.downloads.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("downloaded_at", -1).to_list(100)
+    
+    # Get total count
+    total_downloads = await db.downloads.count_documents({"user_id": user_id})
+    
+    return {
+        "user_id": user_id,
+        "total_downloads": total_downloads,
+        "downloads": downloads
+    }
+
+
+# ============== IMPROVED LIVE LISTENERS TRACKING ==============
+
+@router.post("/analytics/heartbeat")
+async def listener_heartbeat(data: dict, request: Request = None):
+    """
+    Heartbeat endpoint for tracking active listeners.
+    Called every 10-15 seconds while user is playing content.
+    
+    Body:
+    - session_id: Active session ID
+    - user_id: User ID
+    - device_id: Device ID
+    - content_type: "song" | "album" | etc
+    - content_id: ID of content being played
+    - song_title: Title of song
+    - artist_name: Artist name
+    - position: Current playback position in seconds
+    """
+    db = get_db()
+    
+    session_id = data.get("session_id")
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    
+    if not session_id:
+        session_id = f"live_{__import__('uuid').uuid4().hex[:8]}"
+    
+    # Get client IP
+    client_ip = None
+    if request:
+        client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        if not client_ip:
+            client_ip = request.client.host if request.client else None
+    
+    # Update or create active listener record
+    listener_record = {
+        "session_id": session_id,
+        "user_id": user_id,
+        "device_id": device_id,
+        "content_type": data.get("content_type", "song"),
+        "content_id": data.get("content_id"),
+        "song_title": data.get("song_title"),
+        "artist_name": data.get("artist_name"),
+        "position": data.get("position", 0),
+        "ip_address": client_ip,
+        "platform": data.get("platform", "app"),
+        "last_heartbeat": datetime.now(timezone.utc).isoformat(),
+        "is_active": True
+    }
+    
+    await db.active_listeners.update_one(
+        {"session_id": session_id},
+        {"$set": listener_record, "$setOnInsert": {"started_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    
+    return {"success": True, "session_id": session_id}
+
+
+@router.post("/analytics/stop-listening")
+async def stop_listening(data: dict):
+    """Mark a listening session as ended"""
+    db = get_db()
+    
+    session_id = data.get("session_id")
+    if session_id:
+        await db.active_listeners.update_one(
+            {"session_id": session_id},
+            {"$set": {"is_active": False, "ended_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {"success": True}
+
+
+@router.get("/analytics/live-listeners")
+async def get_live_listeners():
+    """Get current active listeners (real-time)"""
+    db = get_db()
+    
+    # Consider listeners active if heartbeat within last 30 seconds
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+    
+    # Get active listeners
+    active = await db.active_listeners.find(
+        {"last_heartbeat": {"$gte": cutoff}, "is_active": True},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Count unique users and devices
+    unique_users = set()
+    unique_devices = set()
+    by_content = {}
+    
+    for listener in active:
+        if listener.get("user_id"):
+            unique_users.add(listener["user_id"])
+        if listener.get("device_id"):
+            unique_devices.add(listener["device_id"])
+        
+        content_id = listener.get("content_id")
+        if content_id:
+            if content_id not in by_content:
+                by_content[content_id] = {
+                    "content_id": content_id,
+                    "title": listener.get("song_title", "Unknown"),
+                    "artist": listener.get("artist_name", "Unknown"),
+                    "listeners": 0
+                }
+            by_content[content_id]["listeners"] += 1
+    
+    # Sort by listeners
+    top_content = sorted(by_content.values(), key=lambda x: x["listeners"], reverse=True)[:10]
+    
+    return {
+        "total_active_listeners": len(active),
+        "unique_users": len(unique_users),
+        "unique_devices": len(unique_devices),
+        "top_playing_now": top_content,
+        "listeners": active[:50],  # Return first 50 for display
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
