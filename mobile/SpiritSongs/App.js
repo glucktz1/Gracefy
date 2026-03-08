@@ -215,6 +215,34 @@ const AppContent = () => {
     };
   }, [authLogin]);
 
+  // Register device on app launch for fraud prevention
+  useEffect(() => {
+    const registerDeviceFingerprint = async () => {
+      try {
+        const deviceData = {
+          device_id: Application.androidId || Device.osBuildId || `${Device.brand}_${Date.now()}`,
+          device_model: Device.modelName || 'Unknown',
+          device_brand: Device.brand || 'Unknown',
+          os_version: `${Device.osName} ${Device.osVersion}`,
+          app_version: Application.nativeApplicationVersion || '1.0.0',
+          platform: Platform.OS,
+          user_id: user?.user_id || null
+        };
+        
+        console.log('[App] Registering device fingerprint:', deviceData.device_id);
+        const response = await deviceAPI.registerDevice(deviceData);
+        
+        if (response.data?.is_suspicious) {
+          console.warn('[App] Suspicious device detected:', response.data.warning);
+        }
+      } catch (e) {
+        console.log('[App] Device registration failed:', e.message);
+      }
+    };
+    
+    registerDeviceFingerprint();
+  }, [user?.user_id]);
+
   // Load ad settings on mount
   useEffect(() => {
     loadAdSettings();
