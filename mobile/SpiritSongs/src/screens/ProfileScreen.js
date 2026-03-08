@@ -407,7 +407,16 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.menuSectionTitle}>Usajili</Text>
           
           {/* Billing Status Indicator - Always shown */}
-          <View style={styles.billingStatusContainer}>
+          <TouchableOpacity 
+            style={styles.billingStatusContainer}
+            onPress={async () => {
+              // Manual refresh of billing status
+              setRefreshing(true);
+              await refreshBilling();
+              setRefreshing(false);
+            }}
+            activeOpacity={0.7}
+          >
             <View style={styles.billingStatusRow}>
               <View style={styles.billingStatusLeft}>
                 <Ionicons 
@@ -417,28 +426,37 @@ const ProfileScreen = ({ navigation }) => {
                 />
                 <Text style={styles.billingStatusLabel}>Hali ya Malipo</Text>
               </View>
-              <View style={[
-                styles.billingStatusBadge,
-                billingEnabled ? styles.billingStatusOn : styles.billingStatusOff
-              ]}>
-                <View style={[
-                  styles.billingStatusDot,
-                  { backgroundColor: billingEnabled ? '#22C55E' : COLORS.textMuted }
-                ]} />
-                <Text style={[
-                  styles.billingStatusText,
-                  { color: billingEnabled ? '#22C55E' : COLORS.textMuted }
-                ]}>
-                  {billingEnabled ? 'IMEWASHWA' : 'IMEZIMWA'}
-                </Text>
+              <View style={styles.billingStatusRight}>
+                {refreshing ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <View style={[
+                    styles.billingStatusBadge,
+                    billingEnabled ? styles.billingStatusOn : styles.billingStatusOff
+                  ]}>
+                    <View style={[
+                      styles.billingStatusDot,
+                      { backgroundColor: billingEnabled ? '#22C55E' : COLORS.textMuted }
+                    ]} />
+                    <Text style={[
+                      styles.billingStatusText,
+                      { color: billingEnabled ? '#22C55E' : COLORS.textMuted }
+                    ]}>
+                      {billingEnabled ? 'IMEWASHWA' : 'IMEZIMWA'}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
-            <Text style={styles.billingStatusHint}>
-              {billingEnabled 
-                ? 'Vipengele vya Premium vinahitaji malipo' 
-                : 'Vipengele vyote ni bure kwa sasa'}
-            </Text>
-          </View>
+            <View style={styles.billingStatusHintRow}>
+              <Text style={styles.billingStatusHint}>
+                {billingEnabled 
+                  ? 'Vipengele vya Premium vinahitaji malipo' 
+                  : 'Vipengele vyote ni bure kwa sasa'}
+              </Text>
+              <Ionicons name="refresh" size={14} color={COLORS.textMuted} />
+            </View>
+          </TouchableOpacity>
           
           {billingEnabled ? (
             // Show subscription info when billing is ON
