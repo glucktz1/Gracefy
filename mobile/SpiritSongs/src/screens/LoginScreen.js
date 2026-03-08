@@ -243,7 +243,7 @@ const LoginScreen = ({ navigation }) => {
     }
     setLoading(true);
     try {
-      const response = await authAPI.register(name, email, password);
+      const response = await authAPI.register({ name, email, password });
       if (response.data?.token) {
         await login(response.data.token, response.data.user);
         Alert.alert('Karibu!', 'Akaunti imefunguliwa', [
