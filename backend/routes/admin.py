@@ -208,6 +208,14 @@ async def update_admin_settings(data: dict):
         upsert=True
     )
     
+    # Invalidate billing cache when settings change
+    try:
+        from services.redis_service import invalidate_billing_cache
+        await invalidate_billing_cache()
+        logger.info("[Admin] Billing cache invalidated after settings update")
+    except Exception as e:
+        logger.warning(f"[Admin] Failed to invalidate billing cache: {e}")
+    
     return {"message": "Settings updated"}
 
 
