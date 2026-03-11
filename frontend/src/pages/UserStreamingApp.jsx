@@ -5899,6 +5899,8 @@ export default function UserStreamingApp() {
         onExpand={() => player.setShowFullPlayer(true)}
         onFavorite={() => player.currentSong && toggleFavorite('song', player.currentSong.song_id)}
         isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
+        onNext={handleNextWithBilling}
+        onPrev={handlePrevWithBilling}
       />
 
       {/* Full Screen Player */}
@@ -5908,6 +5910,8 @@ export default function UserStreamingApp() {
           onClose={() => player.setShowFullPlayer(false)}
           onFavorite={() => player.currentSong && toggleFavorite('song', player.currentSong.song_id)}
           isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
+          onNext={handleNextWithBilling}
+          onPrev={handlePrevWithBilling}
         />
       )}
 
@@ -5924,6 +5928,18 @@ export default function UserStreamingApp() {
         isLocked={isAppLocked}
         promptAttempts={promptAttempts}
         maxAttempts={MAX_PROMPT_ATTEMPTS}
+      />
+      
+      {/* Subscription Required Modal - For logged-in non-premium users (matches native app) */}
+      <SubscriptionRequiredModal
+        show={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscribe={() => {
+          setShowSubscriptionModal(false);
+          // On web, show download app popup to direct users to mobile app for subscription
+          setShowDownloadPopup(true);
+        }}
+        language={language}
       />
 
       {/* Auth Modal */}
