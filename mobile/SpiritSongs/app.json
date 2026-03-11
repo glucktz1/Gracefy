@@ -96,7 +96,7 @@
       "@react-native-firebase/auth",
       "@react-native-firebase/messaging"
     ],
-    "owner": "darasani3",
+    "owner": "gracefy15",
     "extra": {
       "eas": {
         "projectId": "1e3c6df5-462a-4fd6-ab20-5ff22d6a22b8"
