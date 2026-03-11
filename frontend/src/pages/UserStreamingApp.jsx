@@ -4059,7 +4059,39 @@ export default function UserStreamingApp() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-12 h-12 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-24 h-24">
+            {/* Sound Wave Rings */}
+            {[1, 2, 3, 4].map((ring) => (
+              <div
+                key={ring}
+                className="absolute rounded-full border-2 border-emerald-500/60"
+                style={{
+                  animation: 'gracefyWave 2s ease-out infinite',
+                  animationDelay: `${(ring - 1) * 0.4}s`,
+                  width: '30%',
+                  height: '30%',
+                  left: '35%',
+                  top: '35%',
+                }}
+              />
+            ))}
+            {/* Cross at center */}
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="relative">
+                <div className="w-1 h-7 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/50" />
+                <div className="absolute w-5 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/50" style={{ top: '7px', left: '-8px' }} />
+              </div>
+            </div>
+          </div>
+          <p className="text-emerald-400/80 text-sm font-medium animate-pulse">Loading...</p>
+        </div>
+        <style>{`
+          @keyframes gracefyWave {
+            0% { width: 30%; height: 30%; left: 35%; top: 35%; opacity: 0.8; }
+            100% { width: 100%; height: 100%; left: 0%; top: 0%; opacity: 0; }
+          }
+        `}</style>
       </div>
     );
   }
