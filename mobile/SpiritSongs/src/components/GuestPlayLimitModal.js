@@ -89,33 +89,59 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
     fetchSupportEmail();
   }, []);
 
-  const handleGoogleLogin = async () => {
+  // Google Sign-In with Expo Auth Session (Firebase)
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: '478977168051-stletdm3h73uph0pugid0hl7u2293d2l.apps.googleusercontent.com',
+    iosClientId: '478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com',
+    webClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
+    expoClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
+  });
+
+  // Handle Google Sign-In response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      handleGoogleCredential(id_token);
+    }
+  }, [response]);
+
+  const handleGoogleCredential = async (idToken) => {
     try {
       setGoogleLoading(true);
       setError('');
       
-      // Mobile deep link for callback
-      const mobileRedirect = 'gracefy://auth';
+      // Create Firebase credential
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
       
-      // Backend callback URL that will handle the OAuth response and redirect to mobile app
-      const backendCallback = `${API_BASE_URL}/user/auth/google-callback?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
+      // Get Firebase ID token
+      const firebaseIdToken = await userCredential.user.getIdToken();
       
-      // Open Google OAuth flow
-      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(backendCallback)}`;
+      // Verify with backend
+      const backendResponse = await firebaseAuthAPI.verifyToken(firebaseIdToken);
       
-      // Use Linking.openURL to open in external browser
-      // This avoids WebView issues with Google account picker
-      const canOpen = await Linking.canOpenURL(authUrl);
-      if (canOpen) {
-        await Linking.openURL(authUrl);
-        // The user will be redirected back via the gracefy:// deep link
-        // We need to listen for that
+      if (backendResponse.data?.success) {
+        await login(backendResponse.data.token, backendResponse.data.user);
+        onSuccess?.();
+        onClose();
       } else {
-        setError('Imeshindikana kufungua browser.');
+        setError('Imeshindikana kuingia. Jaribu tena.');
       }
     } catch (error) {
+      console.error('Google sign-in error:', error);
       setError('Imeshindikana kuingia na Google. Jaribu tena.');
     } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setGoogleLoading(true);
+      setError('');
+      await promptAsync();
+    } catch (error) {
+      setError('Imeshindikana kuingia na Google. Jaribu tena.');
       setGoogleLoading(false);
     }
   };
