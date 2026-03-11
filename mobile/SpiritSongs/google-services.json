@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "478977168051",
+    "project_id": "gracefyapp-824ff",
+    "storage_bucket": "gracefyapp-824ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:478977168051:android:bcb5f39e488a23d6ca96c6",
+        "android_client_info": {
+          "package_name": "gracefy.App"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmR27HbF2dOYxNt_Lhwa9bxbY82f4w8o8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
