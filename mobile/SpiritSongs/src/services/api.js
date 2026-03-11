@@ -4,10 +4,27 @@ import * as SecureStore from 'expo-secure-store';
 // API Base URL - connects to existing backend
 export const API_BASE_URL = 'https://prod-db-migration.preview.emergentagent.com/api';
 
-// Create axios instance
+// Simple in-memory cache for frequently accessed data
+const cache = new Map();
+const CACHE_DURATION = 60000; // 1 minute cache
+
+const getCached = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+};
+
+const setCache = (key, data) => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
+// Create axios instance with optimized timeout
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 15000, // Reduced to 15 seconds for faster feedback
   headers: {
     'Content-Type': 'application/json',
   },
