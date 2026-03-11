@@ -5077,6 +5077,19 @@ export default function UserStreamingApp() {
             />
           )}
 
+          {/* PROFILE VIEW */}
+          {view === 'profile' && user && (
+            <ProfileView 
+              user={user}
+              language={language}
+              onLogout={handleLogout}
+              onBack={() => setView('home')}
+              isPremium={isPremium}
+              billingEnabled={billingEnabled}
+              t={t}
+            />
+          )}
+
           {/* TEACHING DETAIL VIEW */}
           {view === 'teaching' && selectedTeaching && (
             <div className="pb-32">
