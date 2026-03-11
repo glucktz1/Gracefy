@@ -4185,7 +4185,7 @@ export default function UserStreamingApp() {
               {user.name?.charAt(0) || 'U'}
             </button>
           ) : (
-            <button onClick={() => setShowAuth(true)} className="text-emerald-400 font-medium text-sm">Sign in</button>
+            <button onClick={() => setShowAuth(true)} className="text-emerald-400 font-medium text-sm" data-testid="mobile-login-btn">Sign in</button>
           )}
         </header>
 
