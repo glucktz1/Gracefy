@@ -20,7 +20,7 @@ const PLAN_COLORS = {
   daily: ['#f97316', '#ea580c'],
   weekly: ['#8b5cf6', '#7c3aed'],
   monthly: ['#06b6d4', '#0891b2'],
-  yearly: ['#10b981', '#059669'],
+  yearly: ['#00A8E8', '#0077B6'],
 };
 
 const PLAN_ICONS = {
