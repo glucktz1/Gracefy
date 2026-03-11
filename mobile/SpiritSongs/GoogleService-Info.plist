@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.spiritsongs.app</string>
+	<string>gracefy.IosApp</string>
 	<key>PROJECT_ID</key>
 	<string>gracefyapp-824ff</string>
 	<key>STORAGE_BUCKET</key>
@@ -26,5 +26,9 @@
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:478977168051:ios:4c9d452c88ecb1adca96c6</string>
+	<key>CLIENT_ID</key>
+	<string>478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p</string>
 </dict>
 </plist>
