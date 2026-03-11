@@ -522,14 +522,75 @@ const useAudioPlayer = () => {
     }
   }, [isPlaying]);
 
-  const nextSong = useCallback(() => {
+  const nextSong = useCallback(async () => {
     if (queue.length === 0) return;
     let nextIndex;
     if (shuffle) {
       nextIndex = Math.floor(Math.random() * queue.length);
     } else {
-      nextIndex = (queueIndex + 1) % queue.length;
+      nextIndex = queueIndex + 1;
     }
+    
+    // If we've reached the end of queue, fetch more songs
+    if (nextIndex >= queue.length) {
+      // Try to fetch more songs from the recommendation engine
+      try {
+        const currentAlbumData = queue[queueIndex]?.album;
+        if (currentAlbumData) {
+          const categoryId = currentAlbumData.category_id;
+          let moreSongs = [];
+          
+          // Fetch songs from same category but different albums
+          if (categoryId) {
+            const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
+            const albums = catRes.data.albums || [];
+            for (const fetchedAlbum of albums) {
+              if (fetchedAlbum.album_id !== currentAlbumData.album_id) {
+                const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
+                const songs = albumRes.data.songs || [];
+                const detailedAlbum = albumRes.data.album || fetchedAlbum;
+                moreSongs.push(...songs.map(s => ({ 
+                  song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
+                  album: detailedAlbum 
+                })));
+                if (moreSongs.length >= 10) break;
+              }
+            }
+          }
+          
+          // If not enough, fetch from home featured
+          if (moreSongs.length < 5) {
+            const homeRes = await axios.get(`${API}/user/home`);
+            const featuredSection = homeRes.data.sections?.find(s => s.section_type === 'featured_albums');
+            for (const fetchedAlbum of featuredSection?.items || []) {
+              if (fetchedAlbum.album_id !== currentAlbumData?.album_id) {
+                const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
+                const songs = albumRes.data.songs || [];
+                const detailedAlbum = albumRes.data.album || fetchedAlbum;
+                moreSongs.push(...songs.map(s => ({ 
+                  song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
+                  album: detailedAlbum 
+                })));
+                if (moreSongs.length >= 10) break;
+              }
+            }
+          }
+          
+          if (moreSongs.length > 0) {
+            const newQueue = [...queue, ...moreSongs];
+            setQueue(newQueue);
+            playFromQueue(queue.length); // Play first of the new songs
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching more songs:", e);
+      }
+      
+      // Loop back to beginning if no more songs found
+      nextIndex = 0;
+    }
+    
     playFromQueue(nextIndex);
   }, [queue, queueIndex, shuffle, playFromQueue]);
 
