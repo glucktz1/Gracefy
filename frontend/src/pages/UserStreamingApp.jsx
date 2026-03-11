@@ -2909,10 +2909,30 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
               <Button 
                 variant="outline" 
                 className="w-full border-zinc-700 py-5"
-                onClick={() => {
-                  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-                  const redirectUrl = window.location.origin + '/app';
-                  window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+                onClick={async () => {
+                  try {
+                    const result = await firebaseSignInWithGoogle();
+                    if (result.success) {
+                      // Get Firebase ID token and verify with backend
+                      const idToken = await getFirebaseIdToken();
+                      if (idToken) {
+                        const response = await axios.post(`${API}/firebase/auth/verify`, { id_token: idToken });
+                        if (response.data?.success) {
+                          localStorage.setItem('token', response.data.token);
+                          localStorage.setItem('user', JSON.stringify(response.data.user));
+                          setToken(response.data.token);
+                          setUser(response.data.user);
+                          setShowAuth(false);
+                          toast.success('Logged in successfully!');
+                        }
+                      }
+                    } else {
+                      toast.error(result.error || 'Google sign-in failed');
+                    }
+                  } catch (err) {
+                    console.error('Google auth error:', err);
+                    toast.error('Authentication failed');
+                  }
                 }}
                 data-testid="google-login-btn"
               >
