@@ -808,11 +808,7 @@ const BibleScreen = ({ navigation, route }) => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <FullScreenLoader text="Loading Bible..." />;
   }
 
   return (
