@@ -24,13 +24,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["payment"])
 
 # MNO detection by phone prefix
+# Azam Pay supports: Airtel, Tigo, Halopesa, Azampesa
 MNO_PREFIXES = {
-    'Vodacom': ['74', '75', '76'],
-    'Tigo': ['65', '67', '71'],
-    'Airtel': ['68', '69', '78', '79'],
-    'Halotel': ['62'],
-    'TTCL': ['73'],
-    'Zantel': ['77'],
+    'Tigo': ['65', '67', '71'],       # Tigo Tanzania
+    'Airtel': ['68', '69', '78', '79'], # Airtel Tanzania  
+    'Halopesa': ['62'],                # Halotel/Halopesa
+    'Azampesa': ['74', '75', '76'],    # Vodacom -> Use Azampesa as fallback
 }
 
 
