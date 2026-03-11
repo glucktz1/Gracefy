@@ -2508,6 +2508,50 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
 };
 
 // Guest Play Limit Modal
+// Subscription Required Modal - for logged-in non-premium users (matches native app)
+const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+      <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Star className="w-8 h-8 text-blue-400" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            {language === 'sw' ? 'Pata Premium' : 'Get Premium'}
+          </h3>
+          <p className="text-zinc-400 mb-6">
+            {language === 'sw' 
+              ? 'Lipia ili kufungua vipengele vyote vya premium kama vile kupakuliwa, orodha za nyimbo, na kusikiliza bila kikomo.'
+              : 'Subscribe to unlock all premium features including downloads, playlists, unlimited skips, and background play.'}
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={onSubscribe}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
+            >
+              {language === 'sw' ? 'Angalia Mipango' : 'View Plans'}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
+            >
+              {language === 'sw' ? 'Baadaye' : 'Later'}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500 mt-4">
+            {language === 'sw' 
+              ? '✨ Premium inakuwezesha kusikiliza wakati wowote, popote'
+              : '✨ Premium lets you listen anytime, anywhere'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, isLocked, promptAttempts, maxAttempts }) => {
   if (!show) return null;
   
