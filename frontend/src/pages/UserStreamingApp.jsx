@@ -3434,8 +3434,13 @@ export default function UserStreamingApp() {
   const [guestSkipCount, setGuestSkipCount] = useState(0);
   const [promptAttempts, setPromptAttempts] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [guestStatsLoaded, setGuestStatsLoaded] = useState(false);
+  
+  // Skip count for logged-in non-premium users (billing trigger)
+  const [skipCount, setSkipCount] = useState(0);
+  const PREMIUM_SKIP_LIMIT = 3; // After 3 skips, prompt subscription
   
   // Load guest stats from localStorage on mount
   useEffect(() => {
