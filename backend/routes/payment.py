@@ -162,11 +162,10 @@ async def azampay_checkout(data: dict):
         from azampay import Azampay
         
         azampay_client = Azampay(
-            app_name="Gracefy",
+            app_name=os.environ.get("AZAMPAY_APP_NAME", "Gracefy"),
             client_id=os.environ.get("AZAMPAY_CLIENT_ID"),
             client_secret=os.environ.get("AZAMPAY_CLIENT_SECRET"),
-            x_api_key=os.environ.get("AZAMPAY_TOKEN"),
-            sandbox=False
+            sandbox=False  # Production mode
         )
         
         checkout_response = azampay_client.mobile_checkout(
