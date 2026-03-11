@@ -67,6 +67,7 @@ const KnowledgeBankPage = lazy(() => import("@/pages/KnowledgeBankPage"));
 const AppControlPage = lazy(() => import("@/pages/AppControlPage"));
 const RecommendationEnginePage = lazy(() => import("@/pages/RecommendationEnginePage"));
 const AuthSettingsPage = lazy(() => import("@/pages/AuthSettingsPage"));
+const SecuritySettingsPage = lazy(() => import("@/pages/SecuritySettingsPage"));
 const RadioManagementPage = lazy(() => import("@/pages/RadioManagementPage"));
 const GeoContentPage = lazy(() => import("@/pages/GeoContentPage"));
 const ReligiousLeadersPage = lazy(() => import("@/pages/ReligiousLeadersPage"));
