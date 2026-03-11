@@ -3897,20 +3897,10 @@ export default function UserStreamingApp() {
       setShowAuth(true);
       return;
     }
-    // Premium feature check - add to playlist requires subscription when billing is enabled
-    if (billingEnabled && !isPremium) {
-      toast.error(t('premium.playlistRequired', 'Kuongeza wimbo kwenye playlist kunahitaji usajili wa Premium'));
-      return;
-    }
-    setSelectedSongForPlaylist(song);
-    // Fetch user's playlists
-    try {
-      const res = await axios.get(`${API}/user/library`, { headers: { Authorization: `Bearer ${token}` }});
-      setUserPlaylists(res.data.playlists || []);
-    } catch (e) {
-      console.log("Could not fetch playlists");
-    }
-    setShowPlaylistModal(true);
+    
+    // On web, show download app popup instead of creating playlists
+    // Playlist creation only works on the mobile app
+    setShowDownloadPopup(true);
   };
 
   const addSongToPlaylist = async (playlistId) => {
