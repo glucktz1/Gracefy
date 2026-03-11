@@ -5163,6 +5163,10 @@ export default function UserStreamingApp() {
             <Library size={20} />
             <span className="text-[10px]">{t('nav.library', 'Library')}</span>
           </button>
+          <button onClick={() => user ? setView('profile') : setShowAuth(true)} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'profile' ? 'text-emerald-500' : 'text-zinc-500'}`} data-testid="mobile-profile-nav">
+            <User size={20} />
+            <span className="text-[10px]">{t('nav.profile', 'Profile')}</span>
+          </button>
         </div>
       </nav>
 
