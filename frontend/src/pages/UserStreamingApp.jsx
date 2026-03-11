@@ -4003,11 +4003,15 @@ export default function UserStreamingApp() {
         <div className="mt-auto pt-4 border-t border-zinc-800">
           {user ? (
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">
+              <button 
+                onClick={() => setView('profile')}
+                className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold hover:bg-emerald-500 transition-colors"
+                data-testid="sidebar-profile-btn"
+              >
                 {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
-              </div>
+              </button>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user.name || user.email}</p>
+                <button onClick={() => setView('profile')} className="text-sm font-medium truncate hover:text-emerald-400 block text-left">{user.name || user.email}</button>
                 <button onClick={handleLogout} className="text-xs text-zinc-500 hover:text-white">{t('auth.logout', 'Logout')}</button>
               </div>
             </div>
