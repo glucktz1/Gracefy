@@ -4035,9 +4035,13 @@ export default function UserStreamingApp() {
             <span className="text-xl font-bold text-white">Gracefy</span>
           </a>
           {user ? (
-            <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">
+            <button 
+              onClick={() => setView('profile')}
+              className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold"
+              data-testid="mobile-profile-btn"
+            >
               {user.name?.charAt(0) || 'U'}
-            </div>
+            </button>
           ) : (
             <button onClick={() => setShowAuth(true)} className="text-emerald-400 font-medium text-sm">Sign in</button>
           )}
