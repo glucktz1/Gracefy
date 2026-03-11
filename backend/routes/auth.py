@@ -1091,7 +1091,7 @@ async def forgot_password_reset(data: dict):
 async def google_auth_start(redirect_uri: str = None, platform: str = "mobile"):
     """Start Google OAuth flow - returns the auth URL to open in browser"""
     # Use the backend callback URL as the redirect for Emergent
-    backend_callback = f"{os.environ.get('BACKEND_URL', 'https://gospel-audio-player.preview.emergentagent.com')}/api/user/auth/google-callback"
+    backend_callback = f"{os.environ.get('BACKEND_URL', 'https://music-stream-launch.preview.emergentagent.com')}/api/user/auth/google-callback"
     
     # Store the mobile redirect for later use
     auth_url = f"https://demobackend.emergentagent.com/auth/v1/env/oauth/google?redirect_uri={backend_callback}&platform={platform}"

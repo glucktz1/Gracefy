@@ -299,7 +299,7 @@ BUNNY_CDN_URL=https://gracefy-cdn.b-cdn.net
 
 ### Frontend (.env)
 ```
-REACT_APP_BACKEND_URL=https://gospel-audio-player.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://music-stream-launch.preview.emergentagent.com
 ```
 
 ## EAS Build Credentials
@@ -1145,5 +1145,5 @@ REACT_APP_BACKEND_URL=https://gospel-audio-player.preview.emergentagent.com
 
 ## Payment Callback URL (for Azam Pay)
 **Production:** `https://gracefy.life/api/payment/callback/azampay`
-**Preview:** `https://gospel-audio-player.preview.emergentagent.com/api/payment/callback/azampay`
+**Preview:** `https://music-stream-launch.preview.emergentagent.com/api/payment/callback/azampay`
 
