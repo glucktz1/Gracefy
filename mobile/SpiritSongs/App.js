@@ -100,6 +100,8 @@ const TabNavigator = () => {
             iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'Library') {
             iconName = focused ? 'library' : 'library-outline';
+          } else if (route.name === 'Biblia') {
+            iconName = focused ? 'book' : 'book-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
