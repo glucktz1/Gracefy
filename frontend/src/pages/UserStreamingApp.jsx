@@ -4487,12 +4487,29 @@ export default function UserStreamingApp() {
 
   // BILLING TRIGGER: Skip wrapper with subscription check (matches native app)
   // After PREMIUM_SKIP_LIMIT skips, logged-in non-premium users are prompted
+  // After GUEST_SKIP_LIMIT skips, guests are prompted to login
   const handleSkipWithBillingCheck = (skipFunction) => {
-    // If user is logged in + billing ON + not premium
-    if (user && billingEnabled && !isPremium) {
+    // Guest user skip limit check (matches native app)
+    if (!user) {
+      // Only enforce if billing is enabled
+      if (billingEnabled) {
+        // Increment guest skip count and check limit
+        if (incrementGuestSkipCount()) {
+          // Skip limit reached - modal will be shown by incrementGuestSkipCount
+          console.log('[Guest] Skip limit reached - blocking skip');
+          return; // Block the skip
+        }
+      }
+      // Allow the skip for guests under limit
+      skipFunction();
+      return;
+    }
+    
+    // Logged in user - If billing ON + not premium, enforce skip limit
+    if (billingEnabled && !isPremium) {
       const newSkipCount = skipCount + 1;
       setSkipCount(newSkipCount);
-      console.log(`[Billing] Skip count: ${newSkipCount}/${PREMIUM_SKIP_LIMIT}`);
+      console.log(`[Billing] Logged-in skip count: ${newSkipCount}/${PREMIUM_SKIP_LIMIT}`);
       
       if (newSkipCount >= PREMIUM_SKIP_LIMIT) {
         console.log('[Billing] Skip limit reached - prompting subscription');
@@ -4502,7 +4519,7 @@ export default function UserStreamingApp() {
       }
     }
     
-    // Allow the skip
+    // Allow the skip (premium user or billing off)
     skipFunction();
   };
 
