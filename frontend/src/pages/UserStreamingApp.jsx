@@ -1860,8 +1860,32 @@ const BibleView = ({ language, t, onBack }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 size={40} className="animate-spin text-amber-500" />
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="relative w-20 h-20">
+          {[1, 2, 3].map((ring) => (
+            <div
+              key={ring}
+              className="absolute rounded-full border-2 border-amber-500/60"
+              style={{
+                animation: 'gracefyWave 1.8s ease-out infinite',
+                animationDelay: `${(ring - 1) * 0.35}s`,
+                width: '30%',
+                height: '30%',
+                left: '35%',
+                top: '35%',
+              }}
+            />
+          ))}
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <Cross className="w-6 h-6 text-amber-400" />
+          </div>
+        </div>
+        <style>{`
+          @keyframes gracefyWave {
+            0% { width: 30%; height: 30%; left: 35%; top: 35%; opacity: 0.8; }
+            100% { width: 100%; height: 100%; left: 0%; top: 0%; opacity: 0; }
+          }
+        `}</style>
       </div>
     );
   }
