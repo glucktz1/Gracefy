@@ -1336,12 +1336,7 @@ const HomeScreen = ({ navigation }) => {
   );
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>Loading content...</Text>
-      </View>
-    );
+    return <FullScreenLoader text="Loading content..." />;
   }
 
   return (
