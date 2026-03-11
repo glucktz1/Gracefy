@@ -3905,13 +3905,21 @@ export default function UserStreamingApp() {
   // Check if guest can play (returns true if can play, false if limit reached)
   const checkGuestPlayLimit = () => {
     // If user is logged in, always allow
-    if (user) return true;
+    if (user) {
+      console.log("Guest check: User logged in, allowing");
+      return true;
+    }
     
     // If billing is disabled, allow unlimited plays
-    if (!billingEnabled) return true;
+    if (!billingEnabled) {
+      console.log("Guest check: Billing disabled, allowing");
+      return true;
+    }
     
     // Check guest play count
+    console.log(`Guest check: count=${guestPlayCount}, limit=${guestPlayLimit}, billingEnabled=${billingEnabled}`);
     if (guestPlayCount >= guestPlayLimit) {
+      console.log("Guest check: Limit reached, showing modal");
       setShowGuestLimitModal(true);
       return false;
     }
