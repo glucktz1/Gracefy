@@ -3836,6 +3836,10 @@ export default function UserStreamingApp() {
       return;
     }
     
+    // Check guest play limit for teachings
+    if (!checkGuestPlayLimit()) return;
+    incrementGuestPlayCount();
+    
     // Play the first lesson and queue the rest
     player.playSong(
       allLessons[0].song,
