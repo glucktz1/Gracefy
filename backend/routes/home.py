@@ -469,8 +469,8 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
         "hero": hero_content
     }
     
-    # Cache for 60 seconds
-    await cache.set(cache_key, response_data, 60)
+    # Cache for 120 seconds (2 minutes) for better production performance
+    await cache.set(cache_key, response_data, 120)
     
     logger.debug(f"Home data generated with {len(home_data)} sections")
     return response_data
