@@ -3968,24 +3968,39 @@ export default function UserStreamingApp() {
     toast.success(`Inacheza masomo ${shuffled.length} kwa nasibu`);
   };
 
-  // Check if guest can play (returns true if can play, false if limit reached)
+  // Check if guest can play - MATCHES NATIVE APP LOGIC
+  // Returns true if can play, false if limit reached
   const checkGuestPlayLimit = () => {
     // If user is logged in, always allow
     if (user) {
-      console.log("Guest check: User logged in, allowing");
+      console.log('[Guest] User logged in - allowing play');
+      return true;
+    }
+    
+    // If billing status not yet checked, allow play (be user-friendly)
+    if (!billingStatusChecked) {
+      console.log('[Guest] Billing status not yet checked - allowing play');
       return true;
     }
     
     // If billing is disabled, allow unlimited plays
     if (!billingEnabled) {
-      console.log("Guest check: Billing disabled, allowing");
+      console.log('[Guest] Billing disabled - allowing unlimited plays');
       return true;
     }
     
-    // Check guest play count
-    console.log(`Guest check: count=${guestPlayCount}, limit=${guestPlayLimit}, billingEnabled=${billingEnabled}`);
-    if (guestPlayCount >= guestPlayLimit) {
-      console.log("Guest check: Limit reached, showing modal");
+    // If app is locked (too many dismissals), block and show modal
+    if (isAppLocked) {
+      console.log('[Guest] App is LOCKED - must login');
+      setShowGuestLimitModal(true);
+      return false;
+    }
+    
+    // Check guest play count - MATCHES NATIVE: GUEST_PLAY_LIMIT = 3
+    console.log(`[Guest] Checking limits: plays=${guestPlayCount}/${GUEST_PLAY_LIMIT}, skips=${guestSkipCount}/${GUEST_SKIP_LIMIT}`);
+    
+    if (guestPlayCount >= GUEST_PLAY_LIMIT) {
+      console.log('[Guest] PLAY LIMIT REACHED - showing modal');
       setShowGuestLimitModal(true);
       return false;
     }
@@ -3993,10 +4008,50 @@ export default function UserStreamingApp() {
     return true;
   };
 
-  // Increment guest play count
+  // Increment guest play count - returns true if should show prompt
   const incrementGuestPlayCount = () => {
-    if (!user && billingEnabled) {
-      setGuestPlayCount(prev => prev + 1);
+    if (user) return false;
+    if (!billingEnabled) return false;
+    
+    const newCount = guestPlayCount + 1;
+    console.log(`[Guest] Incrementing play count: ${guestPlayCount} -> ${newCount}`);
+    setGuestPlayCount(newCount);
+    
+    if (newCount >= GUEST_PLAY_LIMIT) {
+      console.log('[Guest] Play limit reached after increment - will prompt on next attempt');
+      return true;
+    }
+    return false;
+  };
+  
+  // Increment guest skip count - returns true if should show prompt
+  const incrementGuestSkipCount = () => {
+    if (user) return false;
+    if (!billingEnabled) return false;
+    
+    const newCount = guestSkipCount + 1;
+    console.log(`[Guest] Incrementing skip count: ${guestSkipCount} -> ${newCount}`);
+    setGuestSkipCount(newCount);
+    
+    if (newCount >= GUEST_SKIP_LIMIT) {
+      console.log('[Guest] Skip limit reached');
+      setShowGuestLimitModal(true);
+      return true;
+    }
+    return false;
+  };
+  
+  // Dismiss login prompt - matches native app MAX_PROMPT_ATTEMPTS = 3
+  const dismissLoginPrompt = () => {
+    const newAttempts = promptAttempts + 1;
+    console.log(`[Guest] Dismissing prompt, attempts: ${promptAttempts} -> ${newAttempts}`);
+    setPromptAttempts(newAttempts);
+    setShowGuestLimitModal(false);
+    
+    if (newAttempts >= MAX_PROMPT_ATTEMPTS) {
+      console.log('[Guest] MAX ATTEMPTS REACHED - LOCKING APP');
+      setIsAppLocked(true);
+      setShowGuestLimitModal(true);
     }
   };
 
