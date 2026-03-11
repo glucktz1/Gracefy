@@ -55,8 +55,8 @@ def get_mno_from_phone(phone: str) -> str:
         if prefix in prefixes:
             return mno
     
-    # Default to Tigo if not found (most common)
-    return 'Tigo'
+    # Default to Tigopesa if not found (most common)
+    return 'Tigopesa'
 
 
 # Default subscription plans
