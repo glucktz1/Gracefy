@@ -230,8 +230,13 @@ async def save_monetization_settings(data: dict):
 
 
 @router.get("/billing-status")
-async def get_billing_status():
+async def get_billing_status(response: Response):
     """Get billing status for the app - used by mobile and web to check billing mode"""
+    
+    # Add cache control headers to prevent browser caching
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     
     # Try cache first (10 second TTL)
     cached = await get_cached_billing_status()
