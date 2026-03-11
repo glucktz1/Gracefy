@@ -155,6 +155,9 @@ def create_app() -> FastAPI:
     from routes.geo_content import router as geo_content_router
     app.include_router(geo_content_router)    # /api/geo/*
     
+    # Firebase authentication router
+    app.include_router(firebase_router)       # /api/firebase/*
+    
     # ============== ROOT ENDPOINTS ==============
     
     @app.get("/")
