@@ -291,7 +291,10 @@ async def get_user_subscription_status(user_id: str = Query(...)):
     """Get user's subscription status and plan details"""
     db = get_db()
     
-    user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
+    # Try both collections - users (web) and app_users (mobile)
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        user = await db.app_users.find_one({"user_id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
