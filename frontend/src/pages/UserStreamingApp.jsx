@@ -3331,40 +3331,63 @@ export default function UserStreamingApp() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   
-  // Billing/Monetization state
+  // Billing/Monetization state - Match native app logic
+  // Default to billing DISABLED - never block users before we confirm billing is ON
   const [billingEnabled, setBillingEnabled] = useState(false);
-  const [isPremium, setIsPremium] = useState(false);
+  const [billingStatusChecked, setBillingStatusChecked] = useState(false);
+  // Default to premium TRUE - never block users before we confirm billing is ON
+  const [isPremium, setIsPremium] = useState(true);
   
-  // Guest play limit state
-  const [guestPlayCount, setGuestPlayCount] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gracefy_guest_plays');
-      console.log("Initial guest play count from localStorage:", saved);
-      return saved ? parseInt(saved, 10) : 0;
-    }
-    return 0;
-  });
-  const [guestPlayLimit, setGuestPlayLimit] = useState(3); // Default: 3 free plays
+  // Guest play limit state - Match native app: GUEST_PLAY_LIMIT = 3
+  const GUEST_PLAY_LIMIT = 3;
+  const GUEST_SKIP_LIMIT = 3;
+  const MAX_PROMPT_ATTEMPTS = 3;
+  
+  const [guestPlayCount, setGuestPlayCount] = useState(0);
+  const [guestSkipCount, setGuestSkipCount] = useState(0);
+  const [promptAttempts, setPromptAttempts] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
-  const [guestPlayCountInitialized, setGuestPlayCountInitialized] = useState(false);
+  const [isAppLocked, setIsAppLocked] = useState(false);
   
-  // Load guest play count from localStorage
+  // Load guest stats from localStorage on mount
   useEffect(() => {
-    const savedCount = localStorage.getItem('gracefy_guest_plays');
-    console.log("Loading guest play count from localStorage:", savedCount);
-    if (savedCount) {
-      setGuestPlayCount(parseInt(savedCount, 10));
-    }
-    setGuestPlayCountInitialized(true);
+    const savedPlayCount = localStorage.getItem('gracefy_guest_plays');
+    const savedSkipCount = localStorage.getItem('gracefy_guest_skips');
+    const savedPromptAttempts = localStorage.getItem('gracefy_prompt_attempts');
+    
+    if (savedPlayCount) setGuestPlayCount(parseInt(savedPlayCount, 10) || 0);
+    if (savedSkipCount) setGuestSkipCount(parseInt(savedSkipCount, 10) || 0);
+    if (savedPromptAttempts) setPromptAttempts(parseInt(savedPromptAttempts, 10) || 0);
+    
+    console.log('[Guest] Restored stats:', { 
+      plays: savedPlayCount, 
+      skips: savedSkipCount, 
+      attempts: savedPromptAttempts 
+    });
   }, []);
   
-  // Save guest play count to localStorage (only after initialized)
+  // Save guest stats to localStorage (only when not logged in)
   useEffect(() => {
-    if (!user && guestPlayCountInitialized) {
-      console.log("Saving guest play count to localStorage:", guestPlayCount);
+    if (!user) {
       localStorage.setItem('gracefy_guest_plays', guestPlayCount.toString());
+      localStorage.setItem('gracefy_guest_skips', guestSkipCount.toString());
+      localStorage.setItem('gracefy_prompt_attempts', promptAttempts.toString());
     }
-  }, [guestPlayCount, user, guestPlayCountInitialized]);
+  }, [guestPlayCount, guestSkipCount, promptAttempts, user]);
+  
+  // Reset guest stats on login
+  useEffect(() => {
+    if (user) {
+      setGuestPlayCount(0);
+      setGuestSkipCount(0);
+      setPromptAttempts(0);
+      setIsAppLocked(false);
+      setShowGuestLimitModal(false);
+      localStorage.removeItem('gracefy_guest_plays');
+      localStorage.removeItem('gracefy_guest_skips');
+      localStorage.removeItem('gracefy_prompt_attempts');
+    }
+  }, [user]);
   
   // Geo-content state
   const [userCountry, setUserCountry] = useState('GLOBAL');
