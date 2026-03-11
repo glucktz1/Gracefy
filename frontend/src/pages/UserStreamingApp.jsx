@@ -4156,6 +4156,7 @@ export default function UserStreamingApp() {
             <button 
               onClick={() => setShowAuth(true)}
               className="w-full py-2.5 bg-white text-black rounded-full font-semibold hover:scale-105 transition-transform text-sm"
+              data-testid="sidebar-login-btn"
             >
               {t('auth.login', 'Sign In')}
             </button>
