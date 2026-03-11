@@ -306,7 +306,11 @@ async def get_user_subscription_status(user_id: str = Query(...)):
         expires_at = datetime.fromisoformat(subscription["expires_at"].replace("Z", "+00:00"))
         is_active = expires_at > datetime.now(timezone.utc)
         if not is_active:
-            # Update expired subscription
+            # Update expired subscription in both collections
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {"subscription.status": "expired", "is_premium": False}}
+            )
             await db.app_users.update_one(
                 {"user_id": user_id},
                 {"$set": {"subscription.status": "expired", "is_premium": False}}
