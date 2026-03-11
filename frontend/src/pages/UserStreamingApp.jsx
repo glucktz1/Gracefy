@@ -4344,8 +4344,28 @@ export default function UserStreamingApp() {
 
   const isFavorite = (id) => favorites.some(f => f.id === id);
 
-  // Handler for Like (song)
+  // Helper: Check if should prompt subscription (logged-in + billing ON + not premium)
+  const shouldPromptSubscription = () => {
+    return user && billingEnabled && !isPremium;
+  };
+
+  // Handler for Like (song) - WITH BILLING CHECK
   const handleLikeSong = (song) => {
+    // BILLING LOGIC (matches native app):
+    // 1. Guest: Prompt to login
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    
+    // 2. Logged in + billing ON + not paid: Prompt to subscribe
+    if (shouldPromptSubscription()) {
+      console.log('[Billing] Like blocked - prompting subscription');
+      setShowSubscriptionModal(true);
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Allow like
     toggleFavorite('song', song.song_id);
   };
 
@@ -4354,13 +4374,23 @@ export default function UserStreamingApp() {
   const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState(null);
   const [userPlaylists, setUserPlaylists] = useState([]);
   
+  // Handler for Add to Playlist - WITH BILLING CHECK
   const handleAddToPlaylist = async (song) => {
+    // BILLING LOGIC (matches native app):
+    // 1. Guest: Prompt to login
     if (!token) {
       setShowAuth(true);
       return;
     }
     
-    // On web, show download app popup instead of creating playlists
+    // 2. Logged in + billing ON + not paid: Prompt to subscribe
+    if (shouldPromptSubscription()) {
+      console.log('[Billing] Add to playlist blocked - prompting subscription');
+      setShowSubscriptionModal(true);
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Show download app popup
     // Playlist creation only works on the mobile app
     setShowDownloadPopup(true);
   };
@@ -4384,14 +4414,23 @@ export default function UserStreamingApp() {
     setShowDownloadPopup(true);
   };
 
-  // Handler for Download
+  // Handler for Download - WITH BILLING CHECK
   const handleDownloadSong = async (song) => {
+    // BILLING LOGIC (matches native app):
+    // 1. Guest: Prompt to login
     if (!token) {
       setShowAuth(true);
       return;
     }
     
-    // On web, show download app popup instead of direct download
+    // 2. Logged in + billing ON + not paid: Prompt to subscribe
+    if (shouldPromptSubscription()) {
+      console.log('[Billing] Download blocked - prompting subscription');
+      setShowSubscriptionModal(true);
+      return;
+    }
+    
+    // 3. Logged in + (billing OFF OR paid): Show download app popup
     // Direct download only works on the mobile app for offline playback
     setShowDownloadPopup(true);
   };
