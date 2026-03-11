@@ -13,6 +13,14 @@ import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBranding, BrandLogo } from "@/context/BrandingContext";
+import { 
+  firebaseSignInWithEmail, 
+  firebaseSignUpWithEmail, 
+  firebaseSignInWithGoogle,
+  firebaseSignOut,
+  getFirebaseIdToken,
+  onFirebaseAuthChange
+} from "@/services/firebase";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
