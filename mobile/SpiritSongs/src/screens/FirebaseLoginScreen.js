@@ -73,10 +73,9 @@ const FirebaseLoginScreen = ({ navigation }) => {
 
   // Google Sign-In with Expo Auth Session
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: '478977168051-android.apps.googleusercontent.com', // Update with actual
-    iosClientId: '478977168051-ios.apps.googleusercontent.com', // Update with actual  
-    webClientId: '478977168051-web.apps.googleusercontent.com', // Update with actual
-    expoClientId: '478977168051-web.apps.googleusercontent.com', // For Expo Go
+    iosClientId: '478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com',
+    webClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
+    expoClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
   });
 
   // Fetch available auth methods on mount
