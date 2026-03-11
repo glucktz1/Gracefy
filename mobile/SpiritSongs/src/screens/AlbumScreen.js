@@ -502,9 +502,7 @@ const AlbumScreen = ({ route, navigation }) => {
         {/* Songs List */}
         <View style={styles.songsContainer}>
           {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
+            <InlineLoader text="Loading songs..." />
           ) : songCount > 0 ? (
             (songs ?? []).map((song, index) => (
               <SongListItem
