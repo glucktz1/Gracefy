@@ -75,7 +75,17 @@ export const firebaseSignInWithGoogle = async () => {
     return { success: true, user: result.user };
   } catch (error) {
     console.error('Google sign-in error:', error);
-    return { success: false, error: 'Google sign-in failed' };
+    let message = 'Google sign-in failed';
+    if (error.code === 'auth/popup-closed-by-user') {
+      message = 'Sign-in cancelled';
+    } else if (error.code === 'auth/popup-blocked') {
+      message = 'Popup blocked. Please allow popups for this site.';
+    } else if (error.code === 'auth/unauthorized-domain') {
+      message = 'This domain is not authorized. Contact support.';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      message = 'Google sign-in is not enabled. Contact support.';
+    }
+    return { success: false, error: message };
   }
 };
 
