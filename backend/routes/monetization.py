@@ -3,7 +3,7 @@ Monetization routes for Gracefy.
 Handles subscriptions, plans, billing settings, and revenue tracking.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Response
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import uuid
