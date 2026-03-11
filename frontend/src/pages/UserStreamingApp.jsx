@@ -4179,7 +4179,7 @@ export default function UserStreamingApp() {
             {[1, 2, 3, 4].map((ring) => (
               <div
                 key={ring}
-                className="absolute rounded-full border-2 border-emerald-500/60"
+                className="absolute rounded-full border-2 border-blue-500/60"
                 style={{
                   animation: 'gracefyWave 2s ease-out infinite',
                   animationDelay: `${(ring - 1) * 0.4}s`,
@@ -4193,12 +4193,12 @@ export default function UserStreamingApp() {
             {/* Cross at center */}
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="relative">
-                <div className="w-1 h-7 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/50" />
-                <div className="absolute w-5 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/50" style={{ top: '7px', left: '-8px' }} />
+                <div className="w-1 h-7 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
+                <div className="absolute w-5 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" style={{ top: '7px', left: '-8px' }} />
               </div>
             </div>
           </div>
-          <p className="text-emerald-400/80 text-sm font-medium animate-pulse">Loading...</p>
+          <p className="text-blue-400/80 text-sm font-medium animate-pulse">Loading...</p>
         </div>
         <style>{`
           @keyframes gracefyWave {
