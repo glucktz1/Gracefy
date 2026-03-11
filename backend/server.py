@@ -78,6 +78,7 @@ from routes.advertising import router as advertising_router
 from routes.leaders import router as leaders_router
 from routes.branding import router as branding_router
 from routes.legal import router as legal_router
+from routes.firebase_auth import router as firebase_router
 
 # Legacy cache service for backward compatibility
 from cache_service import cache as legacy_cache
