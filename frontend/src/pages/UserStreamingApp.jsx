@@ -3337,26 +3337,34 @@ export default function UserStreamingApp() {
   
   // Guest play limit state
   const [guestPlayCount, setGuestPlayCount] = useState(() => {
-    const saved = localStorage.getItem('gracefy_guest_plays');
-    return saved ? parseInt(saved, 10) : 0;
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gracefy_guest_plays');
+      console.log("Initial guest play count from localStorage:", saved);
+      return saved ? parseInt(saved, 10) : 0;
+    }
+    return 0;
   });
   const [guestPlayLimit, setGuestPlayLimit] = useState(3); // Default: 3 free plays
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [guestPlayCountInitialized, setGuestPlayCountInitialized] = useState(false);
   
   // Load guest play count from localStorage
   useEffect(() => {
     const savedCount = localStorage.getItem('gracefy_guest_plays');
+    console.log("Loading guest play count from localStorage:", savedCount);
     if (savedCount) {
       setGuestPlayCount(parseInt(savedCount, 10));
     }
+    setGuestPlayCountInitialized(true);
   }, []);
   
-  // Save guest play count to localStorage
+  // Save guest play count to localStorage (only after initialized)
   useEffect(() => {
-    if (!user) {
+    if (!user && guestPlayCountInitialized) {
+      console.log("Saving guest play count to localStorage:", guestPlayCount);
       localStorage.setItem('gracefy_guest_plays', guestPlayCount.toString());
     }
-  }, [guestPlayCount, user]);
+  }, [guestPlayCount, user, guestPlayCountInitialized]);
   
   // Geo-content state
   const [userCountry, setUserCountry] = useState('GLOBAL');
