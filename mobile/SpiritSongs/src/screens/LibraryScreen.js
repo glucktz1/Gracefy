@@ -297,17 +297,7 @@ const LibraryScreen = ({ navigation, route }) => {
 
   // Loading view
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Maktaba Yako</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Inapakia...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <FullScreenLoader text="Inapakia..." />;
   }
 
   const tabs = [
