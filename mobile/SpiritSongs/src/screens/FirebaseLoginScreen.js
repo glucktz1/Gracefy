@@ -73,6 +73,7 @@ const FirebaseLoginScreen = ({ navigation }) => {
 
   // Google Sign-In with Expo Auth Session
   const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: '478977168051-stletdm3h73uph0pugid0hl7u2293d2l.apps.googleusercontent.com',
     iosClientId: '478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com',
     webClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
     expoClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
