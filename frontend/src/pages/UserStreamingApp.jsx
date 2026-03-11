@@ -3336,7 +3336,10 @@ export default function UserStreamingApp() {
   const [isPremium, setIsPremium] = useState(false);
   
   // Guest play limit state
-  const [guestPlayCount, setGuestPlayCount] = useState(0);
+  const [guestPlayCount, setGuestPlayCount] = useState(() => {
+    const saved = localStorage.getItem('gracefy_guest_plays');
+    return saved ? parseInt(saved, 10) : 0;
+  });
   const [guestPlayLimit, setGuestPlayLimit] = useState(3); // Default: 3 free plays
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   
