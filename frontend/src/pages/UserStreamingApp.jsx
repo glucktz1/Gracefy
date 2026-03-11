@@ -3553,40 +3553,53 @@ export default function UserStreamingApp() {
     fetchData();
   }, [geoEnabled]);
 
-  // Periodic refresh of billing status (every 60 seconds) to detect admin changes
+  // Periodic refresh of billing status (every 60 seconds) - Match native app
   useEffect(() => {
     const refreshBillingStatus = async () => {
       try {
+        console.log('[Billing] Periodic refresh started');
         const billingRes = await axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } }));
         const billingData = billingRes.data || {};
-        const newBillingStatus = billingData.billing_enabled === true && billingData.web_billing_enabled !== false;
-        console.log("Periodic billing refresh:", billingData, "Status:", newBillingStatus);
-        setBillingEnabled(newBillingStatus);
+        const masterBillingEnabled = billingData.billing_enabled === true;
+        const webBillingEnabled = billingData.web_billing_enabled !== false;
+        const finalBillingStatus = masterBillingEnabled && webBillingEnabled;
         
-        if (!newBillingStatus) {
+        console.log('[Billing] Periodic refresh result:', {
+          billing_enabled: masterBillingEnabled,
+          web_billing_enabled: webBillingEnabled,
+          final_status: finalBillingStatus
+        });
+        
+        setBillingEnabled(finalBillingStatus);
+        setBillingStatusChecked(true);
+        
+        if (!finalBillingStatus) {
           // Billing is OFF - everyone is premium
+          console.log('[Billing] Billing OFF - Setting isPremium=true');
           setIsPremium(true);
         } else if (token && user?.user_id) {
           // Billing is ON - check user's subscription status
+          console.log('[Billing] Billing ON, checking user subscription...');
           const subRes = await axios.get(`${API}/user/subscription-status?user_id=${user.user_id}`).catch(() => ({ data: { is_premium: false } }));
-          if (subRes.data?.billing_enabled === false) {
-            setIsPremium(true);
-            setBillingEnabled(false);
-          } else {
-            setIsPremium(subRes.data?.is_premium || false);
-          }
+          const userIsPremium = subRes.data?.is_premium === true;
+          console.log('[Billing] User subscription result:', userIsPremium);
+          setIsPremium(userIsPremium);
+        } else {
+          // Billing ON but no user logged in
+          console.log('[Billing] Billing ON but no user - isPremium=false');
+          setIsPremium(false);
         }
       } catch (e) {
-        console.log("Failed to refresh billing status:", e);
+        console.log('[Billing] Refresh failed, keeping current state:', e);
       }
     };
 
-    // Set up interval for periodic refresh (60 seconds)
+    // Set up interval for periodic refresh (60 seconds) - same as native app
     const intervalId = setInterval(refreshBillingStatus, 60000);
 
     // Also refresh when window gains focus (user returns to tab)
     const handleFocus = () => {
-      console.log("Window focused - refreshing billing status");
+      console.log('[Billing] Window focused - refreshing billing status');
       refreshBillingStatus();
     };
     window.addEventListener('focus', handleFocus);
