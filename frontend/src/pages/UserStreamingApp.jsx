@@ -3444,8 +3444,10 @@ export default function UserStreamingApp() {
           axios.get(`${API}/app-settings`).catch(() => ({ data: {} }))
         ]);
         
-        // Set billing state - if billing is disabled, everyone is premium
-        const billingStatus = billingRes.data?.billing_enabled ?? false;
+        // Set billing state - check both billing_enabled and web_billing_enabled
+        const billingData = billingRes.data || {};
+        const billingStatus = billingData.billing_enabled === true && billingData.web_billing_enabled !== false;
+        console.log("Billing status response:", billingData, "Final status:", billingStatus);
         setBillingEnabled(billingStatus);
         if (!billingStatus) {
           setIsPremium(true); // When billing is OFF, everyone is premium
