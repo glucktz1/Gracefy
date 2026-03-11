@@ -128,6 +128,7 @@ const TabNavigator = () => {
     >
       <Tab.Screen name="Home" component={SafeHomeScreen} />
       <Tab.Screen name="Search" component={SafeSearchScreen} />
+      <Tab.Screen name="Biblia" component={SafeBibleScreen} />
       <Tab.Screen name="Library" component={SafeLibraryScreen} />
     </Tab.Navigator>
   );
