@@ -25,6 +25,7 @@ import { SongListItem, PlayAllHeader } from '../components/Cards';
 import { SongActionsSheet } from '../components/SongActionsSheet';
 import PlaylistPickerSheet from '../components/PlaylistPickerSheet';
 import { showToast } from '../components/Toast';
+import { InlineLoader } from '../components/GracefyLoader';
 
 const AlbumScreen = ({ route, navigation }) => {
   // Safe params extraction
