@@ -286,7 +286,6 @@ async def admin_send_topic_notification(request: Request):
     """
     Send push notification to a topic (e.g., all_users, premium_users)
     """
-    db = get_db()
     data = await request.json()
     
     topic = data.get("topic", "all_users")
