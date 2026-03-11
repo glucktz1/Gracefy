@@ -11,6 +11,11 @@ import logging
 
 from core.database import get_db
 from core.cache import cache
+from services.redis_service import (
+    get_cached_billing_status, 
+    set_cached_billing_status,
+    invalidate_billing_cache
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["monetization"])
