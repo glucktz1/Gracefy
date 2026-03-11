@@ -270,16 +270,7 @@ const SearchScreen = ({ navigation }) => {
 
   // Loading state
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Tafuta</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <FullScreenLoader text="Loading..." />;
   }
 
   return (
