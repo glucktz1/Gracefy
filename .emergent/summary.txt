@@ -1,97 +1,89 @@
 <analysis>**original_problem_statement:**
-The initial goal was to fix a mobile app for production launch. This session's scope shifted to a major overhaul, focusing on replacing the existing authentication and notification systems with Firebase, configuring production payment gateways, and migrating the database to a production-ready MongoDB Atlas instance.
+The initial goal was a major overhaul of a mobile and web app. This session's scope expanded significantly based on user requests.
 
-The user has requested the following:
-1.  **Firebase Integration:** Implement Firebase Auth (Email/Password, Google Sign-In) and Firebase Cloud Messaging (FCM) for push notifications, replacing the old systems.
-2.  **Production Payments:** Configure the Azam Pay integration with production credentials and fix any payment processing issues.
-3.  **Database Migration:** Connect the application to a user-provided MongoDB Atlas cluster and migrate all data from the local database.
-4.  **Mobile App Fixes:**
-    -   Restore the Bible section to the main navigation.
-    -   Update the application logo.
-    -   Trigger new Android builds with all the changes.
-5.  **Web App Overhaul:**
-    -   Fix the user profile functionality.
-    -   Fix the music player (auto-play next song, next/previous buttons).
-    -   Ensure web app billing/guest rules match the mobile app.
-    -   Implement a popup prompting users to download the mobile app when they try to use features like download or create playlist.
-    -   Replace the legacy authentication system with the new Firebase auth.
-    -   Fix the search bar position and use a dark logo.
+Key initial requirements were:
+1.  **Firebase Integration:** Implement Firebase Auth and FCM.
+2.  **Production Payments:** Configure Azam Pay and fix payment processing.
+3.  **Database Migration:** Migrate to a production MongoDB Atlas cluster.
+4.  **Mobile & Web App Fixes:** Address a large list of bugs and UI issues.
+
+During this session, the user added several new tasks:
+-   Remove the Made with Emergent branding.
+-   Correct the native app's Google login flow and update the app icon.
+-   Establish a production admin account with a secure password and change the username.
+-   Add a password change feature for the admin panel.
+-   Create a new custom loading animation (cross with sound waves).
+-   Change the entire app's color theme to blue.
+-   Optimize backend/database loading speed.
+-   Fix multiple bugs, including the web music player's autoplay logic, incorrect login failed messages, and broken guest/billing rules on the web app.
 
 **User's preferred language**: English
 
 **what currently exists?**
--   A full-stack application with a React Native mobile app, a React web frontend, and a FastAPI backend.
--   **Backend:** The backend is now connected to a production **MongoDB Atlas** database () and uses **Upstash Redis** for caching. All data from the local environment has been migrated. The Firebase Admin SDK is configured for token verification. Azam Pay is configured for production, but payments are failing.
--   **Mobile App:** Firebase Authentication (Email/Password, Google Sign-In) and FCM for push notifications have been fully integrated. The Bible tab has been restored to the navigation. A new Android build, , which includes all these changes, has been successfully created.
--   **Web App:** The web app is in a transitional state. The agent was in the middle of replacing a legacy authentication system with Firebase Auth to align with the mobile app. Some UI fixes (like adding a profile view and popups) have been implemented, but the core authentication flow is currently broken.
+The project is a full-stack application (React Native, React, FastAPI) connected to a production MongoDB Atlas database and Upstash Redis. Firebase Authentication and Messaging are fully integrated on both web and mobile.
+
+-   **Web App:** The web app's authentication system has been completely refactored to use Firebase, with a fallback for legacy users. The entire UI has been re-themed to blue, and a new custom loading animation is in place. Critical bugs related to the music player's queue logic, guest play limits, and billing status display have been fixed.
+-   **Admin Panel:** A new Security Settings page allows admins to change their password. The production admin account has been configured ().
+-   **Native App:** The app has been updated to match the web app's new blue theme and custom loading animation. The Google login flow has been corrected to remove legacy dependencies. The app icon has been updated.
+-   **Builds:** A new Android build () containing all the latest native app changes is currently in the Expo build queue.
 
 **Last working item**:
--   **Last item agent was working:** The agent was performing a major overhaul of the web application (). The primary task was to replace the old, custom authentication system with the newly implemented Firebase Authentication (Email/Password and Google Sign-In). The agent had successfully added the Firebase JS SDK to the web frontend and was in the process of rewriting the login modal and user state management logic.
--   **Status:** IN PROGRESS
--   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. The agent needs to test the entire web authentication flow (Login, Logout, Google Sign-In) and verify user session persistence. It should also create a test plan to cover the other web app fixes requested by the user.
+-   **Last item agent was working:** The agent was fixing the web app's guest play limit and billing status logic. The user reported that guest rules were not being enforced and the billing status was not being correctly applied. The agent rewrote this logic in  to mirror the native app's implementation, fixing a race condition with  state initialization.
+-   **Status:** USER VERIFICATION PENDING
+-   **Agent Testing Done:** Y
+-   **Which testing method agent to use?** Frontend testing agent. The test should verify that guest play limits are correctly enforced (i.e., the modal appears after the limit is reached) and that the  status is read and applied correctly on page load.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Azam Pay Production Payments Failing (P0)
--   Issue 2: Billing Status Discrepancy (P1)
+-   Issue 1: Android Builds v1.0.165 & v1.0.166 are queued (P0)
+-   Issue 2: Azam Pay Production Payments Failing (P1)
 -   Issue 3: Insufficient Device Information for Fraud Prevention (P2)
 -   Issue 4: iOS Build Failure (P3)
 
 **Issues Detail:**
--   **Issue 1: Azam Pay Production Payments Failing**
-    -   **Attempted fixes:** The agent corrected the MNO (Mobile Network Operator) mapping in the backend code (e.g., from Tigo to Tigopesa). After the fix, the Azam Pay API stopped rejecting the MNO but started returning a generic Invalid request data error.
+-   **Issue 1: Android Builds v1.0.165 & v1.0.166 are queued**
+    -   **Attempted fixes:** Builds were successfully triggered with the latest code.
     -   **Next debug checklist:**
-        1.  The agent suspects the issue is related to configuration on the Azam Pay merchant dashboard, not the code itself.
-        2.  Verify with the user that the production callback URL () has been registered and approved in their Azam Pay account settings.
-        3.  Confirm there are no IP whitelisting rules on the Azam Pay account that might be blocking requests from the application server.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a critical blocker for the application's monetization strategy. Fixing it will enable users to make production payments.
+        1.  Periodically check the build status using the command .
+        2.  Once a build is , retrieve the APK download URL.
+        3.  Provide the URL to the user for testing.
+    -   **Why fix this issue and what will be achieved with the fix?** To deliver the latest native app changes (blue theme, new loader, bug fixes) to the user for testing.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** No, just waiting on the Expo build service queue.
+
+-   **Issue 2: Azam Pay Production Payments Failing**
+    -   **Attempted fixes:** MNO mapping was corrected in , but the API now returns a generic Invalid request data error.
+    -   **Next debug checklist:**
+        1.  Confirm with the user that the production callback URL () has been registered and approved in their Azam Pay merchant dashboard.
+        2.  Ask the user to check for any IP whitelisting rules on their Azam Pay account.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a critical blocker for the app's monetization.
     -   **Status:** BLOCKED
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** backend
     -   **Blocked on other issue:** User action required to check their Azam Pay dashboard.
 
--   **Issue 2: Billing Status Discrepancy**
-    -   **Attempted fixes:** The user reported that the billing status (on/off) was not updating correctly in the apps, despite being correct in the database. The agent verified the API returns the correct status () and that Redis cache invalidation is in place. As a mitigation, the agent added a  header to the  endpoint to prevent browser/proxy caching.
-    -   **Next debug checklist:**
-        1.  The root cause is likely on the client-side.
-        2.  Investigate the state management logic in both the mobile app () and web app () to see how the status is being stored and refreshed.
-        3.  Add detailed logging on the client-side to track when the billing status is fetched and what value is received.
-    -   **Why fix this issue and what will be achieved with the fix?** The billing system is a core feature. An incorrect status display can lead to a poor user experience and revenue loss.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** both
-
 -   **Issue 3: Insufficient Device Information for Fraud Prevention**
-    -   **Attempted fixes:** The agent implemented device fingerprinting using  to capture a unique .
-    -   **Next debug checklist:** The user had previously requested location and IMEI, which is more invasive.
-        1.  Clarify with the user if the current  is sufficient for fraud prevention.
-        2.  If not, explain the privacy implications and technical steps for requesting location permissions.
+    -   **Attempted fixes:**  was implemented to capture a unique .
+    -   **Next debug checklist:** Clarify with the user if the current  is sufficient or if they still require more invasive data like location/IMEI. If so, explain the privacy implications.
     -   **Why fix this issue and what will be achieved with the fix?** To meet the user's full anti-fraud requirements.
-    -   **Status:** NOT STARTED
+    -   **Status:** BLOCKED
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** User clarification.
+    -   **Blocked on other issue:** User clarification required.
 
 -   **Issue 4: iOS Build Failure**
-    -   **Attempted fixes:** None in this session.
+    -   **Attempted fixes:** None.
     -   **Next debug checklist:** Await the user providing Apple Developer credentials.
-    -   **Why fix this issue and what will be achieved with the fix?** To enable app deployment to the Apple App Store.
+    -   **Why fix this issue and what will be achieved with the fix?** To enable deployment to the Apple App Store.
     -   **Status:** BLOCKED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** User action required.
 
 **In progress Task List**:
--   Task 1: Complete Web App Overhaul (P0)
-
-**Task Detail:**
--   **Task 1: Complete Web App Overhaul**
-    -   **Where to resume:** Continue editing . The agent has already added the Firebase SDK and started modifying the auth modal. The next steps are to fully remove the old auth logic, integrate Firebase for login/logout/session management, and then fix the remaining UI/UX issues.
-    -   **What will be achieved with this?** The web app will be modernized to use the same secure authentication as the mobile app, and all reported bugs related to the player, profile, and UI will be resolved.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on something:** No.
+-   None.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
@@ -102,103 +94,90 @@ The user has requested the following:
     -   Integrate SendGrid for email campaigns.
 
 **Completed work in this session**
--   **Firebase Integration (Mobile & Backend):** Successfully integrated Firebase for Authentication (Email/Password, Google) and Cloud Messaging (FCM). Set up the Firebase Admin SDK on the backend.
--   **Production Database Migration:** Configured the backend to use a production MongoDB Atlas instance and successfully migrated over 33,000 documents from the local database.
--   **Mobile App Build ():** Resolved multiple Expo build issues related to accounts and credentials, updated the app logo, and restored the Bible tab to the bottom navigation, culminating in a successful Android APK build.
--   **Web App Fixes (Partial):** Added a user profile view, implemented popups for disabled features (download/playlist), and applied initial billing rule checks.
--   **User Management:** Performed a cleanup of the user database, preserving key admin and user accounts.
-
-**Earlier issues found/mentioned but not fixed**
--   **Issue 1: Unused Supabase File**
-    -   **Debug checklist:** The file  was identified as legacy code and is not imported anywhere. It should be deleted to clean up the codebase.
-    -   **Why to solve this issue and what will be achieved with this?** Removes dead code and reduces confusion for future development.
-    -   **Should Test frontend/backend/both after fix:** frontend (regression)
-    -   **Is recurring issue?** N
+-   **Web App Overhaul:** Completed Firebase Auth migration, implemented a new blue theme, created a custom loading animation, and fixed the music player's auto-play logic.
+-   **Guest & Billing Logic Fix:** Reworked the web app's guest play limit and billing status logic to match the native app, resolving a critical bug.
+-   **Admin Panel Features:** Added a Security Settings page for password changes and configured the production admin account.
+-   **Native App Parity:** Updated the mobile app with the new blue theme, loading animation, corrected Google login, and a new app icon.
+-   **Backend Optimization:** Ensured MongoDB indexes are active and increased Redis cache TTL to improve performance.
+-   **Branding:** Removed Made with Emergent badge from the web app.
+-   **Builds:** Successfully triggered a new Android build () with all changes.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** Core billing logic failures.
 -   **Recurrence count:** High
--   **Status:** IN PROGRESS. The issue resurfaced in this session. The agent has applied a mitigation by adding  headers to the API endpoint, but a full client-side investigation is still required.
+-   **Status:** RESOLVED. The agent completely rewrote the web app's billing and guest logic to mirror the more stable native app implementation, fixing race conditions. This is pending user verification.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Firebase Authentication:** Migrated from a custom JWT/Emergent auth system to Firebase (Email/Password, Google Sign-In) for a unified experience across mobile and web.
--   **Database Migration:** Performed a large-scale data migration from a local MongoDB to a production MongoDB Atlas cluster using a Python script.
--   **Production Payment Gateway:** Configured and debugged the Azam Pay payment gateway for production use, including correcting MNO provider names.
--   **Expo EAS Build System:** Extensively used to trigger Android builds, which involved troubleshooting account permissions, project ownership, and build credentials.
--   **URL Encoding:** Resolved a critical database connection error by URL-encoding special characters in the MongoDB password.
-
-**key DB schema**
--   No new schemas were introduced. The agent primarily interacted with the , , , and  collections during data migration and debugging.
+-   **State Management Race Conditions:** Debugged and resolved a  race condition in React by using a  flag to sequence state initialization and effects correctly.
+-   **Legacy Auth Fallback:** Implemented a login flow that attempts Firebase auth first, then falls back to a legacy API endpoint for existing users, ensuring a smooth transition.
+-   **React Native Theming:** Propagated a new color theme and a standardized loading component across multiple screens in the React Native app.
+-   **Database Discrepancy:** Identified and fixed a bug where a login endpoint was querying the wrong MongoDB collection ( instead of ).
 
 **All files of reference**
--   : **CRITICAL** - The main file for the web app, currently undergoing a major auth refactor.
--   : Contains the Azam Pay integration logic that is currently blocked.
--   : Main entry point for the mobile app, where navigation is defined.
--   : Contains all production secrets for MongoDB Atlas and Azam Pay.
--   : Backend logic for verifying Firebase tokens and syncing user data.
--   : Firebase configuration for Android.
--   : Firebase configuration for iOS.
+-   : **CRITICAL** - The monolithic file for the web app where all recent changes were made.
+-   : The entire mobile app directory was updated for UI/UX parity with the web app.
+-   : The new admin password change page.
+-   : The backend auth file, modified for password changes and legacy login fixes.
 
 **Areas that need refactoring**:
--   : This file is over 5000 lines long and contains multiple components and views. It urgently needs to be broken down into smaller, reusable components to improve maintainability.
--   : This is an unused legacy file and should be deleted.
--   : The original JWT authentication routes are likely redundant now and should be reviewed for deprecation/removal to avoid conflicting auth systems.
+-   : This file is now over 5,800 lines and is extremely difficult to maintain. It urgently needs to be broken down into smaller components and custom hooks (e.g., , , ).
+-   : The backend has multiple user collections (, ) and redundant login endpoints. This should be consolidated to a single source of truth for user data.
 
 **key api endpoints**
--   : (POST) Verifies a Firebase ID token from a client and syncs the user in the backend database.
--   : (POST) Initiates a mobile money payment via Azam Pay.
--   : (GET) Retrieves the global billing status for the application.
--   : (GET) Fetches a list of songs. Used to verify database connection post-migration.
+-   : (POST) For admin password updates.
+-   : (POST) The primary admin login endpoint.
+-   : (POST) The legacy user login endpoint, now used as a fallback.
+-   : (GET) Endpoint providing global billing configuration.
 
 **Critical Info for New Agent**
--   **Web App is Broken:** The web app's authentication is non-functional as it's in the middle of a migration from a legacy system to Firebase. Your immediate priority is to complete this migration in .
--   **Production Database is Live:** The application is connected to the user's production MongoDB Atlas cluster. All data has been migrated. The connection string in  is essential.
--   **Azam Pay is Blocked on User:** Production payments are failing. The likely cause is a misconfiguration in the user's Azam Pay merchant dashboard (e.g., callback URL not registered). You need to confirm this with the user before proceeding with further debugging.
--   **Expo Build Account:** The user may provide different Expo access tokens for different accounts. The project is currently configured for the  account. If you encounter build permission errors, you may need to ask for a new token and update the  field in .
+-   **Verify Web App Guest/Billing Logic:** The logic in  for guest limits and billing was just rewritten. This is the highest priority for user verification. The core logic is within the new  implementation (lines 3365-3430).
+-   **Check Android Build Status:** Android build  is in the Expo queue. Your first action should be to check its status with  and inform the user once it's complete.
+-   **Payments Blocked on User:** Do not work on the Azam Pay issue until the user confirms they have checked their dashboard settings as requested.
+-   **Admin Credentials:**  / .
+-   **Refactoring is Needed:** The  file is dangerously large. Propose refactoring it before adding any significant new features to the web app.
 
 **documents and test reports created in this job**
--   None.
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Provided new expo access code for account . (Completed)
-2.  **User:** Requested to restore the Bible section in the native app. (Completed, build v1.0.164 created)
-3.  **User:** Asked for help getting the MongoDB connection string. (Agent guided)
-4.  **User:** Provided the connection string template. (Agent requested password)
-5.  **User:** Provided the MongoDB password. (Completed)
-6.  **User:** Agreed to proceed with data migration. (Completed)
-7.  **User:** Submitted a large list of web app bugs to fix (auth, UI, player). (In Progress)
-8.  **User:** Provided an Expo access token to be used during forking. (Noted)
-9.  **User:** Uploaded an image with additional web app bugs. (In Progress)
-10. **User:** Provided another Expo access code and asked agent to continue. (In Progress)
+1.  **User:** Requested optimization for loading speed, fix for music player autoplay, fix for login failed toast, and a blue theme. (Completed)
+2.  **User:** Requested that all web app changes (theme, animation, speed) be applied to the native app. (Completed, build is queued)
+3.  **User:** Reported that the web app's guest rules and billing status were not working correctly. (Fixed by agent, pending user verification)
+4.  **User:** Instructed the agent to copy the native app's logic for guest/billing rules to the web app. (Completed)
+5.  **User:** pass expo acess token key (Agent has a working key for now, but may need a new one if builds fail).
+6.  **User:** Requested a feature for admins to change their password. (Completed)
+7.  **User:** Requested to change the admin username to . (Completed)
+8.  **User:** Provided the production admin password. (Completed)
+9.  **User:** Requested removal of Made with Emergent branding and correction of the native app logo. (Completed)
+10. **User:** Provided the new logo file. (Completed)
 
 **Project Health Check:**
 -   **Broken:**
-    -   Web app authentication is non-functional.
-    -   Azam Pay production payments are failing.
+    -   Azam Pay production payments are failing (Blocked on user).
 -   **Mocked:** None.
 
 **3rd Party Integrations**
--   **Firebase:** Auth (Email/Pass, Google) & FCM. Uses user-provided configuration files.
--   **MongoDB Atlas:** Production database. Uses a user-provided connection string.
--   **Upstash Redis:** Production cache. Uses user-provided credentials.
--   **Azam Pay:** Production payment gateway. Uses user-provided credentials.
--   **Expo (EAS Build):** Mobile app build service. Requires a temporary user-provided access token.
+-   **Firebase:** Auth (Email/Pass, Google) & FCM.
+-   **MongoDB Atlas:** Production database.
+-   **Upstash Redis:** Production cache.
+-   **Azam Pay:** Production payment gateway.
+-   **Expo (EAS Build):** Mobile app build service.
 -   **Bunny.net CDN:** File storage.
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
+-   **Testing agent used after significant changes:** YES
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** The billing status logic has repeatedly shown issues across sessions.
+-   **Known regressions:** None.
 
 **Credentials to test flow:**
 -   **Admin Login:**  / 
+-   **Test User (Legacy):**  / 
 -   **Production DB:** Credentials are in .
--   **Expo Token:** The user provides this periodically. The last one was for the  account.
 
 **What agent forgot to execute**
--   The agent identified the unused legacy file  but did not delete it.
--   The agent did not revisit the user's earlier request for capturing more detailed device information (location/IMEI) for fraud prevention.</analysis>
+-   The agent has not yet checked on the status of the queued Android builds (, ) to inform the user of their completion or failure.
+-   The agent noted the existence of multiple user collections and redundant admin login endpoints but did not create a future task to refactor and consolidate them.</analysis>
