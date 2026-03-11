@@ -380,7 +380,7 @@ const AppContent = () => {
           <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
           <Stack.Screen name="SeeAll" component={SeeAllScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Login" component={FirebaseLoginScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="Feedback" component={FeedbackScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
