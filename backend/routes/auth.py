@@ -743,13 +743,17 @@ async def login_user(data: dict):
         raise HTTPException(status_code=403, detail="Phone login is currently disabled")
     
     query = {"email": email} if email else {"phone": phone}
+    
+    # Try app_users first, then fall back to users collection
     user = await db.app_users.find_one(query)
+    if not user:
+        user = await db.users.find_one(query)
     
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     password_hash = hashlib.sha256(password.encode()).hexdigest()
-    if user["password_hash"] != password_hash:
+    if user.get("password_hash") != password_hash:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Generate token
@@ -761,7 +765,7 @@ async def login_user(data: dict):
         "expires_at": (datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)).isoformat()
     })
     
-    del user["password_hash"]
+    user.pop("password_hash", None)
     user.pop("_id", None)
     
     return {"user": user, "token": token}
