@@ -1147,3 +1147,67 @@ REACT_APP_BACKEND_URL=https://music-stream-launch.preview.emergentagent.com
 **Production:** `https://gracefy.life/api/payment/callback/azampay`
 **Preview:** `https://music-stream-launch.preview.emergentagent.com/api/payment/callback/azampay`
 
+---
+
+## Firebase Auth & FCM Implementation (March 11, 2026)
+
+### What Was Implemented
+
+#### Backend (Firebase Admin SDK)
+- **Firebase Service** (`/app/backend/services/firebase_service.py`)
+  - Firebase Admin SDK initialization
+  - Token verification for mobile app auth
+  - FCM push notifications (single, multicast, topic)
+  - Tracked notifications with analytics
+
+- **Firebase Auth Routes** (`/app/backend/routes/firebase_auth.py`)
+  - `POST /api/firebase/auth/verify` - Verify Firebase ID token
+  - `POST /api/firebase/fcm/token` - Save FCM token
+  - `DELETE /api/firebase/fcm/token/{user_id}` - Remove FCM token
+  - `POST /api/firebase/admin/send-notification` - Send push to users
+  - `POST /api/firebase/admin/send-topic-notification` - Send to topic
+  - `GET /api/firebase/admin/notification-stats` - Push stats
+  - `GET /api/firebase/config` - Firebase client config
+
+#### Mobile App
+- **Firebase Config** (`/app/mobile/SpiritSongs/src/config/firebase.js`)
+- **Firebase Login Screen** (`/app/mobile/SpiritSongs/src/screens/FirebaseLoginScreen.js`)
+- **FCM Push Service** (`/app/mobile/SpiritSongs/src/services/fcmPushNotificationService.js`)
+- **Firebase Auth API** in `api.js`
+
+#### Firebase Project
+- Project ID: `gracefyapp-824ff`
+- Service Account configured in `/app/backend/firebase-admin.json`
+- Android config: `/app/mobile/SpiritSongs/google-services.json`
+- iOS config: `/app/mobile/SpiritSongs/GoogleService-Info.plist`
+
+### User Cleanup Done
+- Deleted 41 test users from `app_users`
+- Deleted 4 users from `users` collection
+- Deleted 167 user tokens and 108 sessions
+- Kept 3 users:
+  - `admin@spiritsongs.com` (Admin)
+  - `glucktz1904@gmail.com` (Owner)
+  - `info.mannaapp@gmail.com` (Real user)
+
+### Required for Full Implementation
+1. **Firebase Console Setup**:
+   - Add Android app with package `com.spiritsongs.app` (if not already added)
+   - Add iOS app with bundle `com.spiritsongs.app` (if not already added)
+   - Enable Email/Password and Google Sign-In providers
+   - Download updated google-services.json with OAuth client IDs
+
+2. **Google OAuth Setup**:
+   - Create OAuth 2.0 credentials in Google Cloud Console
+   - Add Android SHA-1 fingerprint
+   - Update client IDs in mobile app config
+
+3. **Build New APK**:
+   - Run `eas build --platform android --profile production`
+   - Version: 1.0.162 (prepared)
+
+### Pending Tasks
+- [ ] User testing of Firebase Auth flow
+- [ ] Configure OAuth client IDs in Firebase Console
+- [ ] Build and distribute new APK with Firebase Auth
+- [ ] Admin panel UI for sending push notifications
