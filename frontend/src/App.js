@@ -162,6 +162,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/legal", icon: FileText, label: "Legal & Compliance", permissions: ["platform_settings"] },
         { path: "/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
         { path: "/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
+        { path: "/security", icon: Lock, label: "Security", permissions: [] },
       ]
     },
     // Advertising & Campaigns - Standalone Section
