@@ -140,7 +140,13 @@ export const firebaseAuthAPI = {
 
 // ============ HOME API ============
 export const homeAPI = {
-  getHome: () => api.get('/user/home'),
+  getHome: async () => {
+    const cached = getCached('home');
+    if (cached) return { data: cached };
+    const response = await api.get('/user/home');
+    setCache('home', response.data);
+    return response;
+  },
   getGeoHome: (country) => api.get(`/user/home/geo${country ? `?country=${country}` : ''}`),
   getHeroContent: () => api.get('/layout/hero-content'),
   getSections: () => api.get('/layout/sections'),
@@ -155,12 +161,20 @@ export const homeAPI = {
   getAlbum: (id) => api.get(`/albums/${id}`),
   getAlbumSongs: (id) => api.get(`/albums/${id}`), // Returns {album, songs}
   // Category methods - use song-categories as primary source
-  getCategories: () => api.get('/song-categories/all'),
+  getCategories: async () => {
+    const cached = getCached('categories');
+    if (cached) return { data: cached };
+    const response = await api.get('/song-categories/all');
+    setCache('categories', response.data);
+    return response;
+  },
   getSongCategories: () => api.get('/song-categories/all'),
   // Mix methods
   getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
   // Tags
   getTags: () => api.get('/admin/tags'),
+  // Clear cache (useful after updates)
+  clearCache: () => cache.clear(),
 };
 
 // ============ GEO CONTENT API ============
