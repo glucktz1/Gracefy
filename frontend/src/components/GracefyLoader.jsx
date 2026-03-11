@@ -29,7 +29,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
           {[1, 2, 3, 4].map((ring) => (
             <div
               key={ring}
-              className="absolute rounded-full border-2 border-emerald-500/60"
+              className="absolute rounded-full border-2 border-blue-500/60"
               style={{
                 animation: `soundWave 2s ease-out infinite`,
                 animationDelay: `${(ring - 1) * 0.4}s`,
@@ -47,7 +47,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
             filter: 'blur(8px)',
           }}
         >
-          <div className="w-8 h-8 bg-emerald-500/40 rounded-full animate-pulse" />
+          <div className="w-8 h-8 bg-blue-500/40 rounded-full animate-pulse" />
         </div>
 
         {/* Cross at center */}
@@ -55,7 +55,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
           <div className="relative">
             {/* Vertical bar of cross */}
             <div 
-              className="bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/50"
+              className="bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 rounded-full shadow-lg shadow-blue-500/50"
               style={{
                 width: `${cs.width}px`,
                 height: `${cs.height}px`,
@@ -63,7 +63,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
             />
             {/* Horizontal bar of cross */}
             <div 
-              className="absolute bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/50"
+              className="absolute bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full shadow-lg shadow-blue-500/50"
               style={{
                 width: `${cs.horizontal}px`,
                 height: `${cs.width}px`,
@@ -81,7 +81,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
             {[1, 2, 3].map((bar) => (
               <div
                 key={`left-${bar}`}
-                className="bg-emerald-500/70 rounded-full"
+                className="bg-blue-500/70 rounded-full"
                 style={{
                   width: '2px',
                   animation: `soundBar 0.8s ease-in-out infinite`,
@@ -95,7 +95,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
             {[1, 2, 3].map((bar) => (
               <div
                 key={`right-${bar}`}
-                className="bg-emerald-500/70 rounded-full"
+                className="bg-blue-500/70 rounded-full"
                 style={{
                   width: '2px',
                   animation: `soundBar 0.8s ease-in-out infinite`,
@@ -109,7 +109,7 @@ const GracefyLoader = ({ size = 'default', text = 'Loading...', showText = true 
 
       {/* Loading text */}
       {showText && (
-        <p className="text-emerald-400/80 text-sm font-medium tracking-wide animate-pulse">
+        <p className="text-blue-400/80 text-sm font-medium tracking-wide animate-pulse">
           {text}
         </p>
       )}
