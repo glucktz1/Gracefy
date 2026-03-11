@@ -91,10 +91,7 @@
           }
         }
       ],
-      "expo-task-manager",
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
-      "@react-native-firebase/messaging"
+      "expo-task-manager"
     ],
     "owner": "gracefy15",
     "extra": {
