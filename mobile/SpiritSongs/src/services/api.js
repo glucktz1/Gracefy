@@ -69,11 +69,11 @@ export const getImageUrl = (path) => {
 
 // ============ AUTH API ============
 export const authAPI = {
-  // User login with email/phone and password
+  // User login with email/phone and password (legacy - fallback)
   login: (email, password) => api.post('/user/login', { email, password }),
   loginWithPhone: (phone, password) => api.post('/user/login', { phone, password }),
   
-  // User registration
+  // User registration (legacy - fallback)
   register: (data) => api.post('/user/register', data),
   
   // Phone OTP authentication
@@ -85,7 +85,7 @@ export const authAPI = {
   forgotPasswordVerify: (email, otp) => api.post('/auth/forgot-password/verify', { email, otp }),
   forgotPasswordReset: (email, otp, newPassword) => api.post('/auth/forgot-password/reset', { email, otp, new_password: newPassword }),
   
-  // Google OAuth - uses session_id from OAuth provider
+  // Google OAuth - uses session_id from OAuth provider (legacy)
   googleStart: (redirectUri) => api.get(`/user/auth/google-start?redirect_uri=${encodeURIComponent(redirectUri)}&platform=mobile`),
   googleCallback: (sessionId) => api.post('/user/auth/google-callback', { session_id: sessionId }),
   
@@ -97,7 +97,28 @@ export const authAPI = {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return api.get('/user/me', { headers });
   },
+  getProfile: () => api.get('/user/me'),
   logout: () => api.post('/auth/logout'),
+};
+
+// ============ FIREBASE AUTH API ============
+export const firebaseAuthAPI = {
+  // Verify Firebase ID token and get/create user
+  verifyToken: (idToken) => api.post('/firebase/auth/verify', { id_token: idToken }),
+  
+  // Get Firebase config
+  getConfig: () => api.get('/firebase/config'),
+  
+  // Save FCM token for push notifications
+  saveFcmToken: (userId, fcmToken, platform, deviceName) => api.post('/firebase/fcm/token', {
+    user_id: userId,
+    fcm_token: fcmToken,
+    platform,
+    device_name: deviceName
+  }),
+  
+  // Remove FCM token (on logout)
+  removeFcmToken: (userId) => api.delete(`/firebase/fcm/token/${userId}`),
 };
 
 // ============ HOME API ============
