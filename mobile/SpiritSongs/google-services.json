@@ -12,7 +12,12 @@
           "package_name": "com.spiritsongs.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAmR27HbF2dOYxNt_Lhwa9bxbY82f4w8o8"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "gracefy.IosApp"
+              }
+            }
+          ]
         }
       }
     }
