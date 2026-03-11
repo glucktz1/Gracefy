@@ -4477,6 +4477,31 @@ export default function UserStreamingApp() {
     }
   };
 
+  // BILLING TRIGGER: Skip wrapper with subscription check (matches native app)
+  // After PREMIUM_SKIP_LIMIT skips, logged-in non-premium users are prompted
+  const handleSkipWithBillingCheck = (skipFunction) => {
+    // If user is logged in + billing ON + not premium
+    if (user && billingEnabled && !isPremium) {
+      const newSkipCount = skipCount + 1;
+      setSkipCount(newSkipCount);
+      console.log(`[Billing] Skip count: ${newSkipCount}/${PREMIUM_SKIP_LIMIT}`);
+      
+      if (newSkipCount >= PREMIUM_SKIP_LIMIT) {
+        console.log('[Billing] Skip limit reached - prompting subscription');
+        setShowSubscriptionModal(true);
+        setSkipCount(0); // Reset for next session
+        return; // Block the skip
+      }
+    }
+    
+    // Allow the skip
+    skipFunction();
+  };
+
+  // Wrapped skip functions for the player
+  const handleNextWithBilling = () => handleSkipWithBillingCheck(player.nextSong);
+  const handlePrevWithBilling = () => handleSkipWithBillingCheck(player.prevSong);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
