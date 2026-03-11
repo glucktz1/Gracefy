@@ -2508,37 +2508,80 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
 };
 
 // Guest Play Limit Modal
-const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language }) => {
+const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, isLocked, promptAttempts, maxAttempts }) => {
   if (!show) return null;
+  
+  // Match native app messaging
+  const getTitle = () => {
+    if (isLocked) {
+      return language === 'sw' ? 'Tafadhali Ingia Sasa' : 'Please Sign In Now';
+    }
+    if (promptAttempts >= 2) {
+      return language === 'sw' ? 'Ingia ili Kuendelea' : 'Sign In to Continue';
+    }
+    return language === 'sw' ? 'Kufurahia Huduma Hii' : 'Enjoy Full Access';
+  };
+  
+  const getMessage = () => {
+    if (isLocked) {
+      return language === 'sw'
+        ? 'Ili kuendelea kutumia Gracefy, tafadhali ingia au jisajili.'
+        : 'To continue using Gracefy, please sign in or register.';
+    }
+    if (promptAttempts >= 2) {
+      return language === 'sw'
+        ? 'Umesikiliza nyimbo zako za bure. Ingia sasa ili kuendelea.'
+        : 'You\'ve used your free plays. Sign in now to continue.';
+    }
+    return language === 'sw' 
+      ? 'Ingia au jiandikishe ili kusikiliza muziki usio na kikomo.'
+      : 'Sign in or register to enjoy unlimited music streaming.';
+  };
   
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
       <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="text-center">
-          <div className="w-16 h-16 bg-violet-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Music className="w-8 h-8 text-violet-400" />
+          <div className={`w-16 h-16 ${isLocked ? 'bg-red-600/20' : 'bg-blue-600/20'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isLocked ? (
+              <Lock className="w-8 h-8 text-red-400" />
+            ) : (
+              <Music className="w-8 h-8 text-blue-400" />
+            )}
           </div>
           <h3 className="text-xl font-bold text-white mb-2">
-            {language === 'sw' ? 'Ingia ili Kuendelea' : 'Sign In to Continue'}
+            {getTitle()}
           </h3>
           <p className="text-zinc-400 mb-6">
-            {language === 'sw' 
-              ? 'Umesikiliza nyimbo zako za bure. Ingia au jiandikishe ili kuendelea kusikiliza muziki usio na kikomo.'
-              : 'You\'ve used your free plays. Sign in or register to enjoy unlimited music streaming.'}
+            {getMessage()}
           </p>
+          {!isLocked && remainingPlays > 0 && (
+            <p className="text-sm text-blue-400 mb-4">
+              {language === 'sw' 
+                ? `Umebakiwa na nyimbo ${remainingPlays} za bure`
+                : `${remainingPlays} free play${remainingPlays > 1 ? 's' : ''} remaining`}
+            </p>
+          )}
           <div className="space-y-3">
             <button
               onClick={onSignIn}
-              className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-full transition-colors"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
             >
               {language === 'sw' ? 'Ingia / Jisajili' : 'Sign In / Register'}
             </button>
-            <button
-              onClick={onClose}
-              className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
-            >
-              {language === 'sw' ? 'Baadaye' : 'Later'}
-            </button>
+            {!isLocked && (
+              <button
+                onClick={onClose}
+                className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
+              >
+                {language === 'sw' ? 'Baadaye' : 'Later'}
+                {promptAttempts > 0 && (
+                  <span className="text-xs text-zinc-500 ml-2">
+                    ({maxAttempts - promptAttempts} {language === 'sw' ? 'zilizobaki' : 'left'})
+                  </span>
+                )}
+              </button>
+            )}
           </div>
           <p className="text-xs text-zinc-500 mt-4">
             {language === 'sw' 
