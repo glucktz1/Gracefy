@@ -31,14 +31,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
-import { authAPI, API_BASE_URL } from '../services/api';
+import { authAPI, API_BASE_URL, firebaseAuthAPI } from '../services/api';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { firebaseConfig } from '../config/firebase';
 
 // Ensure any auth sessions can be completed
 WebBrowser.maybeCompleteAuthSession();
 
-const GOOGLE_AUTH_URL = "https://auth.emergentagent.com";
+// Initialize Firebase
+let firebaseApp;
+try {
+  firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+} catch (error) {
+  console.log('Firebase init error:', error);
+}
+const auth = getAuth(firebaseApp);
 
 const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
   const [mode, setMode] = useState('main'); // 'main', 'login', 'register'
