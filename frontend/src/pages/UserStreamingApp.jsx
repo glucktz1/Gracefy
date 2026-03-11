@@ -3792,6 +3792,10 @@ export default function UserStreamingApp() {
       is_teaching: true
     };
     
+    // Check guest play limit for teachings too
+    if (!checkGuestPlayLimit()) return;
+    incrementGuestPlayCount();
+    
     // Use the player from the hook to play the lesson
     player.playSong(virtualSong, {
       title: teaching.name || teaching.title_sw,
