@@ -221,12 +221,7 @@ const RadioScreen = ({ navigation }) => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Inapakia redio...</Text>
-      </View>
-    );
+    return <FullScreenLoader text="Inapakia redio..." />;
   }
 
   return (
