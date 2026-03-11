@@ -3391,6 +3391,7 @@ export default function UserStreamingApp() {
   const [promptAttempts, setPromptAttempts] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [isAppLocked, setIsAppLocked] = useState(false);
+  const [guestStatsLoaded, setGuestStatsLoaded] = useState(false);
   
   // Load guest stats from localStorage on mount
   useEffect(() => {
@@ -3398,25 +3399,42 @@ export default function UserStreamingApp() {
     const savedSkipCount = localStorage.getItem('gracefy_guest_skips');
     const savedPromptAttempts = localStorage.getItem('gracefy_prompt_attempts');
     
-    if (savedPlayCount) setGuestPlayCount(parseInt(savedPlayCount, 10) || 0);
-    if (savedSkipCount) setGuestSkipCount(parseInt(savedSkipCount, 10) || 0);
-    if (savedPromptAttempts) setPromptAttempts(parseInt(savedPromptAttempts, 10) || 0);
+    const plays = savedPlayCount ? parseInt(savedPlayCount, 10) || 0 : 0;
+    const skips = savedSkipCount ? parseInt(savedSkipCount, 10) || 0 : 0;
+    const attempts = savedPromptAttempts ? parseInt(savedPromptAttempts, 10) || 0 : 0;
     
-    console.log('[Guest] Restored stats:', { 
-      plays: savedPlayCount, 
-      skips: savedSkipCount, 
-      attempts: savedPromptAttempts 
-    });
+    setGuestPlayCount(plays);
+    setGuestSkipCount(skips);
+    setPromptAttempts(attempts);
+    
+    // Check if app should be locked based on saved attempts
+    if (attempts >= MAX_PROMPT_ATTEMPTS) {
+      setIsAppLocked(true);
+    }
+    
+    console.log('[Guest] Restored stats:', { plays, skips, attempts });
+    
+    // Mark as loaded AFTER setting all values
+    setGuestStatsLoaded(true);
   }, []);
   
-  // Save guest stats to localStorage (only when not logged in)
+  // Save guest stats to localStorage (only when not logged in AND after initial load)
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('gracefy_guest_plays', guestPlayCount.toString());
-      localStorage.setItem('gracefy_guest_skips', guestSkipCount.toString());
-      localStorage.setItem('gracefy_prompt_attempts', promptAttempts.toString());
-    }
-  }, [guestPlayCount, guestSkipCount, promptAttempts, user]);
+    // Don't save until we've loaded the initial values
+    if (!guestStatsLoaded) return;
+    // Don't save if user is logged in
+    if (user) return;
+    
+    console.log('[Guest] Saving stats:', { 
+      plays: guestPlayCount, 
+      skips: guestSkipCount, 
+      attempts: promptAttempts 
+    });
+    
+    localStorage.setItem('gracefy_guest_plays', guestPlayCount.toString());
+    localStorage.setItem('gracefy_guest_skips', guestSkipCount.toString());
+    localStorage.setItem('gracefy_prompt_attempts', promptAttempts.toString());
+  }, [guestPlayCount, guestSkipCount, promptAttempts, user, guestStatsLoaded]);
   
   // Reset guest stats on login
   useEffect(() => {
