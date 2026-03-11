@@ -3979,10 +3979,10 @@ export default function UserStreamingApp() {
     }
   };
 
-  // Auth handlers - Firebase Authentication
+  // Auth handlers - Firebase Authentication with legacy fallback
   const handleLogin = async () => {
     try {
-      // Use Firebase for email/password authentication
+      // First try Firebase authentication
       const result = await firebaseSignInWithEmail(authForm.email, authForm.password);
       if (result.success) {
         // Get Firebase ID token and verify with backend
@@ -3997,15 +3997,28 @@ export default function UserStreamingApp() {
             setShowAuth(false);
             toast.success("Welcome back!");
             return; // Success - exit early
-          } else {
-            toast.error("Backend verification failed");
           }
-        } else {
-          toast.error("Could not get auth token");
         }
-      } else {
-        toast.error(result.error || "Login failed");
       }
+      
+      // If Firebase fails, try legacy backend auth for existing users
+      console.log("Firebase auth failed, trying legacy auth...");
+      const legacyRes = await axios.post(`${API}/user/login`, {
+        email: authForm.email,
+        password: authForm.password
+      });
+      
+      if (legacyRes.data?.token) {
+        setToken(legacyRes.data.token);
+        setUser(legacyRes.data.user);
+        localStorage.setItem('user_token', legacyRes.data.token);
+        localStorage.setItem('user_id', legacyRes.data.user.user_id);
+        setShowAuth(false);
+        toast.success("Welcome back!");
+        return;
+      }
+      
+      toast.error(result.error || "Login failed");
     } catch (e) {
       console.error('Login error:', e);
       toast.error(e.response?.data?.detail || "Login failed");
