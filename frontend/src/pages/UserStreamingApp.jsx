@@ -2429,8 +2429,12 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev })
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev }) => {
   if (!player.currentSong) return null;
+  
+  // Use provided handlers or default to player methods
+  const handleNext = onNext || player.nextSong;
+  const handlePrev = onPrev || player.prevSong;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
@@ -2467,7 +2471,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
 
         {/* Controls */}
         <div className="flex items-center gap-2">
-          <button onClick={player.prevSong} className="hidden md:block text-zinc-400 hover:text-white p-1">
+          <button onClick={handlePrev} className="hidden md:block text-zinc-400 hover:text-white p-1">
             <SkipBack size={22} fill="currentColor" />
           </button>
           <button 
@@ -2483,7 +2487,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
               <Play size={18} fill="black" className="text-black ml-0.5" />
             )}
           </button>
-          <button onClick={player.nextSong} className="hidden md:block text-zinc-400 hover:text-white p-1">
+          <button onClick={handleNext} className="hidden md:block text-zinc-400 hover:text-white p-1">
             <SkipForward size={22} fill="currentColor" />
           </button>
         </div>
