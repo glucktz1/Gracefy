@@ -1,11 +1,11 @@
 /**
- * Firebase Cloud Messaging (FCM) Push Notification Service for Gracefy
- * Handles FCM token registration and push notification handling
+ * Push Notification Service for Gracefy
+ * Uses Expo Push Notifications (works with Expo managed workflow)
  */
 
-import messaging from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { firebaseAuthAPI } from './api';
@@ -19,9 +19,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
-class FCMPushNotificationService {
+class PushNotificationService {
   constructor() {
-    this.fcmToken = null;
+    this.expoPushToken = null;
     this.notificationListener = null;
     this.responseListener = null;
     this.userId = null;
@@ -32,7 +32,7 @@ class FCMPushNotificationService {
   }
 
   /**
-   * Request notification permissions and get FCM token
+   * Request notification permissions and get Expo push token
    */
   async registerForPushNotifications() {
     let token = null;
@@ -44,6 +44,23 @@ class FCMPushNotificationService {
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF231F7C',
+        sound: 'default',
+      });
+      
+      // Music channel
+      await Notifications.setNotificationChannelAsync('music', {
+        name: 'New Music',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#3498DB',
+        sound: 'default',
+      });
+      
+      // Billing channel
+      await Notifications.setNotificationChannelAsync('billing', {
+        name: 'Subscription & Billing',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
       });
     }
 
@@ -53,74 +70,48 @@ class FCMPushNotificationService {
     }
 
     try {
-      // Request Firebase Messaging permission
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      // Check existing permissions
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-      if (!enabled) {
-        console.log('FCM permission not granted');
+      // Request permission if not granted
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.log('Push notification permission not granted');
         return null;
       }
 
-      // Get FCM token
-      token = await messaging().getToken();
-      console.log('FCM Token:', token);
-      this.fcmToken = token;
+      // Get Expo push token
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      if (!projectId) {
+        console.log('No project ID found for push notifications');
+        return null;
+      }
+
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      console.log('Expo Push Token:', token);
+      this.expoPushToken = token;
 
       // Store token locally
-      await AsyncStorage.setItem('fcm_token', token);
-
-      // Listen for token refresh
-      messaging().onTokenRefresh(async (newToken) => {
-        console.log('FCM Token refreshed:', newToken);
-        this.fcmToken = newToken;
-        await AsyncStorage.setItem('fcm_token', newToken);
-        
-        // Update token on server if user is logged in
-        if (this.userId) {
-          await this.saveFcmTokenToServer(this.userId);
-        }
-      });
+      await AsyncStorage.setItem('push_token', token);
 
     } catch (error) {
-      console.error('Error getting FCM token:', error);
-      
-      // Fallback to Expo push token if FCM fails
-      try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        
-        if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-        
-        if (finalStatus === 'granted') {
-          const Constants = require('expo-constants').default;
-          const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-          if (projectId) {
-            token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-            console.log('Fallback to Expo Push Token:', token);
-            this.fcmToken = token;
-            await AsyncStorage.setItem('fcm_token', token);
-          }
-        }
-      } catch (expoError) {
-        console.error('Expo push token fallback error:', expoError);
-      }
+      console.error('Error getting push token:', error);
     }
 
     return token;
   }
 
   /**
-   * Save FCM token to backend server
+   * Save push token to backend server
    */
-  async saveFcmTokenToServer(userId) {
-    if (!this.fcmToken || !userId) {
-      console.log('No FCM token or user ID to save');
+  async saveTokenToServer(userId) {
+    if (!this.expoPushToken || !userId) {
+      console.log('No push token or user ID to save');
       return false;
     }
 
@@ -129,14 +120,14 @@ class FCMPushNotificationService {
     try {
       await firebaseAuthAPI.saveFcmToken(
         userId,
-        this.fcmToken,
+        this.expoPushToken,
         Platform.OS,
         Device.modelName || 'Unknown'
       );
-      console.log('FCM token saved to server');
+      console.log('Push token saved to server');
       return true;
     } catch (error) {
-      console.error('Error saving FCM token:', error);
+      console.error('Error saving push token:', error);
       return false;
     }
   }
@@ -145,103 +136,41 @@ class FCMPushNotificationService {
    * Set up notification listeners
    */
   setupNotificationListeners(onNotificationReceived, onNotificationResponse) {
-    // FCM foreground message handler
-    this.fcmForegroundListener = messaging().onMessage(async (remoteMessage) => {
-      console.log('FCM message received in foreground:', remoteMessage);
-      
-      // Show local notification for foreground messages
-      if (remoteMessage.notification) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: remoteMessage.notification.title,
-            body: remoteMessage.notification.body,
-            data: remoteMessage.data,
-            sound: true,
-          },
-          trigger: null, // Show immediately
-        });
-      }
-      
-      if (onNotificationReceived) {
-        onNotificationReceived(remoteMessage);
-      }
-    });
-
-    // FCM background/quit message handler
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('FCM message received in background:', remoteMessage);
-    });
-
-    // Handle notification open (when app is opened from notification)
-    messaging().onNotificationOpenedApp((remoteMessage) => {
-      console.log('Notification opened app:', remoteMessage);
-      
-      if (onNotificationResponse) {
-        onNotificationResponse({
-          notification: {
-            request: {
-              content: {
-                data: remoteMessage.data,
-                title: remoteMessage.notification?.title,
-                body: remoteMessage.notification?.body,
-              }
-            }
-          }
-        });
-      }
-      
-      // Track notification open
-      const notificationId = remoteMessage.data?.notification_id;
-      if (notificationId) {
-        this.trackNotificationOpen(notificationId);
-      }
-    });
-
-    // Check if app was opened from a notification (when app was quit)
-    messaging().getInitialNotification().then((remoteMessage) => {
-      if (remoteMessage) {
-        console.log('App opened from quit state by notification:', remoteMessage);
-        
-        if (onNotificationResponse) {
-          onNotificationResponse({
-            notification: {
-              request: {
-                content: {
-                  data: remoteMessage.data,
-                  title: remoteMessage.notification?.title,
-                  body: remoteMessage.notification?.body,
-                }
-              }
-            }
-          });
-        }
-        
-        const notificationId = remoteMessage.data?.notification_id;
-        if (notificationId) {
-          this.trackNotificationOpen(notificationId);
-        }
-      }
-    });
-
-    // Also set up Expo notification listeners for local notifications
+    // Foreground notification listener
     this.notificationListener = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Local notification received:', notification);
+      console.log('Notification received:', notification);
       if (onNotificationReceived) {
         onNotificationReceived(notification);
       }
     });
 
+    // Response listener (when user taps notification)
     this.responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('Notification response:', response);
       
       const data = response.notification?.request?.content?.data || {};
       
+      // Track notification open
       if (data.notification_id) {
         this.trackNotificationOpen(data.notification_id);
       }
       
       if (onNotificationResponse) {
         onNotificationResponse(response);
+      }
+    });
+
+    // Check if app was opened from notification
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        console.log('App opened from notification:', response);
+        const data = response.notification?.request?.content?.data || {};
+        if (data.notification_id) {
+          this.trackNotificationOpen(data.notification_id);
+        }
+        if (onNotificationResponse) {
+          onNotificationResponse(response);
+        }
       }
     });
   }
@@ -252,7 +181,6 @@ class FCMPushNotificationService {
   async trackNotificationOpen(notificationId, userId = null) {
     const trackUserId = userId || this.userId;
     if (!notificationId || !trackUserId) {
-      console.log('Cannot track open: missing notification_id or user_id');
       return false;
     }
 
@@ -288,9 +216,6 @@ class FCMPushNotificationService {
    * Remove notification listeners
    */
   removeNotificationListeners() {
-    if (this.fcmForegroundListener) {
-      this.fcmForegroundListener();
-    }
     if (this.notificationListener) {
       Notifications.removeNotificationSubscription(this.notificationListener);
     }
@@ -300,55 +225,28 @@ class FCMPushNotificationService {
   }
 
   /**
-   * Get stored FCM token
+   * Get stored push token
    */
-  async getStoredFcmToken() {
+  async getStoredToken() {
     try {
-      return await AsyncStorage.getItem('fcm_token');
+      return await AsyncStorage.getItem('push_token');
     } catch (error) {
-      console.error('Error getting stored FCM token:', error);
+      console.error('Error getting stored push token:', error);
       return null;
-    }
-  }
-
-  /**
-   * Subscribe to a topic for group notifications
-   */
-  async subscribeToTopic(topic) {
-    try {
-      await messaging().subscribeToTopic(topic);
-      console.log(`Subscribed to topic: ${topic}`);
-      return true;
-    } catch (error) {
-      console.error(`Error subscribing to topic ${topic}:`, error);
-      return false;
-    }
-  }
-
-  /**
-   * Unsubscribe from a topic
-   */
-  async unsubscribeFromTopic(topic) {
-    try {
-      await messaging().unsubscribeFromTopic(topic);
-      console.log(`Unsubscribed from topic: ${topic}`);
-      return true;
-    } catch (error) {
-      console.error(`Error unsubscribing from topic ${topic}:`, error);
-      return false;
     }
   }
 
   /**
    * Schedule a local notification
    */
-  async scheduleLocalNotification(title, body, data = {}) {
+  async scheduleLocalNotification(title, body, data = {}, channelId = 'default') {
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         data,
         sound: true,
+        ...(Platform.OS === 'android' && { channelId }),
       },
       trigger: { seconds: 1 },
     });
@@ -376,4 +274,4 @@ class FCMPushNotificationService {
   }
 }
 
-export default new FCMPushNotificationService();
+export default new PushNotificationService();
