@@ -3935,7 +3935,12 @@ export default function UserStreamingApp() {
             localStorage.setItem('user_id', response.data.user.user_id);
             setShowAuth(false);
             toast.success("Welcome back!");
+            return; // Success - exit early
+          } else {
+            toast.error("Backend verification failed");
           }
+        } else {
+          toast.error("Could not get auth token");
         }
       } else {
         toast.error(result.error || "Login failed");
