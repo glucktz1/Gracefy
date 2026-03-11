@@ -3841,45 +3841,68 @@ export default function UserStreamingApp() {
     }
   };
 
-  // Auth handlers
+  // Auth handlers - Firebase Authentication
   const handleLogin = async () => {
     try {
-      const res = await axios.post(`${API}/user/login`, {
-        email: authForm.email || undefined,
-        phone: authForm.phone || undefined,
-        password: authForm.password
-      });
-      setToken(res.data.token);
-      setUser(res.data.user);
-      localStorage.setItem('user_token', res.data.token);
-      localStorage.setItem('user_id', res.data.user.user_id);
-      setShowAuth(false);
-      toast.success("Welcome back!");
+      // Use Firebase for email/password authentication
+      const result = await firebaseSignInWithEmail(authForm.email, authForm.password);
+      if (result.success) {
+        // Get Firebase ID token and verify with backend
+        const idToken = await getFirebaseIdToken();
+        if (idToken) {
+          const response = await axios.post(`${API}/firebase/auth/verify`, { id_token: idToken });
+          if (response.data?.success) {
+            setToken(response.data.token);
+            setUser(response.data.user);
+            localStorage.setItem('user_token', response.data.token);
+            localStorage.setItem('user_id', response.data.user.user_id);
+            setShowAuth(false);
+            toast.success("Welcome back!");
+          }
+        }
+      } else {
+        toast.error(result.error || "Login failed");
+      }
     } catch (e) {
+      console.error('Login error:', e);
       toast.error(e.response?.data?.detail || "Login failed");
     }
   };
 
   const handleRegister = async () => {
     try {
-      const res = await axios.post(`${API}/user/register`, {
-        email: authForm.email || undefined,
-        phone: authForm.phone || undefined,
-        password: authForm.password,
-        name: authForm.name
-      });
-      setToken(res.data.token);
-      setUser(res.data.user);
-      localStorage.setItem('user_token', res.data.token);
-      localStorage.setItem('user_id', res.data.user.user_id);
-      setShowAuth(false);
-      toast.success("Account created!");
+      // Use Firebase for email/password registration
+      const result = await firebaseSignUpWithEmail(authForm.email, authForm.password, authForm.name);
+      if (result.success) {
+        // Get Firebase ID token and verify with backend
+        const idToken = await getFirebaseIdToken();
+        if (idToken) {
+          const response = await axios.post(`${API}/firebase/auth/verify`, { id_token: idToken });
+          if (response.data?.success) {
+            setToken(response.data.token);
+            setUser(response.data.user);
+            localStorage.setItem('user_token', response.data.token);
+            localStorage.setItem('user_id', response.data.user.user_id);
+            setShowAuth(false);
+            toast.success("Account created!");
+          }
+        }
+      } else {
+        toast.error(result.error || "Registration failed");
+      }
     } catch (e) {
+      console.error('Registration error:', e);
       toast.error(e.response?.data?.detail || "Registration failed");
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      await firebaseSignOut();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     localStorage.removeItem('user_token');
     localStorage.removeItem('user_id');
     setToken(null);
