@@ -3031,6 +3031,142 @@ const LegalPageView = ({ pageType, language, onBack }) => {
   );
 };
 
+// ==================== PROFILE VIEW ====================
+const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabled, t }) => {
+  const subscriptionStatus = isPremium ? 
+    (language === 'sw' ? 'Premium' : 'Premium') : 
+    (language === 'sw' ? 'Bure' : 'Free');
+  
+  const subscriptionExpiry = user?.subscription_expires ? 
+    new Date(user.subscription_expires).toLocaleDateString() : null;
+  
+  return (
+    <div className="pb-32" data-testid="profile-view">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <button 
+          onClick={onBack}
+          className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+          data-testid="profile-back-btn"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="text-xl font-bold">{t('profile.title', 'Profile')}</h1>
+      </div>
+
+      {/* Profile Card */}
+      <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 rounded-2xl p-6 mb-6">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center text-2xl font-bold">
+            {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">{user?.name || 'User'}</h2>
+            <p className="text-zinc-400 text-sm">{user?.email || user?.phone}</p>
+          </div>
+        </div>
+        
+        {/* Subscription Status */}
+        <div className="bg-black/30 rounded-xl p-4 mt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400">{t('profile.subscription', 'Subscription')}</span>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isPremium ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-700 text-zinc-300'
+            }`}>
+              {subscriptionStatus}
+            </span>
+          </div>
+          {isPremium && subscriptionExpiry && (
+            <p className="text-xs text-zinc-500 mt-2">
+              {t('profile.expiresOn', 'Expires on')}: {subscriptionExpiry}
+            </p>
+          )}
+          {!isPremium && billingEnabled && (
+            <p className="text-xs text-amber-400 mt-2">
+              {language === 'sw' 
+                ? 'Pata Premium kupata vipengele vyote!' 
+                : 'Get Premium to unlock all features!'}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{user?.favorites?.length || 0}</p>
+          <p className="text-xs text-zinc-400">{t('profile.liked', 'Liked')}</p>
+        </div>
+        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{user?.playlists?.length || 0}</p>
+          <p className="text-xs text-zinc-400">{t('profile.playlists', 'Playlists')}</p>
+        </div>
+        <div className="bg-zinc-900/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{user?.downloads?.length || 0}</p>
+          <p className="text-xs text-zinc-400">{t('profile.downloads', 'Downloads')}</p>
+        </div>
+      </div>
+
+      {/* Account Info */}
+      <div className="bg-zinc-900/50 rounded-xl overflow-hidden mb-6">
+        <div className="p-4 border-b border-zinc-800">
+          <h3 className="font-semibold text-white mb-3">{t('profile.accountInfo', 'Account Info')}</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-zinc-400">{t('profile.email', 'Email')}</span>
+              <span className="text-white">{user?.email || '-'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">{t('profile.phone', 'Phone')}</span>
+              <span className="text-white">{user?.phone || '-'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">{t('profile.joined', 'Joined')}</span>
+              <span className="text-white">
+                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Download App Banner */}
+      <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 rounded-xl p-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Download size={24} className="text-amber-400" />
+          <div className="flex-1">
+            <p className="font-medium text-white">
+              {language === 'sw' ? 'Pakua Gracefy App' : 'Download Gracefy App'}
+            </p>
+            <p className="text-xs text-zinc-400">
+              {language === 'sw' 
+                ? 'Furahia muziki offline na vipengele zaidi' 
+                : 'Enjoy music offline and more features'}
+            </p>
+          </div>
+          <a 
+            href="https://expo.dev/artifacts/eas/kfXxmwS9TdbGutjxJDZH5.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-amber-500 text-black rounded-full font-semibold text-sm hover:bg-amber-400 transition-colors"
+          >
+            {language === 'sw' ? 'Pakua' : 'Download'}
+          </a>
+        </div>
+      </div>
+
+      {/* Logout Button */}
+      <button
+        onClick={onLogout}
+        className="w-full py-3 bg-red-500/20 text-red-400 rounded-xl font-medium hover:bg-red-500/30 transition-colors"
+        data-testid="logout-btn"
+      >
+        {t('auth.logout', 'Logout')}
+      </button>
+    </div>
+  );
+};
+
 // ==================== MAIN APP ====================
 export default function UserStreamingApp() {
   const [user, setUser] = useState(null);
