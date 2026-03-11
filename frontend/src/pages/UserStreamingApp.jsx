@@ -3917,26 +3917,9 @@ export default function UserStreamingApp() {
   };
 
   const createNewPlaylist = async (name) => {
-    // Check if user can create playlists (premium feature when billing is enabled)
-    if (billingEnabled && !isPremium) {
-      toast.error(t('premium.playlistRequired', 'Playlist creation requires a Premium subscription'));
-      return;
-    }
-    
-    try {
-      const res = await axios.post(`${API}/user/playlist/create`,
-        { name, description: "" },
-        { headers: { Authorization: `Bearer ${token}` }}
-      );
-      if (selectedSongForPlaylist) {
-        await addSongToPlaylist(res.data.playlist_id);
-      } else {
-        toast.success("Playlist created!");
-        setShowPlaylistModal(false);
-      }
-    } catch (e) {
-      toast.error("Failed to create playlist");
-    }
+    // On web, show download app popup instead of creating playlists
+    // Playlist creation only works on the mobile app
+    setShowDownloadPopup(true);
   };
 
   // Handler for Download
