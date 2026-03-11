@@ -5,7 +5,7 @@ import {
   Heart, MoreHorizontal, ChevronLeft, ChevronRight, Home, Search, Library,
   Plus, Minus, Clock, Music2, Mic2, ListMusic, X, Share2, Download, Maximize2,
   BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2,
-  Globe, Headphones, Users, MapPin, Navigation, User, Bell
+  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
