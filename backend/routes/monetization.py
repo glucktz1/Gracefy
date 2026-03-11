@@ -232,6 +232,13 @@ async def save_monetization_settings(data: dict):
 @router.get("/billing-status")
 async def get_billing_status():
     """Get billing status for the app - used by mobile and web to check billing mode"""
+    
+    # Try cache first (10 second TTL)
+    cached = await get_cached_billing_status()
+    if cached:
+        logger.info("[BillingStatus] Returning cached billing status")
+        return cached
+    
     db = get_db()
     
     # CRITICAL: Read from admin_settings collection where admin panel saves billing toggle
@@ -246,12 +253,12 @@ async def get_billing_status():
     # Get master billing toggle from admin_settings (admin panel)
     master_billing_enabled = admin_settings.get("billing_enabled", False) if admin_settings else False
     
-    print(f"[BillingStatus] admin_settings: {admin_settings}")
-    print(f"[BillingStatus] master_billing_enabled: {master_billing_enabled}")
+    logger.info(f"[BillingStatus] admin_settings: {admin_settings}")
+    logger.info(f"[BillingStatus] master_billing_enabled: {master_billing_enabled}")
     
     # CRITICAL: Default billing to FALSE (disabled) if not explicitly set
     # This ensures users are never blocked by default
-    return {
+    result = {
         "billing_enabled": master_billing_enabled,
         "billing_mode": monetization.get("billing_mode", "disabled") if master_billing_enabled else "disabled",
         "app_billing_enabled": monetization.get("app_billing_enabled", False) if master_billing_enabled else False,
@@ -267,6 +274,11 @@ async def get_billing_status():
             "high_quality": True
         })
     }
+    
+    # Cache the result
+    await set_cached_billing_status(result)
+    
+    return result
 
 
 @router.get("/user/subscription-status")
