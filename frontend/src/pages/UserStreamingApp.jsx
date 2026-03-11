@@ -3461,6 +3461,31 @@ export default function UserStreamingApp() {
     }
   }, [token, billingEnabled]);
 
+  // Firebase auth state listener - handles session persistence
+  useEffect(() => {
+    const unsubscribe = onFirebaseAuthChange(async (firebaseUser) => {
+      if (firebaseUser && !token) {
+        // Firebase user is signed in but we don't have a token - re-authenticate
+        try {
+          const idToken = await getFirebaseIdToken();
+          if (idToken) {
+            const response = await axios.post(`${API}/firebase/auth/verify`, { id_token: idToken });
+            if (response.data?.success) {
+              setToken(response.data.token);
+              setUser(response.data.user);
+              localStorage.setItem('user_token', response.data.token);
+              localStorage.setItem('user_id', response.data.user.user_id);
+            }
+          }
+        } catch (e) {
+          console.error('Firebase session restore error:', e);
+        }
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [token]);
+
   // Handle Google OAuth callback
   useEffect(() => {
     const hash = window.location.hash;
