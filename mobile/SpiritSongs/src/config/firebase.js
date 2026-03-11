@@ -24,6 +24,7 @@ export const iosFirebaseConfig = {
 // OAuth Client IDs for Google Sign-In
 export const GOOGLE_WEB_CLIENT_ID = "478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com";
 export const GOOGLE_IOS_CLIENT_ID = "478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com";
+export const GOOGLE_ANDROID_CLIENT_ID = "478977168051-stletdm3h73uph0pugid0hl7u2293d2l.apps.googleusercontent.com";
 
 // VAPID key for web push notifications
 export const VAPID_KEY = "BERvTaRmgaDvWYitKhhtTqsuZoW7QDPA3q2c2WTl7B30_k0oCl7isZuIH3tVksGDE2ODw9D-OfUs64PzG3EqVP8";
