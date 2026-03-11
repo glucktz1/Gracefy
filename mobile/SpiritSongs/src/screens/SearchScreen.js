@@ -18,6 +18,7 @@ import { searchAPI, homeAPI, getImageUrl } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { AlbumCard, SongListItem, CategoryChip } from '../components/Cards';
 import { showToast } from '../components/Toast';
+import { FullScreenLoader } from '../components/GracefyLoader';
 
 const SearchScreen = ({ navigation }) => {
   // State
