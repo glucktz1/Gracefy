@@ -1208,6 +1208,9 @@ REACT_APP_BACKEND_URL=https://prod-db-migration.preview.emergentagent.com
 
 ### Pending Tasks
 - [x] Web App Firebase Auth Integration - COMPLETED (March 11, 2026)
+- [x] Remove "Made with Emergent" badge - COMPLETED (March 11, 2026)
+- [x] Update native app Google login to Firebase - COMPLETED (March 11, 2026)
+- [x] Update app logo - COMPLETED (March 11, 2026)
 - [ ] User testing of Firebase Auth flow
 - [ ] Configure OAuth client IDs in Firebase Console
 - [ ] Build and distribute new APK with Firebase Auth
@@ -1255,3 +1258,35 @@ REACT_APP_BACKEND_URL=https://prod-db-migration.preview.emergentagent.com
 - Bible TTS voice selection from admin settings
 - Admin language file upload feature
 - Client-side investigation for billing status refresh issue
+
+## Session Update (March 11, 2026) - Branding & Native App Updates
+
+### Completed Tasks
+1. **Removed "Made with Emergent" Badge (Web App)**
+   - Hidden badge in `/app/frontend/public/index.html`
+   - Added CSS rule in `/app/frontend/src/App.css` to ensure badge stays hidden
+
+2. **Updated Native App Google Login to Firebase**
+   - Changed `App.js` to use `FirebaseLoginScreen` instead of legacy `LoginScreen`
+   - Updated `GuestPlayLimitModal.js` to use Firebase Google Sign-In with expo-auth-session
+   - Removed all Emergent auth URL references
+
+3. **Updated App Logo**
+   - Created new `icon.png` (1024x1024) with user's logo
+   - Created new `adaptive-icon.png` (1024x1024) for Android
+   - Created new `splash-icon.png` for splash screen
+   - Updated web app logos (logo192.png, logo512.png, gracefy-icon.png)
+
+4. **Triggered New Android Build**
+   - Version bumped to `1.0.165` (versionCode: 165)
+   - Build URL: https://expo.dev/accounts/gracefy12/projects/Gracefy-App/builds/5905ee58-f389-4011-9aad-fc2f30093259
+
+### Files Modified
+- `/app/frontend/public/index.html` - Hidden Emergent badge
+- `/app/frontend/src/App.css` - Added CSS to hide badge
+- `/app/mobile/SpiritSongs/App.js` - Changed to use FirebaseLoginScreen
+- `/app/mobile/SpiritSongs/src/components/GuestPlayLimitModal.js` - Firebase Google Sign-In
+- `/app/mobile/SpiritSongs/app.json` - Version 1.0.165
+- `/app/mobile/SpiritSongs/assets/icon.png` - New logo
+- `/app/mobile/SpiritSongs/assets/adaptive-icon.png` - New logo
+- `/app/mobile/SpiritSongs/assets/splash-icon.png` - New logo
