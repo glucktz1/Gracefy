@@ -3883,6 +3883,10 @@ export default function UserStreamingApp() {
       return;
     }
     
+    // Check guest play limit
+    if (!checkGuestPlayLimit()) return;
+    incrementGuestPlayCount();
+    
     // Shuffle the lessons
     const shuffled = [...allLessons].sort(() => Math.random() - 0.5);
     
