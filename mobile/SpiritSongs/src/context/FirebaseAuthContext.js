@@ -106,9 +106,8 @@ export const FirebaseAuthProvider = ({ children }) => {
 
   // Google Sign-In configuration
   const [request, response, promptGoogleAsync] = Google.useAuthRequest({
-    androidClientId: '478977168051-YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-    iosClientId: '478977168051-YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
-    webClientId: '478977168051-YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+    iosClientId: '478977168051-8iat7t5rgqkqmr8ra1ufqlbd6pcqsl8p.apps.googleusercontent.com',
+    webClientId: '478977168051-701oerhk4inc4fk1tgf7iu67qkbq1mso.apps.googleusercontent.com',
   });
 
   // Listen to Firebase auth state changes
