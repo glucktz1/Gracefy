@@ -197,9 +197,18 @@ def create_app() -> FastAPI:
             except Exception:
                 pass
         
+        # Check Upstash Redis
+        upstash_status = {"status": "not_configured"}
+        try:
+            from services.redis_service import redis_health_check
+            upstash_status = await redis_health_check()
+        except Exception as e:
+            upstash_status = {"status": "error", "error": str(e)}
+        
         return {
             "status": "healthy",
             "redis_connected": redis_status,
+            "upstash_redis": upstash_status,
             "cache_type": "redis" if redis_status else "memory",
             "traffic_level": traffic_stats.traffic_level if hasattr(traffic_stats, 'traffic_level') else "unknown",
             "requests_per_minute": traffic_stats.requests_per_minute if hasattr(traffic_stats, 'requests_per_minute') else 0
