@@ -1,5 +1,11 @@
 /* Spirit Songs Admin - Midnight Cathedral Theme */
 
+/* Hide Emergent Badge */
+#emergent-badge {
+  display: none !important;
+  visibility: hidden !important;
+}
+
 .App {
   min-height: 100vh;
   background-color: #09090b;
