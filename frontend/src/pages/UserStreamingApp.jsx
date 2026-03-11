@@ -3478,18 +3478,37 @@ export default function UserStreamingApp() {
           axios.get(`${API}/app-settings`).catch(() => ({ data: {} }))
         ]);
         
-        // Set billing state - check both billing_enabled and web_billing_enabled
+        // Set billing state - match native app logic exactly
         const billingData = billingRes.data || {};
-        const billingStatus = billingData.billing_enabled === true && billingData.web_billing_enabled !== false;
-        console.log("Billing status response:", billingData, "Final status:", billingStatus);
-        setBillingEnabled(billingStatus);
-        if (!billingStatus) {
-          setIsPremium(true); // When billing is OFF, everyone is premium
-        }
+        const masterBillingEnabled = billingData.billing_enabled === true;
+        const webBillingEnabled = billingData.web_billing_enabled !== false;
+        const finalBillingStatus = masterBillingEnabled && webBillingEnabled;
         
-        // Set guest play limit from app settings
-        const guestLimit = appSettingsRes.data?.guest_play_limit ?? 3;
-        setGuestPlayLimit(guestLimit);
+        console.log('[Billing] Master billing check:', {
+          billing_enabled: masterBillingEnabled,
+          web_billing_enabled: webBillingEnabled,
+          final_status: finalBillingStatus,
+          user_logged_in: !!token
+        });
+        
+        setBillingEnabled(finalBillingStatus);
+        setBillingStatusChecked(true);
+        
+        if (!finalBillingStatus) {
+          // BILLING IS OFF - Everyone gets premium access, no restrictions
+          console.log('[Billing] BILLING OFF - All users are premium, no restrictions');
+          setIsPremium(true);
+        } else {
+          // BILLING IS ON - Check user subscription status
+          console.log('[Billing] BILLING ON - Checking user subscription status');
+          if (token && user?.user_id) {
+            // Will be checked in auth effect
+          } else {
+            // Not logged in and billing is ON - NOT premium
+            console.log('[Billing] User NOT logged in, billing ON - NOT premium');
+            setIsPremium(false);
+          }
+        }
         
         // Set geo state
         const detectedCountry = geoRes.data?.country_code || 'GLOBAL';
