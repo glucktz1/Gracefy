@@ -983,11 +983,11 @@ const DownloadAppPopup = ({ show, onClose, language = 'sw' }) => {
       axios.get(`${API}/app/download-info`)
         .then(res => setDownloadInfo(res.data))
         .catch(() => setDownloadInfo({
-          message_sw: "Kupakua nyimbo unazotaka na kuzifurahia bila mtandao, pakua app ya Gracefy!",
-          message_en: "Download songs you want and enjoy them offline, download the Gracefy app!",
-          button_text_sw: "Bonyeza hapa kupakua",
-          button_text_en: "Click here to download",
-          direct_apk_url: "https://expo.dev/artifacts/eas/nLuShV8eraRvjp1zmFyEbf.apk"
+          message_sw: "Kuweza kupakua nyimbo, kutengeneza playlist yako nk pakua Gracefy sasa ufurahie zaidi!",
+          message_en: "To download songs, create your own playlists and more, download the Gracefy app and enjoy more!",
+          button_text_sw: "Pakua Gracefy Sasa",
+          button_text_en: "Download Gracefy Now",
+          direct_apk_url: "https://expo.dev/artifacts/eas/kfXxmwS9TdbGutjxJDZH5.apk"
         }));
     }
   }, [show]);
