@@ -7,14 +7,7 @@ import { BrandingProvider, useBranding, BrandLogo } from "@/context/BrandingCont
 import AdminNotifications from "@/components/AdminNotifications";
 
 // Loading component for lazy-loaded pages
-const PageLoader = () => (
-  <div className="flex items-center justify-center h-screen bg-slate-950">
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      <p className="text-slate-400">Loading...</p>
-    </div>
-  </div>
-);
+import { PageLoader } from "@/components/GracefyLoader";
 
 // Critical pages - loaded immediately
 import Dashboard from "@/pages/Dashboard";
