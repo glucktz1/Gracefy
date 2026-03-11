@@ -2298,8 +2298,12 @@ const BibleView = ({ language, t, onBack }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev }) => {
   if (!player.currentSong) return null;
+  
+  // Use provided handlers or default to player methods
+  const handleNext = onNext || player.nextSong;
+  const handlePrev = onPrev || player.prevSong;
   
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-zinc-800 to-black z-[70] flex flex-col" data-testid="full-player">
