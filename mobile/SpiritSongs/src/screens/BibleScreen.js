@@ -19,6 +19,7 @@ import { bibleAPI } from '../services/api';
 import { usePlayer, setStopExternalAudioCallback, clearStopExternalAudioCallback } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import Toast from '../components/Toast';
+import { FullScreenLoader } from '../components/GracefyLoader';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 3) / 2;
