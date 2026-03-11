@@ -3505,7 +3505,9 @@ export default function UserStreamingApp() {
     const refreshBillingStatus = async () => {
       try {
         const billingRes = await axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } }));
-        const newBillingStatus = billingRes.data?.billing_enabled ?? false;
+        const billingData = billingRes.data || {};
+        const newBillingStatus = billingData.billing_enabled === true && billingData.web_billing_enabled !== false;
+        console.log("Periodic billing refresh:", billingData, "Status:", newBillingStatus);
         setBillingEnabled(newBillingStatus);
         
         if (!newBillingStatus) {
