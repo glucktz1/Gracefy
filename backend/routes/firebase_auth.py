@@ -354,5 +354,6 @@ async def get_firebase_config():
         "projectId": "gracefyapp-824ff",
         "storageBucket": "gracefyapp-824ff.firebasestorage.app",
         "messagingSenderId": "478977168051",
-        "appId": "1:478977168051:web:4a6f2e39ca9a29cbca96c6"
+        "appId": "1:478977168051:web:4a6f2e39ca9a29cbca96c6",
+        "vapidKey": "BERvTaRmgaDvWYitKhhtTqsuZoW7QDPA3q2c2WTl7B30_k0oCl7isZuIH3tVksGDE2ODw9D-OfUs64PzG3EqVP8"
     }
