@@ -2374,7 +2374,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev })
           <Shuffle size={22} />
           {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
         </button>
-        <button onClick={player.prevSong} className="text-white">
+        <button onClick={handlePrev} className="text-white">
           <SkipBack size={32} fill="white" />
         </button>
         <button 
@@ -2390,7 +2390,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev })
             <Play size={28} fill="black" className="text-black ml-1" />
           )}
         </button>
-        <button onClick={player.nextSong} className="text-white">
+        <button onClick={handleNext} className="text-white">
           <SkipForward size={32} fill="white" />
         </button>
         <button 
