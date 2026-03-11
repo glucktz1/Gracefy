@@ -79,6 +79,12 @@ const SafeLibraryScreen = (props) => (
   </ErrorBoundary>
 );
 
+const SafeBibleScreen = (props) => (
+  <ErrorBoundary fallbackMessage="Imeshindwa kupakia Biblia. Jaribu tena.">
+    <BibleScreen {...props} />
+  </ErrorBoundary>
+);
+
 // Tab Navigator with safe area padding
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
