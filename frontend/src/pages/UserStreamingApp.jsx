@@ -2881,7 +2881,11 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 </button>
               )}
 
-              <Button onClick={authMode === 'login' ? handleLogin : handleRegister} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5">
+              <Button 
+                onClick={authMode === 'login' ? handleLogin : handleRegister} 
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                data-testid="email-login-btn"
+              >
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
               </Button>
             </>
