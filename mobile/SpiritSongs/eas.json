@@ -23,7 +23,8 @@
     },
     "production": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "credentialsSource": "remote"
       }
     }
   },
