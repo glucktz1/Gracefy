@@ -183,7 +183,7 @@ const SubscriptionScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.freeAccessContainer}>
-          <LinearGradient colors={['#10B981', '#059669']} style={styles.freeAccessBadge}>
+          <LinearGradient colors={['#00A8E8', '#0077B6']} style={styles.freeAccessBadge}>
             <Ionicons name="checkmark-circle" size={48} color={COLORS.text} />
           </LinearGradient>
           <Text style={styles.freeAccessTitle}>Huduma ni Bure!</Text>
@@ -313,7 +313,7 @@ const SubscriptionScreen = ({ navigation }) => {
                   <View style={styles.planFeatures}>
                     {plan.features.slice(0, 3).map((feature, idx) => (
                       <View key={idx} style={styles.planFeatureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                        <Ionicons name="checkmark-circle" size={16} color="#00A8E8" />
                         <Text style={styles.planFeatureText}>{feature}</Text>
                       </View>
                     ))}
