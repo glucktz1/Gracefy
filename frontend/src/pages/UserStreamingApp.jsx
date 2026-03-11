@@ -646,7 +646,7 @@ const useAudioPlayer = () => {
 const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
   // Determine icon and gradient based on item type
   let IconComponent = categoryIcons[item.name?.toLowerCase()] || categoryIcons.default;
-  let gradient = 'from-emerald-600 to-teal-700';
+  let gradient = 'from-blue-600 to-teal-700';
   
   // Special styling for user items
   if (item.type === 'liked_songs') {
@@ -657,7 +657,7 @@ const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
     gradient = 'from-blue-600 to-cyan-600';
   } else if (item.type === 'downloads') {
     IconComponent = Download;
-    gradient = 'from-emerald-600 to-green-600';
+    gradient = 'from-blue-600 to-green-600';
   } else if (item.type === 'playlists') {
     IconComponent = ListMusic;
     gradient = 'from-orange-500 to-amber-500';
@@ -705,7 +705,7 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md', availableTags = [] }) =
         {thumbUrl ? (
           <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-800 to-emerald-700">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-800 to-blue-700">
             <Music2 size={size === 'lg' ? 48 : 36} className="text-white/40" />
           </div>
         )}
@@ -720,7 +720,7 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md', availableTags = [] }) =
             </span>
           </div>
         )}
-        <div className="absolute bottom-2 right-2 w-11 h-11 bg-emerald-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-300 shadow-xl shadow-black/40">
+        <div className="absolute bottom-2 right-2 w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-300 shadow-xl shadow-black/40">
           <Play size={20} fill="black" className="text-black ml-0.5" />
         </div>
       </div>
@@ -747,7 +747,7 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
       {thumbUrl ? (
         <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       ) : (
-        <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
+        <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
           <Music2 size={56} className="text-white/30" />
         </div>
       )}
@@ -767,7 +767,7 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
         <h3 className="font-bold text-lg text-white truncate">{album.title}</h3>
         <p className="text-sm text-zinc-300 truncate">{album.artist_name}</p>
       </div>
-      <div className="absolute bottom-4 right-4 w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
+      <div className="absolute bottom-4 right-4 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
         <Play size={22} fill="black" className="text-black ml-0.5" />
       </div>
     </button>
@@ -793,7 +793,7 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
           )}
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <p className={`font-medium text-sm truncate ${isActive ? 'text-emerald-400' : ''}`}>{item.title}</p>
+          <p className={`font-medium text-sm truncate ${isActive ? 'text-blue-400' : ''}`}>{item.title}</p>
           <p className="text-xs text-zinc-500 truncate">{item.artist_name || item.album?.artist_name}</p>
         </div>
       </button>
@@ -806,7 +806,7 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
             className="p-2 hover:bg-zinc-700 rounded-full"
             title={isLiked ? "Remove from Liked Songs" : "Add to Liked Songs"}
           >
-            <Heart size={18} className={isLiked ? "text-emerald-400 fill-emerald-400" : "text-zinc-400"} />
+            <Heart size={18} className={isLiked ? "text-blue-400 fill-blue-400" : "text-zinc-400"} />
           </button>
         )}
         {onAddToPlaylist && (
@@ -831,9 +831,9 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
       
       {isActive && isPlaying && (
         <div className="flex items-end gap-0.5 h-4 mr-2">
-          <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '40%'}} />
-          <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '100%', animationDelay: '0.15s'}} />
-          <div className="w-1 bg-emerald-400 animate-pulse" style={{height: '60%', animationDelay: '0.3s'}} />
+          <div className="w-1 bg-blue-400 animate-pulse" style={{height: '40%'}} />
+          <div className="w-1 bg-blue-400 animate-pulse" style={{height: '100%', animationDelay: '0.15s'}} />
+          <div className="w-1 bg-blue-400 animate-pulse" style={{height: '60%', animationDelay: '0.3s'}} />
         </div>
       )}
     </div>
@@ -864,15 +864,15 @@ const ChurchCard = ({ church, onClick }) => (
     className="w-44 flex-shrink-0 p-3 rounded-lg bg-zinc-900/40 hover:bg-zinc-800/60 transition-all duration-300 group text-left"
     data-testid={`church-${church.church_id}`}
   >
-    <div className="aspect-square rounded-lg bg-gradient-to-br from-emerald-800 to-teal-900 mb-3 overflow-hidden relative shadow-lg flex items-center justify-center">
+    <div className="aspect-square rounded-lg bg-gradient-to-br from-blue-800 to-teal-900 mb-3 overflow-hidden relative shadow-lg flex items-center justify-center">
       {church.thumbnail ? (
         <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
       ) : (
-        <Church size={48} className="text-emerald-400/60" />
+        <Church size={48} className="text-blue-400/60" />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2">
-        <span className="text-xs bg-emerald-500/80 text-white px-2 py-0.5 rounded-full">
+        <span className="text-xs bg-blue-500/80 text-white px-2 py-0.5 rounded-full">
           {church.denomination || 'Kanisa'}
         </span>
       </div>
@@ -906,14 +906,14 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
           {church.thumbnail ? (
             <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-emerald-800 to-teal-900 flex items-center justify-center">
-              <Church size={64} className="text-emerald-400/60" />
+            <div className="w-full h-full bg-gradient-to-br from-blue-800 to-teal-900 flex items-center justify-center">
+              <Church size={64} className="text-blue-400/60" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4">
             <h1 className="text-2xl font-bold text-white">{church.name}</h1>
-            <p className="text-emerald-400">{church.denomination || 'Kanisa'}</p>
+            <p className="text-blue-400">{church.denomination || 'Kanisa'}</p>
           </div>
         </div>
         
@@ -922,7 +922,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
           {/* Location & Direction */}
           <div className="bg-zinc-900/60 rounded-xl p-4">
             <div className="flex items-start gap-3">
-              <MapPin className="text-emerald-400 mt-1" size={20} />
+              <MapPin className="text-blue-400 mt-1" size={20} />
               <div className="flex-1">
                 <p className="text-white font-medium">{church.location}</p>
                 {church.address && <p className="text-zinc-400 text-sm">{church.address}</p>}
@@ -933,7 +933,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
                 href={church.direction} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="mt-3 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg w-full justify-center transition-colors"
+                className="mt-3 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg w-full justify-center transition-colors"
               >
                 <Navigation size={18} />
                 <span>Pata Njia (Directions)</span>
@@ -944,8 +944,8 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
           {/* Leader Info */}
           {church.priest_name && (
             <div className="bg-zinc-900/60 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-600/20 flex items-center justify-center">
-                <User size={24} className="text-emerald-400" />
+              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center">
+                <User size={24} className="text-blue-400" />
               </div>
               <div>
                 <p className="text-zinc-400 text-sm">{church.leader_title || 'Kiongozi'}</p>
@@ -957,7 +957,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
           {/* Contact */}
           {church.phone && (
             <a href={`tel:${church.phone}`} className="bg-zinc-900/60 rounded-xl p-4 flex items-center gap-3 hover:bg-zinc-800/60">
-              <Phone size={20} className="text-emerald-400" />
+              <Phone size={20} className="text-blue-400" />
               <span className="text-white">{church.phone}</span>
             </a>
           )}
@@ -965,7 +965,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
           {/* Bio */}
           {church.bio && (
             <div className="bg-zinc-900/60 rounded-xl p-4">
-              <h3 className="text-emerald-400 font-medium mb-2">Kuhusu</h3>
+              <h3 className="text-blue-400 font-medium mb-2">Kuhusu</h3>
               <p className="text-zinc-300 text-sm leading-relaxed">{church.bio}</p>
             </div>
           )}
@@ -974,7 +974,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
         {/* Prayer Schedule */}
         {church.prayer_schedule && church.prayer_schedule.length > 0 && (
           <div className="bg-zinc-900/60 rounded-xl p-4 mb-6">
-            <h3 className="text-emerald-400 font-medium mb-3 flex items-center gap-2">
+            <h3 className="text-blue-400 font-medium mb-3 flex items-center gap-2">
               <Clock size={18} />
               Ratiba ya Ibada
             </h3>
@@ -985,7 +985,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
                     <p className="text-white font-medium">{schedule.day}</p>
                     <p className="text-zinc-400 text-sm">{schedule.service}</p>
                   </div>
-                  <span className="text-emerald-400 text-sm">{schedule.time}</span>
+                  <span className="text-blue-400 text-sm">{schedule.time}</span>
                 </div>
               ))}
             </div>
@@ -1179,7 +1179,7 @@ const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
             {thumbUrl ? (
               <img src={thumbUrl} alt={currentItem.title} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
                 <Music2 size={64} className="text-white/40" />
               </div>
             )}
@@ -1187,7 +1187,7 @@ const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
           
           {/* Album Info */}
           <div className="text-center md:text-left">
-            <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1">Featured Album</p>
+            <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-1">Featured Album</p>
             <h2 className="text-2xl md:text-4xl font-bold mb-2 text-white">{currentItem.title}</h2>
             <p className="text-sm md:text-base text-zinc-300 mb-1">{currentItem.artist_name}</p>
             {currentItem.description && (
@@ -1195,7 +1195,7 @@ const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
             )}
             <button 
               onClick={() => onAlbumClick(currentItem.album_id)}
-              className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-full text-sm inline-flex items-center gap-2"
+              className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-black font-bold rounded-full text-sm inline-flex items-center gap-2"
             >
               <Play size={16} fill="currentColor" />
               Play Now
@@ -1213,7 +1213,7 @@ const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
               onClick={() => setCurrentIndex(idx)}
               className={`w-2 h-2 rounded-full transition-all duration-300 ${
                 idx === currentIndex 
-                  ? 'bg-emerald-400 w-6' 
+                  ? 'bg-blue-400 w-6' 
                   : 'bg-zinc-500 hover:bg-zinc-400'
               }`}
             />
@@ -1353,7 +1353,7 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
           >
             <div className={`relative h-44 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group-hover:scale-[1.02] ${
               idx % 4 === 0 ? 'bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 shadow-violet-900/30 group-hover:shadow-violet-500/30' :
-              idx % 4 === 1 ? 'bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 shadow-emerald-900/30 group-hover:shadow-emerald-500/30' :
+              idx % 4 === 1 ? 'bg-gradient-to-br from-blue-900 via-teal-800 to-cyan-900 shadow-blue-900/30 group-hover:shadow-blue-500/30' :
               idx % 4 === 2 ? 'bg-gradient-to-br from-rose-900 via-pink-800 to-red-900 shadow-rose-900/30 group-hover:shadow-rose-500/30' :
               'bg-gradient-to-br from-blue-900 via-indigo-800 to-slate-900 shadow-blue-900/30 group-hover:shadow-blue-500/30'
             }`}>
@@ -2323,7 +2323,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
           {getThumbnail(player.currentAlbum) ? (
             <img src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
               <Music2 size={100} className="text-white/30" />
             </div>
           )}
@@ -2338,7 +2338,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
             <p className="text-sm text-zinc-400 truncate">{player.currentAlbum?.artist_name}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={onFavorite} className={isFavorite ? 'text-emerald-400' : 'text-zinc-400'}>
+            <button onClick={onFavorite} className={isFavorite ? 'text-blue-400' : 'text-zinc-400'}>
               <Heart size={24} fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
           </div>
@@ -2364,11 +2364,11 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
       <div className="flex items-center justify-between px-8 mb-8">
         <button 
           onClick={() => player.setShuffle(!player.shuffle)} 
-          className={`relative ${player.shuffle ? 'text-emerald-400' : 'text-zinc-400'}`}
+          className={`relative ${player.shuffle ? 'text-blue-400' : 'text-zinc-400'}`}
           title={player.shuffle ? 'Shuffle on' : 'Shuffle off'}
         >
           <Shuffle size={22} />
-          {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />}
+          {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
         </button>
         <button onClick={player.prevSong} className="text-white">
           <SkipBack size={32} fill="white" />
@@ -2391,18 +2391,18 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite }) => {
         </button>
         <button 
           onClick={player.cycleRepeat} 
-          className={`relative ${player.repeat !== 'off' ? 'text-emerald-400' : 'text-zinc-400'}`}
+          className={`relative ${player.repeat !== 'off' ? 'text-blue-400' : 'text-zinc-400'}`}
           title={player.repeat === 'off' ? 'Repeat off' : player.repeat === 'all' ? 'Repeat all' : 'Repeat one'}
         >
           {player.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
-          {player.repeat !== 'off' && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />}
+          {player.repeat !== 'off' && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
         </button>
       </div>
 
       {/* Repeat Mode Indicator */}
       {player.repeat !== 'off' && (
         <div className="flex justify-center mb-4">
-          <span className="text-xs text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full">
+          <span className="text-xs text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full">
             {player.repeat === 'all' ? '🔁 Repeat All' : '🔂 Repeat One'}
           </span>
         </div>
@@ -2433,7 +2433,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
       {/* Progress line */}
       <div className="h-1 bg-zinc-800">
         <div 
-          className="h-full bg-emerald-500"
+          className="h-full bg-blue-500"
           style={{ width: `${(player.currentTime / (player.duration || 1)) * 100}%` }}
         />
       </div>
@@ -2457,7 +2457,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite }) => {
         </button>
 
         {/* Quick Actions */}
-        <button onClick={onFavorite} className={`hidden sm:block ${isFavorite ? 'text-emerald-400' : 'text-zinc-400'}`}>
+        <button onClick={onFavorite} className={`hidden sm:block ${isFavorite ? 'text-blue-400' : 'text-zinc-400'}`}>
           <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
         </button>
 
@@ -2768,7 +2768,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   <Button 
                     onClick={handleSendResetOtp} 
                     disabled={forgotLoading}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-black font-semibold py-5"
                   >
                     {forgotLoading ? (
                       <>
@@ -2804,7 +2804,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   <Button 
                     onClick={handleVerifyResetOtp} 
                     disabled={forgotLoading || forgotOtp.length !== 6}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-black font-semibold py-5"
                   >
                     {forgotLoading ? (
                       <>
@@ -2839,7 +2839,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   <Button 
                     onClick={handleResetPassword} 
                     disabled={forgotLoading}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-black font-semibold py-5"
                   >
                     {forgotLoading ? (
                       <>
@@ -2877,7 +2877,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   <button 
                     onClick={() => setLoginMethod('email')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
-                      loginMethod === 'email' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                      loginMethod === 'email' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
                     }`}
                   >
                     <Mail size={16} />
@@ -2888,7 +2888,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   <button 
                     onClick={() => setLoginMethod('phone')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors ${
-                      loginMethod === 'phone' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                      loginMethod === 'phone' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-zinc-800 text-zinc-400 hover:text-white'
                     }`}
                   >
                     <Phone size={16} />
@@ -2914,7 +2914,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                       <Button 
                         onClick={handleSendOtp} 
                     disabled={sendingOtp}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-black font-semibold py-5"
                     data-testid="send-otp-btn"
                   >
                     {sendingOtp ? (
@@ -2950,7 +2950,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   <Button 
                     onClick={handleVerifyOtp} 
                     disabled={verifyingOtp || otp.length !== 6}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-black font-semibold py-5"
                     data-testid="verify-otp-btn"
                   >
                     {verifyingOtp ? (
@@ -2983,7 +2983,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
               {authMode === 'login' && (
                 <button 
                   onClick={() => setForgotPasswordMode(true)}
-                  className="text-sm text-emerald-400 hover:underline text-right w-full"
+                  className="text-sm text-blue-400 hover:underline text-right w-full"
                   data-testid="forgot-password-link"
                 >
                   Forgot password?
@@ -2992,7 +2992,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
 
               <Button 
                 onClick={authMode === 'login' ? handleLogin : handleRegister} 
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-5"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-black font-semibold py-5"
                 data-testid="email-login-btn"
               >
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
@@ -3062,7 +3062,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
                 <button 
                   onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} 
-                  className="text-emerald-400 hover:underline"
+                  className="text-blue-400 hover:underline"
                   disabled={!authMethods.registration_enabled && authMode === 'login'}
                 >
                   {authMode === 'login' ? (authMethods.registration_enabled ? 'Sign up' : 'Registration disabled') : 'Sign in'}
@@ -3196,9 +3196,9 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
       </div>
 
       {/* Profile Card */}
-      <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 rounded-2xl p-6 mb-6">
+      <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/20 rounded-2xl p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center text-2xl font-bold">
+          <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold">
             {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
           </div>
           <div>
@@ -3212,7 +3212,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           <div className="flex items-center justify-between">
             <span className="text-zinc-400">{t('profile.subscription', 'Subscription')}</span>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              isPremium ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-700 text-zinc-300'
+              isPremium ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-700 text-zinc-300'
             }`}>
               {subscriptionStatus}
             </span>
@@ -4340,13 +4340,13 @@ export default function UserStreamingApp() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setView('profile')}
-                className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold hover:bg-emerald-500 transition-colors"
+                className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold hover:bg-blue-500 transition-colors"
                 data-testid="sidebar-profile-btn"
               >
                 {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
               </button>
               <div className="flex-1 min-w-0">
-                <button onClick={() => setView('profile')} className="text-sm font-medium truncate hover:text-emerald-400 block text-left">{user.name || user.email}</button>
+                <button onClick={() => setView('profile')} className="text-sm font-medium truncate hover:text-blue-400 block text-left">{user.name || user.email}</button>
                 <button onClick={handleLogout} className="text-xs text-zinc-500 hover:text-white">{t('auth.logout', 'Logout')}</button>
               </div>
             </div>
@@ -4377,13 +4377,13 @@ export default function UserStreamingApp() {
           {user ? (
             <button 
               onClick={() => setView('profile')}
-              className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold"
+              className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold"
               data-testid="mobile-profile-btn"
             >
               {user.name?.charAt(0) || 'U'}
             </button>
           ) : (
-            <button onClick={() => setShowAuth(true)} className="text-emerald-400 font-medium text-sm" data-testid="mobile-login-btn">Sign in</button>
+            <button onClick={() => setShowAuth(true)} className="text-blue-400 font-medium text-sm" data-testid="mobile-login-btn">Sign in</button>
           )}
         </header>
 
@@ -4411,7 +4411,7 @@ export default function UserStreamingApp() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
                     <h2 className="text-2xl md:text-4xl font-bold mb-2">{homeData.burners[0].headline || 'Discover Sacred Music'}</h2>
                     <p className="text-sm md:text-base text-zinc-300 mb-4 max-w-xl">{homeData.burners[0].subtitle}</p>
-                    <button className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-full text-sm">
+                    <button className="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-black font-bold rounded-full text-sm">
                       {homeData.burners[0].cta_text || 'Start Listening'}
                     </button>
                   </div>
@@ -4978,7 +4978,7 @@ export default function UserStreamingApp() {
                   {getThumbnail(selectedAlbum) ? (
                     <img src={getThumbnail(selectedAlbum)} alt={selectedAlbum.title} className="w-full h-full object-cover rounded-lg shadow-2xl" />
                   ) : (
-                    <div className="w-full h-full rounded-lg bg-gradient-to-br from-violet-800 to-emerald-700 flex items-center justify-center shadow-2xl">
+                    <div className="w-full h-full rounded-lg bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center shadow-2xl">
                       <Music2 size={64} className="text-white/40" />
                     </div>
                   )}
@@ -4997,12 +4997,12 @@ export default function UserStreamingApp() {
               <div className="flex items-center gap-4 mb-6">
                 <button 
                   onClick={handlePlayAlbum}
-                  className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
+                  className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
                   data-testid="play-album-btn"
                 >
                   <Play size={26} fill="black" className="text-black ml-1" />
                 </button>
-                <button onClick={() => toggleFavorite('album', selectedAlbum.album_id)} className={isFavorite(selectedAlbum.album_id) ? 'text-emerald-400' : 'text-zinc-400 hover:text-white'}>
+                <button onClick={() => toggleFavorite('album', selectedAlbum.album_id)} className={isFavorite(selectedAlbum.album_id) ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}>
                   <Heart size={28} fill={isFavorite(selectedAlbum.album_id) ? 'currentColor' : 'none'} />
                 </button>
                 <button className="text-zinc-400 hover:text-white">
@@ -5065,7 +5065,7 @@ export default function UserStreamingApp() {
                 <button
                   onClick={() => setLibraryTab('downloads')}
                   className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
-                    libraryTab === 'downloads' ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                    libraryTab === 'downloads' ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'
                   }`}
                 >
                   <Download size={16} /> {t('library.downloads', 'Downloads')}
@@ -5093,7 +5093,7 @@ export default function UserStreamingApp() {
                           handlePlaySong(songs[0], likedSongs[0].album, songs, 0);
                         }
                       }}
-                      className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 hover:scale-105 transition-all flex items-center justify-center shadow-lg"
+                      className="w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-400 hover:scale-105 transition-all flex items-center justify-center shadow-lg"
                       data-testid="play-all-liked"
                     >
                       <Play size={24} className="text-black ml-1" fill="currentColor" />
@@ -5155,7 +5155,7 @@ export default function UserStreamingApp() {
                           }
                         }}
                       >
-                        <div className="aspect-square rounded bg-gradient-to-br from-violet-600 to-emerald-600 mb-3 flex items-center justify-center relative overflow-hidden">
+                        <div className="aspect-square rounded bg-gradient-to-br from-violet-600 to-blue-600 mb-3 flex items-center justify-center relative overflow-hidden">
                           <ListMusic size={40} className="text-white/70" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <Play size={32} className="text-white" fill="currentColor" />
@@ -5171,9 +5171,9 @@ export default function UserStreamingApp() {
 
               {/* Downloads Section (placeholder - actual downloads are device-specific) */}
               {(libraryTab === 'all' || libraryTab === 'downloads') && (
-                <section className="bg-gradient-to-br from-emerald-900/20 to-teal-900/10 rounded-xl p-4">
+                <section className="bg-gradient-to-br from-blue-900/20 to-teal-900/10 rounded-xl p-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
                       <Download size={24} className="text-white" />
                     </div>
                     <div>
@@ -5512,7 +5512,7 @@ export default function UserStreamingApp() {
             <Library size={20} />
             <span className="text-[10px]">{t('nav.library', 'Library')}</span>
           </button>
-          <button onClick={() => user ? setView('profile') : setShowAuth(true)} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'profile' ? 'text-emerald-500' : 'text-zinc-500'}`} data-testid="mobile-profile-nav">
+          <button onClick={() => user ? setView('profile') : setShowAuth(true)} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'profile' ? 'text-blue-500' : 'text-zinc-500'}`} data-testid="mobile-profile-nav">
             <User size={20} />
             <span className="text-[10px]">{t('nav.profile', 'Profile')}</span>
           </button>
@@ -5540,7 +5540,7 @@ export default function UserStreamingApp() {
                   }}
                   className={`w-full flex items-center justify-between p-4 rounded-xl transition ${
                     language === lang.code 
-                      ? 'bg-emerald-600 text-white' 
+                      ? 'bg-blue-600 text-white' 
                       : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                   }`}
                 >
@@ -5613,7 +5613,7 @@ export default function UserStreamingApp() {
                     onClick={() => addSongToPlaylist(playlist.playlist_id)}
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800 transition-colors text-left"
                   >
-                    <div className="w-12 h-12 rounded bg-gradient-to-br from-violet-600 to-emerald-600 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
                       <ListMusic size={20} className="text-white/70" />
                     </div>
                     <div>
