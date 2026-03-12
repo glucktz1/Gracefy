@@ -121,6 +121,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const isFetchingRecommendationsRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
   const wasPlayingBeforeBackgroundRef = useRef(false);
+  const guestLimitReachedRef = useRef(false); // Block autoplay when guest limit reached
   
   // Analytics tracking
   const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
