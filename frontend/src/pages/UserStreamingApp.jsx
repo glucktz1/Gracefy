@@ -6058,11 +6058,9 @@ export default function UserStreamingApp() {
               billingEnabled={billingEnabled}
               t={t}
               onSelectPlan={(plan) => {
-                // Show download app popup for payment (payments only work on mobile app)
-                toast.info(language === 'sw' 
-                  ? `Pakua App ili kulipia ${plan.display_name || plan.name}` 
-                  : `Download the app to pay for ${plan.display_name || plan.name}`);
-                setShowDownloadPopup(true);
+                // Show checkout modal for payment
+                setSelectedPlanForCheckout(plan);
+                setShowCheckoutModal(true);
               }}
             />
           )}
