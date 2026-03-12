@@ -2416,7 +2416,7 @@ const BibleView = ({ language, t, onBack }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -2460,6 +2460,22 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev })
             <p className="text-sm text-zinc-400 truncate">{player.currentAlbum?.artist_name}</p>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={onDownload} 
+              className="text-zinc-400 hover:text-white"
+              title="Download"
+              data-testid="full-player-download"
+            >
+              <Download size={22} />
+            </button>
+            <button 
+              onClick={onAddToPlaylist} 
+              className="text-zinc-400 hover:text-white"
+              title="Add to Playlist"
+              data-testid="full-player-add-playlist"
+            >
+              <ListPlus size={22} />
+            </button>
             <button onClick={onFavorite} className={isFavorite ? 'text-blue-400' : 'text-zinc-400'}>
               <Heart size={24} fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
