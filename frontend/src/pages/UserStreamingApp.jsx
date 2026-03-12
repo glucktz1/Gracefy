@@ -326,6 +326,10 @@ const useAudioPlayer = () => {
   }, [queue, currentAlbum]);
 
   // Handle song end - with continuous playback
+  // Use a ref to store playFromQueueInternal to avoid stale closures
+  const playFromQueueInternalRef = useRef(playFromQueueInternal);
+  useEffect(() => { playFromQueueInternalRef.current = playFromQueueInternal; }, [playFromQueueInternal]);
+  
   useEffect(() => {
     const audio = audioRef.current;
     
@@ -342,28 +346,24 @@ const useAudioPlayer = () => {
       console.log('[Player] Repeat mode:', currentRepeat, 'Shuffle:', currentShuffle);
       console.log('[Player] Album:', album?.title);
       
-      // Track the ended session with duration (for play count)
+      // Track the ended session with duration (for play count) - non-blocking
       if (sessionIdRef.current) {
-        try {
-          await axios.post(`${API}/listening/end`, {
-            session_id: sessionIdRef.current,
-            duration_seconds: Math.floor(audio.duration || 0)
-          });
-        } catch (e) {
-          console.log("Failed to track play end");
-        }
+        axios.post(`${API}/listening/end`, {
+          session_id: sessionIdRef.current,
+          duration_seconds: Math.floor(audio.duration || 0)
+        }).catch(e => console.log("Failed to track play end"));
       }
       
       // Check if auto-play is blocked (screen lock payment feature)
-      // Only check this if billing is actually enabled
       console.log('[Player] blockAutoPlayNextRef.current:', blockAutoPlayNextRef.current);
       if (blockAutoPlayNextRef.current) {
         console.log('[Player] Auto-play blocked due to screen lock billing - stopping playback');
-        blockAutoPlayNextRef.current = false; // Reset the flag
+        blockAutoPlayNextRef.current = false;
         setIsPlaying(false);
-        return; // Don't play next song
+        return;
       }
       
+      // Repeat ONE mode - replay same song
       if (currentRepeat === 'one') {
         console.log('[Player] Repeat ONE - replaying same song');
         audio.currentTime = 0;
@@ -371,10 +371,14 @@ const useAudioPlayer = () => {
         return;
       }
 
+      // Calculate next index
       let nextIndex = currentQueueIndex + 1;
       
-      if (currentShuffle) {
-        nextIndex = Math.floor(Math.random() * currentQueue.length);
+      if (currentShuffle && currentQueue.length > 1) {
+        // Shuffle: pick random index different from current
+        do {
+          nextIndex = Math.floor(Math.random() * currentQueue.length);
+        } while (nextIndex === currentQueueIndex && currentQueue.length > 1);
         console.log('[Player] Shuffle ON - random next index:', nextIndex);
       }
 
@@ -383,23 +387,32 @@ const useAudioPlayer = () => {
       // If we still have songs in the queue, play next
       if (nextIndex < currentQueue.length) {
         console.log('[Player] Playing next song in queue at index:', nextIndex);
-        playFromQueueInternal(nextIndex, currentQueue);
+        playFromQueueInternalRef.current(nextIndex, currentQueue);
         return;
       }
       
       // We've reached the end of queue
       console.log('[Player] Reached end of queue - checking options...');
       
-      // If repeat is 'all', loop back to beginning immediately
+      // If repeat is 'all', loop back to beginning
       if (currentRepeat === 'all' && currentQueue.length > 0) {
         console.log('[Player] Repeat ALL - looping back to start');
-        playFromQueueInternal(0, currentQueue);
+        playFromQueueInternalRef.current(0, currentQueue);
+        return;
+      }
+      
+      // If repeat is 'off' and it's a single-song queue, STOP (don't loop)
+      if (currentRepeat === 'off' && currentQueue.length === 1) {
+        console.log('[Player] Single song album with repeat OFF - stopping playback');
+        setIsPlaying(false);
         return;
       }
         
       // Try to fetch more songs from same category/artist
       if (!fetchingMoreRef.current && album) {
         fetchingMoreRef.current = true;
+        console.log('[Player] Fetching more songs...');
+        
         try {
           const categoryId = album.category_id;
           const artistId = album.artist_id;
@@ -407,21 +420,23 @@ const useAudioPlayer = () => {
           
           // First try same category
           if (categoryId) {
-            const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
-            const albums = catRes.data.albums || [];
-            for (const fetchedAlbum of albums) {
-              if (fetchedAlbum.album_id !== album.album_id) {
-                const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
-                const songs = albumRes.data.songs || [];
-                // Use the detailed album data from albumRes which includes thumbnail
-                const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                // Ensure each song has album_thumbnail for fallback
-                moreSongs.push(...songs.map(s => ({ 
-                  song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
-                  album: detailedAlbum 
-                })));
-                if (moreSongs.length >= 10) break;
+            try {
+              const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
+              const albums = catRes.data.albums || [];
+              for (const fetchedAlbum of albums) {
+                if (fetchedAlbum.album_id !== album.album_id) {
+                  const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
+                  const songs = albumRes.data.songs || [];
+                  const detailedAlbum = albumRes.data.album || fetchedAlbum;
+                  moreSongs.push(...songs.map(s => ({ 
+                    song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
+                    album: detailedAlbum 
+                  })));
+                  if (moreSongs.length >= 10) break;
+                }
               }
+            } catch (e) {
+              console.log('[Player] Error fetching category albums:', e.message);
             }
           }
           
@@ -433,7 +448,6 @@ const useAudioPlayer = () => {
                 if (fetchedAlbum.album_id !== album.album_id) {
                   const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
                   const songs = albumRes.data.songs || [];
-                  // Use the detailed album data from albumRes which includes thumbnail
                   const detailedAlbum = albumRes.data.album || fetchedAlbum;
                   moreSongs.push(...songs.map(s => ({ 
                     song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
@@ -443,7 +457,7 @@ const useAudioPlayer = () => {
                 }
               }
             } catch (e) {
-              console.log("Error fetching artist albums");
+              console.log('[Player] Error fetching artist albums:', e.message);
             }
           }
           
@@ -456,7 +470,6 @@ const useAudioPlayer = () => {
                 if (fetchedAlbum.album_id !== album?.album_id) {
                   const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
                   const songs = albumRes.data.songs || [];
-                  // Use the detailed album data from albumRes which includes thumbnail
                   const detailedAlbum = albumRes.data.album || fetchedAlbum;
                   moreSongs.push(...songs.map(s => ({ 
                     song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
@@ -466,33 +479,38 @@ const useAudioPlayer = () => {
                 }
               }
             } catch (e) {
-              console.log("Error fetching featured");
+              console.log('[Player] Error fetching featured:', e.message);
             }
           }
           
           fetchingMoreRef.current = false;
           
           if (moreSongs.length > 0) {
-            console.log('[Player] Found', moreSongs.length, 'more songs - adding to queue');
+            console.log('[Player] Found', moreSongs.length, 'more songs - adding to queue and playing');
             const newQueue = [...currentQueue, ...moreSongs];
             setQueue(newQueue);
-            // Play the next song (current queue.length is the first new song)
-            playFromQueueInternal(currentQueue.length, newQueue);
+            // Update queueRef immediately for next iteration
+            queueRef.current = newQueue;
+            // Play the next song (currentQueue.length is the first new song index)
+            playFromQueueInternalRef.current(currentQueue.length, newQueue);
             return;
           } else {
-            console.log('[Player] No more songs found');
+            console.log('[Player] No more songs found from recommendations');
           }
         } catch (e) {
-          console.error("Error fetching more songs:", e);
+          console.error('[Player] Error in fetch more songs flow:', e);
           fetchingMoreRef.current = false;
         }
       }
       
-      // If we get here, either no album, fetch failed, or no more songs
-      // Loop back to beginning if we have songs
-      if (currentQueue.length > 0) {
-        console.log('[Player] Looping back to beginning of queue');
-        playFromQueueInternal(0, currentQueue);
+      // Fallback: loop back to beginning if we have multiple songs
+      if (currentQueue.length > 1) {
+        console.log('[Player] Looping back to beginning of queue (multiple songs)');
+        playFromQueueInternalRef.current(0, currentQueue);
+      } else if (currentQueue.length === 1) {
+        // Single song and we couldn't find more - stop or replay based on default behavior
+        console.log('[Player] Single song queue, no more songs found - stopping');
+        setIsPlaying(false);
       } else {
         console.log('[Player] Queue is empty - cannot continue playback');
         setIsPlaying(false);
@@ -514,7 +532,8 @@ const useAudioPlayer = () => {
       console.log('[Player] Audio ended event fired!');
       handleSongEnd();
     };
-    const onError = () => {
+    const onError = (e) => {
+      console.log('[Player] Audio error:', e);
       setIsLoading(false);
       // Auto-skip to next on error
       handleSongEnd();
@@ -543,7 +562,7 @@ const useAudioPlayer = () => {
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('canplay', onCanPlay);
     };
-  }, [currentSong, savePlaybackState, playFromQueueInternal]); // Removed stale state dependencies, using refs instead
+  }, [currentSong, currentAlbum, savePlaybackState]); // Removed playFromQueueInternal - using ref instead
 
   const playFromQueue = useCallback((index) => {
     playFromQueueInternal(index, queue);
