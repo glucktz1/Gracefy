@@ -1898,7 +1898,7 @@ async def send_subscription_expiry_notifications():
                             "language": user.get("language", "sw"),
                             "collection": collection_name
                         })
-                except:
+                except Exception:
                     pass
     
     if not expired_users:
