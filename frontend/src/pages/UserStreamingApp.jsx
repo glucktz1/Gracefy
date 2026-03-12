@@ -6407,17 +6407,8 @@ export default function UserStreamingApp() {
         onClose={() => setShowScreenLockPayment(false)}
         onPay={() => {
           setShowScreenLockPayment(false);
-          // Open checkout with cheapest plan
-          axios.get(`${API}/subscription-plans`)
-            .then(res => {
-              const plans = res.data?.plans || [];
-              if (plans.length > 0) {
-                // Find cheapest active plan
-                const cheapest = plans.filter(p => p.is_active).sort((a, b) => a.price - b.price)[0];
-                setSelectedPlanForCheckout(cheapest);
-                setShowCheckoutModal(true);
-              }
-            });
+          // Navigate to profile page where subscription packages are shown
+          setView('profile');
         }}
         language={language}
       />
