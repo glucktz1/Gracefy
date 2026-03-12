@@ -1849,3 +1849,186 @@ async def generate_demo_listening_data():
                 )
     
     return {"message": "Demo data generated", "sessions_created": sessions_created}
+
+
+
+# ============== SUBSCRIPTION EXPIRY NOTIFICATIONS ==============
+
+@router.post("/admin/send-expiry-notifications")
+async def send_subscription_expiry_notifications():
+    """
+    Check for expired subscriptions and send push notifications.
+    This should be called periodically (e.g., every hour via cron).
+    
+    Sends notification: "Kifurushi chako kimeisha muda wake jiunge tena uendelee kufurahia"
+    """
+    db = get_db()
+    
+    # Get all users with expired subscriptions who haven't been notified recently
+    now = datetime.now(timezone.utc)
+    one_day_ago = now - timedelta(days=1)
+    
+    # Find users whose subscription expired in the last 24 hours
+    expired_users = []
+    
+    # Check both users and app_users collections
+    for collection_name in ['users', 'app_users']:
+        collection = db[collection_name]
+        cursor = collection.find({
+            "subscription.status": {"$in": ["active", "expired"]},
+            "subscription.expires_at": {"$lt": now.isoformat()},
+            "$or": [
+                {"subscription.expiry_notified_at": {"$exists": False}},
+                {"subscription.expiry_notified_at": {"$lt": one_day_ago.isoformat()}}
+            ]
+        }, {"_id": 0})
+        
+        async for user in cursor:
+            # Check if subscription actually expired
+            expires_at_str = user.get("subscription", {}).get("expires_at")
+            if expires_at_str:
+                try:
+                    expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                    if expires_at < now:
+                        expired_users.append({
+                            "user_id": user.get("user_id"),
+                            "email": user.get("email"),
+                            "fcm_token": user.get("fcm_token"),
+                            "expo_push_token": user.get("expo_push_token"),
+                            "language": user.get("language", "sw"),
+                            "collection": collection_name
+                        })
+                except:
+                    pass
+    
+    if not expired_users:
+        return {"message": "No expired subscriptions to notify", "notified_count": 0}
+    
+    # Send push notifications
+    notified_count = 0
+    notifications_sent = []
+    
+    for user in expired_users:
+        # Prepare notification message
+        title_sw = "Kifurushi Kimeisha!"
+        title_en = "Subscription Expired!"
+        body_sw = "Kifurushi chako kimeisha muda wake. Jiunge tena uendelee kufurahia muziki wote bila kikomo!"
+        body_en = "Your subscription has expired. Subscribe again to continue enjoying unlimited music!"
+        
+        is_swahili = user.get("language", "sw") == "sw"
+        title = title_sw if is_swahili else title_en
+        body = body_sw if is_swahili else body_en
+        
+        # Try sending via FCM (Firebase)
+        fcm_token = user.get("fcm_token")
+        expo_token = user.get("expo_push_token")
+        
+        notification_sent = False
+        
+        if fcm_token:
+            try:
+                from services.firebase_service import send_fcm_notification
+                await send_fcm_notification(
+                    token=fcm_token,
+                    title=title,
+                    body=body,
+                    data={
+                        "type": "subscription_expired",
+                        "action": "open_subscription"
+                    }
+                )
+                notification_sent = True
+                logger.info(f"Sent FCM expiry notification to user {user.get('user_id')}")
+            except Exception as e:
+                logger.error(f"Failed to send FCM notification: {e}")
+        
+        # Try Expo Push if FCM failed or not available
+        if not notification_sent and expo_token:
+            try:
+                from services.push_notification_service import send_push_notification
+                await send_push_notification(
+                    db=db,
+                    push_tokens=[expo_token],
+                    title=title,
+                    body=body,
+                    data={
+                        "type": "subscription_expired",
+                        "action": "open_subscription"
+                    }
+                )
+                notification_sent = True
+                logger.info(f"Sent Expo expiry notification to user {user.get('user_id')}")
+            except Exception as e:
+                logger.error(f"Failed to send Expo notification: {e}")
+        
+        if notification_sent:
+            notified_count += 1
+            notifications_sent.append(user.get("user_id"))
+            
+            # Mark user as notified
+            await db[user.get("collection")].update_one(
+                {"user_id": user.get("user_id")},
+                {
+                    "$set": {
+                        "subscription.expiry_notified_at": now.isoformat(),
+                        "subscription.status": "expired"
+                    }
+                }
+            )
+    
+    return {
+        "message": f"Sent {notified_count} expiry notifications",
+        "notified_count": notified_count,
+        "users_notified": notifications_sent
+    }
+
+
+@router.get("/admin/check-expiring-subscriptions")
+async def check_expiring_subscriptions():
+    """
+    Get list of subscriptions expiring soon (for admin dashboard).
+    Returns subscriptions expiring in the next 24 hours.
+    """
+    db = get_db()
+    
+    now = datetime.now(timezone.utc)
+    tomorrow = now + timedelta(days=1)
+    
+    expiring_soon = []
+    recently_expired = []
+    
+    for collection_name in ['users', 'app_users']:
+        collection = db[collection_name]
+        cursor = collection.find({
+            "subscription.status": "active",
+            "subscription.expires_at": {"$exists": True}
+        }, {"_id": 0, "user_id": 1, "email": 1, "name": 1, "subscription": 1})
+        
+        async for user in cursor:
+            expires_at_str = user.get("subscription", {}).get("expires_at")
+            if expires_at_str:
+                try:
+                    expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                    if expires_at < now:
+                        recently_expired.append({
+                            "user_id": user.get("user_id"),
+                            "email": user.get("email"),
+                            "name": user.get("name"),
+                            "expired_at": expires_at_str
+                        })
+                    elif expires_at < tomorrow:
+                        expiring_soon.append({
+                            "user_id": user.get("user_id"),
+                            "email": user.get("email"),
+                            "name": user.get("name"),
+                            "expires_at": expires_at_str
+                        })
+                except:
+                    pass
+    
+    return {
+        "expiring_in_24h": expiring_soon,
+        "recently_expired": recently_expired,
+        "expiring_count": len(expiring_soon),
+        "expired_count": len(recently_expired)
+    }
