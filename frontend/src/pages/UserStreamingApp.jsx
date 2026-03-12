@@ -3729,6 +3729,11 @@ export default function UserStreamingApp() {
           axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
           axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } }))
         ]);
+        
+        // Cache the responses for faster next load
+        cache.set('home_data', homeRes.data);
+        cache.set('categories', catRes.data);
+        
         setHomeData(homeRes.data);
         setCategories(catRes.data.categories || []);
         setAvailableTags(tagsRes.data?.tags || []);
