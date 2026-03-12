@@ -48,11 +48,18 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('[API] Response OK:', response.config?.url);
+    return response;
+  },
   async (error) => {
-    // Don't clear auth in interceptor - let AuthContext handle it
-    // This prevents race conditions and ensures proper state management
-    console.log('API Error:', error.config?.url, error.response?.status);
+    // Log detailed error info for debugging
+    console.error('[API] Request failed:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.message,
+      code: error.code,
+    });
     return Promise.reject(error);
   }
 );
