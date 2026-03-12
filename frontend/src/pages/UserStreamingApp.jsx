@@ -6493,22 +6493,12 @@ export default function UserStreamingApp() {
           onNext={handleNextWithBilling}
           onPrev={handlePrevWithBilling}
           onDownload={() => {
-            if (!user) {
-              setShowGuestLimitModal(true);
-            } else if (billingEnabled && !isPremiumUser) {
-              setShowSubscriptionModal(true);
-            } else {
-              setShowDownloadAppPopup(true);
-            }
+            // Always show download app popup for web
+            setShowDownloadAppPopup(true);
           }}
           onAddToPlaylist={() => {
-            if (!user) {
-              setShowGuestLimitModal(true);
-            } else if (billingEnabled && !isPremiumUser) {
-              setShowSubscriptionModal(true);
-            } else {
-              setShowDownloadAppPopup(true);
-            }
+            // Always show download app popup for web
+            setShowDownloadAppPopup(true);
           }}
         />
       )}
