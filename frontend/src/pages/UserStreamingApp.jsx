@@ -3643,16 +3643,42 @@ export default function UserStreamingApp() {
   // Get greeting using the language context
   const greeting = getGreeting();
 
-  // Fetch home data
+  // Fetch home data with caching for faster loads
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Check for cached data first (instant load)
+        const cachedHome = cache.get('home_data');
+        const cachedCategories = cache.get('categories');
+        const cachedBilling = cache.get('billing_status');
+        
+        if (cachedHome && cachedCategories) {
+          console.log('[Cache] Loading from cache for instant display');
+          setHomeData(cachedHome);
+          setCategories(cachedCategories.categories || []);
+          setQuickAccessItems(cachedCategories.categories?.slice(0, 6) || []);
+          setLoading(false); // Show cached content immediately
+          
+          // Apply cached billing status
+          if (cachedBilling) {
+            const finalBillingStatus = cachedBilling.billing_enabled && cachedBilling.web_billing_enabled !== false;
+            setBillingEnabled(finalBillingStatus);
+            setBillingStatusChecked(true);
+            if (!finalBillingStatus) {
+              setIsPremium(true);
+            }
+          }
+        }
+        
         // First, fetch billing status and detect user country
         const [billingRes, geoRes, appSettingsRes] = await Promise.all([
           axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } })),
           axios.get(`${API}/geo/detect-country`).catch(() => ({ data: { country_code: 'GLOBAL' } })),
           axios.get(`${API}/app-settings`).catch(() => ({ data: {} }))
         ]);
+        
+        // Cache billing status
+        cache.set('billing_status', billingRes.data);
         
         // Set billing state - match native app logic exactly
         const billingData = billingRes.data || {};
