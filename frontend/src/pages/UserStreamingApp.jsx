@@ -699,11 +699,16 @@ const useAudioPlayer = () => {
     setRepeat(prev => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
   }, []);
 
+  // Method to block auto-play of next song (for screen lock billing)
+  const setBlockAutoPlayNext = (block) => {
+    blockAutoPlayNextRef.current = block;
+  };
+  
   return {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
-    restorePlaybackState, savePlaybackState
+    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext
   };
 };
 
