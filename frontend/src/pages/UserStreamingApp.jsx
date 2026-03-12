@@ -319,6 +319,7 @@ const useAudioPlayer = () => {
 
       // If we've reached the end of queue, fetch more or loop
       if (nextIndex >= currentQueue.length) {
+        console.log('[Player] Reached end of queue - fetching more songs...');
         // Try to fetch more songs from same category/artist
         if (!fetchingMoreRef.current && album) {
           fetchingMoreRef.current = true;
