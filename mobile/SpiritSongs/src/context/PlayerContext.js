@@ -300,6 +300,15 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     const queueEndedSub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
       console.log('[Player] Queue ended');
       
+      // Check if guest limit has been reached - stop autoplay
+      if (guestLimitReachedRef.current) {
+        console.log('[Player] Queue ended - guest limit reached, stopping autoplay');
+        try {
+          await TrackPlayer.pause();
+        } catch (e) {}
+        return;
+      }
+      
       // If shuffle is on, let repeat handle it (repeat all shuffles again)
       if (shuffleRef.current) {
         if (repeatRef.current === 'all' && queueRef.current.length > 0) {
