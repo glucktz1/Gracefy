@@ -208,6 +208,65 @@ async def get_radio_station(station_id: str):
     return station
 
 
+@router.get("/radio/stream/{station_id}")
+async def proxy_radio_stream(station_id: str):
+    """
+    Proxy radio stream to handle HTTP streams on HTTPS sites.
+    This solves mixed content issues with HTTP radio streams.
+    """
+    db = get_db()
+    
+    station = await db.radio_stations.find_one(
+        {"station_id": station_id, "is_enabled": True},
+        {"_id": 0}
+    )
+    
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+    
+    stream_url = station.get("url_resolved")
+    if not stream_url:
+        raise HTTPException(status_code=400, detail="Station has no stream URL")
+    
+    async def generate():
+        """Stream audio data from the radio station"""
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+                async with client.stream("GET", stream_url, headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; Gracefy/1.0)",
+                    "Icy-MetaData": "1"
+                }) as response:
+                    async for chunk in response.aiter_bytes(chunk_size=8192):
+                        yield chunk
+        except httpx.HTTPError as e:
+            logger.error(f"Error streaming radio {station_id}: {e}")
+            raise
+        except asyncio.CancelledError:
+            logger.info(f"Radio stream {station_id} cancelled by client")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error streaming radio {station_id}: {e}")
+            raise
+    
+    # Determine content type from original stream
+    content_type = "audio/mpeg"
+    if "aac" in stream_url.lower():
+        content_type = "audio/aac"
+    elif "ogg" in stream_url.lower():
+        content_type = "audio/ogg"
+    
+    return StreamingResponse(
+        generate(),
+        media_type=content_type,
+        headers={
+            "Cache-Control": "no-cache, no-store",
+            "Connection": "keep-alive",
+            "Accept-Ranges": "none",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
+
+
 async def seed_default_stations():
     """Seed database with default Christian radio stations"""
     db = get_db()
