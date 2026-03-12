@@ -6285,6 +6285,19 @@ export default function UserStreamingApp() {
               language={language} 
               t={t}
               onBack={() => setView('home')}
+              onStopMusicPlayer={() => {
+                // Stop the music player when Bible audio plays
+                if (player.isPlaying) {
+                  player.togglePlay();
+                }
+                // Also stop home radio if playing
+                if (homeRadioAudio) {
+                  homeRadioAudio.pause();
+                  homeRadioAudio.src = '';
+                  setHomeRadioAudio(null);
+                  setHomeRadioPlaying(null);
+                }
+              }}
             />
           )}
 
