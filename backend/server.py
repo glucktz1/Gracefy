@@ -487,7 +487,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     """Cleanup on shutdown"""
-    global cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref, rate_limit_cleanup_task_ref
+    global cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref, rate_limit_cleanup_task_ref, subscription_check_task_ref
     
     logger.info("Shutting down Gracefy API...")
     
@@ -500,7 +500,7 @@ async def shutdown():
         logger.warning(f"Graceful shutdown error: {e}")
     
     # Cancel background tasks
-    for task in [cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref, rate_limit_cleanup_task_ref]:
+    for task in [cache_cleanup_task, traffic_monitoring_task_ref, queue_worker_task_ref, rate_limit_cleanup_task_ref, subscription_check_task_ref]:
         if task:
             task.cancel()
             try:
