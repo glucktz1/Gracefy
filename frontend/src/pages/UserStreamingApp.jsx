@@ -341,6 +341,15 @@ const useAudioPlayer = () => {
   const playFromQueueInternalRef = useRef(playFromQueueInternal);
   useEffect(() => { playFromQueueInternalRef.current = playFromQueueInternal; }, [playFromQueueInternal]);
   
+  // Store currentSong and currentAlbum in refs for event handlers
+  const currentSongRef = useRef(currentSong);
+  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
+  
+  // Store savePlaybackState in ref
+  const savePlaybackStateRef = useRef(savePlaybackState);
+  useEffect(() => { savePlaybackStateRef.current = savePlaybackState; }, [savePlaybackState]);
+  
+  // Setup audio event listeners ONCE on mount
   useEffect(() => {
     const audio = audioRef.current;
     
@@ -539,8 +548,10 @@ const useAudioPlayer = () => {
     const onTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
       // Save position every 5 seconds
-      if (currentSong && currentAlbum && Math.floor(audio.currentTime) % 5 === 0) {
-        savePlaybackState(currentSong, currentAlbum, audio.currentTime);
+      const song = currentSongRef.current;
+      const album = currentAlbumRef.current;
+      if (song && album && Math.floor(audio.currentTime) % 5 === 0) {
+        savePlaybackStateRef.current(song, album, audio.currentTime);
       }
     };
     const onLoadedMetadata = () => {
@@ -581,7 +592,7 @@ const useAudioPlayer = () => {
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('canplay', onCanPlay);
     };
-  }, [currentSong, currentAlbum, savePlaybackState]); // Removed playFromQueueInternal - using ref instead
+  }, []); // Empty dependency array - setup ONCE on mount
 
   const playFromQueue = useCallback((index) => {
     playFromQueueInternal(index, queue);
