@@ -396,11 +396,14 @@ const useAudioPlayer = () => {
             fetchingMoreRef.current = false;
             
             if (moreSongs.length > 0) {
+              console.log('[Player] Found', moreSongs.length, 'more songs - adding to queue');
               const newQueue = [...currentQueue, ...moreSongs];
               setQueue(newQueue);
               // Play the next song (current queue.length is the first new song)
               playFromQueueInternal(currentQueue.length, newQueue);
               return;
+            } else {
+              console.log('[Player] No more songs found - looping back');
             }
           } catch (e) {
             console.error("Error fetching more songs:", e);
