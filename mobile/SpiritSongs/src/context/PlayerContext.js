@@ -436,6 +436,14 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
   useEffect(() => { isAuthenticatedRef.current = isAuthenticated; }, [isAuthenticated]);
   
+  // Reset guest limit when user logs in
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('[Player] User logged in - resetting guest limit flag');
+      guestLimitReachedRef.current = false;
+    }
+  }, [isAuthenticated]);
+  
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
       // Use refs to get CURRENT values, not stale closure values
