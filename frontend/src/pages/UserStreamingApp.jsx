@@ -25,6 +25,35 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Client-side cache for faster page loads
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const cache = {
+  get: (key) => {
+    try {
+      const item = sessionStorage.getItem(`gracefy_cache_${key}`);
+      if (!item) return null;
+      const { data, timestamp } = JSON.parse(item);
+      if (Date.now() - timestamp > CACHE_DURATION) {
+        sessionStorage.removeItem(`gracefy_cache_${key}`);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+  set: (key, data) => {
+    try {
+      sessionStorage.setItem(`gracefy_cache_${key}`, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      // Ignore storage errors
+    }
+  }
+};
+
 // Sample audio for demo (royalty-free)
 const SAMPLE_AUDIO_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
