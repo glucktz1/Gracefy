@@ -13,17 +13,12 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 12, 2026
+### Session: March 12, 2026 (Latest)
+- ✅ Checkout modal for subscription payment (phone number + Azam Pay)
+- ✅ Improved download app popup message (Swahili)
+- ✅ Screen lock payment prompt for non-premium users (billing ON)
 - ✅ Profile shows subscription packages when billing ON + not premium
-  - "Chagua Kifurushi Chako" / "Ufurahie maudhui yote kwa uhuru"
-  - Daily (TZS 500), Weekly (TZS 2,000), Monthly (TZS 5,500)
-- ✅ Subscription expiry push notifications
-  - Background task runs hourly
-  - Message: "Kifurushi chako kimeisha muda wake. Jiunge tena uendelee kufurahia"
-  - Supports FCM and Expo push tokens
-- ✅ Fixed billing status display ("Bure" for non-premium)
-- ✅ Added continuous playback debug logging
-- ✅ Page caching for faster loads (5-min TTL)
+- ✅ Subscription expiry push notifications (hourly background task)
 
 ### Previous Sessions
 - ✅ Firebase Auth migration (web + mobile)
@@ -32,37 +27,43 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - ✅ Admin password change feature
 - ✅ SubscriptionRequiredModal for non-premium users
 
+## Billing Logic
+- **Guest users**: Play/skip limits → GuestLimitModal
+- **Logged-in non-premium**: Skip/like/download → SubscriptionRequiredModal
+- **Screen lock (non-premium)**: Pause + ScreenLockPaymentModal
+- **Premium users / Billing OFF**: No restrictions
+
+## Subscription Plans
+- Kwa siku (Daily): TZS 500 / 1 day
+- Kwa wiki (Weekly): TZS 2,000 / 7 days
+- Kwa Mwezi (Monthly): TZS 5,500 / 30 days
+
 ## Pending Issues
 
 ### P0 - Critical
 - Google Sign-In needs Firebase authorized domain added
 
-### P1 - High
-- Azam Pay production payments failing (blocked on user confirming callback URL)
-- Continuous playback needs user testing
+### P1 - High  
+- Azam Pay live payment testing
+- Continuous playback debugging
 
 ### P2 - Medium
 - Android app not loading data (debugging build queued)
 
-## API Endpoints - Subscription
+## API Endpoints - Payments
+- `POST /api/payment/azampay/initiate` - Initiate mobile money payment
+- `POST /api/payment/callback/azampay` - Payment callback (needs registration in Azam dashboard)
 - `GET /api/subscription-plans` - Get active subscription plans
-- `GET /api/user/subscription-status?user_id=X` - User's premium status
-- `POST /api/admin/send-expiry-notifications` - Trigger expiry notifications
-- `GET /api/admin/check-expiring-subscriptions` - View expiring/expired subs
 
 ## Backlog / Future Tasks
 1. Bible TTS voice selection from admin settings
 2. Admin language file upload feature
 3. Audio Ad integration
-4. SendGrid email campaigns
-
-## Technical Debt
-- **CRITICAL**: `/app/frontend/src/pages/UserStreamingApp.jsx` is 6000+ lines
 
 ## Key Files
-- `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (ProfileView with packages)
-- `/app/backend/routes/monetization.py` - Subscription plans and expiry notifications
-- `/app/backend/server.py` - Background task for expiry check
+- `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (CheckoutModal, ScreenLockPaymentModal)
+- `/app/backend/routes/monetization.py` - Subscription & payment APIs
+- `/app/backend/server.py` - Background tasks
 
 ## Test Credentials
 - **Admin**: admin@gracefy.life / G73ce7y@2026
