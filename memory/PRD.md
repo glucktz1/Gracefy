@@ -22,6 +22,8 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - ✅ **Added download/playlist buttons to mini player** - Triggers "Download App" popup on web
 - ✅ **Made prev/next buttons always visible on mini player** - No longer hidden on mobile
 - ✅ **Guest autoplay blocking (web + mobile)** - When guest reaches play limit, autoplay stops after current song ends
+- ✅ **Fixed download button error** - Changed from undefined `setShowDownloadAppPopup` to `setShowDownloadPopup`
+- ✅ **Fixed dual audio playback** - Added pause/reset before playing new song to prevent overlapping audio
 - ✅ **Android build completed** - APK: https://expo.dev/artifacts/eas/aJD6PZwcE652QrU1nQK4SE.apk
 
 ### Previous Session
