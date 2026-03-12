@@ -6371,8 +6371,8 @@ export default function UserStreamingApp() {
         onClose={() => setShowSubscriptionModal(false)}
         onSubscribe={() => {
           setShowSubscriptionModal(false);
-          // On web, show download app popup to direct users to mobile app for subscription
-          setShowDownloadPopup(true);
+          // Navigate to profile page where subscription packages are shown
+          setView('profile');
         }}
         language={language}
       />
