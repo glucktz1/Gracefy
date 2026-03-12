@@ -2023,7 +2023,7 @@ async def check_expiring_subscriptions():
                             "name": user.get("name"),
                             "expires_at": expires_at_str
                         })
-                except:
+                except Exception:
                     pass
     
     return {
