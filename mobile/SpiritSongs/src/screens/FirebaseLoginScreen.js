@@ -38,6 +38,7 @@ import { firebaseConfig } from '../config/firebase';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import * as SecureStore from 'expo-secure-store';
 import { firebaseAuthAPI, authAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 // Complete any pending auth sessions
 WebBrowser.maybeCompleteAuthSession();
