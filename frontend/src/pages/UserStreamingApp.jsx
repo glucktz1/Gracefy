@@ -4404,12 +4404,21 @@ export default function UserStreamingApp() {
         });
       } catch (e) {}
       
+      // Determine the stream URL - use proxy for HTTP streams
+      let streamUrl = station.url_resolved || station.url;
+      if (streamUrl && streamUrl.startsWith('http://')) {
+        streamUrl = `${API}/radio/stream/${station.station_id}`;
+        console.log('[Radio Home] Using proxy for HTTP stream:', station.station_id);
+      }
+      
       // Create and play audio
-      const audio = new Audio(station.url_resolved || station.url);
+      const audio = new Audio(streamUrl);
+      audio.crossOrigin = "anonymous";
       audio.onplay = () => setHomeRadioPlaying(station);
       audio.onpause = () => {};
-      audio.onerror = () => {
-        toast.error("Failed to play station");
+      audio.onerror = (e) => {
+        console.error('[Radio Home] Audio error:', e);
+        toast.error(`Failed to play ${station.name}`);
         setHomeRadioPlaying(null);
         setHomeRadioAudio(null);
       };
