@@ -235,6 +235,16 @@ const useAudioPlayer = () => {
       console.log('[Player] Invalid index or empty queue, index:', index, 'queue length:', q.length);
       return;
     }
+    
+    // IMPORTANT: Stop and reset current audio before playing new one
+    // This prevents two songs from playing simultaneously
+    try {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    } catch (e) {
+      console.log('[Player] Error stopping current audio:', e);
+    }
+    
     const item = q[index];
     const song = item.song || item;
     console.log('[Player] Playing song:', song?.title);
