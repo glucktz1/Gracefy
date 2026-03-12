@@ -16,6 +16,8 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ### Session: March 12, 2026 (Latest)
 - ✅ **Fixed continuous playback (autoplay)** - Fixed stale closure issues in `handleSongEnd` using refs
 - ✅ **Fixed single-song album handling** - Stops playback instead of infinite loop when repeat is 'off'
+- ✅ **Fixed mobile login not reflecting in Profile** - FirebaseLoginScreen now calls AuthContext.login() to update app state
+- ✅ **Fixed Plans page checkout flow** - Added login check before payment, navigation to Checkout screen
 - ✅ **Android build completed** - APK: https://expo.dev/artifacts/eas/aJD6PZwcE652QrU1nQK4SE.apk
 
 ### Previous Session
