@@ -413,10 +413,14 @@ const useAudioPlayer = () => {
         
         // Loop back to beginning (continuous playback)
         nextIndex = 0;
+        console.log('[Player] Looping back to beginning, nextIndex:', nextIndex);
       }
       
       if (currentQueue.length > 0) {
+        console.log('[Player] Playing next song at index:', nextIndex);
         playFromQueueInternal(nextIndex, currentQueue);
+      } else {
+        console.log('[Player] Queue is empty - cannot continue playback');
       }
     };
     
