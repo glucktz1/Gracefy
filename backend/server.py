@@ -293,6 +293,111 @@ cache_cleanup_task = None
 traffic_monitoring_task_ref = None
 queue_worker_task_ref = None
 rate_limit_cleanup_task_ref = None
+subscription_check_task_ref = None
+
+
+async def subscription_expiry_check_task(interval_seconds: int = 3600):
+    """
+    Periodically check for expired subscriptions and send push notifications.
+    Runs every hour by default.
+    """
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            logger.info("🔔 Running subscription expiry check...")
+            
+            db = get_db()
+            from datetime import datetime, timezone, timedelta
+            
+            now = datetime.now(timezone.utc)
+            one_day_ago = now - timedelta(days=1)
+            
+            expired_count = 0
+            notified_count = 0
+            
+            # Check both user collections
+            for collection_name in ['users', 'app_users']:
+                collection = db[collection_name]
+                cursor = collection.find({
+                    "subscription.status": {"$in": ["active", "expired"]},
+                    "subscription.expires_at": {"$lt": now.isoformat()},
+                    "$or": [
+                        {"subscription.expiry_notified_at": {"$exists": False}},
+                        {"subscription.expiry_notified_at": {"$lt": one_day_ago.isoformat()}}
+                    ]
+                }, {"_id": 0})
+                
+                async for user in cursor:
+                    expires_at_str = user.get("subscription", {}).get("expires_at")
+                    if not expires_at_str:
+                        continue
+                    
+                    try:
+                        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                        if expires_at >= now:
+                            continue
+                        
+                        expired_count += 1
+                        
+                        # Prepare notification
+                        is_swahili = user.get("language", "sw") == "sw"
+                        title = "Kifurushi Kimeisha!" if is_swahili else "Subscription Expired!"
+                        body = "Kifurushi chako kimeisha muda wake. Jiunge tena uendelee kufurahia muziki wote bila kikomo!" if is_swahili else "Your subscription has expired. Subscribe again to continue enjoying unlimited music!"
+                        
+                        notification_sent = False
+                        
+                        # Try FCM first
+                        fcm_token = user.get("fcm_token")
+                        if fcm_token:
+                            try:
+                                from services.firebase_service import send_fcm_notification
+                                await send_fcm_notification(
+                                    token=fcm_token,
+                                    title=title,
+                                    body=body,
+                                    data={"type": "subscription_expired", "action": "open_subscription"}
+                                )
+                                notification_sent = True
+                            except Exception as e:
+                                logger.debug(f"FCM notification failed: {e}")
+                        
+                        # Try Expo if FCM failed
+                        expo_token = user.get("expo_push_token")
+                        if not notification_sent and expo_token:
+                            try:
+                                from services.push_notification_service import send_push_notification
+                                await send_push_notification(
+                                    db=db,
+                                    push_tokens=[expo_token],
+                                    title=title,
+                                    body=body,
+                                    data={"type": "subscription_expired", "action": "open_subscription"}
+                                )
+                                notification_sent = True
+                            except Exception as e:
+                                logger.debug(f"Expo notification failed: {e}")
+                        
+                        if notification_sent:
+                            notified_count += 1
+                            await collection.update_one(
+                                {"user_id": user.get("user_id")},
+                                {"$set": {
+                                    "subscription.expiry_notified_at": now.isoformat(),
+                                    "subscription.status": "expired"
+                                }}
+                            )
+                    except Exception as e:
+                        logger.debug(f"Error processing user: {e}")
+            
+            if expired_count > 0:
+                logger.info(f"🔔 Subscription check: {expired_count} expired, {notified_count} notified")
+            
+        except asyncio.CancelledError:
+            logger.info("Subscription check task cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Subscription check task error: {e}")
+            await asyncio.sleep(60)  # Wait before retrying
 
 
 @app.on_event("startup")
