@@ -159,6 +159,7 @@ const useAudioPlayer = () => {
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
+  const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
