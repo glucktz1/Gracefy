@@ -364,6 +364,14 @@ const useAudioPlayer = () => {
         return;
       }
       
+      // Check if guest play limit reached - stop autoplay for non-logged-in users
+      console.log('[Player] guestLimitReachedRef.current:', guestLimitReachedRef.current);
+      if (guestLimitReachedRef.current) {
+        console.log('[Player] Auto-play blocked - guest play limit reached, stopping playback');
+        setIsPlaying(false);
+        return; // Don't reset the ref - user needs to login to continue
+      }
+      
       // Repeat ONE mode - replay same song
       if (currentRepeat === 'one') {
         console.log('[Player] Repeat ONE - replaying same song');
