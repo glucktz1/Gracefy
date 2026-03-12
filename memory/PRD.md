@@ -14,20 +14,19 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## What's Been Implemented
 
 ### Session: March 12, 2026 (Latest)
-- ✅ **Fixed autoplay - event listeners setup ONCE on mount** - Changed dependency array from `[currentSong, currentAlbum, savePlaybackState]` to `[]` to prevent re-attaching listeners
+- ✅ **Fixed autoplay - event listeners setup ONCE on mount** - Changed dependency array to `[]` to prevent re-attaching listeners
 - ✅ **Fixed next/prev buttons on mini player** - All refs properly updated, buttons work correctly
 - ✅ **Fixed continuous playback (autoplay)** - Using refs to avoid stale closures in handleSongEnd
-- ✅ **Fixed single-song album handling** - Stops playback instead of infinite loop when repeat is 'off'
+- ✅ **Improved Bible Range Reader** - Now with Testament selection (Agano la Kale/Jipya), step-by-step UI
+- ✅ **Bible stops music player** - When playing Bible audio, music player and radio are paused
 - ✅ **Fixed mobile login not reflecting in Profile** - FirebaseLoginScreen now calls AuthContext.login()
 - ✅ **Fixed Plans page checkout flow** - Added login check before payment
 - ✅ **Fixed radio streaming on web** - Added backend proxy for HTTP streams
 - ✅ **Added download/playlist buttons to mini player** - Triggers "Download App" popup
 - ✅ **Fixed popup z-index** - Download popup now appears above full player (z-[80])
-- ✅ **Made prev/next buttons always visible** - No longer hidden on mobile
 - ✅ **Guest autoplay blocking (web + mobile)** - Stops autoplay when guest limit reached
-- ✅ **Fixed download button error** - Changed to correct `setShowDownloadPopup`
 - ✅ **Fixed dual audio playback** - Added pause/reset before playing new song
-- ✅ **Android build completed** - APK: https://expo.dev/artifacts/eas/aJD6PZwcE652QrU1nQK4SE.apk
+- ✅ **Android build in progress** - Build ID: 5822bba2-b9bd-43dd-b28b-fed706a3290f
 
 ### Previous Session
 - ✅ Checkout modal for subscription payment (phone number + Azam Pay)
