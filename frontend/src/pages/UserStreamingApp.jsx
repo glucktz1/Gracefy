@@ -1904,7 +1904,7 @@ const StationCard = ({ station, isActive, onPlay }) => {
 };
 
 // Bible View Component
-const BibleView = ({ language, t, onBack }) => {
+const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
   const [books, setBooks] = useState([]);
   const [selectedBook, setSelectedBook] = useState(null);
   const [chapters, setChapters] = useState([]);
