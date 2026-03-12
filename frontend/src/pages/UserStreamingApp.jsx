@@ -4011,6 +4011,14 @@ export default function UserStreamingApp() {
   // Track if screen lock payment was triggered (blocks auto-play of next song)
   const [blockAutoPlayNext, setBlockAutoPlayNext] = useState(false);
   
+  // Reset guest limit flag when user logs in (must be after player is defined)
+  useEffect(() => {
+    if (user && player?.setGuestLimitReached) {
+      console.log('[Guest] User logged in - resetting guest limit flag');
+      player.setGuestLimitReached(false);
+    }
+  }, [user, player?.setGuestLimitReached]);
+  
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
     // Only apply screen lock payment if billing is ON and user is NOT premium
