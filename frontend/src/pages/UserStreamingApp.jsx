@@ -6522,11 +6522,11 @@ export default function UserStreamingApp() {
           onPrev={handlePrevWithBilling}
           onDownload={() => {
             // Always show download app popup for web
-            setShowDownloadAppPopup(true);
+            setShowDownloadPopup(true);
           }}
           onAddToPlaylist={() => {
             // Always show download app popup for web
-            setShowDownloadAppPopup(true);
+            setShowDownloadPopup(true);
           }}
         />
       )}
