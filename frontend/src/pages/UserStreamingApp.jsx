@@ -228,10 +228,15 @@ const useAudioPlayer = () => {
 
   // Play a song from the queue by index
   const playFromQueueInternal = useCallback(async (index, queueRef) => {
+    console.log('[Player] playFromQueueInternal called with index:', index);
     const q = queueRef || queue;
-    if (index < 0 || index >= q.length) return;
+    if (index < 0 || index >= q.length) {
+      console.log('[Player] Invalid index or empty queue, index:', index, 'queue length:', q.length);
+      return;
+    }
     const item = q[index];
     const song = item.song || item;
+    console.log('[Player] Playing song:', song?.title);
     
     // Get album from queue item - this is critical for cross-album playback
     // Each queue item MUST have its own album reference attached
