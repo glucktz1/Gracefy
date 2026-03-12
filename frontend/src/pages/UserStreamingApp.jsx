@@ -481,16 +481,15 @@ const useAudioPlayer = () => {
           fetchingMoreRef.current = false;
         }
       }
-        
-        // If we get here, either no album, fetch failed, or no more songs
-        // Loop back to beginning if we have songs
-        if (currentQueue.length > 0) {
-          console.log('[Player] Looping back to beginning of queue');
-          playFromQueueInternal(0, currentQueue);
-        } else {
-          console.log('[Player] Queue is empty - cannot continue playback');
-          setIsPlaying(false);
-        }
+      
+      // If we get here, either no album, fetch failed, or no more songs
+      // Loop back to beginning if we have songs
+      if (currentQueue.length > 0) {
+        console.log('[Player] Looping back to beginning of queue');
+        playFromQueueInternal(0, currentQueue);
+      } else {
+        console.log('[Player] Queue is empty - cannot continue playback');
+        setIsPlaying(false);
       }
     };
     
