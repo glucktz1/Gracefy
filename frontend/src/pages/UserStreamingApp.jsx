@@ -504,7 +504,10 @@ const useAudioPlayer = () => {
       setDuration(audio.duration);
       setIsLoading(false);
     };
-    const onEnded = () => handleSongEnd();
+    const onEnded = () => {
+      console.log('[Player] Audio ended event fired!');
+      handleSongEnd();
+    };
     const onError = () => {
       setIsLoading(false);
       // Auto-skip to next on error
