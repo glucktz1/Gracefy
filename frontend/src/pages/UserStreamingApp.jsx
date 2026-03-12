@@ -1101,7 +1101,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
   );
 };
 
-// Download App Popup
+// Download App Popup - Improved with better messaging
 const DownloadAppPopup = ({ show, onClose, language = 'sw' }) => {
   const [downloadInfo, setDownloadInfo] = useState(null);
   
@@ -1110,10 +1110,10 @@ const DownloadAppPopup = ({ show, onClose, language = 'sw' }) => {
       axios.get(`${API}/app/download-info`)
         .then(res => setDownloadInfo(res.data))
         .catch(() => setDownloadInfo({
-          message_sw: "Kuweza kupakua nyimbo, kutengeneza playlist yako nk pakua Gracefy sasa ufurahie zaidi!",
-          message_en: "To download songs, create your own playlists and more, download the Gracefy app and enjoy more!",
-          button_text_sw: "Pakua Gracefy Sasa",
-          button_text_en: "Download Gracefy Now",
+          message_sw: "Kufurahia kusikiliza nyimbo bila matangazo, kupakua na kusikiliza nyimbo bila mtandao, kutengeneza playlist yako, kusikiliza simu ikiwa imelock n.k... Pakua App ya Gracefy sasa!",
+          message_en: "Enjoy ad-free music, download songs for offline listening, create your own playlists, listen with screen locked, and more... Download the Gracefy App now!",
+          button_text_sw: "Bonyeza Hapa Kupakua",
+          button_text_en: "Click Here to Download",
           direct_apk_url: "https://expo.dev/artifacts/eas/kfXxmwS9TdbGutjxJDZH5.apk"
         }));
     }
@@ -1135,18 +1135,18 @@ const DownloadAppPopup = ({ show, onClose, language = 'sw' }) => {
         </button>
         
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl mx-auto mb-4 flex items-center justify-center">
             <Download size={32} className="text-white" />
           </div>
           
           <h3 className="text-xl font-bold text-white mb-2">Gracefy App</h3>
-          <p className="text-zinc-400 mb-6">{message}</p>
+          <p className="text-zinc-300 mb-6 text-sm leading-relaxed">{message}</p>
           
           <a 
             href={downloadInfo.direct_apk_url || downloadInfo.android_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-amber-600 hover:to-orange-700 transition-all"
+            className="block w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-600 hover:to-blue-800 transition-all"
           >
             {buttonText}
           </a>
