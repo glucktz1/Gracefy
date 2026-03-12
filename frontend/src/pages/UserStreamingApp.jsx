@@ -393,11 +393,11 @@ const useAudioPlayer = () => {
         
       // Try to fetch more songs from same category/artist
       if (!fetchingMoreRef.current && album) {
-          fetchingMoreRef.current = true;
-          try {
-            const categoryId = album.category_id;
-            const artistId = album.artist_id;
-            let moreSongs = [];
+        fetchingMoreRef.current = true;
+        try {
+          const categoryId = album.category_id;
+          const artistId = album.artist_id;
+          let moreSongs = [];
             
             // First try same category
             if (categoryId) {
