@@ -474,7 +474,7 @@ const useAudioPlayer = () => {
               playFromQueueInternal(currentQueue.length, newQueue);
               return;
             } else {
-              console.log('[Player] No more songs found - looping back');
+              console.log('[Player] No more songs found');
             }
           } catch (e) {
             console.error("Error fetching more songs:", e);
@@ -482,16 +482,15 @@ const useAudioPlayer = () => {
           }
         }
         
-        // Loop back to beginning (continuous playback)
-        nextIndex = 0;
-        console.log('[Player] Looping back to beginning, nextIndex:', nextIndex);
-      }
-      
-      if (currentQueue.length > 0) {
-        console.log('[Player] Playing next song at index:', nextIndex);
-        playFromQueueInternal(nextIndex, currentQueue);
-      } else {
-        console.log('[Player] Queue is empty - cannot continue playback');
+        // If we get here, either no album, fetch failed, or no more songs
+        // Loop back to beginning if we have songs
+        if (currentQueue.length > 0) {
+          console.log('[Player] Looping back to beginning of queue');
+          playFromQueueInternal(0, currentQueue);
+        } else {
+          console.log('[Player] Queue is empty - cannot continue playback');
+          setIsPlaying(false);
+        }
       }
     };
     
