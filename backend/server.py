@@ -360,6 +360,11 @@ async def startup():
     rate_limit_cleanup_task_ref = asyncio.create_task(rate_limit_cleanup_task())
     logger.info("🛡️ Rate limiter started")
     
+    # Start subscription expiry notification task (check every hour)
+    global subscription_check_task_ref
+    subscription_check_task_ref = asyncio.create_task(subscription_expiry_check_task(3600))
+    logger.info("📧 Subscription expiry checker started (every hour)")
+    
     # Run database migrations
     await run_migrations()
     
