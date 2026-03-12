@@ -6474,24 +6474,12 @@ export default function UserStreamingApp() {
         onNext={handleNextWithBilling}
         onPrev={handlePrevWithBilling}
         onDownload={() => {
-          // Check billing and show appropriate modal
-          if (!user) {
-            setShowGuestLimitModal(true);
-          } else if (billingEnabled && !isPremiumUser) {
-            setShowSubscriptionModal(true);
-          } else {
-            setShowDownloadAppPopup(true);
-          }
+          // Always show download app popup for web
+          setShowDownloadAppPopup(true);
         }}
         onAddToPlaylist={() => {
-          // Check billing and show appropriate modal
-          if (!user) {
-            setShowGuestLimitModal(true);
-          } else if (billingEnabled && !isPremiumUser) {
-            setShowSubscriptionModal(true);
-          } else {
-            setShowDownloadAppPopup(true);
-          }
+          // Always show download app popup for web
+          setShowDownloadAppPopup(true);
         }}
       />
 
