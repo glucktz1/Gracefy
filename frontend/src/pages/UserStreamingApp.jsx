@@ -3326,13 +3326,37 @@ const LegalPageView = ({ pageType, language, onBack }) => {
 };
 
 // ==================== PROFILE VIEW ====================
-const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabled, t }) => {
+const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabled, t, onSelectPlan }) => {
+  const [plans, setPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  
   const subscriptionStatus = isPremium ? 
     (language === 'sw' ? 'Premium' : 'Premium') : 
     (language === 'sw' ? 'Bure' : 'Free');
   
   const subscriptionExpiry = user?.subscription_expires ? 
     new Date(user.subscription_expires).toLocaleDateString() : null;
+  
+  // Fetch subscription plans when billing is enabled and user is not premium
+  useEffect(() => {
+    if (billingEnabled && !isPremium) {
+      setLoadingPlans(true);
+      axios.get(`${API}/subscription-plans`)
+        .then(res => {
+          setPlans(res.data.plans || []);
+        })
+        .catch(err => console.error('Failed to load plans:', err))
+        .finally(() => setLoadingPlans(false));
+    }
+  }, [billingEnabled, isPremium]);
+  
+  const handleSelectPlan = (plan) => {
+    setSelectedPlan(plan);
+    if (onSelectPlan) {
+      onSelectPlan(plan);
+    }
+  };
   
   return (
     <div className="pb-32" data-testid="profile-view">
@@ -3384,6 +3408,77 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           )}
         </div>
       </div>
+
+      {/* Subscription Packages - Only show when billing is ON and user is NOT premium */}
+      {billingEnabled && !isPremium && (
+        <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 rounded-2xl p-5 mb-6 border border-blue-500/20">
+          <div className="flex items-center gap-3 mb-4">
+            <Star className="text-amber-400" size={24} />
+            <div>
+              <h3 className="font-bold text-white text-lg">
+                {language === 'sw' ? 'Chagua Kifurushi Chako' : 'Choose Your Package'}
+              </h3>
+              <p className="text-zinc-400 text-sm">
+                {language === 'sw' 
+                  ? 'Ufurahie maudhui yote kwa uhuru' 
+                  : 'Enjoy all content freely'}
+              </p>
+            </div>
+          </div>
+          
+          {loadingPlans ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="animate-spin text-blue-400" size={32} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {plans.filter(p => p.is_active).map((plan) => (
+                <button
+                  key={plan.plan_id}
+                  onClick={() => handleSelectPlan(plan)}
+                  className={`w-full p-4 rounded-xl border transition-all ${
+                    selectedPlan?.plan_id === plan.plan_id 
+                      ? 'border-blue-500 bg-blue-500/20' 
+                      : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+                  }`}
+                  data-testid={`plan-${plan.plan_id}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <p className="font-semibold text-white">{plan.display_name || plan.name}</p>
+                      <p className="text-xs text-zinc-400">
+                        {plan.duration_days === 1 
+                          ? (language === 'sw' ? 'Siku 1' : '1 Day')
+                          : plan.duration_days === 7 
+                            ? (language === 'sw' ? 'Wiki 1' : '1 Week')
+                            : plan.duration_days === 30 
+                              ? (language === 'sw' ? 'Mwezi 1' : '1 Month')
+                              : `${plan.duration_days} ${language === 'sw' ? 'siku' : 'days'}`
+                        }
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-blue-400">
+                        TZS {plan.price?.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+              
+              {selectedPlan && (
+                <button
+                  onClick={() => onSelectPlan && onSelectPlan(selectedPlan)}
+                  className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
+                  data-testid="subscribe-btn"
+                >
+                  {language === 'sw' ? 'Lipia Sasa' : 'Pay Now'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
