@@ -757,11 +757,16 @@ const useAudioPlayer = () => {
     blockAutoPlayNextRef.current = block;
   };
   
+  // Method to set guest limit reached flag (stops autoplay when current song ends)
+  const setGuestLimitReached = (reached) => {
+    guestLimitReachedRef.current = reached;
+  };
+  
   return {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
-    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext
+    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached
   };
 };
 
