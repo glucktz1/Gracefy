@@ -2547,7 +2547,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev })
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -2564,10 +2564,10 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev }
         />
       </div>
       
-      <div className="flex items-center p-2 lg:p-3 gap-3">
+      <div className="flex items-center p-2 lg:p-3 gap-2 sm:gap-3">
         {/* Song Info */}
-        <button onClick={onExpand} className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-12 h-12 lg:w-14 lg:h-14 rounded overflow-hidden flex-shrink-0">
+        <button onClick={onExpand} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded overflow-hidden flex-shrink-0">
             {getThumbnail(player.currentAlbum) ? (
               <img src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -2582,36 +2582,54 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev }
           </div>
         </button>
 
-        {/* Quick Actions */}
-        <button onClick={onFavorite} className={`hidden sm:block ${isFavorite ? 'text-blue-400' : 'text-zinc-400'}`}>
-          <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-        </button>
+        {/* Quick Actions - Download & Playlist */}
+        <div className="hidden sm:flex items-center gap-1">
+          <button 
+            onClick={onDownload} 
+            className="text-zinc-400 hover:text-white p-1.5"
+            title="Download"
+            data-testid="mini-player-download"
+          >
+            <Download size={18} />
+          </button>
+          <button 
+            onClick={onAddToPlaylist} 
+            className="text-zinc-400 hover:text-white p-1.5"
+            title="Add to Playlist"
+            data-testid="mini-player-add-playlist"
+          >
+            <ListPlus size={18} />
+          </button>
+          <button onClick={onFavorite} className={`p-1.5 ${isFavorite ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}`}>
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
+        </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-2">
-          <button onClick={handlePrev} className="hidden md:block text-zinc-400 hover:text-white p-1">
-            <SkipBack size={22} fill="currentColor" />
+        {/* Controls - Always show prev/next */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button onClick={handlePrev} className="text-zinc-400 hover:text-white p-1">
+            <SkipBack size={20} fill="currentColor" />
           </button>
           <button 
             onClick={player.togglePlay}
-            className="w-10 h-10 bg-white rounded-full flex items-center justify-center"
+            className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center"
             disabled={player.isLoading}
           >
             {player.isLoading ? (
               <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
             ) : player.isPlaying ? (
-              <Pause size={18} className="text-black" />
+              <Pause size={16} className="text-black" />
             ) : (
-              <Play size={18} fill="black" className="text-black ml-0.5" />
+              <Play size={16} fill="black" className="text-black ml-0.5" />
             )}
           </button>
-          <button onClick={handleNext} className="hidden md:block text-zinc-400 hover:text-white p-1">
-            <SkipForward size={22} fill="currentColor" />
+          <button onClick={handleNext} className="text-zinc-400 hover:text-white p-1">
+            <SkipForward size={20} fill="currentColor" />
           </button>
         </div>
 
         {/* Volume - Desktop */}
-        <div className="hidden lg:flex items-center gap-2 ml-4">
+        <div className="hidden lg:flex items-center gap-2 ml-2">
           <button onClick={() => player.setIsMuted(!player.isMuted)} className="text-zinc-400 hover:text-white">
             {player.isMuted || player.volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
@@ -2620,7 +2638,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev }
             max={100}
             step={1}
             onValueChange={([v]) => { player.setVolume(v); player.setIsMuted(false); }}
-            className="w-24"
+            className="w-20"
           />
         </div>
 
