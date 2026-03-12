@@ -291,7 +291,8 @@ const HomeScreen = ({ navigation }) => {
       loadLayoutSections(activeSections, finalAlbums, mixes);
 
     } catch (error) {
-      // Silent error handling - app will show empty sections gracefully
+      console.error('[HomeScreen] Error loading data:', error.message);
+      console.error('[HomeScreen] Full error:', JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
     }
