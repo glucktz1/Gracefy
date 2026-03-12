@@ -349,6 +349,8 @@ const useAudioPlayer = () => {
       }
       
       // Check if auto-play is blocked (screen lock payment feature)
+      // Only check this if billing is actually enabled
+      console.log('[Player] blockAutoPlayNextRef.current:', blockAutoPlayNextRef.current);
       if (blockAutoPlayNextRef.current) {
         console.log('[Player] Auto-play blocked due to screen lock billing - stopping playback');
         blockAutoPlayNextRef.current = false; // Reset the flag
