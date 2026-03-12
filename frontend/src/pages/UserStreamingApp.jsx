@@ -1215,7 +1215,7 @@ const DownloadAppPopup = ({ show, onClose, language = 'sw' }) => {
   const buttonText = language === 'sw' ? downloadInfo.button_text_sw : downloadInfo.button_text_en;
   
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" data-testid="download-popup">
+    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4" data-testid="download-popup">
       <div className="bg-zinc-900 rounded-2xl p-6 max-w-sm w-full relative animate-in fade-in zoom-in duration-300">
         <button 
           onClick={onClose} 
