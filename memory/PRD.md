@@ -13,35 +13,34 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 11, 2026
-- ✅ Added SubscriptionRequiredModal for logged-in non-premium users
-- ✅ Fixed guest skip limit enforcement (incrementGuestSkipCount now called)
-- ✅ Fixed billing triggers for like/download/playlist actions
-- ✅ Fixed /api/user/subscription-status to query both users and app_users collections
-- ✅ Billing API confirmed working: billing_enabled=true, web_billing_enabled=true
+### Session: March 12, 2026
+- ✅ Fixed billing status display - correctly shows "Bure" for non-premium users
+- ✅ Fixed subscription status check to run immediately after login
+- ✅ Added debug logging for continuous playback troubleshooting
+- ✅ Fixed autoplay handling for browser policy compliance
+- ✅ Added client-side caching (5-min TTL) for faster page loads
+- ✅ Cached home data, categories, and billing status
 
 ### Previous Sessions
 - ✅ Firebase Auth migration (web + mobile)
 - ✅ Blue theme across all platforms
 - ✅ Custom Gracefy loading animation
-- ✅ Admin password change feature (Security Settings)
-- ✅ Removed "Made with Emergent" branding
-- ✅ Updated native app icon
-- ✅ Corrected Google login flow in native app
+- ✅ Admin password change feature
+- ✅ SubscriptionRequiredModal for non-premium users
+- ✅ Billing triggers for skip/like/download actions
 
-## Pending Issues (P0-P2)
+## Pending Issues
 
 ### P0 - Critical
-- Android builds v1.0.165 & v1.0.166 queued in Expo (check status)
+- Android builds queued (v1.0.167 with debug logging)
+- Google Sign-In needs Firebase authorized domain added
 
 ### P1 - High
 - Azam Pay production payments failing (blocked on user confirming callback URL)
+- Continuous playback needs user testing
 
-### P2 - Medium  
+### P2 - Medium
 - Device information for fraud prevention (awaiting user clarification)
-
-### P3 - Low
-- iOS build failure (needs Apple Developer credentials)
 
 ## Backlog / Future Tasks
 1. Bible TTS voice selection from admin settings
@@ -50,14 +49,19 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 4. SendGrid email campaigns
 
 ## Technical Debt
-- **CRITICAL**: `/app/frontend/src/pages/UserStreamingApp.jsx` is 6000+ lines and needs modularization
+- **CRITICAL**: `/app/frontend/src/pages/UserStreamingApp.jsx` is 6000+ lines
 - Multiple user collections (`users`, `app_users`) should be consolidated
 
 ## Key Files
-- `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (billing logic at lines ~4490-4525)
+- `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app
 - `/app/backend/routes/monetization.py` - Subscription status API
 - `/app/mobile/SpiritSongs/` - React Native app
 
 ## Test Credentials
 - **Admin**: admin@gracefy.life / G73ce7y@2026
 - **Test User**: glucktz1904@gmail.com / G73ce7y@2026
+
+## API Endpoints
+- `/api/billing-status` - Returns billing_enabled, web_billing_enabled
+- `/api/user/subscription-status?user_id=X` - Returns user's premium status
+- `/api/user/home` - Home page data
