@@ -4669,8 +4669,9 @@ export default function UserStreamingApp() {
     console.log(`[Guest] Checking limits: plays=${guestPlayCount}/${GUEST_PLAY_LIMIT}, skips=${guestSkipCount}/${GUEST_SKIP_LIMIT}`);
     
     if (guestPlayCount >= GUEST_PLAY_LIMIT) {
-      console.log('[Guest] PLAY LIMIT REACHED - showing modal');
+      console.log('[Guest] PLAY LIMIT REACHED - showing modal and blocking autoplay');
       setShowGuestLimitModal(true);
+      guestLimitReachedRef.current = true; // Block autoplay when current song ends
       return false;
     }
     
@@ -4687,7 +4688,8 @@ export default function UserStreamingApp() {
     setGuestPlayCount(newCount);
     
     if (newCount >= GUEST_PLAY_LIMIT) {
-      console.log('[Guest] Play limit reached after increment - will prompt on next attempt');
+      console.log('[Guest] Play limit reached after increment - blocking autoplay');
+      guestLimitReachedRef.current = true; // Block autoplay when current song ends
       return true;
     }
     return false;
