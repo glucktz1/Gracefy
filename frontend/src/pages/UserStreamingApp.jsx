@@ -2618,6 +2618,202 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
   );
 };
 
+// Checkout Modal - For subscription payment
+const CheckoutModal = ({ show, onClose, plan, language, user, onPaymentSuccess }) => {
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null); // 'pending', 'success', 'failed'
+  
+  if (!show || !plan) return null;
+  
+  const handlePayment = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      toast.error(language === 'sw' ? 'Tafadhali ingiza namba ya simu sahihi' : 'Please enter a valid phone number');
+      return;
+    }
+    
+    setLoading(true);
+    setPaymentStatus('pending');
+    
+    try {
+      // Call payment API
+      const response = await axios.post(`${API}/payment/azampay/initiate`, {
+        plan_id: plan.plan_id,
+        user_id: user?.user_id,
+        phone_number: phoneNumber.startsWith('0') ? `255${phoneNumber.slice(1)}` : phoneNumber,
+        amount: plan.price,
+        currency: 'TZS'
+      });
+      
+      if (response.data?.success) {
+        setPaymentStatus('success');
+        toast.success(language === 'sw' 
+          ? 'Ombi la malipo limetumwa! Angalia simu yako.' 
+          : 'Payment request sent! Check your phone.');
+        
+        // Poll for payment confirmation
+        setTimeout(() => {
+          if (onPaymentSuccess) onPaymentSuccess();
+          onClose();
+        }, 5000);
+      } else {
+        setPaymentStatus('failed');
+        toast.error(response.data?.message || (language === 'sw' ? 'Malipo yameshindikana' : 'Payment failed'));
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      setPaymentStatus('failed');
+      toast.error(language === 'sw' ? 'Malipo yameshindikana. Jaribu tena.' : 'Payment failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4">
+      <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-zinc-800"
+        >
+          <X size={20} />
+        </button>
+        
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Star className="w-8 h-8 text-blue-400" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-1">
+            {language === 'sw' ? 'Lipia Kifurushi' : 'Pay for Package'}
+          </h3>
+          <p className="text-zinc-400 text-sm">
+            {plan.display_name || plan.name}
+          </p>
+        </div>
+        
+        {/* Plan Summary */}
+        <div className="bg-zinc-800/50 rounded-xl p-4 mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-zinc-400">{language === 'sw' ? 'Kifurushi' : 'Package'}</span>
+            <span className="text-white font-medium">{plan.display_name || plan.name}</span>
+          </div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-zinc-400">{language === 'sw' ? 'Muda' : 'Duration'}</span>
+            <span className="text-white">
+              {plan.duration_days === 1 ? (language === 'sw' ? 'Siku 1' : '1 Day') :
+               plan.duration_days === 7 ? (language === 'sw' ? 'Wiki 1' : '1 Week') :
+               plan.duration_days === 30 ? (language === 'sw' ? 'Mwezi 1' : '1 Month') :
+               `${plan.duration_days} ${language === 'sw' ? 'siku' : 'days'}`}
+            </span>
+          </div>
+          <div className="flex justify-between items-center pt-3 border-t border-zinc-700">
+            <span className="text-zinc-300 font-medium">{language === 'sw' ? 'Jumla' : 'Total'}</span>
+            <span className="text-2xl font-bold text-blue-400">TZS {plan.price?.toLocaleString()}</span>
+          </div>
+        </div>
+        
+        {/* Phone Number Input */}
+        <div className="mb-6">
+          <label className="block text-sm text-zinc-400 mb-2">
+            {language === 'sw' ? 'Namba ya Simu (M-Pesa/Tigo Pesa/Airtel Money)' : 'Phone Number (Mobile Money)'}
+          </label>
+          <div className="flex gap-2">
+            <span className="px-3 py-3 bg-zinc-800 rounded-l-lg text-zinc-400 border border-zinc-700 border-r-0">
+              +255
+            </span>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="7XXXXXXXX"
+              className="flex-1 px-4 py-3 bg-zinc-800 rounded-r-lg text-white border border-zinc-700 focus:border-blue-500 focus:outline-none"
+              disabled={loading}
+            />
+          </div>
+        </div>
+        
+        {/* Payment Button */}
+        <button
+          onClick={handlePayment}
+          disabled={loading || !phoneNumber}
+          className={`w-full py-3 font-semibold rounded-full transition-all ${
+            loading 
+              ? 'bg-zinc-700 text-zinc-400 cursor-wait' 
+              : 'bg-blue-600 hover:bg-blue-500 text-white'
+          }`}
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin" size={20} />
+              {language === 'sw' ? 'Inasubiri...' : 'Processing...'}
+            </span>
+          ) : paymentStatus === 'pending' ? (
+            language === 'sw' ? 'Angalia Simu Yako' : 'Check Your Phone'
+          ) : (
+            language === 'sw' ? 'Lipia Sasa' : 'Pay Now'
+          )}
+        </button>
+        
+        <p className="text-xs text-zinc-500 text-center mt-4">
+          {language === 'sw' 
+            ? '🔒 Malipo salama kupitia Azam Pay' 
+            : '🔒 Secure payment via Azam Pay'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Screen Lock Payment Prompt - Shows when screen locks for non-premium users
+const ScreenLockPaymentModal = ({ show, onClose, onPay, language }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4">
+      <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-10 h-10 text-amber-400" />
+          </div>
+          
+          <h3 className="text-xl font-bold text-white mb-3">
+            {language === 'sw' 
+              ? 'Kuendelea Kusikiliza Simu Ikiwa Imelock' 
+              : 'Continue Listening with Screen Locked'}
+          </h3>
+          
+          <p className="text-zinc-300 mb-2 leading-relaxed">
+            {language === 'sw' 
+              ? 'Changia kidogo ili kuendelea kusikiliza muziki hata simu yako ikiwa imelock.'
+              : 'Contribute a little to continue listening to music even with your phone locked.'}
+          </p>
+          
+          <p className="text-amber-400 text-sm mb-6 italic">
+            {language === 'sw' 
+              ? 'NB: Maudhui haya ni bure lakini teknolojia hii ina gharama.'
+              : 'NB: This content is free but this technology has costs.'}
+          </p>
+          
+          <div className="space-y-3">
+            <button
+              onClick={onPay}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
+            >
+              {language === 'sw' ? 'Changia Sasa' : 'Contribute Now'}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium rounded-full transition-colors"
+            >
+              {language === 'sw' ? 'Baadaye' : 'Later'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, isLocked, promptAttempts, maxAttempts }) => {
   if (!show) return null;
   
