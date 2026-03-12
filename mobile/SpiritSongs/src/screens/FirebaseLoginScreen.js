@@ -427,12 +427,15 @@ const FirebaseLoginScreen = ({ navigation }) => {
       />
       
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
         >
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -458,6 +461,9 @@ const FirebaseLoginScreen = ({ navigation }) => {
             <Ionicons name="shield-checkmark" size={14} color="#4CAF50" />
             <Text style={styles.firebaseBadgeText}>Powered by Firebase</Text>
           </View>
+          
+          {/* Extra padding at bottom for keyboard */}
+          <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
