@@ -2511,6 +2511,84 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
         <span className="text-xs text-zinc-500">{verses.length} {t('bible.verses', 'mistari')}</span>
       </div>
       
+      {/* Quick Listen to Range - allows selecting verse range from current chapter */}
+      <div className="bg-gradient-to-br from-amber-900/30 to-zinc-900 rounded-xl p-4 border border-amber-500/20">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Mic2 size={18} className="text-amber-500" />
+            <span className="text-sm font-medium text-white">Sikiliza Mistari</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-zinc-400">Mistari:</span>
+          <input
+            type="number"
+            min={1}
+            max={verses.length}
+            value={rangeStart}
+            onChange={(e) => setRangeStart(parseInt(e.target.value) || 1)}
+            className="w-16 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-white text-sm text-center"
+            placeholder="1"
+          />
+          <span className="text-zinc-500">-</span>
+          <input
+            type="number"
+            min={rangeStart}
+            max={verses.length}
+            value={rangeEnd}
+            onChange={(e) => setRangeEnd(parseInt(e.target.value) || rangeStart)}
+            className="w-16 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-white text-sm text-center"
+            placeholder="12"
+          />
+          <button
+            onClick={async () => {
+              // Stop any music player or radio
+              if (onStopMusicPlayer) onStopMusicPlayer();
+              
+              setRangeLoading(true);
+              try {
+                const res = await axios.post(`${API}/bible/tts/passage-range`, {
+                  book_name: selectedBook.name,
+                  chapter: selectedChapter,
+                  start_verse: rangeStart,
+                  end_verse: Math.min(rangeEnd, verses.length),
+                  language: language,
+                  voice: selectedVoice,
+                  speed: playbackSpeed
+                });
+                
+                if (audioElement) audioElement.pause();
+                const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+                audio.playbackRate = playbackSpeed;
+                audio.onended = () => setPlayingAudio(null);
+                audio.play();
+                setAudioElement(audio);
+                setPlayingAudio(`chapter_${selectedChapter}_range`);
+                toast.success(`Inasikiliza ${selectedBook.name} ${selectedChapter}:${rangeStart}-${rangeEnd}`);
+              } catch (e) {
+                toast.error(e.response?.data?.detail || "Imeshindikana kutengeneza sauti");
+              } finally {
+                setRangeLoading(false);
+              }
+            }}
+            disabled={rangeLoading}
+            className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium rounded text-sm flex items-center gap-1 disabled:opacity-50"
+          >
+            {rangeLoading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : playingAudio === `chapter_${selectedChapter}_range` ? (
+              <Pause size={14} />
+            ) : (
+              <Play size={14} />
+            )}
+            <span>{rangeLoading ? 'Subiri...' : 'Sikiliza'}</span>
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500 mt-2">
+          {selectedBook.name} {selectedChapter}:{rangeStart}-{rangeEnd} ({Math.min(rangeEnd, verses.length) - rangeStart + 1} mistari)
+        </p>
+      </div>
+      
       <div className="space-y-3 pb-20">
         {verses.map(verse => (
           <div 
