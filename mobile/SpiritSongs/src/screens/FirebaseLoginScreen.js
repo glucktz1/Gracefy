@@ -63,6 +63,9 @@ const FirebaseLoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
+  // Get login function from AuthContext to update app state
+  const { login: authLogin } = useAuth();
+  
   // Auth methods from admin settings
   const [authMethods, setAuthMethods] = useState({
     email_password: true,
