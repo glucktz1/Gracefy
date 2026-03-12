@@ -6376,6 +6376,51 @@ export default function UserStreamingApp() {
         }}
         language={language}
       />
+      
+      {/* Checkout Modal for Subscription Payment */}
+      <CheckoutModal
+        show={showCheckoutModal}
+        onClose={() => {
+          setShowCheckoutModal(false);
+          setSelectedPlanForCheckout(null);
+        }}
+        plan={selectedPlanForCheckout}
+        language={language}
+        user={user}
+        onPaymentSuccess={() => {
+          // Refresh user subscription status
+          if (user?.user_id) {
+            axios.get(`${API}/user/subscription-status?user_id=${user.user_id}`)
+              .then(res => {
+                setIsPremium(res.data?.is_premium === true);
+                if (res.data?.is_premium) {
+                  toast.success(language === 'sw' ? 'Hongera! Sasa wewe ni Premium!' : 'Congratulations! You are now Premium!');
+                }
+              });
+          }
+        }}
+      />
+      
+      {/* Screen Lock Payment Prompt */}
+      <ScreenLockPaymentModal
+        show={showScreenLockPayment}
+        onClose={() => setShowScreenLockPayment(false)}
+        onPay={() => {
+          setShowScreenLockPayment(false);
+          // Open checkout with cheapest plan
+          axios.get(`${API}/subscription-plans`)
+            .then(res => {
+              const plans = res.data?.plans || [];
+              if (plans.length > 0) {
+                // Find cheapest active plan
+                const cheapest = plans.filter(p => p.is_active).sort((a, b) => a.price - b.price)[0];
+                setSelectedPlanForCheckout(cheapest);
+                setShowCheckoutModal(true);
+              }
+            });
+        }}
+        language={language}
+      />
 
       {/* Auth Modal */}
       {showAuth && (
