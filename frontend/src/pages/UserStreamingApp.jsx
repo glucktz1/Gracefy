@@ -4263,10 +4263,18 @@ export default function UserStreamingApp() {
     }
     const timer = setTimeout(async () => {
       try {
+        console.log('[Search] Searching for:', searchQuery);
         const res = await axios.get(`${API}/user/search?q=${encodeURIComponent(searchQuery)}`);
-        setSearchResults(res.data);
+        console.log('[Search] Results:', res.data);
+        // Map choirs to artists for display
+        const results = {
+          ...res.data,
+          artists: res.data.choirs || []
+        };
+        setSearchResults(results);
       } catch (e) {
-        console.log("Search error");
+        console.error("[Search] Error:", e);
+        toast.error("Search failed");
       }
     }, 300);
     return () => clearTimeout(timer);
