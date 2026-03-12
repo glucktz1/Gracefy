@@ -603,6 +603,14 @@ const useAudioPlayer = () => {
   }, []);
 
   const playSong = useCallback(async (song, album, songQueue = [], index = 0) => {
+    // IMPORTANT: Stop any currently playing audio first to prevent multiple songs playing
+    try {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    } catch (e) {
+      console.log('[Player] Error stopping current audio:', e);
+    }
+    
     // End previous session with duration
     if (sessionIdRef.current && audioRef.current) {
       try {
