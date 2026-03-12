@@ -2285,23 +2285,18 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
   // Verse Range Reader View
   if (showRangeReader) {
     // Separate books into Old and New Testament
-    const oldTestament = books.filter(b => {
-      const otBooks = ['Mwanzo', 'Kutoka', 'Mambo ya Walawi', 'Hesabu', 'Kumbukumbu', 'Yoshua', 'Waamuzi', 'Ruthu', 
-        '1 Samweli', '2 Samweli', '1 Wafalme', '2 Wafalme', '1 Mambo ya Nyakati', '2 Mambo ya Nyakati',
-        'Ezra', 'Nehemia', 'Esta', 'Ayubu', 'Zaburi', 'Mithali', 'Mhubiri', 'Wimbo Ulio Bora', 
-        'Isaya', 'Yeremia', 'Maombolezo', 'Ezekieli', 'Danieli', 'Hosea', 'Yoeli', 'Amosi', 
-        'Obadia', 'Yona', 'Mika', 'Nahumu', 'Habakuki', 'Sefania', 'Hagai', 'Zekaria', 'Malaki',
-        'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
-        '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles',
-        'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
-        'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
-        'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi'];
-      return otBooks.some(ot => b.name.toLowerCase().includes(ot.toLowerCase()));
-    });
+    const otBooks = ['Mwanzo', 'Kutoka', 'Mambo ya Walawi', 'Hesabu', 'Kumbukumbu', 'Yoshua', 'Waamuzi', 'Ruthu', 
+      '1 Samweli', '2 Samweli', '1 Wafalme', '2 Wafalme', '1 Mambo ya Nyakati', '2 Mambo ya Nyakati',
+      'Ezra', 'Nehemia', 'Esta', 'Ayubu', 'Zaburi', 'Mithali', 'Mhubiri', 'Wimbo Ulio Bora', 
+      'Isaya', 'Yeremia', 'Maombolezo', 'Ezekieli', 'Danieli', 'Hosea', 'Yoeli', 'Amosi', 
+      'Obadia', 'Yona', 'Mika', 'Nahumu', 'Habakuki', 'Sefania', 'Hagai', 'Zekaria', 'Malaki',
+      'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth',
+      '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles',
+      'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
+      'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
+      'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi'];
+    const oldTestament = books.filter(b => otBooks.some(ot => b.name.toLowerCase().includes(ot.toLowerCase())));
     const newTestament = books.filter(b => !oldTestament.includes(b));
-    
-    // State for testament selection
-    const [selectedTestament, setSelectedTestament] = useState('new'); // 'old' or 'new'
     const displayedBooks = selectedTestament === 'old' ? oldTestament : newTestament;
     
     return (
