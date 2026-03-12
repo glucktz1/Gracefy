@@ -2057,6 +2057,11 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
       return;
     }
     
+    // Stop any music player or radio that might be playing
+    if (onStopMusicPlayer) {
+      onStopMusicPlayer();
+    }
+    
     setRangeLoading(true);
     try {
       const res = await axios.post(`${API}/bible/tts/passage-range`, {
