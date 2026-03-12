@@ -81,6 +81,10 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
   };
 
   const handleSubscribe = async () => {
+    console.log('[SubscriptionPlansScreen] handleSubscribe called');
+    console.log('[SubscriptionPlansScreen] selectedPlan:', selectedPlan);
+    console.log('[SubscriptionPlansScreen] user:', user?.user_id || 'not logged in');
+    
     if (!selectedPlan) {
       showToast('Tafadhali chagua mpango', 'warning');
       return;
@@ -93,6 +97,7 @@ const SubscriptionPlansScreen = ({ navigation, route }) => {
     }
 
     // Navigate to Checkout screen with selected plan
+    console.log('[SubscriptionPlansScreen] Navigating to Checkout with plan:', selectedPlan.plan_id);
     navigation.navigate('Checkout', { plan: selectedPlan });
   };
 
