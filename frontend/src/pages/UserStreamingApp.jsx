@@ -348,6 +348,14 @@ const useAudioPlayer = () => {
         }
       }
       
+      // Check if auto-play is blocked (screen lock payment feature)
+      if (blockAutoPlayNextRef.current) {
+        console.log('[Player] Auto-play blocked due to screen lock billing - stopping playback');
+        blockAutoPlayNextRef.current = false; // Reset the flag
+        setIsPlaying(false);
+        return; // Don't play next song
+      }
+      
       if (currentRepeat === 'one') {
         console.log('[Player] Repeat ONE - replaying same song');
         audio.currentTime = 0;
