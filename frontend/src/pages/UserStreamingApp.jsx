@@ -398,18 +398,37 @@ const useAudioPlayer = () => {
           const categoryId = album.category_id;
           const artistId = album.artist_id;
           let moreSongs = [];
-            
-            // First try same category
-            if (categoryId) {
-              const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
-              const albums = catRes.data.albums || [];
-              for (const fetchedAlbum of albums) {
+          
+          // First try same category
+          if (categoryId) {
+            const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
+            const albums = catRes.data.albums || [];
+            for (const fetchedAlbum of albums) {
+              if (fetchedAlbum.album_id !== album.album_id) {
+                const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
+                const songs = albumRes.data.songs || [];
+                // Use the detailed album data from albumRes which includes thumbnail
+                const detailedAlbum = albumRes.data.album || fetchedAlbum;
+                // Ensure each song has album_thumbnail for fallback
+                moreSongs.push(...songs.map(s => ({ 
+                  song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
+                  album: detailedAlbum 
+                })));
+                if (moreSongs.length >= 10) break;
+              }
+            }
+          }
+          
+          // If not enough, try same artist
+          if (moreSongs.length < 5 && artistId) {
+            try {
+              const artistAlbums = await axios.get(`${API}/albums?artist_id=${artistId}`);
+              for (const fetchedAlbum of artistAlbums.data.albums || []) {
                 if (fetchedAlbum.album_id !== album.album_id) {
                   const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
                   const songs = albumRes.data.songs || [];
                   // Use the detailed album data from albumRes which includes thumbnail
                   const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                  // Ensure each song has album_thumbnail for fallback
                   moreSongs.push(...songs.map(s => ({ 
                     song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
                     album: detailedAlbum 
@@ -417,70 +436,51 @@ const useAudioPlayer = () => {
                   if (moreSongs.length >= 10) break;
                 }
               }
+            } catch (e) {
+              console.log("Error fetching artist albums");
             }
-            
-            // If not enough, try same artist
-            if (moreSongs.length < 5 && artistId) {
-              try {
-                const artistAlbums = await axios.get(`${API}/albums?artist_id=${artistId}`);
-                for (const fetchedAlbum of artistAlbums.data.albums || []) {
-                  if (fetchedAlbum.album_id !== album.album_id) {
-                    const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
-                    const songs = albumRes.data.songs || [];
-                    // Use the detailed album data from albumRes which includes thumbnail
-                    const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                    moreSongs.push(...songs.map(s => ({ 
-                      song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
-                      album: detailedAlbum 
-                    })));
-                    if (moreSongs.length >= 10) break;
-                  }
-                }
-              } catch (e) {
-                console.log("Error fetching artist albums");
-              }
-            }
-            
-            // If still not enough, get featured
-            if (moreSongs.length < 5) {
-              try {
-                const homeRes = await axios.get(`${API}/user/home`);
-                const featuredSection = homeRes.data.sections?.find(s => s.section_type === 'featured_albums');
-                for (const fetchedAlbum of featuredSection?.items || []) {
-                  if (fetchedAlbum.album_id !== album?.album_id) {
-                    const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
-                    const songs = albumRes.data.songs || [];
-                    // Use the detailed album data from albumRes which includes thumbnail
-                    const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                    moreSongs.push(...songs.map(s => ({ 
-                      song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
-                      album: detailedAlbum 
-                    })));
-                    if (moreSongs.length >= 10) break;
-                  }
-                }
-              } catch (e) {
-                console.log("Error fetching featured");
-              }
-            }
-            
-            fetchingMoreRef.current = false;
-            
-            if (moreSongs.length > 0) {
-              console.log('[Player] Found', moreSongs.length, 'more songs - adding to queue');
-              const newQueue = [...currentQueue, ...moreSongs];
-              setQueue(newQueue);
-              // Play the next song (current queue.length is the first new song)
-              playFromQueueInternal(currentQueue.length, newQueue);
-              return;
-            } else {
-              console.log('[Player] No more songs found');
-            }
-          } catch (e) {
-            console.error("Error fetching more songs:", e);
-            fetchingMoreRef.current = false;
           }
+          
+          // If still not enough, get featured
+          if (moreSongs.length < 5) {
+            try {
+              const homeRes = await axios.get(`${API}/user/home`);
+              const featuredSection = homeRes.data.sections?.find(s => s.section_type === 'featured_albums');
+              for (const fetchedAlbum of featuredSection?.items || []) {
+                if (fetchedAlbum.album_id !== album?.album_id) {
+                  const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
+                  const songs = albumRes.data.songs || [];
+                  // Use the detailed album data from albumRes which includes thumbnail
+                  const detailedAlbum = albumRes.data.album || fetchedAlbum;
+                  moreSongs.push(...songs.map(s => ({ 
+                    song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
+                    album: detailedAlbum 
+                  })));
+                  if (moreSongs.length >= 10) break;
+                }
+              }
+            } catch (e) {
+              console.log("Error fetching featured");
+            }
+          }
+          
+          fetchingMoreRef.current = false;
+          
+          if (moreSongs.length > 0) {
+            console.log('[Player] Found', moreSongs.length, 'more songs - adding to queue');
+            const newQueue = [...currentQueue, ...moreSongs];
+            setQueue(newQueue);
+            // Play the next song (current queue.length is the first new song)
+            playFromQueueInternal(currentQueue.length, newQueue);
+            return;
+          } else {
+            console.log('[Player] No more songs found');
+          }
+        } catch (e) {
+          console.error("Error fetching more songs:", e);
+          fetchingMoreRef.current = false;
         }
+      }
         
         // If we get here, either no album, fetch failed, or no more songs
         // Loop back to beginning if we have songs
