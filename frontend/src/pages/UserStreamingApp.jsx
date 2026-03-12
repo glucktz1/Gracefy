@@ -3728,31 +3728,37 @@ export default function UserStreamingApp() {
     };
   }, [token, user?.user_id]);
 
-  // Check auth
+  // Check auth and subscription status
   useEffect(() => {
     if (token) {
       axios.get(`${API}/user/me`, { headers: { Authorization: `Bearer ${token}` }})
-        .then(res => {
+        .then(async (res) => {
           setUser(res.data);
           localStorage.setItem('user_id', res.data.user_id);
           setFavorites(res.data.favorites || []);
           
-          // Only check subscription if billing is enabled
-          if (billingEnabled && res.data.user_id) {
-            axios.get(`${API}/user/subscription-status?user_id=${res.data.user_id}`)
-              .then(subRes => {
-                // If billing is disabled at backend level, user is premium
-                if (subRes.data?.billing_enabled === false) {
-                  setIsPremium(true);
-                  setBillingEnabled(false);
-                } else {
-                  setIsPremium(subRes.data?.is_premium || false);
-                }
-              })
-              .catch(() => setIsPremium(false));
-          } else if (!billingEnabled) {
-            // Billing is disabled, everyone is premium
-            setIsPremium(true);
+          // ALWAYS check subscription status for logged-in users
+          if (res.data.user_id) {
+            try {
+              const subRes = await axios.get(`${API}/user/subscription-status?user_id=${res.data.user_id}`);
+              console.log('[Billing] Subscription status for user:', subRes.data);
+              
+              // Update billing state based on server response
+              if (subRes.data?.billing_enabled === true) {
+                setBillingEnabled(true);
+                setIsPremium(subRes.data?.is_premium === true);
+                console.log('[Billing] User premium status:', subRes.data?.is_premium);
+              } else {
+                // Billing disabled - everyone is premium
+                setBillingEnabled(false);
+                setIsPremium(true);
+                console.log('[Billing] Billing disabled - user is premium');
+              }
+            } catch (e) {
+              console.error('[Billing] Failed to check subscription:', e);
+              // On error, check global billing status
+              setIsPremium(!billingEnabled);
+            }
           }
         })
         .catch(() => {
@@ -3760,7 +3766,7 @@ export default function UserStreamingApp() {
           setToken(null);
         });
     }
-  }, [token, billingEnabled]);
+  }, [token]);
 
   // Firebase auth state listener - handles session persistence
   useEffect(() => {
