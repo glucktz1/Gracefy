@@ -160,6 +160,7 @@ const useAudioPlayer = () => {
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
+  const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
