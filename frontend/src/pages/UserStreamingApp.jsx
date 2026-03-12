@@ -5359,16 +5359,17 @@ export default function UserStreamingApp() {
                         </div>
                       )}
 
-                      {/* Radio Stations Section */}
+                      {/* Radio Stations Section - Round images UI */}
                       {isRadioSection && (
-                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
                           {items.map(station => (
                             <div
                               key={station.station_id}
                               onClick={() => handlePlayRadioFromHome(station)}
-                              className="flex-shrink-0 w-36 bg-zinc-900/60 rounded-lg p-3 cursor-pointer hover:bg-zinc-800/60 transition-colors group"
+                              className="flex-shrink-0 flex flex-col items-center cursor-pointer group"
                             >
-                              <div className="w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center relative">
+                              {/* Round Image Container */}
+                              <div className="w-20 h-20 rounded-full overflow-hidden mb-2 bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center relative border-2 border-violet-500/30 group-hover:border-violet-400 transition-colors">
                                 {station.thumbnail || station.favicon ? (
                                   <img 
                                     src={station.thumbnail || station.favicon} 
@@ -5377,20 +5378,27 @@ export default function UserStreamingApp() {
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                   />
                                 ) : (
-                                  <Radio className="w-10 h-10 text-white/60" />
+                                  <Radio className="w-8 h-8 text-white/60" />
                                 )}
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center">
+                                {/* Play Overlay */}
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                                  <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center">
                                     {homeRadioPlaying?.station_id === station.station_id ? (
-                                      <Pause className="w-5 h-5 text-white fill-white" />
+                                      <Pause className="w-4 h-4 text-white fill-white" />
                                     ) : (
-                                      <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                      <Play className="w-4 h-4 text-white fill-white ml-0.5" />
                                     )}
                                   </div>
                                 </div>
+                                {/* Playing Indicator */}
+                                {homeRadioPlaying?.station_id === station.station_id && (
+                                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-black flex items-center justify-center">
+                                    <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                  </div>
+                                )}
                               </div>
-                              <h3 className="font-medium text-sm truncate text-center">{station.name}</h3>
-                              <p className="text-xs text-zinc-400 truncate text-center">{station.country || 'Live'}</p>
+                              <h3 className="font-medium text-xs text-center truncate w-20">{station.name}</h3>
+                              <p className="text-[10px] text-zinc-400 text-center truncate w-20">{station.country || 'Live'}</p>
                             </div>
                           ))}
                         </div>
