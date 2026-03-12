@@ -372,9 +372,19 @@ const useAudioPlayer = () => {
         console.log('[Player] Shuffle ON - random next index:', nextIndex);
       }
 
+      console.log('[Player] Next index would be:', nextIndex, 'Queue length:', currentQueue.length);
+
       // If we've reached the end of queue, fetch more or loop
       if (nextIndex >= currentQueue.length) {
-        console.log('[Player] Reached end of queue - fetching more songs...');
+        console.log('[Player] Reached end of queue - checking repeat mode:', currentRepeat);
+        
+        // If repeat is 'all', loop back to beginning
+        if (currentRepeat === 'all' && currentQueue.length > 0) {
+          console.log('[Player] Repeat ALL - looping back to start');
+          playFromQueueInternal(0, currentQueue);
+          return;
+        }
+        
         // Try to fetch more songs from same category/artist
         if (!fetchingMoreRef.current && album) {
           fetchingMoreRef.current = true;
