@@ -3917,7 +3917,10 @@ export default function UserStreamingApp() {
       if (document.hidden && player?.isPlaying && user) {
         console.log('[Billing] Screen locked while playing - showing payment prompt, song continues');
         // Don't pause - let the current song finish
-        // Set flag to block auto-play of next song
+        // Set flag to block auto-play of next song using the player's method
+        if (player?.setBlockAutoPlayNext) {
+          player.setBlockAutoPlayNext(true);
+        }
         setBlockAutoPlayNext(true);
         // Show payment prompt
         setShowScreenLockPayment(true);
@@ -3929,7 +3932,7 @@ export default function UserStreamingApp() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [billingEnabled, isPremium, player?.isPlaying, user]);
+  }, [billingEnabled, isPremium, player?.isPlaying, user, player?.setBlockAutoPlayNext]);
   
   // i18n - Translation hook
   const { t, language, changeLanguage, availableLanguages, getGreeting } = useLanguage();
