@@ -70,6 +70,24 @@ const SubscriptionScreen = ({ navigation }) => {
   };
 
   const handleSelectPlan = (plan) => {
+    console.log('[SubscriptionScreen] Plan selected:', plan.display_name || plan.name);
+    console.log('[SubscriptionScreen] appBillingEnabled:', appBillingEnabled);
+    console.log('[SubscriptionScreen] billingMode:', billingMode);
+    console.log('[SubscriptionScreen] user:', user?.user_id || 'not logged in');
+    
+    // Check if user is logged in first
+    if (!user?.user_id) {
+      Alert.alert(
+        'Ingia Kwanza',
+        'Tafadhali ingia kwenye akaunti yako ili kuendelea na malipo.',
+        [
+          { text: 'Baadaye', style: 'cancel' },
+          { text: 'Ingia', onPress: () => navigation.navigate('Login') }
+        ]
+      );
+      return;
+    }
+    
     if (!appBillingEnabled || billingMode === 'app_redirect') {
       // Redirect to web
       Alert.alert(
@@ -85,6 +103,7 @@ const SubscriptionScreen = ({ navigation }) => {
     
     setSelectedPlan(plan);
     setShowPayment(true);
+    console.log('[SubscriptionScreen] showPayment set to true');
   };
 
   const handlePayment = async () => {
