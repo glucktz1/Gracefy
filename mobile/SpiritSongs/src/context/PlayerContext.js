@@ -701,6 +701,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       const limitReached = await incrementGuestPlayCount();
       if (limitReached) {
         console.log('[Player] Guest play limit reached - stopping playback and showing login');
+        // Set flag to block autoplay when current song ends
+        guestLimitReachedRef.current = true;
         // Stop any current playback
         if (setupCompleteRef.current) {
           try {
