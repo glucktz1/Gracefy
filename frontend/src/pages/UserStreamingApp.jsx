@@ -374,19 +374,25 @@ const useAudioPlayer = () => {
 
       console.log('[Player] Next index would be:', nextIndex, 'Queue length:', currentQueue.length);
 
-      // If we've reached the end of queue, fetch more or loop
-      if (nextIndex >= currentQueue.length) {
-        console.log('[Player] Reached end of queue - checking repeat mode:', currentRepeat);
+      // If we still have songs in the queue, play next
+      if (nextIndex < currentQueue.length) {
+        console.log('[Player] Playing next song in queue at index:', nextIndex);
+        playFromQueueInternal(nextIndex, currentQueue);
+        return;
+      }
+      
+      // We've reached the end of queue
+      console.log('[Player] Reached end of queue - checking options...');
+      
+      // If repeat is 'all', loop back to beginning immediately
+      if (currentRepeat === 'all' && currentQueue.length > 0) {
+        console.log('[Player] Repeat ALL - looping back to start');
+        playFromQueueInternal(0, currentQueue);
+        return;
+      }
         
-        // If repeat is 'all', loop back to beginning
-        if (currentRepeat === 'all' && currentQueue.length > 0) {
-          console.log('[Player] Repeat ALL - looping back to start');
-          playFromQueueInternal(0, currentQueue);
-          return;
-        }
-        
-        // Try to fetch more songs from same category/artist
-        if (!fetchingMoreRef.current && album) {
+      // Try to fetch more songs from same category/artist
+      if (!fetchingMoreRef.current && album) {
           fetchingMoreRef.current = true;
           try {
             const categoryId = album.category_id;
