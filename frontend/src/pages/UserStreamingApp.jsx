@@ -255,7 +255,22 @@ const useAudioPlayer = () => {
     audioRef.current.src = audioUrl;
     
     try {
-      await audioRef.current.play();
+      // Use play() with promise handling for better browser compatibility
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log('[Player] Autoplay started successfully');
+        }).catch(error => {
+          console.log('[Player] Autoplay blocked:', error.name);
+          // If autoplay is blocked, show a play button or wait for user interaction
+          if (error.name === 'NotAllowedError') {
+            // Browser blocked autoplay - this is normal on first interaction
+            // The user will need to click play
+            setIsLoading(false);
+            return;
+          }
+        });
+      }
       
       // Determine content type for analytics
       const isTeaching = song.is_teaching || song.song_id?.startsWith('lesson_');
