@@ -1747,7 +1747,7 @@ const RadioView = ({ t, onBack }) => {
   );
 };
 
-// Station Card Component
+// Station Card Component with Round Image
 const StationCard = ({ station, isActive, onPlay }) => {
   return (
     <div 
@@ -1759,8 +1759,8 @@ const StationCard = ({ station, isActive, onPlay }) => {
       onClick={onPlay}
       data-testid={`station-card-${station.station_id}`}
     >
-      {/* Logo */}
-      <div className={`w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 relative ${isActive ? 'ring-2 ring-violet-500' : ''}`}>
+      {/* Round Logo */}
+      <div className={`w-14 h-14 rounded-full overflow-hidden flex-shrink-0 relative border-2 ${isActive ? 'border-violet-500' : 'border-violet-500/30'}`}>
         {station.favicon ? (
           <img src={station.favicon} alt={station.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
         ) : (
@@ -1769,7 +1769,9 @@ const StationCard = ({ station, isActive, onPlay }) => {
           </div>
         )}
         {isActive && (
-          <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-zinc-900" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-zinc-900 flex items-center justify-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          </div>
         )}
       </div>
 
