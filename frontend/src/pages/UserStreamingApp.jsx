@@ -2586,7 +2586,7 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
             <Star className="w-8 h-8 text-blue-400" />
           </div>
           <h3 className="text-xl font-bold text-white mb-2">
-            {language === 'sw' ? 'Pata Premium' : 'Get Premium'}
+            {language === 'sw' ? 'Wezesha Premium' : 'Enable Premium'}
           </h3>
           <p className="text-zinc-400 mb-6">
             {language === 'sw' 
@@ -2598,7 +2598,7 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
               onClick={onSubscribe}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
             >
-              {language === 'sw' ? 'Angalia Mipango' : 'View Plans'}
+              {language === 'sw' ? 'Angalia Vifurushi' : 'View Packages'}
             </button>
             <button
               onClick={onClose}
