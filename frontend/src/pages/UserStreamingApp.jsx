@@ -3792,6 +3792,9 @@ export default function UserStreamingApp() {
   const [promptAttempts, setPromptAttempts] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [showScreenLockPayment, setShowScreenLockPayment] = useState(false);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [guestStatsLoaded, setGuestStatsLoaded] = useState(false);
   
