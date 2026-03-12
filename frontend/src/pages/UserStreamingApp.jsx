@@ -3879,6 +3879,30 @@ export default function UserStreamingApp() {
   // Download app popup
   const [showDownloadPopup, setShowDownloadPopup] = useState(false);
   
+  // Screen lock/visibility detection for billing prompt
+  useEffect(() => {
+    // Only apply screen lock payment if billing is ON and user is NOT premium
+    if (!billingEnabled || isPremium) return;
+    
+    const handleVisibilityChange = () => {
+      // If document becomes hidden (screen lock, tab switch, etc.)
+      // and music is playing, show payment prompt
+      if (document.hidden && player.isPlaying && user) {
+        console.log('[Billing] Screen locked while playing - prompting payment');
+        // Pause the music
+        player.togglePlay();
+        // Show payment prompt
+        setShowScreenLockPayment(true);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [billingEnabled, isPremium, player.isPlaying, user]);
+  
   // Radio stations state for home view
   const [homeRadioStations, setHomeRadioStations] = useState([]);
   
