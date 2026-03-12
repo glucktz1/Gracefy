@@ -287,6 +287,10 @@ const useAudioPlayer = () => {
       const currentRepeat = repeatRef.current;
       const currentShuffle = shuffleRef.current;
       
+      console.log('[Player] Song ended - handleSongEnd triggered');
+      console.log('[Player] Queue length:', currentQueue.length, 'Current index:', currentQueueIndex);
+      console.log('[Player] Repeat mode:', currentRepeat, 'Shuffle:', currentShuffle);
+      
       // Track the ended session with duration (for play count)
       if (sessionIdRef.current) {
         try {
@@ -300,6 +304,7 @@ const useAudioPlayer = () => {
       }
       
       if (currentRepeat === 'one') {
+        console.log('[Player] Repeat ONE - replaying same song');
         audio.currentTime = 0;
         audio.play();
         return;
@@ -309,6 +314,7 @@ const useAudioPlayer = () => {
       
       if (currentShuffle) {
         nextIndex = Math.floor(Math.random() * currentQueue.length);
+        console.log('[Player] Shuffle ON - random next index:', nextIndex);
       }
 
       // If we've reached the end of queue, fetch more or loop
