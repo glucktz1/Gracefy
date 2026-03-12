@@ -127,8 +127,13 @@ const FirebaseLoginScreen = ({ navigation }) => {
       
       if (response.data?.success) {
         const { token, user } = response.data;
+        
+        // Save to SecureStore for persistence
         await SecureStore.setItemAsync('auth_token', token);
         await SecureStore.setItemAsync('user_data', JSON.stringify(user));
+        
+        // IMPORTANT: Update AuthContext state so ProfileScreen reflects login
+        await authLogin(token, user);
         
         Alert.alert('Karibu!', 'Umefanikiwa kuingia', [
           { text: 'Sawa', onPress: () => navigation.goBack() }
