@@ -3967,6 +3967,7 @@ export default function UserStreamingApp() {
       setPromptAttempts(0);
       setIsAppLocked(false);
       setShowGuestLimitModal(false);
+      guestLimitReachedRef.current = false; // Allow autoplay again after login
       localStorage.removeItem('gracefy_guest_plays');
       localStorage.removeItem('gracefy_guest_skips');
       localStorage.removeItem('gracefy_prompt_attempts');
