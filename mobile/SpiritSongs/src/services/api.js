@@ -141,18 +141,38 @@ export const firebaseAuthAPI = {
 // ============ HOME API ============
 export const homeAPI = {
   getHome: async () => {
+    console.log('[API] Fetching home data...');
     const cached = getCached('home');
-    if (cached) return { data: cached };
-    const response = await api.get('/user/home');
-    setCache('home', response.data);
-    return response;
+    if (cached) {
+      console.log('[API] Returning cached home data');
+      return { data: cached };
+    }
+    try {
+      const response = await api.get('/user/home');
+      console.log('[API] Home data fetched successfully, sections:', response.data?.sections?.length || 0);
+      setCache('home', response.data);
+      return response;
+    } catch (error) {
+      console.error('[API] Error fetching home:', error.message);
+      throw error;
+    }
   },
   getGeoHome: (country) => api.get(`/user/home/geo${country ? `?country=${country}` : ''}`),
   getHeroContent: () => api.get('/layout/hero-content'),
   getSections: () => api.get('/layout/sections'),
   getBurners: () => api.get('/layout/burners'),
   getSpecialMixes: () => api.get('/special-mixes'),
-  getAppHome: () => api.get('/home/app'),
+  getAppHome: async () => {
+    console.log('[API] Fetching app home from /home/app...');
+    try {
+      const response = await api.get('/home/app');
+      console.log('[API] App home fetched successfully, sections:', response.data?.sections?.length || 0);
+      return response;
+    } catch (error) {
+      console.error('[API] Error fetching app home:', error.message);
+      throw error;
+    }
+  },
   getLeaderContent: () => api.get('/layout/religious-leaders'),
   getQuickAccess: () => api.get('/layout/sections?type=quick_access'),
   getHomeFilters: () => api.get('/layout/home-filters'),
