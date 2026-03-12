@@ -1926,10 +1926,11 @@ const BibleView = ({ language, t, onBack }) => {
   const [rangeBook, setRangeBook] = useState('');
   const [rangeChapter, setRangeChapter] = useState(1);
   const [rangeStart, setRangeStart] = useState(1);
-  const [rangeEnd, setRangeEnd] = useState(5);
+  const [rangeEnd, setRangeEnd] = useState(12);
   const [rangeChapters, setRangeChapters] = useState([]);
   const [rangeLoading, setRangeLoading] = useState(false);
   const [rangeResult, setRangeResult] = useState(null);
+  const [selectedTestament, setSelectedTestament] = useState('new'); // 'old' or 'new'
 
   // Fetch books, snippets, and voice settings on mount
   useEffect(() => {
