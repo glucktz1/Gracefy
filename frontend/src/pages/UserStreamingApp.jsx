@@ -2015,6 +2015,11 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
 
   // Generate audio for a verse
   const handleReadVerse = async (verse) => {
+    // Stop any music player or radio that might be playing
+    if (onStopMusicPlayer) {
+      onStopMusicPlayer();
+    }
+    
     setGeneratingAudio(true);
     console.log("Generating TTS with voice:", selectedVoice, "speed:", playbackSpeed);
     try {
