@@ -14,12 +14,16 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## What's Been Implemented
 
 ### Session: March 12, 2026
-- ✅ Fixed billing status display - correctly shows "Bure" for non-premium users
-- ✅ Fixed subscription status check to run immediately after login
-- ✅ Added debug logging for continuous playback troubleshooting
-- ✅ Fixed autoplay handling for browser policy compliance
-- ✅ Added client-side caching (5-min TTL) for faster page loads
-- ✅ Cached home data, categories, and billing status
+- ✅ Profile shows subscription packages when billing ON + not premium
+  - "Chagua Kifurushi Chako" / "Ufurahie maudhui yote kwa uhuru"
+  - Daily (TZS 500), Weekly (TZS 2,000), Monthly (TZS 5,500)
+- ✅ Subscription expiry push notifications
+  - Background task runs hourly
+  - Message: "Kifurushi chako kimeisha muda wake. Jiunge tena uendelee kufurahia"
+  - Supports FCM and Expo push tokens
+- ✅ Fixed billing status display ("Bure" for non-premium)
+- ✅ Added continuous playback debug logging
+- ✅ Page caching for faster loads (5-min TTL)
 
 ### Previous Sessions
 - ✅ Firebase Auth migration (web + mobile)
@@ -27,12 +31,10 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - ✅ Custom Gracefy loading animation
 - ✅ Admin password change feature
 - ✅ SubscriptionRequiredModal for non-premium users
-- ✅ Billing triggers for skip/like/download actions
 
 ## Pending Issues
 
 ### P0 - Critical
-- Android builds queued (v1.0.167 with debug logging)
 - Google Sign-In needs Firebase authorized domain added
 
 ### P1 - High
@@ -40,7 +42,13 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - Continuous playback needs user testing
 
 ### P2 - Medium
-- Device information for fraud prevention (awaiting user clarification)
+- Android app not loading data (debugging build queued)
+
+## API Endpoints - Subscription
+- `GET /api/subscription-plans` - Get active subscription plans
+- `GET /api/user/subscription-status?user_id=X` - User's premium status
+- `POST /api/admin/send-expiry-notifications` - Trigger expiry notifications
+- `GET /api/admin/check-expiring-subscriptions` - View expiring/expired subs
 
 ## Backlog / Future Tasks
 1. Bible TTS voice selection from admin settings
@@ -50,18 +58,12 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## Technical Debt
 - **CRITICAL**: `/app/frontend/src/pages/UserStreamingApp.jsx` is 6000+ lines
-- Multiple user collections (`users`, `app_users`) should be consolidated
 
 ## Key Files
-- `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app
-- `/app/backend/routes/monetization.py` - Subscription status API
-- `/app/mobile/SpiritSongs/` - React Native app
+- `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (ProfileView with packages)
+- `/app/backend/routes/monetization.py` - Subscription plans and expiry notifications
+- `/app/backend/server.py` - Background task for expiry check
 
 ## Test Credentials
 - **Admin**: admin@gracefy.life / G73ce7y@2026
 - **Test User**: glucktz1904@gmail.com / G73ce7y@2026
-
-## API Endpoints
-- `/api/billing-status` - Returns billing_enabled, web_billing_enabled
-- `/api/user/subscription-status?user_id=X` - Returns user's premium status
-- `/api/user/home` - Home page data
