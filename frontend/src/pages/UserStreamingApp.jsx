@@ -1999,6 +1999,11 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
       return;
     }
 
+    // Stop any music player or radio that might be playing
+    if (onStopMusicPlayer) {
+      onStopMusicPlayer();
+    }
+
     try {
       const res = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
       if (audioElement) audioElement.pause();
