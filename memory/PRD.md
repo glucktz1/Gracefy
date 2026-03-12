@@ -19,8 +19,9 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - ✅ **Fixed mobile login not reflecting in Profile** - FirebaseLoginScreen now calls AuthContext.login() to update app state
 - ✅ **Fixed Plans page checkout flow** - Added login check before payment, navigation to Checkout screen
 - ✅ **Fixed radio streaming on web** - Added backend proxy for HTTP streams to avoid mixed content issues
-- ✅ **Added download/playlist buttons to mini player** - Triggers payment prompt for non-premium users
+- ✅ **Added download/playlist buttons to mini player** - Triggers "Download App" popup on web
 - ✅ **Made prev/next buttons always visible on mini player** - No longer hidden on mobile
+- ✅ **Guest autoplay blocking (web + mobile)** - When guest reaches play limit, autoplay stops after current song ends
 - ✅ **Android build completed** - APK: https://expo.dev/artifacts/eas/aJD6PZwcE652QrU1nQK4SE.apk
 
 ### Previous Session
