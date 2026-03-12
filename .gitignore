@@ -127,3 +127,4 @@ backups/backup_20260305_100650/test_database/files.bson.gz
 *.env
 *.env.*
 frontend/node_modules/.cache/default-development/19.pack
+frontend/node_modules/.cache/default-development/23.pack

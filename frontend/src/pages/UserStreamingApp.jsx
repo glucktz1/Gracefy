@@ -3889,6 +3889,9 @@ export default function UserStreamingApp() {
   const player = useAudioPlayer();
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
   
+  // Track if screen lock payment was triggered (blocks auto-play of next song)
+  const [blockAutoPlayNext, setBlockAutoPlayNext] = useState(false);
+  
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
     // Only apply screen lock payment if billing is ON and user is NOT premium
@@ -3896,11 +3899,12 @@ export default function UserStreamingApp() {
     
     const handleVisibilityChange = () => {
       // If document becomes hidden (screen lock, tab switch, etc.)
-      // and music is playing, show payment prompt
+      // and music is playing, show payment prompt but let current song finish
       if (document.hidden && player?.isPlaying && user) {
-        console.log('[Billing] Screen locked while playing - prompting payment');
-        // Pause the music
-        if (player?.togglePlay) player.togglePlay();
+        console.log('[Billing] Screen locked while playing - showing payment prompt, song continues');
+        // Don't pause - let the current song finish
+        // Set flag to block auto-play of next song
+        setBlockAutoPlayNext(true);
         // Show payment prompt
         setShowScreenLockPayment(true);
       }
