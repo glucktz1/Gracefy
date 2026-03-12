@@ -1621,13 +1621,24 @@ const RadioView = ({ t, onBack }) => {
         setSessionId(trackResponse.data?.session_id);
       } catch (e) {}
 
+      // Determine the stream URL - use proxy for HTTP streams to avoid mixed content issues
+      let streamUrl = station.url_resolved;
+      if (streamUrl && streamUrl.startsWith('http://')) {
+        // Use backend proxy for HTTP streams
+        streamUrl = `${API}/radio/stream/${station.station_id}`;
+        console.log('[Radio] Using proxy for HTTP stream:', station.station_id);
+      }
+
       // Create and play audio
-      const audio = new Audio(station.url_resolved);
+      const audio = new Audio(streamUrl);
+      audio.crossOrigin = "anonymous";
       audio.onplay = () => setIsPlaying(true);
       audio.onpause = () => setIsPlaying(false);
-      audio.onerror = () => {
-        toast.error("Failed to play station");
+      audio.onerror = (e) => {
+        console.error('[Radio] Audio error:', e);
+        toast.error(`Failed to play ${station.name}. The stream may be temporarily unavailable.`);
         setIsPlaying(false);
+        setPlayingStation(null);
       };
       
       await audio.play();
@@ -1636,7 +1647,7 @@ const RadioView = ({ t, onBack }) => {
       toast.success(`Now playing: ${station.name}`);
     } catch (error) {
       console.error("Error playing station:", error);
-      toast.error("Failed to play station");
+      toast.error("Failed to play station. Please try another.");
     }
   };
 
