@@ -19,6 +19,36 @@ from services.redis_service import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["home"])
 
+
+@router.get("/debug/home-status")
+async def debug_home_status():
+    """Debug endpoint to check home data status"""
+    db = get_db()
+    
+    # Count documents
+    albums_count = db.albums.count_documents({"status": "active"})
+    songs_count = db.songs.count_documents({})
+    categories_count = db.categories.count_documents({})
+    sections_count = db.layout_sections.count_documents({"is_active": True})
+    radio_count = db.radio_stations.count_documents({})
+    
+    # Check Redis cache
+    redis_cached = await get_cached_home_data("web")
+    
+    return {
+        "status": "ok",
+        "database": {
+            "albums_active": albums_count,
+            "songs": songs_count,
+            "categories": categories_count,
+            "active_sections": sections_count,
+            "radio_stations": radio_count
+        },
+        "redis_cache": "exists" if redis_cached else "empty",
+        "message": "If you see this, API is working correctly"
+    }
+
+
 # Optimized projections - only essential fields for lists
 ALBUM_LIST_PROJECTION = {
     "_id": 0,
