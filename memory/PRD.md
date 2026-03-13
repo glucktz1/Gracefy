@@ -14,19 +14,19 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## What's Been Implemented
 
 ### Session: March 12, 2026 (Latest)
-- ✅ **Fixed autoplay - event listeners setup ONCE on mount** - Changed dependency array to `[]` to prevent re-attaching listeners
-- ✅ **Fixed next/prev buttons on mini player** - All refs properly updated, buttons work correctly
-- ✅ **Fixed continuous playback (autoplay)** - Using refs to avoid stale closures in handleSongEnd
-- ✅ **Improved Bible Range Reader** - Now with Testament selection (Agano la Kale/Jipya), step-by-step UI
-- ✅ **Bible stops music player** - When playing Bible audio, music player and radio are paused
+- ✅ **Radio uses Mini Player** - Radio now integrates with the main audio player and shows in mini player with "LIVE" badge
+- ✅ **Fixed autoplay - event listeners setup ONCE on mount** - Changed dependency array to `[]`
+- ✅ **Fixed next/prev buttons on mini player** - All refs properly updated
+- ✅ **Improved Bible Range Reader** - Step-by-step UI with Testament selection + in-chapter range selection
+- ✅ **Bible stops music/radio player** - When playing Bible audio, music player and radio are paused
 - ✅ **Fixed mobile login not reflecting in Profile** - FirebaseLoginScreen now calls AuthContext.login()
 - ✅ **Fixed Plans page checkout flow** - Added login check before payment
 - ✅ **Fixed radio streaming on web** - Added backend proxy for HTTP streams
 - ✅ **Added download/playlist buttons to mini player** - Triggers "Download App" popup
-- ✅ **Fixed popup z-index** - Download popup now appears above full player (z-[80])
+- ✅ **Fixed popup z-index** - Download popup now appears above full player
 - ✅ **Guest autoplay blocking (web + mobile)** - Stops autoplay when guest limit reached
 - ✅ **Fixed dual audio playback** - Added pause/reset before playing new song
-- ✅ **Android build in progress** - Build ID: 5822bba2-b9bd-43dd-b28b-fed706a3290f
+- ✅ **Android build triggered** - Build ID: 5822bba2-b9bd-43dd-b28b-fed706a3290f
 
 ### Previous Session
 - ✅ Checkout modal for subscription payment (phone number + Azam Pay)
