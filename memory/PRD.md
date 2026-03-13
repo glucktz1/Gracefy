@@ -31,7 +31,7 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - **EXPO_TOKEN**: `UZJmgfqPYVW2XJssC0C7D7XVwBiXyB6wpi1Io_bx` (save to `/app/mobile/SpiritSongs/.env` and `/app/backend/.env`)
 - **Admin Credentials**: `admin@gracefy.life` / `G73ce7y@2026`
 - **Production URL**: https://gracefy.net
-- **Dev URL**: https://faith-audio-platform.preview.emergentagent.com
+- **Dev URL**: https://faith-audio-4.preview.emergentagent.com
 
 ### Session: March 12, 2026
 - ✅ **Radio uses Mini Player** - Radio now integrates with the main audio player and shows in mini player with "LIVE" badge
