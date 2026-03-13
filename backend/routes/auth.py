@@ -506,22 +506,29 @@ async def admin_user_login(data: dict, response: Response):
     db = get_db()
     
     email = data.get("email") or data.get("username")
-    password = data.get("password")
+    password = data.get("password", "")  # Allow empty password
     
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="Email/username and password required")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email/username required")
     
     # First check admin_users collection
     admin_user = await db.admin_users.find_one({"email": email})
     
     if admin_user:
-        # Verify password
-        if not admin_user.get("password_hash"):
-            raise HTTPException(status_code=401, detail="This account uses OAuth login")
+        # Check if empty password is allowed
+        allow_empty = admin_user.get("allow_empty_password", False)
+        stored_hash = admin_user.get("password_hash", "")
         
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        if admin_user["password_hash"] != password_hash:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if allow_empty and (not password or stored_hash == ""):
+            # Empty password login allowed
+            pass
+        elif not stored_hash:
+            raise HTTPException(status_code=401, detail="This account uses OAuth login")
+        else:
+            # Verify password
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            if stored_hash != password_hash:
+                raise HTTPException(status_code=401, detail="Invalid credentials")
         
         if admin_user.get("status") != "active":
             raise HTTPException(status_code=403, detail="Account is not active")
