@@ -4667,10 +4667,17 @@ export default function UserStreamingApp() {
 
         <div className={view === 'home' ? '' : 'p-4 lg:p-6'}>
           {/* HOME VIEW */}
-          {view === 'home' && homeData && (
+          {view === 'home' && (
             <div>
+              {/* Debug info - remove after fixing */}
+              {!homeData && (
+                <div className="p-4 text-center text-zinc-500 text-sm">
+                  Loading content... (homeData: {homeData === null ? 'null' : 'empty'})
+                </div>
+              )}
+              
               {/* Hero Section - Dynamic Albums Carousel or Static Burner */}
-              {homeData.hero?.hero_type === 'dynamic_content' && homeData.hero?.items?.length > 0 ? (
+              {homeData && homeData.hero?.hero_type === 'dynamic_content' && homeData.hero?.items?.length > 0 ? (
                 <DynamicHeroSection 
                   hero={homeData.hero} 
                   onAlbumClick={openAlbum}
