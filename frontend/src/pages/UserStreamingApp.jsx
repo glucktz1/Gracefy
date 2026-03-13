@@ -4683,7 +4683,7 @@ export default function UserStreamingApp() {
                   onAlbumClick={openAlbum}
                   getThumbnail={getThumbnail}
                 />
-              ) : homeData.burners?.[0] && (
+              ) : homeData && homeData.burners?.[0] && (
                 <div 
                   className="relative w-full h-56 md:h-72 overflow-hidden"
                   style={{ background: homeData.burners[0].background_gradient || homeData.burners[0].background_color || 'linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)' }}
