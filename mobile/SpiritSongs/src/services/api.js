@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // API Base URL - connects to existing backend
-export const API_BASE_URL = 'https://spirit-songs-2.preview.emergentagent.com/api';
+export const API_BASE_URL = 'https://faith-audio-platform.preview.emergentagent.com/api';
 
 // Simple in-memory cache for frequently accessed data
 const cache = new Map();

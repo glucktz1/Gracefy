@@ -1,183 +1,228 @@
 <analysis>**original_problem_statement:**
-The initial goal was a major overhaul of a mobile and web app. This session's scope expanded significantly based on user requests.
+The user wants to finalize the web and mobile apps for a go-live release. The initial session focused on fixing billing, subscription flows, and adding various UI/UX features.
 
-Key initial requirements were:
-1.  **Firebase Integration:** Implement Firebase Auth and FCM.
-2.  **Production Payments:** Configure Azam Pay and fix payment processing.
-3.  **Database Migration:** Migrate to a production MongoDB Atlas cluster.
-4.  **Mobile & Web App Fixes:** Address a large list of bugs and UI issues.
-
-During this session, the user added several new tasks:
--   Remove the Made with Emergent branding.
--   Correct the native app's Google login flow and update the app icon.
--   Establish a production admin account with a secure password and change the username.
--   Add a password change feature for the admin panel.
--   Create a new custom loading animation (cross with sound waves).
--   Change the entire app's color theme to blue.
--   Optimize backend/database loading speed.
--   Fix multiple bugs, including the web music player's autoplay logic, incorrect login failed messages, and broken guest/billing rules on the web app.
+Recent user requests have been a mix of new features and critical bug fixes:
+-   **Performance (P0):** Optimize page and content loading speed, as the app is currently very slow.
+-   **Web Player:**
+    -   Fix the critical issue of continuous song playback (autoplay) failing.
+    -   Fix two songs playing simultaneously.
+    -   Fix non-functional next/previous buttons on the mini-player.
+    -   Integrate radio playback into the mini-player, mimicking the native app's behavior.
+    -   Add forward/backward seeking controls to the mini-player.
+-   **Radio:** Fix radios not working on the web. Address user reports of duplicate radio lists and inconsistencies between the home page and the dedicated radio page.
+-   **Bible Feature:**
+    -   Overhaul the Bible reading flow to be: Select Testament (Old/New) -> Select Book -> Select Chapter/Verse Range -> Listen.
+    -   Ensure that starting Bible audio automatically stops any currently playing music or radio.
+-   **UI/UX & Popups:**
+    -   Make the Download and Add to Playlist buttons on the web trigger a Download App popup, not a payment prompt.
+    -   Fix a z-index bug where this popup would appear behind the music player.
+-   **Guest Experience:** Stop autoplay for non-logged-in users on both web and mobile once their free song limit is reached.
+-   **Mobile App:**
+    -   Fix a bug where successful login doesn't reflect on the user's profile screen.
+    -   Fix an issue where tapping Pay Now on a subscription plan does nothing.
+    -   Trigger a new Android build with all the latest fixes.
+-   **Deployment:** Fix a critical Firebase credentials issue that was blocking deployment readiness.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The project is a full-stack application (React Native, React, FastAPI) connected to a production MongoDB Atlas database and Upstash Redis. Firebase Authentication and Messaging are fully integrated on both web and mobile.
+The project is a full-stack application with a React frontend, FastAPI backend, and a React Native mobile app, using MongoDB as the database.
 
--   **Web App:** The web app's authentication system has been completely refactored to use Firebase, with a fallback for legacy users. The entire UI has been re-themed to blue, and a new custom loading animation is in place. Critical bugs related to the music player's queue logic, guest play limits, and billing status display have been fixed.
--   **Admin Panel:** A new Security Settings page allows admins to change their password. The production admin account has been configured ().
--   **Native App:** The app has been updated to match the web app's new blue theme and custom loading animation. The Google login flow has been corrected to remove legacy dependencies. The app icon has been updated.
--   **Builds:** A new Android build () containing all the latest native app changes is currently in the Expo build queue.
+-   The web frontend is dominated by a monolithic  file, which has undergone extensive modifications to fix core player logic, redesign the Bible UI, and integrate radio playback.
+-   The  custom hook within  has been heavily refactored to handle autoplay, guest limits, and radio streaming.
+-   The backend features a new  endpoint in  to proxy insecure HTTP radio streams over HTTPS, resolving a major browser-blocking issue.
+-   A critical deployment blocker has been resolved by reconfiguring the backend to load Firebase credentials from a base64-encoded environment variable () instead of a file.
+-   The mobile app code has been patched to fix an authentication context issue (login state not updating) and a broken navigation flow on the subscription plans page.
+-   The  has been saved to the  files in both the backend and mobile directories to persist across forks.
 
 **Last working item**:
--   **Last item agent was working:** The agent was fixing the web app's guest play limit and billing status logic. The user reported that guest rules were not being enforced and the billing status was not being correctly applied. The agent rewrote this logic in  to mirror the native app's implementation, fixing a race condition with  state initialization.
--   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y
--   **Which testing method agent to use?** Frontend testing agent. The test should verify that guest play limits are correctly enforced (i.e., the modal appears after the limit is reached) and that the  status is read and applied correctly on page load.
+-   **Last item agent was working:** The agent was actively working on the P0 task of optimizing page and content loading speed. After identifying that the home API takes ~4 seconds to respond and the main frontend component is massive (292KB), the agent began analyzing the API calls in  to find opportunities for optimization, such as lazy loading or reducing initial requests.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** both. First, use backend testing to implement and verify caching for the slow API endpoints (, ). Second, use frontend testing (or manual testing with browser dev tools) to measure performance improvements after code-splitting .
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Android Builds v1.0.165 & v1.0.166 are queued (P0)
--   Issue 2: Azam Pay Production Payments Failing (P1)
--   Issue 3: Insufficient Device Information for Fraud Prevention (P2)
--   Issue 4: iOS Build Failure (P3)
+-   Issue 1: Optimize page and content loading speed (P0)
+-   Issue 2: Check status of the latest Android Build (P1)
+-   Issue 3: Inconsistent/broken radio functionality on the web (P1)
+-   Issue 4: Payment prompt redirect on web not working correctly (P2)
+-   Issue 5: Azam Pay Production Payments Failing (P3)
+-   Issue 6: Insufficient Device Information for Fraud Prevention (P3)
+-   Issue 7: iOS Build Failure (P3)
+-   Issue 8: Google Sign-in fails on preview domain (P3)
 
 **Issues Detail:**
--   **Issue 1: Android Builds v1.0.165 & v1.0.166 are queued**
-    -   **Attempted fixes:** Builds were successfully triggered with the latest code.
+-   **Issue 1: Optimize page and content loading speed**
+    -   **Attempted fixes:** The agent identified slow APIs ( at ~4s,  at ~1.5s) and a huge frontend component ( at 6878 lines). The agent investigated the code but has not yet implemented any optimizations.
     -   **Next debug checklist:**
-        1.  Periodically check the build status using the command .
-        2.  Once a build is , retrieve the APK download URL.
-        3.  Provide the URL to the user for testing.
-    -   **Why fix this issue and what will be achieved with the fix?** To deliver the latest native app changes (blue theme, new loader, bug fixes) to the user for testing.
+        1.  **Backend:** Modify  and relevant route files (, ) to use the configured Upstash Redis for caching instead of the current in-memory cache. This will significantly speed up repeated API calls.
+        2.  **Frontend:** Begin the critical task of refactoring . Use  to code-split major sections (e.g., , , ).
+        3.  Measure API response times and frontend load times before and after the changes to validate the fix.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a critical P0 issue blocking the go-live. A fast-loading app is essential for user retention and a good user experience.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** No
+
+-   **Issue 2: Check status of the latest Android Build**
+    -   **Attempted fixes:** The agent triggered a new build but failed to check its status due to an  authentication error.
+    -   **Next debug checklist:**
+        1.  Set the Expo token: .
+        2.  Run  to get the status of the latest build. The build ID from the logs is .
+        3.  Once complete, provide the user with the final APK download URL.
+    -   **Why fix this issue and what will be achieved with the fix?** To deliver all the recent mobile bug fixes to the user for testing.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on other issue:** No, just waiting on the Expo build service queue.
+    -   **Blocked on other issue:** No, waiting on Expo build service.
 
--   **Issue 2: Azam Pay Production Payments Failing**
-    -   **Attempted fixes:** MNO mapping was corrected in , but the API now returns a generic Invalid request data error.
+-   **Issue 3: Inconsistent/broken radio functionality on the web**
+    -   **Attempted fixes:** The agent implemented a backend proxy for HTTP streams and integrated radio into the main player. However, the user still reports that radios on the home page don't work and that the list shown when clicking the Radio nav item is different and contains duplicates.
     -   **Next debug checklist:**
-        1.  Confirm with the user that the production callback URL () has been registered and approved in their Azam Pay merchant dashboard.
-        2.  Ask the user to check for any IP whitelisting rules on their Azam Pay account.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a critical blocker for the app's monetization.
-    -   **Status:** BLOCKED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on other issue:** User action required to check their Azam Pay dashboard.
-
--   **Issue 3: Insufficient Device Information for Fraud Prevention**
-    -   **Attempted fixes:**  was implemented to capture a unique .
-    -   **Next debug checklist:** Clarify with the user if the current  is sufficient or if they still require more invasive data like location/IMEI. If so, explain the privacy implications.
-    -   **Why fix this issue and what will be achieved with the fix?** To meet the user's full anti-fraud requirements.
-    -   **Status:** BLOCKED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** User clarification required.
-
--   **Issue 4: iOS Build Failure**
-    -   **Attempted fixes:** None.
-    -   **Next debug checklist:** Await the user providing Apple Developer credentials.
-    -   **Why fix this issue and what will be achieved with the fix?** To enable deployment to the Apple App Store.
-    -   **Status:** BLOCKED
+        1.  Re-examine the home page layout rendering logic in  (around lines 5466-5600). The home page renders radio stations from a generic  array provided by the  endpoint.
+        2.  Compare this data with the full list fetched from  in the  component.
+        3.  The duplicates are likely because the home page shows a curated list, while  shows all available stations. The not working issue on the home page might be because the  handler for those items is not correctly hooked up to the main audio player's  function.
+        4.  Ensure the  handler for radio items rendered from the home layout correctly calls .
+    -   **Why fix this issue and what will be achieved with the fix?** To provide a consistent and functional radio experience, matching the native app.
+    -   **Status:** IN PROGRESS
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on other issue:** User action required.
+    -   **Blocked on other issue:** No
+
+-   **Issue 4: Payment prompt redirect on web not working correctly**
+    -   **Status:** USER VERIFICATION PENDING. This is a low-priority carry-over from the previous session.
+
+-   **Issue 5: Azam Pay Production Payments Failing**
+    -   **Status:** BLOCKED (Requires user to check their Azam Pay dashboard for callback URL and IP whitelisting).
+
+-   **Issue 6: Insufficient Device Information for Fraud Prevention**
+    -   **Status:** BLOCKED (Requires clarification from the user on requirements).
+
+-   **Issue 7: iOS Build Failure**
+    -   **Status:** BLOCKED (Requires Apple Developer credentials from the user).
+
+-   **Issue 8: Google Sign-in fails on preview domain**
+    -   **Status:** BLOCKED (User decided to postpone this fix).
 
 **In progress Task List**:
--   None.
+-   **Task 1: Page Load Optimization**
+    -   **Where to resume:** Analyzing API call patterns in  hooks within .
+    -   **What will be achieved with this?** A significantly faster application, improving user experience and making the app ready for production.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on something:** No
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) Implement Bible TTS voice selection from admin settings.
-    -   (P2) Implement admin language file upload feature.
+    -   **(P0) Refactor :** This is the most critical technical debt and the main solution to the performance problem. The file must be broken down into smaller, code-split components (, , , etc.) and custom hooks (, ).
+    -   **(P2)** Implement Bible TTS voice selection from admin settings.
+    -   **(P2)** Implement admin language file upload feature.
 -   **Future Tasks:**
+    -   Integrate Upstash Redis caching for backend APIs.
     -   Audio Ad Integration.
     -   Integrate SendGrid for email campaigns.
+    -   Consolidate the  and  collections in the backend.
 
 **Completed work in this session**
--   **Web App Overhaul:** Completed Firebase Auth migration, implemented a new blue theme, created a custom loading animation, and fixed the music player's auto-play logic.
--   **Guest & Billing Logic Fix:** Reworked the web app's guest play limit and billing status logic to match the native app, resolving a critical bug.
--   **Admin Panel Features:** Added a Security Settings page for password changes and configured the production admin account.
--   **Native App Parity:** Updated the mobile app with the new blue theme, loading animation, corrected Google login, and a new app icon.
--   **Backend Optimization:** Ensured MongoDB indexes are active and increased Redis cache TTL to improve performance.
--   **Branding:** Removed Made with Emergent badge from the web app.
--   **Builds:** Successfully triggered a new Android build () with all changes.
+-   **Web Player Critical Fixes:** Fixed song autoplay, simultaneous audio playback, and non-functional mini-player buttons. Verified with the testing agent.
+-   **Mobile App Stability:** Fixed the login state not updating the profile UI and repaired the broken subscription checkout flow.
+-   **Web Radio Integration:** Integrated radio into the main audio player and mini-player, and implemented a backend proxy to fix broken HTTP streams.
+-   **Bible UI Overhaul:** Redesigned the web Bible feature to support Testament, Book, and verse-range selection for TTS playback.
+-   **Guest Autoplay Limit:** Implemented logic on both web and mobile to stop autoplay when a guest's free song limit is reached.
+-   **Web Popup/UI Fixes:** Corrected download/playlist button behavior to show the Download App popup and fixed the popup's z-index to ensure it appears on top of the player.
+-   **Deployment Readiness:** Resolved a critical Firebase credentials issue that was blocking deployment by moving keys to a secure environment variable.
+-   **Environment Persistence:** Saved the  to  files to ensure it's available in subsequent forks.
+
+**Earlier issues found/mentioned but not fixed**
+-   The urgent need to refactor  has been identified as the root cause of performance issues and recurring bugs. This is now the highest priority task.
+-   The backend user collections ( and ) have not been consolidated.
 
 **Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork:** Core billing logic failures.
--   **Recurrence count:** High
--   **Status:** RESOLVED. The agent completely rewrote the web app's billing and guest logic to mirror the more stable native app implementation, fixing race conditions. This is pending user verification.
+-   **Radio Functionality:** The user continues to report issues with radio, despite the agent's fixes. The problem seems to be with UI consistency and event handling on the home page.
+-   **Continuous Playback:** This was a major recurring issue that has now been fixed and verified by the testing agent.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **State Management Race Conditions:** Debugged and resolved a  race condition in React by using a  flag to sequence state initialization and effects correctly.
--   **Legacy Auth Fallback:** Implemented a login flow that attempts Firebase auth first, then falls back to a legacy API endpoint for existing users, ensuring a smooth transition.
--   **React Native Theming:** Propagated a new color theme and a standardized loading component across multiple screens in the React Native app.
--   **Database Discrepancy:** Identified and fixed a bug where a login endpoint was querying the wrong MongoDB collection ( instead of ).
+-   **Monolithic React Component:** The session's work was heavily concentrated in the massive , highlighting the urgent need for refactoring.
+-   **React Hooks for State Management:** Extensive use of , , and  to manage complex, asynchronous player state and prevent stale closures.
+-   **FastAPI Stream Proxy:** A new endpoint was created in  using  to proxy insecure HTTP radio streams, allowing them to play on an HTTPS site.
+-   **Secure Credential Handling:** Fixed a deployment blocker by moving Firebase service account keys from a JSON file to a base64-encoded environment variable.
+-   **React Native Context API:** Debugged and fixed issues where a screen () was updating local storage () but failing to update the shared , causing UI inconsistencies.
+
+**key DB schema**
+-   No new schemas were introduced. Work revolved around existing collections like , , , and collections for content like  and .
 
 **All files of reference**
--   : **CRITICAL** - The monolithic file for the web app where all recent changes were made.
--   : The entire mobile app directory was updated for UI/UX parity with the web app.
--   : The new admin password change page.
--   : The backend auth file, modified for password changes and legacy login fixes.
+-   : The single most important, and problematic, file in the repository. All web features and fixes were applied here. It is the target for the P0 performance optimization task.
+-   : Contains the new radio stream proxy endpoint.
+-   : Updated to use environment variables for credentials.
+-   : Updated with Firebase and Expo credentials.
+-   : Fixed to correctly handle login state updates.
+-   : Modified to integrate with .
 
 **Areas that need refactoring**:
--   : This file is now over 5,800 lines and is extremely difficult to maintain. It urgently needs to be broken down into smaller components and custom hooks (e.g., , , ).
--   : The backend has multiple user collections (, ) and redundant login endpoints. This should be consolidated to a single source of truth for user data.
+-   **/app/frontend/src/pages/UserStreamingApp.jsx:** **CRITICAL (P0).** This file is the primary source of performance issues and bugs. It must be broken down into smaller, lazily-loaded components and custom hooks.
+-   **/app/backend/core/cache.py:** The current in-memory cache should be replaced with a Redis-backed cache using the existing Upstash credentials to improve backend performance under load.
+-   **Backend User Collections:** The  and  collections should be consolidated to create a single source of truth for user data.
 
 **key api endpoints**
--   : (POST) For admin password updates.
--   : (POST) The primary admin login endpoint.
--   : (POST) The legacy user login endpoint, now used as a fallback.
--   : (GET) Endpoint providing global billing configuration.
+-   : **(NEW)** Proxies insecure radio streams to play on the HTTPS frontend.
+-   : **(SLOW)** The main endpoint for loading the home page content. Needs caching optimization.
+-   : **(SLOW)** Fetches billing settings. Needs caching optimization.
+-   : Used by the redesigned Bible feature to generate TTS audio for a range of verses.
 
 **Critical Info for New Agent**
--   **Verify Web App Guest/Billing Logic:** The logic in  for guest limits and billing was just rewritten. This is the highest priority for user verification. The core logic is within the new  implementation (lines 3365-3430).
--   **Check Android Build Status:** Android build  is in the Expo queue. Your first action should be to check its status with  and inform the user once it's complete.
--   **Payments Blocked on User:** Do not work on the Azam Pay issue until the user confirms they have checked their dashboard settings as requested.
--   **Admin Credentials:**  / .
--   **Refactoring is Needed:** The  file is dangerously large. Propose refactoring it before adding any significant new features to the web app.
+-   **P0 is Performance Optimization:** Your immediate and primary goal is to address the app's slow loading speed. The strategy should be twofold: 1) Implement Redis caching on the backend for the  and  endpoints. 2) Begin the essential refactor of  by code-splitting it into smaller components.
+-   ** is a Minefield:** This file is over 6,800 lines long and extremely fragile. Any edits must be made with extreme caution. The long-term goal is to dismantle it, not add to it.
+-   **Expo Build Status:** The user is waiting for the latest Android build. Your first actions should include checking the build status using the  now stored in the  files and providing the user with the APK link.
+-   **Radio Inconsistency:** The user still reports radio issues. Investigate the  handlers for radio items on the home page layout, as they may not be correctly wired to the central player's  function.
 
 **documents and test reports created in this job**
+-    (updated multiple times)
+-   
 -   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Requested optimization for loading speed, fix for music player autoplay, fix for login failed toast, and a blue theme. (Completed)
-2.  **User:** Requested that all web app changes (theme, animation, speed) be applied to the native app. (Completed, build is queued)
-3.  **User:** Reported that the web app's guest rules and billing status were not working correctly. (Fixed by agent, pending user verification)
-4.  **User:** Instructed the agent to copy the native app's logic for guest/billing rules to the web app. (Completed)
-5.  **User:** pass expo acess token key (Agent has a working key for now, but may need a new one if builds fail).
-6.  **User:** Requested a feature for admins to change their password. (Completed)
-7.  **User:** Requested to change the admin username to . (Completed)
-8.  **User:** Provided the production admin password. (Completed)
-9.  **User:** Requested removal of Made with Emergent branding and correction of the native app logo. (Completed)
-10. **User:** Provided the new logo file. (Completed)
+1.  **User:** App is slow, please optimize. (IN PROGRESS - Current P0 task)
+2.  **User:** Called deployment agent and readiness check. (DONE - Blocker found and fixed)
+3.  **User:** Radio should use the mini-player. (DONE)
+4.  **User:** Bible range selection isn't working (provided screenshot). (DONE - Agent fixed UI and added a more prominent button)
+5.  **User:** Trigger a new build. Also specified new Bible flow, asked for Bible audio to stop other players, and reported radio inconsistencies again. (IN PROGRESS - Build triggered, Bible flow updated, radio issue remains)
+6.  **User:** The autoplay and mini-player next/prev buttons are broken again. (DONE - Agent re-fixed and verified with testing agent)
+7.  **User:** The add to playlist popup appears behind the player. (DONE - Agent fixed the z-index)
+8.  **User:** Web has two songs playing at once, download button gives an error, Bible range selection is not in place, and radios are not working correctly. (DONE - Agent fixed simultaneous play, download button error, and re-implemented Bible range. Radio issue is recurring).
+9.  **User:** The download/playlist buttons should trigger a download app popup. Also, stop autoplay for guest users when their limit is reached. (DONE)
+10. **User:** Web app has a  error. (DONE)
 
 **Project Health Check:**
 -   **Broken:**
-    -   Azam Pay production payments are failing (Blocked on user).
+    -   **Page Load Speed:** The application is critically slow, making for a poor user experience. This is the top priority blocker.
+    -   **Web Radio Consistency:** User continues to report that radio playback is unreliable, particularly on the home page.
 -   **Mocked:** None.
 
 **3rd Party Integrations**
--   **Firebase:** Auth (Email/Pass, Google) & FCM.
+-   **Firebase:** Auth (Email/Pass, Google) & FCM. The credential loading mechanism was fixed in this session.
 -   **MongoDB Atlas:** Production database.
--   **Upstash Redis:** Production cache.
+-   **Upstash Redis:** Production cache. Configured in  but not currently used by the caching service. **Opportunity for performance improvement.**
 -   **Azam Pay:** Production payment gateway.
 -   **Expo (EAS Build):** Mobile app build service.
 -   **Bunny.net CDN:** File storage.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES
+-   **Testing agent used after significant changes:** YES, used for the critical autoplay fix ().
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** None.
+-   **Known regressions:** Radio functionality on the web remains a recurring point of failure and user complaint.
 
 **Credentials to test flow:**
 -   **Admin Login:**  / 
 -   **Test User (Legacy):**  / 
--   **Production DB:** Credentials are in .
+-   **Expo Token:**  (Now available as  in  files)
 
 **What agent forgot to execute**
--   The agent has not yet checked on the status of the queued Android builds (, ) to inform the user of their completion or failure.
--   The agent noted the existence of multiple user collections and redundant admin login endpoints but did not create a future task to refactor and consolidate them.</analysis>
+-   The agent did not complete the page load optimization task. A plan was forming but no code was implemented.
+-   The agent did not successfully retrieve the final status and APK link for the last Android build requested by the user.
+-   The agent did not fully resolve the user's complaint about radio inconsistency, dismissing it as a misunderstanding of UI, while the user continues to report it as a bug. This needs a fresh investigation.</analysis>
