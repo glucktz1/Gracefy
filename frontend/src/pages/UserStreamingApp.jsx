@@ -3580,12 +3580,20 @@ export default function UserStreamingApp() {
         ]);
         
         // Cache the responses for faster next load
+        console.log('[Home] API response received:', {
+          sections: homeRes.data?.sections?.length || 0,
+          hero: !!homeRes.data?.hero,
+          burners: homeRes.data?.burners?.length || 0,
+          categories: catRes.data?.categories?.length || 0
+        });
+        
         if (homeRes.data?.sections?.length > 0) {
           cache.set('home_data', homeRes.data);
         }
         cache.set('categories', catRes.data);
         
         setHomeData(homeRes.data);
+        console.log('[Home] homeData state set');
         setCategories(catRes.data.categories || []);
         setAvailableTags(tagsRes.data?.tags || []);
         setHomeRadioStations(radioRes.data.stations?.slice(0, 6) || []);
