@@ -3487,6 +3487,7 @@ export default function UserStreamingApp() {
   // Fetch home data with caching for faster loads
   useEffect(() => {
     const fetchData = async () => {
+      console.log('[Home] Starting data fetch, API URL:', API);
       try {
         // Check for cached data first (instant load)
         const cachedHome = cache.get('home_data');
