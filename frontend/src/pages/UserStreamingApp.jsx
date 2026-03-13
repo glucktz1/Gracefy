@@ -156,6 +156,10 @@ const useAudioPlayer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   
+  // Radio state
+  const [isRadioMode, setIsRadioMode] = useState(false);
+  const [currentRadioStation, setCurrentRadioStation] = useState(null);
+  
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
   const fetchingMoreRef = useRef(false);
