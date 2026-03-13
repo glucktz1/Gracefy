@@ -24,6 +24,14 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - ✅ **Route Restructuring** - Landing page now shows User App (gracefy.net), Admin panel at /admin/* (admin.gracefy.net/admin/login)
 - ✅ **Mobile Deployment Fix** - Removed hardcoded API URL, now uses environment variable from app.json extra config
 - ✅ **Production URL Detection** - Added smart domain detection to use same-origin for production (gracefy.net) and env var for dev environments
+- ✅ **Removed MONGO_URL_PROD** - Cleaned up .env to use single correct database (gracefy_db)
+- ✅ **Fixed MongoDB Array Query Bug** - Changed platform queries from `{"platforms": platform}` to `{"platforms": {"$in": [platform]}}` for proper array matching in layout_sections and burners queries
+
+## Critical Info for Next Fork
+- **EXPO_TOKEN**: `UZJmgfqPYVW2XJssC0C7D7XVwBiXyB6wpi1Io_bx` (save to `/app/mobile/SpiritSongs/.env` and `/app/backend/.env`)
+- **Admin Credentials**: `admin@gracefy.life` / `G73ce7y@2026`
+- **Production URL**: https://gracefy.net
+- **Dev URL**: https://faith-audio-platform.preview.emergentagent.com
 
 ### Session: March 12, 2026
 - ✅ **Radio uses Mini Player** - Radio now integrates with the main audio player and shows in mini player with "LIVE" badge
