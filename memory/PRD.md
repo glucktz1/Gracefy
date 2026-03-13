@@ -64,11 +64,12 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## Pending Issues
 
 ### P0 - Critical
-- None currently
+- ⚠️ **Frontend Code-Splitting** - `UserStreamingApp.jsx` is 6800+ lines and needs to be split into smaller components using `React.lazy()` for better load times
 
 ### P1 - High  
 - Payment prompt redirect verification (user testing pending)
 - Azam Pay live payment testing (needs dashboard configuration)
+- Radio functionality inconsistency on home page (reported by user)
 
 ### P2 - Medium
 - Google Sign-In needs Firebase authorized domain added
