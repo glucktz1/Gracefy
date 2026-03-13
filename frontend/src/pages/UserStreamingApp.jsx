@@ -3564,15 +3564,24 @@ export default function UserStreamingApp() {
           : `${API}/user/home?platform=web`;
         
         const [homeRes, catRes, sectionsRes, tagsRes, radioRes] = await Promise.all([
-          axios.get(homeEndpoint),
-          axios.get(`${API}/user/browse/categories`),
-          axios.get(`${API}/layout/sections?active_only=true`),
+          axios.get(homeEndpoint).catch((err) => {
+            console.error('[Home] Failed to fetch home data:', err.message);
+            // Fallback to non-geo endpoint if geo fails
+            if (useGeoFiltering) {
+              return axios.get(`${API}/user/home?platform=web`).catch(() => ({ data: { sections: [], hero: null, burners: [] } }));
+            }
+            return { data: { sections: [], hero: null, burners: [] } };
+          }),
+          axios.get(`${API}/user/browse/categories`).catch(() => ({ data: { categories: [] } })),
+          axios.get(`${API}/layout/sections?active_only=true`).catch(() => ({ data: { sections: [] } })),
           axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
           axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } }))
         ]);
         
         // Cache the responses for faster next load
-        cache.set('home_data', homeRes.data);
+        if (homeRes.data?.sections?.length > 0) {
+          cache.set('home_data', homeRes.data);
+        }
         cache.set('categories', catRes.data);
         
         setHomeData(homeRes.data);
