@@ -32,9 +32,18 @@ def get_firebase_app():
     try:
         # Try to load credentials from environment variable first (for production/deployment)
         firebase_creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+        firebase_creds_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
         
-        if firebase_creds_json:
-            import base64
+        if firebase_creds_base64:
+            # Credentials stored as base64-encoded JSON (preferred method)
+            try:
+                cred_dict = json.loads(base64.b64decode(firebase_creds_base64))
+                cred = credentials.Certificate(cred_dict)
+                logger.info("Loading Firebase credentials from FIREBASE_CREDENTIALS_BASE64 environment variable")
+            except Exception as e:
+                logger.error(f"Failed to parse FIREBASE_CREDENTIALS_BASE64: {e}")
+                return None
+        elif firebase_creds_json:
             try:
                 # Credentials stored as base64-encoded JSON
                 cred_dict = json.loads(base64.b64decode(firebase_creds_json))
