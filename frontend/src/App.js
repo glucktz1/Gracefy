@@ -106,12 +106,12 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       label: "Reports & Analytics", 
       permissions: ["view_platform_analytics", "view_all_revenue_reports", "approve_payouts"],
       children: [
-        { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] },
-        { path: "/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
-        { path: "/analytics/location", icon: MapPin, label: "Location Analytics", permissions: ["view_platform_analytics"] },
-        { path: "/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
-        { path: "/transactions", icon: Activity, label: "Transactions", permissions: ["view_all_revenue_reports", "approve_payouts"] },
-        { path: "/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
+        { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard", permissions: [] },
+        { path: "/admin/analytics", icon: Activity, label: "Analytics", permissions: ["view_platform_analytics"] },
+        { path: "/admin/analytics/location", icon: MapPin, label: "Location Analytics", permissions: ["view_platform_analytics"] },
+        { path: "/admin/revenue", icon: TrendingUp, label: "Revenue", permissions: ["view_all_revenue_reports", "revenue_configuration"] },
+        { path: "/admin/transactions", icon: Activity, label: "Transactions", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+        { path: "/admin/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
       ]
     },
     // Contents Group (Albums, Songs, Mafundisho, Bible, Special Mixes)
@@ -121,11 +121,11 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       label: "Contents", 
       permissions: ["content_moderation", "content_approval", "create_albums", "platform_settings", "layout_promotion_control"],
       children: [
-        { path: "/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
-        { path: "/teachings", icon: BookOpen, label: "Mafundisho", permissions: ["content_moderation", "platform_settings"] },
-        { path: "/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
-        { path: "/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
-        { path: "/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
+        { path: "/admin/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
+        { path: "/admin/teachings", icon: BookOpen, label: "Mafundisho", permissions: ["content_moderation", "platform_settings"] },
+        { path: "/admin/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
+        { path: "/admin/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
+        { path: "/admin/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
       ]
     },
     // Control and Management Group (includes App Health Monitoring)
@@ -135,11 +135,11 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       label: "Control & Management", 
       permissions: ["role_assignment", "user_management", "content_approval", "choir_onboarding_approval", "layout_promotion_control", "platform_settings"],
       children: [
-        { path: "/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
-        { path: "/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
-        { path: "/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
+        { path: "/admin/roles", icon: Shield, label: "Role Management", permissions: ["role_assignment", "user_management"] },
+        { path: "/admin/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
+        { path: "/admin/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
         { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
-        { path: "/app-health", icon: Smartphone, label: "App Health Monitoring", permissions: ["platform_settings"] },
+        { path: "/admin/app-health", icon: Smartphone, label: "App Health Monitoring", permissions: ["platform_settings"] },
       ]
     },
     // Settings Group (includes Auth Settings)
@@ -149,27 +149,27 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       label: "Settings", 
       permissions: ["platform_settings", "revenue_configuration", "role_assignment"],
       children: [
-        { path: "/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
-        { path: "/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
-        { path: "/branding", icon: Palette, label: "Branding", permissions: ["platform_settings"] },
-        { path: "/legal", icon: FileText, label: "Legal & Compliance", permissions: ["platform_settings"] },
-        { path: "/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
-        { path: "/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
-        { path: "/security", icon: Lock, label: "Security", permissions: [] },
+        { path: "/admin/system-settings", icon: Globe, label: "System Settings", permissions: ["platform_settings"] },
+        { path: "/admin/app-settings", icon: Settings, label: "App Settings", permissions: ["platform_settings"] },
+        { path: "/admin/branding", icon: Palette, label: "Branding", permissions: ["platform_settings"] },
+        { path: "/admin/legal", icon: FileText, label: "Legal & Compliance", permissions: ["platform_settings"] },
+        { path: "/admin/monetization", icon: CreditCard, label: "Monetization", permissions: ["platform_settings", "revenue_configuration"] },
+        { path: "/admin/auth-settings", icon: Shield, label: "Auth Settings", permissions: ["platform_settings", "role_assignment"] },
+        { path: "/admin/security", icon: Lock, label: "Security", permissions: [] },
       ]
     },
     // Advertising & Campaigns - Standalone Section
-    { path: "/advertising", icon: Megaphone, label: "Advertising & Campaigns", permissions: ["manage_ads", "manage_campaigns", "platform_settings"] },
+    { path: "/admin/advertising", icon: Megaphone, label: "Advertising & Campaigns", permissions: ["manage_ads", "manage_campaigns", "platform_settings"] },
     // Feedback Manager - Standalone Section
-    { path: "/feedback", icon: MessageCircle, label: "Feedback Manager", permissions: ["platform_settings", "content_moderation"] },
+    { path: "/admin/feedback", icon: MessageCircle, label: "Feedback Manager", permissions: ["platform_settings", "content_moderation"] },
     // Chat & Support - Standalone Section
-    { path: "/chat-support", icon: Headphones, label: "Chat & Support", permissions: ["platform_settings", "content_moderation"] },
+    { path: "/admin/chat-support", icon: Headphones, label: "Chat & Support", permissions: ["platform_settings", "content_moderation"] },
     // Knowledge Bank - AI Support Knowledge Base
-    { path: "/knowledge-bank", icon: Brain, label: "Knowledge Bank", permissions: ["platform_settings"] },
+    { path: "/admin/knowledge-bank", icon: Brain, label: "Knowledge Bank", permissions: ["platform_settings"] },
     // Recommendation Engine
-    { path: "/recommendations", icon: Sparkles, label: "Recommendations", permissions: ["platform_settings"] },
+    { path: "/admin/recommendations", icon: Sparkles, label: "Recommendations", permissions: ["platform_settings"] },
     // Geo-Content Management
-    { path: "/geo-content", icon: Globe, label: "Geo Content", permissions: ["platform_settings", "content_moderation"] },
+    { path: "/admin/geo-content", icon: Globe, label: "Geo Content", permissions: ["platform_settings", "content_moderation"] },
     // Choir and Singers Group
     { 
       groupId: "choir-singers",
@@ -177,9 +177,9 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       label: "Choir & Singers", 
       permissions: ["choir_onboarding_approval", "user_management", "view_all_revenue_reports", "approve_payouts"],
       children: [
-        { path: "/singers", icon: Mic2, label: "Singers & Choirs", permissions: ["user_management"] },
+        { path: "/admin/singers", icon: Mic2, label: "Singers & Choirs", permissions: ["user_management"] },
         { path: "/admin/choirs", icon: Users, label: "Choir Management", permissions: ["choir_onboarding_approval", "user_management"] },
-        { path: "/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
+        { path: "/admin/choir-accounts", icon: Wallet, label: "Choir Accounts", permissions: ["view_all_revenue_reports", "approve_payouts"] },
       ]
     },
     { 
@@ -188,20 +188,20 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       label: "Religious Leaders", 
       permissions: ["user_management", "content_management"],
       children: [
-        { path: "/religious-leaders", icon: Users, label: "Leader Management", permissions: ["user_management"] },
-        { path: "/teachings", icon: BookMarked, label: "Teachings (Mafundisho)", permissions: ["content_management"] },
+        { path: "/admin/religious-leaders", icon: Users, label: "Leader Management", permissions: ["user_management"] },
+        { path: "/admin/teachings", icon: BookMarked, label: "Teachings (Mafundisho)", permissions: ["content_management"] },
       ]
     },
     // Standalone items
-    { path: "/users", icon: Users, label: "App Users", permissions: ["user_management"] },
-    { path: "/admin/users", icon: Shield, label: "Admin Users", permissions: ["role_assignment", "user_management"] },
-    { path: "/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
-    { path: "/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
-    { path: "/radio", icon: Radio, label: "Live Radio", permissions: ["platform_settings"] },
-    { path: "/audiorooms", icon: Radio, label: "Audio Rooms", permissions: ["platform_settings"] },
-    { path: "/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
-    { path: "/community", icon: MessageSquare, label: "Community", permissions: ["content_moderation"] },
-    { path: "/bookings", icon: CalendarCheck, label: "Bookings", permissions: ["platform_settings"] },
+    { path: "/admin/users", icon: Users, label: "App Users", permissions: ["user_management"] },
+    { path: "/admin/admin-users", icon: Shield, label: "Admin Users", permissions: ["role_assignment", "user_management"] },
+    { path: "/admin/churches", icon: Church, label: "Churches", permissions: ["platform_settings"] },
+    { path: "/admin/seminars", icon: Video, label: "Live Seminars", permissions: ["platform_settings"] },
+    { path: "/admin/radio", icon: Radio, label: "Live Radio", permissions: ["platform_settings"] },
+    { path: "/admin/audiorooms", icon: Radio, label: "Audio Rooms", permissions: ["platform_settings"] },
+    { path: "/admin/donations", icon: Heart, label: "Donations", permissions: ["view_all_revenue_reports"] },
+    { path: "/admin/community", icon: MessageSquare, label: "Community", permissions: ["content_moderation"] },
+    { path: "/admin/bookings", icon: CalendarCheck, label: "Bookings", permissions: ["platform_settings"] },
   ];
 
   // Filter nav items based on user permissions
