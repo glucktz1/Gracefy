@@ -4,10 +4,17 @@ import Constants from 'expo-constants';
 
 // API Base URL - reads from environment variable for deployment flexibility
 const getBackendUrl = () => {
-  // Try Expo public env var first, then Constants, then fallback
-  return Constants.expoConfig?.extra?.backendUrl || 
-         process.env.EXPO_PUBLIC_BACKEND_URL || 
-         'https://faith-audio-platform.preview.emergentagent.com';
+  // Try Expo public env var first, then Constants extra config
+  const url = process.env.EXPO_PUBLIC_BACKEND_URL || 
+              Constants.expoConfig?.extra?.backendUrl;
+  
+  if (!url) {
+    console.error('[API] EXPO_PUBLIC_BACKEND_URL not configured, using fallback');
+    // For production builds, use the production URL
+    return 'https://faith-audio-platform.emergent.host';
+  }
+  
+  return url;
 };
 
 export const API_BASE_URL = `${getBackendUrl()}/api`;
