@@ -45,7 +45,7 @@ async def get_layout_sections(
     """Get layout sections for a platform"""
     db = get_db()
     
-    query = {"platforms": platform}
+    query = {"platforms": {"$in": [platform]}}
     # Only filter by is_active if not including inactive (for admin panel)
     if not include_inactive:
         query["is_active"] = True
