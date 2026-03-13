@@ -4626,64 +4626,17 @@ export default function UserStreamingApp() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Play radio directly from home page
+  // Play radio directly from home page - use player's radio function
   const handlePlayRadioFromHome = async (station) => {
     try {
-      // Stop regular music playback if playing
-      if (player.isPlaying) {
-        player.pause();
-      }
-      
-      // If same station, toggle play/pause
-      if (homeRadioPlaying?.station_id === station.station_id) {
-        if (homeRadioAudio) {
-          homeRadioAudio.pause();
-          homeRadioAudio.src = '';
-          setHomeRadioAudio(null);
-        }
-        setHomeRadioPlaying(null);
+      // If same station playing, toggle
+      if (player.currentRadioStation?.station_id === station.station_id) {
+        player.togglePlay();
         return;
       }
       
-      // Stop current radio if playing
-      if (homeRadioAudio) {
-        homeRadioAudio.pause();
-        homeRadioAudio.src = '';
-      }
-      
-      toast.info(`Loading ${station.name}...`);
-      
-      // Track play
-      try {
-        await axios.post(`${API}/radio/play`, {
-          station_id: station.station_id,
-          platform: 'web'
-        });
-      } catch (e) {}
-      
-      // Determine the stream URL - use proxy for HTTP streams
-      let streamUrl = station.url_resolved || station.url;
-      if (streamUrl && streamUrl.startsWith('http://')) {
-        streamUrl = `${API}/radio/stream/${station.station_id}`;
-        console.log('[Radio Home] Using proxy for HTTP stream:', station.station_id);
-      }
-      
-      // Create and play audio
-      const audio = new Audio(streamUrl);
-      audio.crossOrigin = "anonymous";
-      audio.onplay = () => setHomeRadioPlaying(station);
-      audio.onpause = () => {};
-      audio.onerror = (e) => {
-        console.error('[Radio Home] Audio error:', e);
-        toast.error(`Failed to play ${station.name}`);
-        setHomeRadioPlaying(null);
-        setHomeRadioAudio(null);
-      };
-      
-      await audio.play();
-      setHomeRadioAudio(audio);
-      setHomeRadioPlaying(station);
-      toast.success(`Now playing: ${station.name}`);
+      // Use player's playRadio function
+      await player.playRadio(station);
     } catch (error) {
       console.error("Error playing radio:", error);
       toast.error("Failed to play station");
