@@ -795,11 +795,85 @@ const useAudioPlayer = () => {
     guestLimitReachedRef.current = reached;
   };
   
+  // Play radio station
+  const playRadio = async (station) => {
+    if (!station?.url_resolved) {
+      console.error('[Player] No radio URL provided');
+      return;
+    }
+    
+    console.log('[Player] Playing radio:', station.name);
+    setIsLoading(true);
+    
+    try {
+      // Stop current music playback
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      
+      // Clear music state
+      setCurrentSong(null);
+      setCurrentAlbum(null);
+      setQueue([]);
+      setQueueIndex(0);
+      
+      // Set radio mode
+      setIsRadioMode(true);
+      setCurrentRadioStation(station);
+      
+      // Determine stream URL - use proxy for HTTP streams
+      let streamUrl = station.url_resolved;
+      if (streamUrl && streamUrl.startsWith('http://')) {
+        streamUrl = `${API}/radio/stream/${station.station_id}`;
+        console.log('[Player] Using proxy for HTTP stream');
+      }
+      
+      // Play radio stream
+      audioRef.current.src = streamUrl;
+      audioRef.current.crossOrigin = "anonymous";
+      
+      await audioRef.current.play();
+      setIsPlaying(true);
+      setDuration(0); // Live streams have no duration
+      
+      // Track radio play
+      try {
+        await axios.post(`${API}/radio/play`, {
+          station_id: station.station_id,
+          platform: 'web'
+        });
+      } catch (e) {
+        console.log('[Player] Radio tracking failed:', e);
+      }
+      
+      console.log('[Player] Radio playing successfully');
+    } catch (error) {
+      console.error('[Player] Radio play error:', error);
+      toast.error(`Failed to play ${station.name}. The stream may be temporarily unavailable.`);
+      setIsRadioMode(false);
+      setCurrentRadioStation(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Stop radio and clear state
+  const stopRadio = () => {
+    if (isRadioMode) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      setIsRadioMode(false);
+      setCurrentRadioStation(null);
+      setIsPlaying(false);
+    }
+  };
+  
   return {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
-    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached
+    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached,
+    // Radio
+    isRadioMode, currentRadioStation, playRadio, stopRadio
   };
 };
 
