@@ -9574,7 +9574,7 @@ async def get_layout_config(platform: str):
     
     # Get active burners
     burners = await db.layout_burners.find(
-        {"platforms": platform, "is_active": True},
+        {"platforms": {"$in": [platform]}, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(20)
     
