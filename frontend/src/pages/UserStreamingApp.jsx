@@ -2848,84 +2848,125 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 
 // Mini Player Bar
 const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
-  if (!player.currentSong) return null;
+  // Show player if there's a song OR a radio station playing
+  if (!player.currentSong && !player.currentRadioStation) return null;
+  
+  // Check if in radio mode
+  const isRadio = player.isRadioMode && player.currentRadioStation;
   
   // Use provided handlers or default to player methods
   const handleNext = onNext || player.nextSong;
   const handlePrev = onPrev || player.prevSong;
 
+  // Get display info based on mode
+  const displayTitle = isRadio ? player.currentRadioStation.name : player.currentSong?.title;
+  const displaySubtitle = isRadio ? (player.currentRadioStation.country || 'Live Radio') : player.currentAlbum?.artist_name;
+  const displayImage = isRadio 
+    ? (player.currentRadioStation.favicon || player.currentRadioStation.thumbnail) 
+    : getThumbnail(player.currentAlbum);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
-      {/* Progress line */}
-      <div className="h-1 bg-zinc-800">
-        <div 
-          className="h-full bg-blue-500"
-          style={{ width: `${(player.currentTime / (player.duration || 1)) * 100}%` }}
-        />
-      </div>
+      {/* Progress line - only for music, not radio (live streams) */}
+      {!isRadio && (
+        <div className="h-1 bg-zinc-800">
+          <div 
+            className="h-full bg-blue-500"
+            style={{ width: `${(player.currentTime / (player.duration || 1)) * 100}%` }}
+          />
+        </div>
+      )}
+      {/* Radio indicator line */}
+      {isRadio && (
+        <div className="h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500 animate-pulse" />
+      )}
       
       <div className="flex items-center p-2 lg:p-3 gap-2 sm:gap-3">
-        {/* Song Info */}
-        <button onClick={onExpand} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded overflow-hidden flex-shrink-0">
-            {getThumbnail(player.currentAlbum) ? (
-              <img src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
+        {/* Info */}
+        <button onClick={isRadio ? undefined : onExpand} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full overflow-hidden flex-shrink-0 relative">
+            {displayImage ? (
+              <img src={displayImage} alt="" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
-                <Music2 size={20} className="text-zinc-500" />
+              <div className={`w-full h-full flex items-center justify-center ${isRadio ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-zinc-700'}`}>
+                {isRadio ? <Radio size={20} className="text-white" /> : <Music2 size={20} className="text-zinc-500" />}
               </div>
+            )}
+            {/* Live indicator for radio */}
+            {isRadio && player.isPlaying && (
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-zinc-900 animate-pulse" />
             )}
           </div>
           <div className="min-w-0 text-left">
-            <p className="font-medium text-sm truncate">{player.currentSong.title}</p>
-            <p className="text-xs text-zinc-400 truncate">{player.currentAlbum?.artist_name}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-sm truncate">{displayTitle}</p>
+              {isRadio && <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase font-bold">Live</span>}
+            </div>
+            <p className="text-xs text-zinc-400 truncate">{displaySubtitle}</p>
           </div>
         </button>
 
-        {/* Quick Actions - Download & Playlist */}
-        <div className="hidden sm:flex items-center gap-1">
-          <button 
-            onClick={onDownload} 
-            className="text-zinc-400 hover:text-white p-1.5"
-            title="Download"
-            data-testid="mini-player-download"
-          >
-            <Download size={18} />
-          </button>
-          <button 
-            onClick={onAddToPlaylist} 
-            className="text-zinc-400 hover:text-white p-1.5"
-            title="Add to Playlist"
-            data-testid="mini-player-add-playlist"
-          >
-            <ListPlus size={18} />
-          </button>
-          <button onClick={onFavorite} className={`p-1.5 ${isFavorite ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}`}>
-            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
-        </div>
+        {/* Quick Actions - Only for music, not radio */}
+        {!isRadio && (
+          <div className="hidden sm:flex items-center gap-1">
+            <button 
+              onClick={onDownload} 
+              className="text-zinc-400 hover:text-white p-1.5"
+              title="Download"
+              data-testid="mini-player-download"
+            >
+              <Download size={18} />
+            </button>
+            <button 
+              onClick={onAddToPlaylist} 
+              className="text-zinc-400 hover:text-white p-1.5"
+              title="Add to Playlist"
+              data-testid="mini-player-add-playlist"
+            >
+              <ListPlus size={18} />
+            </button>
+            <button onClick={onFavorite} className={`p-1.5 ${isFavorite ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}`}>
+              <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          </div>
+        )}
 
-        {/* Controls - Always show prev/next */}
+        {/* Controls */}
         <div className="flex items-center gap-1 sm:gap-2">
-          <button onClick={handlePrev} className="text-zinc-400 hover:text-white p-1">
-            <SkipBack size={20} fill="currentColor" />
-          </button>
+          {/* Prev/Next only for music */}
+          {!isRadio && (
+            <button onClick={handlePrev} className="text-zinc-400 hover:text-white p-1">
+              <SkipBack size={20} fill="currentColor" />
+            </button>
+          )}
           <button 
             onClick={player.togglePlay}
-            className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center"
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${isRadio ? 'bg-red-500 hover:bg-red-400' : 'bg-white'}`}
             disabled={player.isLoading}
           >
             {player.isLoading ? (
-              <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <div className={`w-4 h-4 border-2 ${isRadio ? 'border-white' : 'border-black'} border-t-transparent rounded-full animate-spin`} />
             ) : player.isPlaying ? (
-              <Pause size={16} className="text-black" />
+              <Pause size={16} className={isRadio ? 'text-white' : 'text-black'} />
             ) : (
-              <Play size={16} fill="black" className="text-black ml-0.5" />
+              <Play size={16} fill={isRadio ? 'white' : 'black'} className={`${isRadio ? 'text-white' : 'text-black'} ml-0.5`} />
             )}
           </button>
-          <button onClick={handleNext} className="text-zinc-400 hover:text-white p-1">
-            <SkipForward size={20} fill="currentColor" />
-          </button>
+          {!isRadio && (
+            <button onClick={handleNext} className="text-zinc-400 hover:text-white p-1">
+              <SkipForward size={20} fill="currentColor" />
+            </button>
+          )}
+          {/* Stop button for radio */}
+          {isRadio && (
+            <button 
+              onClick={player.stopRadio} 
+              className="text-zinc-400 hover:text-red-400 p-1"
+              title="Stop Radio"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {/* Volume - Desktop */}
