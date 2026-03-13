@@ -422,8 +422,9 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
         return cached_result
     
     # Get active layout sections for the specified platform
+    # Use $in to match platform in the platforms array
     sections = await db.layout_sections.find(
-        {"platforms": platform, "is_active": True},
+        {"platforms": {"$in": [platform]}, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(20)
     
