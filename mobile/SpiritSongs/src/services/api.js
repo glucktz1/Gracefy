@@ -1,8 +1,16 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-// API Base URL - connects to existing backend
-export const API_BASE_URL = 'https://faith-audio-platform.preview.emergentagent.com/api';
+// API Base URL - reads from environment variable for deployment flexibility
+const getBackendUrl = () => {
+  // Try Expo public env var first, then Constants, then fallback
+  return Constants.expoConfig?.extra?.backendUrl || 
+         process.env.EXPO_PUBLIC_BACKEND_URL || 
+         'https://faith-audio-platform.preview.emergentagent.com';
+};
+
+export const API_BASE_URL = `${getBackendUrl()}/api`;
 
 // Simple in-memory cache for frequently accessed data
 const cache = new Map();
