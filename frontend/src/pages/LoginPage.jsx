@@ -52,8 +52,8 @@ export default function LoginPage() {
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
-      toast.error("Please enter email and password");
+    if (!formData.email) {
+      toast.error("Please enter email");
       return;
     }
 
