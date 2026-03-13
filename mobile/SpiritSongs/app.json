@@ -97,7 +97,8 @@
     "extra": {
       "eas": {
         "projectId": "cd514690-f423-48aa-8dc8-390319ff0d67"
-      }
+      },
+      "backendUrl": "https://faith-audio-platform.preview.emergentagent.com"
     }
   }
 }
