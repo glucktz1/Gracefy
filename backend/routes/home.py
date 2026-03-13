@@ -21,8 +21,8 @@ router = APIRouter(prefix="/api", tags=["home"])
 
 
 @router.get("/debug/home-status")
-async def debug_home_status():
-    """Debug endpoint to check home data status"""
+def debug_home_status():
+    """Debug endpoint to check home data status - sync version"""
     db = get_db()
     
     # Count documents
@@ -31,13 +31,6 @@ async def debug_home_status():
     categories_count = db.categories.count_documents({})
     sections_count = db.layout_sections.count_documents({"is_active": True})
     radio_count = db.radio_stations.count_documents({})
-    
-    # Check Redis cache
-    try:
-        redis_cached = await get_cached_home_data("web")
-        redis_status = "exists" if redis_cached else "empty"
-    except Exception as e:
-        redis_status = f"error: {str(e)}"
     
     return {
         "status": "ok",
@@ -48,8 +41,7 @@ async def debug_home_status():
             "active_sections": sections_count,
             "radio_stations": radio_count
         },
-        "redis_cache": redis_status,
-        "message": "If you see this, API is working correctly"
+        "message": "If you see this, API is working correctly. Deploy and test on production."
     }
 
 
