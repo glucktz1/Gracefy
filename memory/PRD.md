@@ -18,9 +18,11 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - ✅ **API Response Time: 5s → 0.5s (10x faster)** - Cached requests now serve in ~500ms vs ~5s uncached
 - ✅ **Frontend Refactoring** - Extracted useAudioPlayer hook (735 lines) and utilities to separate files, reducing main component from 6878 → 6037 lines (~12% reduction)
 - ✅ **Code Organization** - Created `/app/frontend/src/hooks/useAudioPlayer.js` and `/app/frontend/src/utils/streamingHelpers.js` for better maintainability
-- ✅ **Android Build Complete** - APK: https://expo.dev/artifacts/eas/bTeDTmDTaLrkQXqVAhWNqX.apk
+- ✅ **Android Build Complete** - APK: https://expo.dev/artifacts/eas/6YE59eDHENHt8htAoF8ypH.apk (v1.0.166)
 - ✅ **Firebase Auth Fix** - Fixed missing `json` and `base64` imports in firebase_service.py that was blocking email/password login on both mobile and web
 - ✅ **Guest Limit Logic Verified** - Confirmed guests are prompted to LOGIN (not pay), only logged-in users see subscription prompts
+- ✅ **Route Restructuring** - Landing page now shows User App (gracefy.net), Admin panel at /admin/* (admin.gracefy.net/admin/login)
+- ✅ **Mobile Deployment Fix** - Removed hardcoded API URL, now uses environment variable from app.json extra config
 
 ### Session: March 12, 2026
 - ✅ **Radio uses Mini Player** - Radio now integrates with the main audio player and shows in mini player with "LIVE" badge
