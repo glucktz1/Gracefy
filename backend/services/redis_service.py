@@ -223,6 +223,36 @@ async def set_cached_analytics(key: str, data: dict, ttl_seconds: int = 60) -> b
     return await cache_set(f"analytics:{key}", data, ttl_seconds)
 
 
+# ============== HOME PAGE CACHE ==============
+
+HOME_CACHE_KEY_PREFIX = "home"
+HOME_CACHE_TTL = 180  # 3 minutes - good balance between freshness and performance
+
+async def get_cached_home_data(platform: str = "app") -> Optional[dict]:
+    """Get cached home page data"""
+    key = f"{HOME_CACHE_KEY_PREFIX}:{platform}:v1"
+    return await cache_get(key)
+
+
+async def set_cached_home_data(platform: str, data: dict) -> bool:
+    """Cache home page data"""
+    key = f"{HOME_CACHE_KEY_PREFIX}:{platform}:v1"
+    return await cache_set(key, data, HOME_CACHE_TTL)
+
+
+async def invalidate_home_cache(platform: str = None) -> int:
+    """Invalidate home cache (call when content is updated)"""
+    if platform:
+        return 1 if await cache_delete(f"{HOME_CACHE_KEY_PREFIX}:{platform}:v1") else 0
+    else:
+        # Invalidate all platforms
+        count = 0
+        for p in ["app", "web"]:
+            if await cache_delete(f"{HOME_CACHE_KEY_PREFIX}:{p}:v1"):
+                count += 1
+        return count
+
+
 # ============== HEALTH CHECK ==============
 
 async def redis_health_check() -> dict:
