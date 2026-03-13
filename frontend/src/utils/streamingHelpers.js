@@ -5,8 +5,25 @@
 
 import { BookOpen, Star, Cross, Church, Flame, Sun, Music2 } from "lucide-react";
 
-export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Backend URL with fallback to same-origin for production
+const getBackendUrl = () => {
+  const envUrl = process.env.REACT_APP_BACKEND_URL;
+  if (envUrl) return envUrl;
+  
+  // Fallback: use same origin (for production where frontend and backend are on same domain)
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
+
+export const BACKEND_URL = getBackendUrl();
 export const API = `${BACKEND_URL}/api`;
+
+// Log API URL on first load for debugging
+if (typeof window !== 'undefined') {
+  console.log('[Gracefy] API URL:', API);
+}
 
 // Client-side cache for faster page loads
 export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
