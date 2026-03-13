@@ -598,7 +598,7 @@ async def get_layout_sections(
     """Get layout sections for a platform."""
     db = get_db()
     
-    query = {"platforms": platform, "is_active": True}
+    query = {"platforms": {"$in": [platform]}, "is_active": True}
     if type:
         query["section_type"] = type
     
