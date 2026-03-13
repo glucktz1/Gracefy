@@ -477,7 +477,7 @@ const ProtectedRoute = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error);
     }
-    navigate("/login", { replace: true });
+    navigate("/admin/login", { replace: true });
   };
 
   if (loading) {
