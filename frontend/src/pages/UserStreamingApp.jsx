@@ -1700,70 +1700,15 @@ const RadioView = ({ t, onBack, player }) => {
       // If same station, toggle play/pause
       if (playingStation?.station_id === station.station_id) {
         if (isPlaying) {
-          audioElement?.pause();
-          setIsPlaying(false);
-          // Track stop
-          if (sessionId && playStartTime) {
-            const duration = Math.floor((Date.now() - playStartTime) / 1000);
-            try {
-              await axios.post(`${API}/radio/stop`, { session_id: sessionId, duration_seconds: duration });
-            } catch (e) {}
-          }
+          player.togglePlay();
         } else {
-          audioElement?.play();
-          setIsPlaying(true);
-          setPlayStartTime(Date.now());
+          player.togglePlay();
         }
         return;
       }
 
-      // Stop current station
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.src = '';
-        if (sessionId && playStartTime) {
-          const duration = Math.floor((Date.now() - playStartTime) / 1000);
-          try {
-            await axios.post(`${API}/radio/stop`, { session_id: sessionId, duration_seconds: duration });
-          } catch (e) {}
-        }
-      }
-
-      setPlayingStation(station);
-      toast.info(`Loading ${station.name}...`);
-
-      // Track play
-      try {
-        const trackResponse = await axios.post(`${API}/radio/play`, {
-          station_id: station.station_id,
-          platform: 'web'
-        });
-        setSessionId(trackResponse.data?.session_id);
-      } catch (e) {}
-
-      // Determine the stream URL - use proxy for HTTP streams to avoid mixed content issues
-      let streamUrl = station.url_resolved;
-      if (streamUrl && streamUrl.startsWith('http://')) {
-        // Use backend proxy for HTTP streams
-        streamUrl = `${API}/radio/stream/${station.station_id}`;
-        console.log('[Radio] Using proxy for HTTP stream:', station.station_id);
-      }
-
-      // Create and play audio
-      const audio = new Audio(streamUrl);
-      audio.crossOrigin = "anonymous";
-      audio.onplay = () => setIsPlaying(true);
-      audio.onpause = () => setIsPlaying(false);
-      audio.onerror = (e) => {
-        console.error('[Radio] Audio error:', e);
-        toast.error(`Failed to play ${station.name}. The stream may be temporarily unavailable.`);
-        setIsPlaying(false);
-        setPlayingStation(null);
-      };
-      
-      await audio.play();
-      setAudioElement(audio);
-      setPlayStartTime(Date.now());
+      // Use player's playRadio function
+      await player.playRadio(station);
       toast.success(`Now playing: ${station.name}`);
     } catch (error) {
       console.error("Error playing station:", error);
@@ -1772,18 +1717,9 @@ const RadioView = ({ t, onBack, player }) => {
   };
 
   const handleStopAll = () => {
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.src = '';
-      setAudioElement(null);
+    if (player?.stopRadio) {
+      player.stopRadio();
     }
-    if (sessionId && playStartTime) {
-      const duration = Math.floor((Date.now() - playStartTime) / 1000);
-      axios.post(`${API}/radio/stop`, { session_id: sessionId, duration_seconds: duration }).catch(() => {});
-    }
-    setPlayingStation(null);
-    setIsPlaying(false);
-    setSessionId(null);
   };
 
   if (loading) {
