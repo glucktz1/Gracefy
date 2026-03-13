@@ -1665,14 +1665,13 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
 };
 
 // Radio View Component - Live Christian Radio Streaming
-const RadioView = ({ t, onBack }) => {
+const RadioView = ({ t, onBack, player }) => {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [playingStation, setPlayingStation] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioElement, setAudioElement] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
-  const [playStartTime, setPlayStartTime] = useState(null);
+  
+  // Use player's radio state instead of local state
+  const playingStation = player?.currentRadioStation;
+  const isPlaying = player?.isRadioMode && player?.isPlaying;
 
   useEffect(() => {
     fetchStations();
