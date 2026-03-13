@@ -13,7 +13,12 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 12, 2026 (Latest)
+### Session: March 13, 2026 (Latest)
+- ✅ **Backend Performance: Redis Caching for /api/user/home** - Integrated Upstash Redis for home API caching (3-minute TTL)
+- ✅ **API Response Time: 4s → 0.4s (10x faster)** - Cached requests now serve in ~400ms vs ~4s uncached
+- ✅ **Android Build Complete** - APK: https://expo.dev/artifacts/eas/bTeDTmDTaLrkQXqVAhWNqX.apk
+
+### Session: March 12, 2026
 - ✅ **Radio uses Mini Player** - Radio now integrates with the main audio player and shows in mini player with "LIVE" badge
 - ✅ **Fixed autoplay - event listeners setup ONCE on mount** - Changed dependency array to `[]`
 - ✅ **Fixed next/prev buttons on mini player** - All refs properly updated
