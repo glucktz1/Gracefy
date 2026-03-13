@@ -426,13 +426,13 @@ const ProtectedRoute = ({ children }) => {
         // Check if user has admin role
         if (response.data.role !== 'admin') {
           // Non-admin users should be redirected to user app
-          navigate("/app", { replace: true });
+          navigate("/", { replace: true });
           return;
         }
         setUser(response.data);
         await fetchUserPermissions(response.data);
       } catch (error) {
-        navigate("/login", { replace: true });
+        navigate("/admin/login", { replace: true });
       } finally {
         setLoading(false);
       }
