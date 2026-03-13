@@ -399,27 +399,28 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     Get home screen data for app or web.
     
     OPTIMIZED FOR PERFORMANCE:
-    - Redis caching (3 minutes TTL) with in-memory fallback
+    - Redis caching DISABLED for debugging
     - Parallel section queries
     - Minimal field projections
     - Truncated base64 thumbnails
     """
-    # Try Redis cache first (faster, distributed)
-    redis_cached = await get_cached_home_data(platform)
-    if redis_cached:
-        logger.debug(f"Home data ({platform}) served from Redis cache")
-        return redis_cached
+    # REDIS CACHING DISABLED FOR DEBUGGING - Direct DB query every time
+    # redis_cached = await get_cached_home_data(platform)
+    # if redis_cached:
+    #     logger.debug(f"Home data ({platform}) served from Redis cache")
+    #     return redis_cached
     
     db = get_db()
     
-    # Fallback to in-memory cache
-    cache_key = f"home:{platform}:main:v4"
-    cached_result = await cache.get(cache_key)
-    if cached_result:
-        logger.debug(f"Home data ({platform}) served from memory cache")
-        # Also populate Redis cache for next request
-        await set_cached_home_data(platform, cached_result)
-        return cached_result
+    # IN-MEMORY CACHING ALSO DISABLED FOR DEBUGGING
+    # cache_key = f"home:{platform}:main:v4"
+    # cached_result = await cache.get(cache_key)
+    # if cached_result:
+    #     logger.debug(f"Home data ({platform}) served from memory cache")
+    #     await set_cached_home_data(platform, cached_result)
+    #     return cached_result
+    
+    logger.info(f"Home data ({platform}) - fetching fresh from database (caching disabled)")
     
     # Get active layout sections for the specified platform
     # Use $in to match platform in the platforms array
