@@ -399,18 +399,26 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     Get home screen data for app or web.
     
     OPTIMIZED FOR PERFORMANCE:
-    - Aggressive caching (60 seconds)
+    - Redis caching (3 minutes TTL) with in-memory fallback
     - Parallel section queries
     - Minimal field projections
     - Truncated base64 thumbnails
     """
+    # Try Redis cache first (faster, distributed)
+    redis_cached = await get_cached_home_data(platform)
+    if redis_cached:
+        logger.debug(f"Home data ({platform}) served from Redis cache")
+        return redis_cached
+    
     db = get_db()
     
-    # Check cache first (separate cache for app vs web)
-    cache_key = f"home:{platform}:main:v4"  # Incremented version to bust cache
+    # Fallback to in-memory cache
+    cache_key = f"home:{platform}:main:v4"
     cached_result = await cache.get(cache_key)
     if cached_result:
-        logger.debug(f"Home data ({platform}) served from cache")
+        logger.debug(f"Home data ({platform}) served from memory cache")
+        # Also populate Redis cache for next request
+        await set_cached_home_data(platform, cached_result)
         return cached_result
     
     # Get active layout sections for the specified platform
