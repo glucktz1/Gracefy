@@ -7,6 +7,8 @@ import firebase_admin
 from firebase_admin import credentials, auth, messaging
 import logging
 import os
+import json
+import base64
 from typing import Optional, Dict, List
 from datetime import datetime, timezone
 
