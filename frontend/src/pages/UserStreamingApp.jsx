@@ -6448,6 +6448,7 @@ export default function UserStreamingApp() {
             <RadioView 
               t={t}
               onBack={() => setView('home')}
+              player={player}
             />
           )}
 
