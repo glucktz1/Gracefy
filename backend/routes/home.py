@@ -11,6 +11,10 @@ import asyncio
 
 from core.database import get_db
 from core.cache import cache
+from services.redis_service import (
+    get_cached_home_data,
+    set_cached_home_data
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["home"])
