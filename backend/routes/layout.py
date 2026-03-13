@@ -272,7 +272,7 @@ async def get_burners(
     """Get promotional burners"""
     db = get_db()
     
-    query = {"platforms": platform}
+    query = {"platforms": {"$in": [platform]}}
     if active_only:
         query["is_active"] = True
     
