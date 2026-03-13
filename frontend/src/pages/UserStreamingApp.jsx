@@ -5707,7 +5707,7 @@ export default function UserStreamingApp() {
                                 {/* Play Overlay */}
                                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                                   <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center">
-                                    {homeRadioPlaying?.station_id === station.station_id ? (
+                                    {player.currentRadioStation?.station_id === station.station_id ? (
                                       <Pause className="w-4 h-4 text-white fill-white" />
                                     ) : (
                                       <Play className="w-4 h-4 text-white fill-white ml-0.5" />
@@ -5715,7 +5715,7 @@ export default function UserStreamingApp() {
                                   </div>
                                 </div>
                                 {/* Playing Indicator */}
-                                {homeRadioPlaying?.station_id === station.station_id && (
+                                {player.currentRadioStation?.station_id === station.station_id && (
                                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-black flex items-center justify-center">
                                     <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
                                   </div>
