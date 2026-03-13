@@ -772,7 +772,7 @@ async def get_geo_filtered_home(
     
     # Get burners
     burners = await db.layout_burners.find(
-        {"platforms": "app", "is_active": True},
+        {"platforms": {"$in": ["app"]}, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(5)
     
