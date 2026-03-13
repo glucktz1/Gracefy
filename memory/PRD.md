@@ -15,7 +15,9 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ### Session: March 13, 2026 (Latest)
 - ✅ **Backend Performance: Redis Caching for /api/user/home** - Integrated Upstash Redis for home API caching (3-minute TTL)
-- ✅ **API Response Time: 4s → 0.4s (10x faster)** - Cached requests now serve in ~400ms vs ~4s uncached
+- ✅ **API Response Time: 5s → 0.5s (10x faster)** - Cached requests now serve in ~500ms vs ~5s uncached
+- ✅ **Frontend Refactoring** - Extracted useAudioPlayer hook (735 lines) and utilities to separate files, reducing main component from 6878 → 6037 lines (~12% reduction)
+- ✅ **Code Organization** - Created `/app/frontend/src/hooks/useAudioPlayer.js` and `/app/frontend/src/utils/streamingHelpers.js` for better maintainability
 - ✅ **Android Build Complete** - APK: https://expo.dev/artifacts/eas/bTeDTmDTaLrkQXqVAhWNqX.apk
 
 ### Session: March 12, 2026
