@@ -5,16 +5,35 @@
 
 import { BookOpen, Star, Cross, Church, Flame, Sun, Music2 } from "lucide-react";
 
-// Backend URL with fallback to same-origin for production
+// Backend URL - uses same origin for production, env var for dev
 const getBackendUrl = () => {
-  const envUrl = process.env.REACT_APP_BACKEND_URL;
-  if (envUrl) return envUrl;
-  
-  // Fallback: use same origin (for production where frontend and backend are on same domain)
+  // For production domains (gracefy.net, emergent.host), use same origin
   if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // Production domains - use same origin (frontend and backend on same domain)
+    if (hostname === 'gracefy.net' || 
+        hostname === 'www.gracefy.net' || 
+        hostname.endsWith('.emergent.host')) {
+      console.log('[Gracefy] Production mode - using same origin');
+      return window.location.origin;
+    }
+    
+    // Preview/dev domains - use env var or fallback
+    if (hostname.includes('preview.emergentagent.com')) {
+      const envUrl = process.env.REACT_APP_BACKEND_URL;
+      if (envUrl) {
+        console.log('[Gracefy] Dev mode - using env var');
+        return envUrl;
+      }
+    }
+    
+    // Fallback to same origin
     return window.location.origin;
   }
-  return '';
+  
+  // Server-side fallback
+  return process.env.REACT_APP_BACKEND_URL || '';
 };
 
 export const BACKEND_URL = getBackendUrl();
@@ -22,7 +41,7 @@ export const API = `${BACKEND_URL}/api`;
 
 // Log API URL on first load for debugging
 if (typeof window !== 'undefined') {
-  console.log('[Gracefy] API URL:', API);
+  console.log('[Gracefy] API URL:', API, '| Hostname:', window.location.hostname);
 }
 
 // Client-side cache for faster page loads
