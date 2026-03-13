@@ -5167,7 +5167,7 @@ export default function UserStreamingApp() {
                 })}
 
                 {/* Additional Burners */}
-                {homeData.burners?.length > 1 && (
+                {homeData && homeData.burners?.length > 1 && (
                   <section className="grid md:grid-cols-2 gap-4">
                     {homeData.burners.slice(1, 3).map((burner, idx) => (
                       <div 
