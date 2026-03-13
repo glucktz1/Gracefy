@@ -6385,12 +6385,9 @@ export default function UserStreamingApp() {
                 if (player.isPlaying) {
                   player.togglePlay();
                 }
-                // Also stop home radio if playing
-                if (homeRadioAudio) {
-                  homeRadioAudio.pause();
-                  homeRadioAudio.src = '';
-                  setHomeRadioAudio(null);
-                  setHomeRadioPlaying(null);
+                // Also stop radio if playing
+                if (player.isRadioMode) {
+                  player.stopRadio();
                 }
               }}
             />
