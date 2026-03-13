@@ -28,14 +28,36 @@ def get_firebase_app():
         return _firebase_app
     
     try:
-        # Get the path to the service account file
-        cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'firebase-admin.json')
+        # Try to load credentials from environment variable first (for production/deployment)
+        firebase_creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
         
-        if not os.path.exists(cred_path):
-            logger.error(f"Firebase credentials file not found at {cred_path}")
-            return None
+        if firebase_creds_json:
+            import base64
+            try:
+                # Credentials stored as base64-encoded JSON
+                cred_dict = json.loads(base64.b64decode(firebase_creds_json))
+                cred = credentials.Certificate(cred_dict)
+                logger.info("Loading Firebase credentials from FIREBASE_CREDENTIALS_JSON environment variable")
+            except Exception as e:
+                # Try as plain JSON string
+                try:
+                    cred_dict = json.loads(firebase_creds_json)
+                    cred = credentials.Certificate(cred_dict)
+                    logger.info("Loading Firebase credentials from FIREBASE_CREDENTIALS_JSON (plain JSON)")
+                except Exception as e2:
+                    logger.error(f"Failed to parse FIREBASE_CREDENTIALS_JSON: {e2}")
+                    return None
+        else:
+            # Fallback to file for local development
+            cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'firebase-admin.json')
+            
+            if not os.path.exists(cred_path):
+                logger.error(f"Firebase credentials not found. Set FIREBASE_CREDENTIALS_JSON env var or provide firebase-admin.json at {cred_path}")
+                return None
+            
+            cred = credentials.Certificate(cred_path)
+            logger.info(f"Loading Firebase credentials from file: {cred_path}")
         
-        cred = credentials.Certificate(cred_path)
         _firebase_app = firebase_admin.initialize_app(cred)
         logger.info("Firebase Admin SDK initialized successfully")
         return _firebase_app
