@@ -1675,12 +1675,7 @@ const RadioView = ({ t, onBack, player }) => {
 
   useEffect(() => {
     fetchStations();
-    return () => {
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.src = '';
-      }
-    };
+    // Cleanup is handled by the player hook
   }, []);
 
   const fetchStations = async () => {
