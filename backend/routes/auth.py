@@ -586,13 +586,19 @@ async def admin_user_login(data: dict, response: Response):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Check if user has password_hash (created by admin)
-    if not user.get("password_hash"):
-        raise HTTPException(status_code=401, detail="This account uses OAuth login")
+    # Check if empty password is allowed for this user
+    allow_empty = user.get("allow_empty_password", False)
+    stored_hash = user.get("password_hash", "")
     
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    if user["password_hash"] != password_hash:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if allow_empty and (not password or stored_hash == ""):
+        # Empty password login allowed
+        pass
+    elif not stored_hash:
+        raise HTTPException(status_code=401, detail="This account uses OAuth login")
+    else:
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        if stored_hash != password_hash:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if user.get("status") != "active":
         raise HTTPException(status_code=403, detail="Account is not active")
