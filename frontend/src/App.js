@@ -377,7 +377,7 @@ const AuthCallback = () => {
           if (response.data.user) {
             // Check if user has admin role
             if (response.data.user.role === 'admin') {
-              navigate("/dashboard", { state: { user: response.data.user }, replace: true });
+              navigate("/admin/dashboard", { state: { user: response.data.user }, replace: true });
             } else {
               // Non-admin users - redirect to /app with session_id so user app can process it
               // This ensures the user is also created in app_users collection
@@ -386,10 +386,10 @@ const AuthCallback = () => {
           }
         } catch (error) {
           console.error("Auth error:", error);
-          navigate("/login", { replace: true });
+          navigate("/admin/login", { replace: true });
         }
       } else {
-        navigate("/login", { replace: true });
+        navigate("/admin/login", { replace: true });
       }
     };
 
