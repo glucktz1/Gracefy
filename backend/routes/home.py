@@ -670,7 +670,7 @@ async def get_geo_filtered_home(
     
     # Get active layout sections for the specified platform
     sections = await db.layout_sections.find(
-        {"platforms": platform, "is_active": True},
+        {"platforms": {"$in": [platform]}, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(20)
     
