@@ -9529,7 +9529,7 @@ async def get_layout_config(platform: str):
     
     # Get active sections for this platform
     sections = await db.layout_sections.find(
-        {"platforms": platform, "is_active": True},
+        {"platforms": {"$in": [platform]}, "is_active": True},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(50)
     
