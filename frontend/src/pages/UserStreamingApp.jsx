@@ -4102,13 +4102,14 @@ export default function UserStreamingApp() {
       setShowGuestLimitModal(true);
     } else {
       // Reset guest limit flag to allow more plays after dismissal
-      // User gets another set of plays until next prompt
-      console.log('[Guest] Resetting guest limit - allowing more plays');
+      // User gets another set of plays AND skips until next prompt
+      console.log('[Guest] Resetting guest limits - allowing more plays and skips');
       if (player?.setGuestLimitReached) {
         player.setGuestLimitReached(false);
       }
-      // Reset play count to allow more plays
+      // Reset play count AND skip count to allow more
       setGuestPlayCount(0);
+      setGuestSkipCount(0);
     }
   };
 
