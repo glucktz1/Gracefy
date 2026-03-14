@@ -13,6 +13,12 @@ from core.database import get_db
 from core.cache import cache as app_cache
 from core.redis_cache import redis_cache, invalidate_pattern
 
+# Import hybrid cache for stats
+try:
+    from services.hybrid_cache import get_cache_stats as get_hybrid_cache_stats
+except ImportError:
+    get_hybrid_cache_stats = None
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["admin"])
 
