@@ -44,15 +44,18 @@ async def get_cache_stats():
     redis_stats = await redis_cache.get_stats()
     app_cache_stats = await app_cache.get_stats() if hasattr(app_cache, 'get_stats') else {}
     adaptive_stats = await adaptive_cache.get_stats() if adaptive_cache else {}
+    hybrid_stats = get_hybrid_cache_stats() if get_hybrid_cache_stats else {}
     
     return {
+        "hybrid_cache": hybrid_stats,  # L1/L2 cache stats
         "redis_cache": redis_stats,
         "adaptive_cache": adaptive_stats,
         "memory_cache": app_cache_stats,
         "summary": {
-            "primary": "redis" if redis_stats.get('connected') else "memory",
+            "primary": "hybrid_l1l2",
+            "l1_connected": True,  # L1 is always available (in-memory)
+            "l2_connected": hybrid_stats.get('home_cache', {}).get('l2', {}).get('connected', False),
             "redis_connected": redis_stats.get('connected', False),
-            "total_hit_rate": redis_stats.get('hit_rate', '0%'),
         }
     }
 
