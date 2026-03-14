@@ -4100,6 +4100,15 @@ export default function UserStreamingApp() {
       console.log('[Guest] MAX ATTEMPTS REACHED - LOCKING APP');
       setIsAppLocked(true);
       setShowGuestLimitModal(true);
+    } else {
+      // Reset guest limit flag to allow more plays after dismissal
+      // User gets another set of plays until next prompt
+      console.log('[Guest] Resetting guest limit - allowing more plays');
+      if (player?.setGuestLimitReached) {
+        player.setGuestLimitReached(false);
+      }
+      // Reset play count to allow more plays
+      setGuestPlayCount(0);
     }
   };
 
