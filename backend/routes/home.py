@@ -481,11 +481,10 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
         "hero": hero_content
     }
     
-    # CACHING DISABLED FOR DEBUGGING
-    # await set_cached_home_data(platform, response_data)
-    # await cache.set(cache_key, response_data, 120)
+    # Cache with hybrid L1/L2 (fire-and-forget for speed)
+    await set_cached_home_data(platform, response_data)
     
-    logger.info(f"Home data generated with {len(home_data)} sections (no caching)")
+    logger.info(f"Home data generated with {len(home_data)} sections (cached)")
     return response_data
 
 
