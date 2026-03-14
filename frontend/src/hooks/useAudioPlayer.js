@@ -322,6 +322,13 @@ const useAudioPlayer = () => {
       }
       
       // CASE 3: Repeat is OFF - MUST fetch more songs to continue (no looping)
+      // But check guest limit before fetching more
+      if (guestLimitReachedRef.current) {
+        console.log('[Player] Guest limit reached - stopping at end of queue');
+        setIsPlaying(false);
+        return;
+      }
+      
       console.log('[Player] Repeat OFF - fetching more songs...');
       
       try {
