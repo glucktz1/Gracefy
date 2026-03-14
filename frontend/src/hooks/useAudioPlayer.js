@@ -569,7 +569,12 @@ const useAudioPlayer = () => {
       return;
     }
     
-    // End of queue - try to fetch more songs
+    // End of queue - try to fetch more songs (if not guest limited)
+    if (guestLimitReachedRef.current) {
+      console.log('[Player] nextSong: Guest limit reached - cannot fetch more');
+      return; // Stay on current song
+    }
+    
     console.log('[Player] nextSong: End of queue, fetching more...');
     
     try {
