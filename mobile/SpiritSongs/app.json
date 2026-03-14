@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gracefy",
     "slug": "Gracefy-App",
-    "version": "1.0.166",
+    "version": "1.0.167",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -98,7 +98,7 @@
       "eas": {
         "projectId": "cd514690-f423-48aa-8dc8-390319ff0d67"
       },
-      "backendUrl": "https://faith-audio-platform.emergent.host"
+      "backendUrl": "https://gracefy.net"
     }
   }
 }
