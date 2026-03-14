@@ -4062,10 +4062,9 @@ export default function UserStreamingApp() {
     setGuestPlayCount(newCount);
     
     if (newCount >= GUEST_PLAY_LIMIT) {
-      console.log('[Guest] Play limit reached after increment - blocking autoplay');
-      if (player?.setGuestLimitReached) {
-        player.setGuestLimitReached(true); // Block autoplay when current song ends
-      }
+      console.log('[Guest] Play limit reached - showing prompt (continuous play continues)');
+      // Don't block autoplay - just show prompt when modal is displayed
+      // Removed: player.setGuestLimitReached(true)
       return true;
     }
     return false;
