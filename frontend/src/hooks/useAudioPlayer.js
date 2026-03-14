@@ -301,11 +301,7 @@ const useAudioPlayer = () => {
         return;
       }
       
-      // If repeat is 'off', try to fetch more songs or stop
-      if (currentRepeat === 'off') {
-        // For single-song queue with repeat off, try to get more songs first
-        // Only stop if we can't find any more songs
-        
+      // If repeat is 'off', try to fetch more songs first before stopping
       // Try to fetch more songs from same category/artist
       if (!fetchingMoreRef.current && album) {
         fetchingMoreRef.current = true;
