@@ -274,15 +274,6 @@ const useAudioPlayer = () => {
         return;
       }
       
-      // Check if guest play limit reached - but allow current queue to finish
-      // Guest limit should only block when starting a NEW play session, not within current queue
-      if (guestLimitReachedRef.current && nextIndex >= currentQueue.length) {
-        // Only block if we're trying to fetch MORE songs beyond current queue
-        console.log('[Player] Guest limit reached - cannot fetch more songs');
-        setIsPlaying(false);
-        return;
-      }
-      
       // REPEAT ONE - replay same song
       if (currentRepeat === 'one') {
         console.log('[Player] Repeat ONE - replaying same song');
@@ -294,7 +285,6 @@ const useAudioPlayer = () => {
       // Calculate next index
       let nextIndex = currentQueueIndex + 1;
       
-      // Shuffle mode - pick random song
       if (currentShuffle && currentQueue.length > 1) {
         do {
           nextIndex = Math.floor(Math.random() * currentQueue.length);
@@ -304,28 +294,27 @@ const useAudioPlayer = () => {
 
       console.log('[Player] Next index:', nextIndex, 'Queue length:', currentQueue.length);
 
-      // CASE 1: More songs in queue - play next
+      // If still within queue, play next song (regardless of guest limit)
       if (nextIndex < currentQueue.length) {
         console.log('[Player] Playing next song at index:', nextIndex);
         playFromQueueInternalRef.current(nextIndex, currentQueue);
         return;
       }
       
-      // CASE 2: End of queue reached
+      // End of queue reached
       console.log('[Player] End of queue reached');
+      
+      // Check guest limit - only block fetching MORE songs
+      if (guestLimitReachedRef.current) {
+        console.log('[Player] Guest limit reached - stopping at end of queue');
+        setIsPlaying(false);
+        return;
+      }
       
       // If REPEAT ALL is ON - loop back to start
       if (currentRepeat === 'all' && currentQueue.length > 0) {
         console.log('[Player] Repeat ALL - looping to start');
         playFromQueueInternalRef.current(0, currentQueue);
-        return;
-      }
-      
-      // CASE 3: Repeat is OFF - MUST fetch more songs to continue (no looping)
-      // But check guest limit before fetching more
-      if (guestLimitReachedRef.current) {
-        console.log('[Player] Guest limit reached - stopping at end of queue');
-        setIsPlaying(false);
         return;
       }
       
