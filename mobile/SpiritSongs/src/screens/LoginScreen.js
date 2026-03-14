@@ -705,13 +705,16 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    minHeight: 50, // Ensure minimum height
   },
   input: {
     flex: 1,
     height: 50,
+    minHeight: 50, // Ensure minimum height
     color: '#fff',
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
+    paddingVertical: Platform.OS === 'ios' ? 15 : 10, // Better padding for both platforms
   },
   forgotText: {
     color: COLORS.primary,
