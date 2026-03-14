@@ -20,7 +20,7 @@ const useAudioPlayer = () => {
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
   const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState('all'); // Default to 'all' for continuous playback
+  const [repeat, setRepeat] = useState('off'); // Default OFF - no repeat, continuous play to next album
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   
