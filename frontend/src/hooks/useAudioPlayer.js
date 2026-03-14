@@ -100,6 +100,22 @@ const useAudioPlayer = () => {
   }, [volume, isMuted]);
 
   // Play a song from the queue by index
+  // Preload next song for faster playback
+  const preloadNextSong = useCallback((currentIndex, currentQueue) => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < currentQueue.length) {
+      const nextItem = currentQueue[nextIndex];
+      const nextSong = nextItem.song || nextItem;
+      if (nextSong?.audio_url) {
+        const nextAudioUrl = getAudioUrl(nextSong.audio_url);
+        const preloadAudio = new Audio();
+        preloadAudio.preload = 'auto';
+        preloadAudio.src = nextAudioUrl;
+        console.log('[Player] Preloading next song:', nextSong.title);
+      }
+    }
+  }, []);
+
   const playFromQueueInternal = useCallback(async (index, queueRef) => {
     console.log('[Player] playFromQueueInternal called with index:', index);
     const q = queueRef || queue;
@@ -170,6 +186,8 @@ const useAudioPlayer = () => {
     // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
     const audioUrl = getAudioUrl(song.audio_url);
     
+    // Set preload to auto for faster loading
+    audioRef.current.preload = 'auto';
     audioRef.current.src = audioUrl;
     
     try {
