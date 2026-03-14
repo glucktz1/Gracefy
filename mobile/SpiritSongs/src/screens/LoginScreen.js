@@ -652,6 +652,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: SPACING.lg,
+    paddingBottom: 100, // Extra padding for keyboard
+    minHeight: '100%',
   },
   backButton: {
     marginBottom: SPACING.md,
