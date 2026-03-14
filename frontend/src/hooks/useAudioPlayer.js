@@ -401,14 +401,11 @@ const useAudioPlayer = () => {
         }
       }
       
-      // Fallback: loop back to beginning if we have multiple songs
-      if (currentQueue.length > 1) {
-        console.log('[Player] Looping back to beginning of queue (multiple songs)');
+      // Fallback: loop back to beginning regardless of queue size
+      // This ensures continuous playback even for single songs
+      if (currentQueue.length > 0) {
+        console.log('[Player] Looping back to beginning of queue (continuous playback)');
         playFromQueueInternalRef.current(0, currentQueue);
-      } else if (currentQueue.length === 1) {
-        // Single song and we couldn't find more - stop or replay based on default behavior
-        console.log('[Player] Single song queue, no more songs found - stopping');
-        setIsPlaying(false);
       } else {
         console.log('[Player] Queue is empty - cannot continue playback');
         setIsPlaying(false);
