@@ -274,9 +274,11 @@ const useAudioPlayer = () => {
         return;
       }
       
-      // Check if guest play limit reached
-      if (guestLimitReachedRef.current) {
-        console.log('[Player] Auto-play blocked - guest limit reached');
+      // Check if guest play limit reached - but allow current queue to finish
+      // Guest limit should only block when starting a NEW play session, not within current queue
+      if (guestLimitReachedRef.current && nextIndex >= currentQueue.length) {
+        // Only block if we're trying to fetch MORE songs beyond current queue
+        console.log('[Player] Guest limit reached - cannot fetch more songs');
         setIsPlaying(false);
         return;
       }
