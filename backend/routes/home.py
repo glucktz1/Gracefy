@@ -1,6 +1,10 @@
 """
 Home routes for Gracefy - User home screen data.
 Heavily optimized for initial app load performance.
+
+Uses Hybrid L1/L2 Cache Architecture:
+- L1: In-memory cache (instant, per-instance)
+- L2: Redis/Upstash (shared, distributed)
 """
 
 from fastapi import APIRouter, Query, Request
@@ -11,9 +15,10 @@ import asyncio
 
 from core.database import get_db
 from core.cache import cache
-from services.redis_service import (
+from services.hybrid_cache import (
     get_cached_home_data,
-    set_cached_home_data
+    set_cached_home_data,
+    get_cache_stats
 )
 
 logger = logging.getLogger(__name__)
