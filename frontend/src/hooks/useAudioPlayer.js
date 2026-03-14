@@ -247,26 +247,21 @@ const useAudioPlayer = () => {
       }
       
       // Check if auto-play is blocked (screen lock payment feature)
-      console.log('[Player] blockAutoPlayNextRef.current:', blockAutoPlayNextRef.current);
       if (blockAutoPlayNextRef.current) {
-        console.log('[Player] Auto-play blocked due to screen lock billing - stopping playback');
+        console.log('[Player] Auto-play blocked due to screen lock billing - stopping');
         blockAutoPlayNextRef.current = false;
         setIsPlaying(false);
         return;
       }
       
-      // Check if guest play limit reached - stop autoplay for non-logged-in users
-      console.log('[Player] guestLimitReachedRef.current:', guestLimitReachedRef.current);
+      // Check if guest play limit reached
       if (guestLimitReachedRef.current) {
-        console.log('[Player] Auto-play blocked - guest play limit reached, stopping playback');
+        console.log('[Player] Auto-play blocked - guest limit reached');
         setIsPlaying(false);
-        return; // Don't reset the ref - user needs to login to continue
+        return;
       }
       
-      // CONTINUOUS PLAYBACK LOGIC:
-      // Default behavior is to keep playing. Only stop if explicitly told to.
-      
-      // Repeat ONE mode - replay same song
+      // REPEAT ONE - replay same song
       if (currentRepeat === 'one') {
         console.log('[Player] Repeat ONE - replaying same song');
         audio.currentTime = 0;
@@ -277,40 +272,128 @@ const useAudioPlayer = () => {
       // Calculate next index
       let nextIndex = currentQueueIndex + 1;
       
+      // Shuffle mode - pick random song
       if (currentShuffle && currentQueue.length > 1) {
-        // Shuffle: pick random index different from current
         do {
           nextIndex = Math.floor(Math.random() * currentQueue.length);
         } while (nextIndex === currentQueueIndex && currentQueue.length > 1);
-        console.log('[Player] Shuffle ON - random next index:', nextIndex);
+        console.log('[Player] Shuffle - random index:', nextIndex);
       }
 
-      console.log('[Player] Next index would be:', nextIndex, 'Queue length:', currentQueue.length);
+      console.log('[Player] Next index:', nextIndex, 'Queue length:', currentQueue.length);
 
-      // If we still have songs in the queue, play next
+      // CASE 1: More songs in queue - play next
       if (nextIndex < currentQueue.length) {
-        console.log('[Player] Playing next song in queue at index:', nextIndex);
+        console.log('[Player] Playing next song at index:', nextIndex);
         playFromQueueInternalRef.current(nextIndex, currentQueue);
         return;
       }
       
-      // We've reached the end of queue
-      console.log('[Player] Reached end of queue - checking options...');
+      // CASE 2: End of queue reached
+      console.log('[Player] End of queue reached');
       
-      // If repeat is 'all' OR repeat is 'off' (default continuous playback)
-      // Loop back to beginning for continuous listening
-      if (currentQueue.length > 0) {
-        if (currentRepeat === 'all') {
-          console.log('[Player] Repeat ALL - looping back to start');
-        } else {
-          console.log('[Player] End of queue - looping back for continuous playback');
-        }
+      // If REPEAT ALL is ON - loop back to start
+      if (currentRepeat === 'all' && currentQueue.length > 0) {
+        console.log('[Player] Repeat ALL - looping to start');
         playFromQueueInternalRef.current(0, currentQueue);
         return;
       }
       
-      // Only reach here if queue is truly empty
-      console.log('[Player] Queue is empty - cannot continue playback');
+      // CASE 3: Repeat is OFF - try to fetch more songs to continue
+      if (!fetchingMoreRef.current) {
+        fetchingMoreRef.current = true;
+        console.log('[Player] Fetching more songs to continue playback...');
+        
+        try {
+          let moreSongs = [];
+          
+          // Try to get more songs from the same album first
+          if (album?.album_id && currentQueue.length < 20) {
+            try {
+              const albumRes = await axios.get(`${API}/user/album/${album.album_id}/songs`);
+              const albumSongs = albumRes.data.songs || [];
+              // Find songs not already in queue
+              const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
+              const newSongs = albumSongs.filter(s => !currentSongIds.has(s.song_id));
+              if (newSongs.length > 0) {
+                moreSongs = newSongs.map(s => ({ song: s, album }));
+                console.log('[Player] Found', newSongs.length, 'more songs from same album');
+              }
+            } catch (e) {
+              console.log('[Player] Could not fetch more from album');
+            }
+          }
+          
+          // If no songs from album, try category
+          if (moreSongs.length === 0 && album?.category_id) {
+            try {
+              const catRes = await axios.get(`${API}/user/browse/category/${album.category_id}`);
+              const albums = (catRes.data.albums || []).filter(a => a.album_id !== album?.album_id);
+              
+              for (const fetchedAlbum of albums.slice(0, 3)) {
+                try {
+                  const songsRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}/songs`);
+                  const songs = songsRes.data.songs || [];
+                  moreSongs.push(...songs.slice(0, 5).map(s => ({ song: s, album: fetchedAlbum })));
+                  if (moreSongs.length >= 10) break;
+                } catch (e) { }
+              }
+              if (moreSongs.length > 0) {
+                console.log('[Player] Found', moreSongs.length, 'songs from category');
+              }
+            } catch (e) {
+              console.log('[Player] Could not fetch from category');
+            }
+          }
+          
+          // If still no songs, try to get popular/trending
+          if (moreSongs.length === 0) {
+            try {
+              const homeRes = await axios.get(`${API}/user/home?platform=web`);
+              const sections = homeRes.data.sections || [];
+              const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
+              
+              for (const section of sections) {
+                const items = section.items || [];
+                for (const item of items.slice(0, 3)) {
+                  if (item.album_id && item.album_id !== album?.album_id) {
+                    try {
+                      const songsRes = await axios.get(`${API}/user/album/${item.album_id}/songs`);
+                      const songs = (songsRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
+                      moreSongs.push(...songs.slice(0, 3).map(s => ({ song: s, album: item })));
+                      if (moreSongs.length >= 10) break;
+                    } catch (e) { }
+                  }
+                }
+                if (moreSongs.length >= 10) break;
+              }
+              if (moreSongs.length > 0) {
+                console.log('[Player] Found', moreSongs.length, 'songs from home sections');
+              }
+            } catch (e) {
+              console.log('[Player] Could not fetch from home');
+            }
+          }
+          
+          fetchingMoreRef.current = false;
+          
+          // If we found more songs, add to queue and play
+          if (moreSongs.length > 0) {
+            console.log('[Player] Adding', moreSongs.length, 'songs to queue');
+            const newQueue = [...currentQueue, ...moreSongs];
+            setQueue(newQueue);
+            queueRef.current = newQueue;
+            playFromQueueInternalRef.current(currentQueue.length, newQueue);
+            return;
+          }
+        } catch (e) {
+          console.error('[Player] Error fetching more songs:', e);
+          fetchingMoreRef.current = false;
+        }
+      }
+      
+      // No more songs available - stop playback
+      console.log('[Player] No more songs available - stopping playback');
       setIsPlaying(false);
     };
     
