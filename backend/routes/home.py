@@ -403,29 +403,22 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     """
     Get home screen data for app or web.
     
-    OPTIMIZED FOR PERFORMANCE:
-    - Redis caching DISABLED for debugging
+    OPTIMIZED FOR PERFORMANCE with Hybrid L1/L2 Cache:
+    - L1: In-memory cache (instant, ~0ms)
+    - L2: Redis/Upstash (shared, ~50ms)
     - Parallel section queries
     - Minimal field projections
-    - Truncated base64 thumbnails
+    - Circuit breaker for fault tolerance
     """
-    # REDIS CACHING DISABLED FOR DEBUGGING - Direct DB query every time
-    # redis_cached = await get_cached_home_data(platform)
-    # if redis_cached:
-    #     logger.debug(f"Home data ({platform}) served from Redis cache")
-    #     return redis_cached
+    # Try hybrid cache first (L1 -> L2)
+    cached_data = await get_cached_home_data(platform)
+    if cached_data:
+        logger.debug(f"Home data ({platform}) served from cache")
+        return cached_data
     
     db = get_db()
     
-    # IN-MEMORY CACHING ALSO DISABLED FOR DEBUGGING
-    # cache_key = f"home:{platform}:main:v4"
-    # cached_result = await cache.get(cache_key)
-    # if cached_result:
-    #     logger.debug(f"Home data ({platform}) served from memory cache")
-    #     await set_cached_home_data(platform, cached_result)
-    #     return cached_result
-    
-    logger.info(f"Home data ({platform}) - fetching fresh from database (caching disabled)")
+    logger.info(f"Home data ({platform}) - fetching fresh from database")
     
     # Get active layout sections for the specified platform
     # Use $in to match platform in the platforms array
