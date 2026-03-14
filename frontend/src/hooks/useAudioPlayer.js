@@ -263,6 +263,9 @@ const useAudioPlayer = () => {
         return; // Don't reset the ref - user needs to login to continue
       }
       
+      // CONTINUOUS PLAYBACK LOGIC:
+      // Default behavior is to keep playing. Only stop if explicitly told to.
+      
       // Repeat ONE mode - replay same song
       if (currentRepeat === 'one') {
         console.log('[Player] Repeat ONE - replaying same song');
@@ -294,118 +297,21 @@ const useAudioPlayer = () => {
       // We've reached the end of queue
       console.log('[Player] Reached end of queue - checking options...');
       
-      // If repeat is 'all', loop back to beginning (works for any queue size >= 1)
-      if (currentRepeat === 'all' && currentQueue.length > 0) {
-        console.log('[Player] Repeat ALL - looping back to start');
+      // If repeat is 'all' OR repeat is 'off' (default continuous playback)
+      // Loop back to beginning for continuous listening
+      if (currentQueue.length > 0) {
+        if (currentRepeat === 'all') {
+          console.log('[Player] Repeat ALL - looping back to start');
+        } else {
+          console.log('[Player] End of queue - looping back for continuous playback');
+        }
         playFromQueueInternalRef.current(0, currentQueue);
         return;
       }
       
-      // If repeat is 'off', try to fetch more songs first before stopping
-      // Try to fetch more songs from same category/artist
-      if (!fetchingMoreRef.current && album) {
-        fetchingMoreRef.current = true;
-        console.log('[Player] Fetching more songs...');
-        
-        try {
-          const categoryId = album.category_id;
-          const artistId = album.artist_id;
-          let moreSongs = [];
-          
-          // First try same category
-          if (categoryId) {
-            try {
-              const catRes = await axios.get(`${API}/user/browse/category/${categoryId}`);
-              const albums = catRes.data.albums || [];
-              for (const fetchedAlbum of albums) {
-                if (fetchedAlbum.album_id !== album.album_id) {
-                  const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
-                  const songs = albumRes.data.songs || [];
-                  const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                  moreSongs.push(...songs.map(s => ({ 
-                    song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
-                    album: detailedAlbum 
-                  })));
-                  if (moreSongs.length >= 10) break;
-                }
-              }
-            } catch (e) {
-              console.log('[Player] Error fetching category albums:', e.message);
-            }
-          }
-          
-          // If not enough, try same artist
-          if (moreSongs.length < 5 && artistId) {
-            try {
-              const artistAlbums = await axios.get(`${API}/albums?artist_id=${artistId}`);
-              for (const fetchedAlbum of artistAlbums.data.albums || []) {
-                if (fetchedAlbum.album_id !== album.album_id) {
-                  const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
-                  const songs = albumRes.data.songs || [];
-                  const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                  moreSongs.push(...songs.map(s => ({ 
-                    song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
-                    album: detailedAlbum 
-                  })));
-                  if (moreSongs.length >= 10) break;
-                }
-              }
-            } catch (e) {
-              console.log('[Player] Error fetching artist albums:', e.message);
-            }
-          }
-          
-          // If still not enough, get featured
-          if (moreSongs.length < 5) {
-            try {
-              const homeRes = await axios.get(`${API}/user/home`);
-              const featuredSection = homeRes.data.sections?.find(s => s.section_type === 'featured_albums');
-              for (const fetchedAlbum of featuredSection?.items || []) {
-                if (fetchedAlbum.album_id !== album?.album_id) {
-                  const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}`);
-                  const songs = albumRes.data.songs || [];
-                  const detailedAlbum = albumRes.data.album || fetchedAlbum;
-                  moreSongs.push(...songs.map(s => ({ 
-                    song: { ...s, album_thumbnail: detailedAlbum.thumbnail || fetchedAlbum.thumbnail }, 
-                    album: detailedAlbum 
-                  })));
-                  if (moreSongs.length >= 10) break;
-                }
-              }
-            } catch (e) {
-              console.log('[Player] Error fetching featured:', e.message);
-            }
-          }
-          
-          fetchingMoreRef.current = false;
-          
-          if (moreSongs.length > 0) {
-            console.log('[Player] Found', moreSongs.length, 'more songs - adding to queue and playing');
-            const newQueue = [...currentQueue, ...moreSongs];
-            setQueue(newQueue);
-            // Update queueRef immediately for next iteration
-            queueRef.current = newQueue;
-            // Play the next song (currentQueue.length is the first new song index)
-            playFromQueueInternalRef.current(currentQueue.length, newQueue);
-            return;
-          } else {
-            console.log('[Player] No more songs found from recommendations');
-          }
-        } catch (e) {
-          console.error('[Player] Error in fetch more songs flow:', e);
-          fetchingMoreRef.current = false;
-        }
-      }
-      
-      // Fallback: loop back to beginning regardless of queue size
-      // This ensures continuous playback even for single songs
-      if (currentQueue.length > 0) {
-        console.log('[Player] Looping back to beginning of queue (continuous playback)');
-        playFromQueueInternalRef.current(0, currentQueue);
-      } else {
-        console.log('[Player] Queue is empty - cannot continue playback');
-        setIsPlaying(false);
-      }
+      // Only reach here if queue is truly empty
+      console.log('[Player] Queue is empty - cannot continue playback');
+      setIsPlaying(false);
     };
     
     const onTimeUpdate = () => {
