@@ -196,6 +196,8 @@ const useAudioPlayer = () => {
       if (playPromise !== undefined) {
         playPromise.then(() => {
           console.log('[Player] Autoplay started successfully');
+          // Preload next song after current starts playing
+          preloadNextSong(index, q);
         }).catch(error => {
           console.log('[Player] Autoplay blocked:', error.name);
           // If autoplay is blocked, show a play button or wait for user interaction
@@ -224,7 +226,7 @@ const useAudioPlayer = () => {
       console.error("Playback failed:", e);
       setIsLoading(false);
     }
-  }, [queue]);
+  }, [queue, preloadNextSong]);
 
   // Handle song end - with continuous playback
   // Use a ref to store playFromQueueInternal to avoid stale closures
