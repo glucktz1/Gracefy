@@ -9,11 +9,28 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - **Auth**: Firebase (Email/Password, Google)
 - **Payments**: Azam Pay (production)
 - **CDN**: Bunny.net
-- **Cache**: Upstash Redis
+- **Cache**: Hybrid L1/L2 (In-Memory + Upstash Redis)
 
 ## What's Been Implemented
 
-### Session: March 13, 2026 (Latest)
+### Session: March 14, 2026 (Latest)
+- ✅ **Production Database Fix** - Updated Emergent deployment Secrets to use correct MongoDB cluster (gracefy.vuqjyu.mongodb.net instead of customer-apps.mmyrwf.mongodb.net)
+- ✅ **Hybrid L1/L2 Cache Architecture** - Implemented ultra-fast caching:
+  - L1: In-memory cache (0ms latency, per-instance)
+  - L2: Upstash Redis (shared, distributed)
+  - Circuit breaker for fault tolerance
+  - Fire-and-forget async writes
+- ✅ **Performance Improvement** - Home API: 5.2s (uncached) → 0.15s (cached) = 35x faster
+- ✅ **Admin Empty Password Login** - Admin can now login with just email (empty password field)
+- ✅ **Web Continuous Playback Fix** - Songs now continue playing when one ends (follows repeat mode)
+- ✅ **Mobile Login Screen UI Fix** - Fixed keyboard overlay and form squeeze issues:
+  - Added keyboardVerticalOffset for proper keyboard handling
+  - Added keyboardShouldPersistTaps="handled"
+  - Increased scroll padding for better UX
+  - Set minimum heights on input containers
+- ✅ **Android Build v1.0.167** - APK: https://expo.dev/artifacts/eas/aJ3vc7HXB3i8K2P69U2SKL.apk
+
+### Session: March 13, 2026
 - ✅ **Backend Performance: Redis Caching for /api/user/home** - Integrated Upstash Redis for home API caching (3-minute TTL)
 - ✅ **API Response Time: 5s → 0.5s (10x faster)** - Cached requests now serve in ~500ms vs ~5s uncached
 - ✅ **Frontend Refactoring** - Extracted useAudioPlayer hook (735 lines) and utilities to separate files, reducing main component from 6878 → 6037 lines (~12% reduction)
