@@ -299,101 +299,102 @@ const useAudioPlayer = () => {
         return;
       }
       
-      // CASE 3: Repeat is OFF - try to fetch more songs to continue
-      if (!fetchingMoreRef.current) {
-        fetchingMoreRef.current = true;
-        console.log('[Player] Fetching more songs to continue playback...');
+      // CASE 3: Repeat is OFF - MUST fetch more songs to continue (no looping)
+      console.log('[Player] Repeat OFF - fetching more songs...');
+      
+      try {
+        let moreSongs = [];
+        const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
         
-        try {
-          let moreSongs = [];
-          
-          // Try to get more songs from the same album first
-          if (album?.album_id && currentQueue.length < 20) {
-            try {
-              const albumRes = await axios.get(`${API}/user/album/${album.album_id}/songs`);
-              const albumSongs = albumRes.data.songs || [];
-              // Find songs not already in queue
-              const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
-              const newSongs = albumSongs.filter(s => !currentSongIds.has(s.song_id));
-              if (newSongs.length > 0) {
-                moreSongs = newSongs.map(s => ({ song: s, album }));
-                console.log('[Player] Found', newSongs.length, 'more songs from same album');
-              }
-            } catch (e) {
-              console.log('[Player] Could not fetch more from album');
+        // Strategy 1: Get more songs from the same album
+        if (album?.album_id) {
+          try {
+            console.log('[Player] Trying to get more from same album:', album.album_id);
+            const albumRes = await axios.get(`${API}/user/album/${album.album_id}/songs`);
+            const albumSongs = albumRes.data.songs || [];
+            const newSongs = albumSongs.filter(s => !currentSongIds.has(s.song_id));
+            if (newSongs.length > 0) {
+              moreSongs = newSongs.map(s => ({ song: s, album }));
+              console.log('[Player] Found', newSongs.length, 'more songs from same album');
             }
+          } catch (e) {
+            console.log('[Player] Album fetch failed:', e.message);
           }
-          
-          // If no songs from album, try category
-          if (moreSongs.length === 0 && album?.category_id) {
-            try {
-              const catRes = await axios.get(`${API}/user/browse/category/${album.category_id}`);
-              const albums = (catRes.data.albums || []).filter(a => a.album_id !== album?.album_id);
-              
-              for (const fetchedAlbum of albums.slice(0, 3)) {
-                try {
-                  const songsRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}/songs`);
-                  const songs = songsRes.data.songs || [];
-                  moreSongs.push(...songs.slice(0, 5).map(s => ({ song: s, album: fetchedAlbum })));
-                  if (moreSongs.length >= 10) break;
-                } catch (e) { }
-              }
-              if (moreSongs.length > 0) {
-                console.log('[Player] Found', moreSongs.length, 'songs from category');
-              }
-            } catch (e) {
-              console.log('[Player] Could not fetch from category');
-            }
-          }
-          
-          // If still no songs, try to get popular/trending
-          if (moreSongs.length === 0) {
-            try {
-              const homeRes = await axios.get(`${API}/user/home?platform=web`);
-              const sections = homeRes.data.sections || [];
-              const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
-              
-              for (const section of sections) {
-                const items = section.items || [];
-                for (const item of items.slice(0, 3)) {
-                  if (item.album_id && item.album_id !== album?.album_id) {
-                    try {
-                      const songsRes = await axios.get(`${API}/user/album/${item.album_id}/songs`);
-                      const songs = (songsRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
-                      moreSongs.push(...songs.slice(0, 3).map(s => ({ song: s, album: item })));
-                      if (moreSongs.length >= 10) break;
-                    } catch (e) { }
-                  }
-                }
-                if (moreSongs.length >= 10) break;
-              }
-              if (moreSongs.length > 0) {
-                console.log('[Player] Found', moreSongs.length, 'songs from home sections');
-              }
-            } catch (e) {
-              console.log('[Player] Could not fetch from home');
-            }
-          }
-          
-          fetchingMoreRef.current = false;
-          
-          // If we found more songs, add to queue and play
-          if (moreSongs.length > 0) {
-            console.log('[Player] Adding', moreSongs.length, 'songs to queue');
-            const newQueue = [...currentQueue, ...moreSongs];
-            setQueue(newQueue);
-            queueRef.current = newQueue;
-            playFromQueueInternalRef.current(currentQueue.length, newQueue);
-            return;
-          }
-        } catch (e) {
-          console.error('[Player] Error fetching more songs:', e);
-          fetchingMoreRef.current = false;
         }
+        
+        // Strategy 2: Get songs from same category (different albums)
+        if (moreSongs.length === 0 && album?.category_id) {
+          try {
+            console.log('[Player] Trying category:', album.category_id);
+            const catRes = await axios.get(`${API}/user/browse/category/${album.category_id}`);
+            const albums = (catRes.data.albums || []).filter(a => a.album_id !== album?.album_id);
+            
+            for (const fetchedAlbum of albums.slice(0, 5)) {
+              try {
+                const songsRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}/songs`);
+                const songs = (songsRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
+                moreSongs.push(...songs.map(s => ({ song: s, album: fetchedAlbum })));
+                if (moreSongs.length >= 15) break;
+              } catch (e) { }
+            }
+            if (moreSongs.length > 0) {
+              console.log('[Player] Found', moreSongs.length, 'songs from category');
+            }
+          } catch (e) {
+            console.log('[Player] Category fetch failed:', e.message);
+          }
+        }
+        
+        // Strategy 3: Get songs from home page sections (any content)
+        if (moreSongs.length === 0) {
+          try {
+            console.log('[Player] Trying home page sections...');
+            const homeRes = await axios.get(`${API}/user/home?platform=web`);
+            const sections = homeRes.data.sections || [];
+            
+            for (const section of sections) {
+              const items = section.items || [];
+              for (const item of items) {
+                if (item.album_id && item.album_id !== album?.album_id) {
+                  try {
+                    const songsRes = await axios.get(`${API}/user/album/${item.album_id}/songs`);
+                    const songs = (songsRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
+                    if (songs.length > 0) {
+                      moreSongs.push(...songs.map(s => ({ song: s, album: item })));
+                      console.log('[Player] Added', songs.length, 'songs from', item.title);
+                      if (moreSongs.length >= 15) break;
+                    }
+                  } catch (e) { }
+                }
+              }
+              if (moreSongs.length >= 15) break;
+            }
+            if (moreSongs.length > 0) {
+              console.log('[Player] Found', moreSongs.length, 'songs from home sections');
+            }
+          } catch (e) {
+            console.log('[Player] Home fetch failed:', e.message);
+          }
+        }
+        
+        // If we found more songs, add to queue and play next
+        if (moreSongs.length > 0) {
+          console.log('[Player] SUCCESS - Adding', moreSongs.length, 'songs to queue and continuing');
+          const newQueue = [...currentQueue, ...moreSongs];
+          setQueue(newQueue);
+          queueRef.current = newQueue;
+          // Play the first new song (index = old queue length)
+          playFromQueueInternalRef.current(currentQueue.length, newQueue);
+          return;
+        }
+        
+        console.log('[Player] Could not find any more songs');
+      } catch (e) {
+        console.error('[Player] Error in fetch more songs:', e);
       }
       
-      // No more songs available - stop playback
-      console.log('[Player] No more songs available - stopping playback');
+      // No more songs available - stop playback (DO NOT LOOP when repeat is off)
+      console.log('[Player] No more songs - stopping playback');
       setIsPlaying(false);
     };
     
