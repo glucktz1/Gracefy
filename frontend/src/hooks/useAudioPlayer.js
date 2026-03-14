@@ -304,13 +304,6 @@ const useAudioPlayer = () => {
       // End of queue reached
       console.log('[Player] End of queue reached');
       
-      // Check guest limit - only block fetching MORE songs
-      if (guestLimitReachedRef.current) {
-        console.log('[Player] Guest limit reached - stopping at end of queue');
-        setIsPlaying(false);
-        return;
-      }
-      
       // If REPEAT ALL is ON - loop back to start
       if (currentRepeat === 'all' && currentQueue.length > 0) {
         console.log('[Player] Repeat ALL - looping to start');
