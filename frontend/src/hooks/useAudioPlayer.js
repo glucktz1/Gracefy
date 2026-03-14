@@ -294,19 +294,17 @@ const useAudioPlayer = () => {
       // We've reached the end of queue
       console.log('[Player] Reached end of queue - checking options...');
       
-      // If repeat is 'all', loop back to beginning
+      // If repeat is 'all', loop back to beginning (works for any queue size >= 1)
       if (currentRepeat === 'all' && currentQueue.length > 0) {
         console.log('[Player] Repeat ALL - looping back to start');
         playFromQueueInternalRef.current(0, currentQueue);
         return;
       }
       
-      // If repeat is 'off' and it's a single-song queue, STOP (don't loop)
-      if (currentRepeat === 'off' && currentQueue.length === 1) {
-        console.log('[Player] Single song album with repeat OFF - stopping playback');
-        setIsPlaying(false);
-        return;
-      }
+      // If repeat is 'off', try to fetch more songs or stop
+      if (currentRepeat === 'off') {
+        // For single-song queue with repeat off, try to get more songs first
+        // Only stop if we can't find any more songs
         
       // Try to fetch more songs from same category/artist
       if (!fetchingMoreRef.current && album) {
