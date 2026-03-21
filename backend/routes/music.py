@@ -3,7 +3,7 @@ Music routes for Gracefy - Albums, Songs, Streaming.
 Optimized for high traffic with caching and efficient queries.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, BackgroundTasks
 from datetime import datetime, timezone
 from typing import Optional, List
 import logging
@@ -161,7 +161,7 @@ async def stream_song(song_id: str, request: Request):
             head_response = await client.head(audio_url, headers={"User-Agent": "Gracefy-App/1.0"})
             content_length = head_response.headers.get("Content-Length", "0")
             content_type = head_response.headers.get("Content-Type", "audio/mpeg")
-    except:
+    except Exception:
         content_length = "0"
         content_type = "audio/mpeg"
     
@@ -478,13 +478,17 @@ async def delete_album(album_id: str):
 
 
 @router.post("/songs")
-async def create_song(song: dict):
-    """Create a new song."""
+async def create_song(song: dict, background_tasks: BackgroundTasks):
+    """Create a new song and trigger HLS transcoding if audio URL exists."""
     db = get_db()
     
     song_obj = Song(**song)
     doc = song_obj.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    
+    # Set initial HLS status if audio URL exists
+    if doc.get("audio_url") and doc["audio_url"].startswith("http"):
+        doc["hls_status"] = "pending"
     
     await db.songs.insert_one(doc)
     
@@ -499,16 +503,34 @@ async def create_song(song: dict):
     asyncio.create_task(invalidate_songs_cache())
     asyncio.create_task(invalidate_albums_cache(doc["album_id"]))
     
-    return {"song_id": doc["song_id"], "message": "Song created successfully"}
+    # Trigger HLS transcoding in background if audio URL exists
+    if doc.get("audio_url") and doc["audio_url"].startswith("http"):
+        from services.hls_transcoding_service import transcode_song
+        
+        async def transcode_task():
+            await transcode_song(doc["song_id"], doc["audio_url"], db)
+        
+        background_tasks.add_task(transcode_task)
+    
+    return {"song_id": doc["song_id"], "message": "Song created successfully", "hls_status": doc.get("hls_status")}
 
 
 @router.put("/songs/{song_id}")
-async def update_song(song_id: str, updates: dict):
-    """Update song."""
+async def update_song(song_id: str, updates: dict, background_tasks: BackgroundTasks):
+    """Update song. Triggers HLS transcoding if audio URL is changed."""
     db = get_db()
     
     updates.pop("_id", None)
     updates.pop("song_id", None)
+    
+    # Check if audio URL is being updated
+    audio_url_changed = "audio_url" in updates
+    new_audio_url = updates.get("audio_url")
+    
+    # If audio URL changed, reset HLS status and trigger new transcoding
+    if audio_url_changed and new_audio_url and new_audio_url.startswith("http"):
+        updates["hls_status"] = "pending"
+        updates["hls_url"] = None  # Clear old HLS URL
     
     result = await db.songs.update_one({"song_id": song_id}, {"$set": updates})
     if result.matched_count == 0:
@@ -516,7 +538,16 @@ async def update_song(song_id: str, updates: dict):
     
     await invalidate_songs_cache(song_id)
     
-    return {"message": "Song updated successfully"}
+    # Trigger HLS transcoding if audio URL was updated
+    if audio_url_changed and new_audio_url and new_audio_url.startswith("http"):
+        from services.hls_transcoding_service import transcode_song
+        
+        async def transcode_task():
+            await transcode_song(song_id, new_audio_url, db)
+        
+        background_tasks.add_task(transcode_task)
+    
+    return {"message": "Song updated successfully", "hls_transcoding": audio_url_changed}
 
 
 @router.delete("/songs/{song_id}")

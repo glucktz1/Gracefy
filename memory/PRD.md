@@ -25,15 +25,19 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
   - Silent fallback to MP3 if HLS unavailable
   - Batch transcoding with progress tracking
   - 97 songs pending transcoding
-- ✅ **Web Continuous Playback Complete Rewrite** - Fixed recurring bug by replicating native mobile app logic:
-  - New `fetchAndAddRecommendations()` function that calls `/api/recommendations/next-songs` endpoint
-  - Pre-fetches recommendations when 2 songs from queue end (proactive, like native app)
-  - Added `continuousPlay` state (default: true) that enables auto-recommendations
-  - Fixed stale closure bug in `nextSong()` - now uses `playFromQueueInternal` with `queueRef.current`
-  - Songs now play from DIFFERENT albums (not repeating same album)
-  - Created comprehensive test suite: `/app/backend/tests/test_continuous_playback.py`
-- ✅ **Fixed Quick Access Grid Duplication** - The "Makundi" section was showing TWICE on home page (once as static grid, once from API). Now properly filters out `quick_access` section type from dynamic sections loop.
-- ✅ **Improved Audio Error Handling** - Added detailed error messages for audio playback failures with MediaError codes (MEDIA_ERR_ABORTED, MEDIA_ERR_NETWORK, MEDIA_ERR_DECODE, MEDIA_ERR_SRC_NOT_SUPPORTED)
+- ✅ **Auto-Transcoding on Song Upload** - Songs are automatically queued for HLS transcoding when:
+  - A new song is created with an audio URL
+  - An existing song's audio URL is updated
+- ✅ **Admin Song Preview** - Play/Pause button now works in Albums page to test songs
+- ✅ **HLS Status Per Song** - Each song shows its transcoding status badge:
+  - Green "HLS" badge - Transcoded and ready for adaptive streaming
+  - Purple "Transcoding" badge with spinner - Currently being processed
+  - Amber "Pending" badge - Waiting in queue
+  - Red "Failed" badge (clickable to retry) - Transcoding failed
+  - Gray "MP3 Only" badge (clickable to transcode) - Not yet transcoded
+- ✅ **Web Continuous Playback Complete Rewrite** - Fixed recurring bug by replicating native mobile app logic
+- ✅ **Fixed Quick Access Grid Duplication** - Makundi section no longer shows twice
+- ✅ **Improved Audio Error Handling** - Detailed MediaError messages
 
 ### Session: March 14, 2026
 - ✅ **Production Database Fix** - Updated Emergent deployment Secrets to use correct MongoDB cluster (gracefy.vuqjyu.mongodb.net instead of customer-apps.mmyrwf.mongodb.net)

@@ -1,15 +1,17 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import { 
   Music2, Plus, Edit2, Trash2, MoreVertical, Upload, Play, Disc, 
   Check, X, ToggleLeft, ToggleRight, CheckSquare, Square, FileAudio,
-  DollarSign, Crown, Gift, Calendar, Clock, Tag, Globe
+  DollarSign, Crown, Gift, Calendar, Clock, Tag, Globe, Pause, 
+  Loader2, CheckCircle2, AlertCircle, Radio, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +70,11 @@ export default function AlbumsPage() {
   const [selectedSongIds, setSelectedSongIds] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Audio preview state
+  const [playingSongId, setPlayingSongId] = useState(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioRef = useRef(new Audio());
   
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -168,6 +175,124 @@ export default function AlbumsPage() {
       }
     }
   }, []);
+
+  // Audio preview functions
+  const toggleAudioPreview = useCallback((song) => {
+    const audio = audioRef.current;
+    
+    if (playingSongId === song.song_id && isAudioPlaying) {
+      // Pause current song
+      audio.pause();
+      setIsAudioPlaying(false);
+    } else {
+      // Play new song or resume
+      if (playingSongId !== song.song_id) {
+        // Use HLS URL if available, otherwise fallback to regular audio URL
+        const audioUrl = song.hls_url || song.audio_url;
+        if (!audioUrl) {
+          toast.error("No audio file available");
+          return;
+        }
+        audio.src = audioUrl;
+        setPlayingSongId(song.song_id);
+      }
+      audio.play().then(() => {
+        setIsAudioPlaying(true);
+      }).catch(err => {
+        console.error("Audio play error:", err);
+        toast.error("Failed to play audio");
+      });
+    }
+  }, [playingSongId, isAudioPlaying]);
+  
+  // Cleanup audio on unmount
+  useEffect(() => {
+    const audio = audioRef.current;
+    
+    const handleEnded = () => {
+      setIsAudioPlaying(false);
+    };
+    
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.pause();
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+  
+  // Stop audio when changing albums
+  useEffect(() => {
+    audioRef.current.pause();
+    setPlayingSongId(null);
+    setIsAudioPlaying(false);
+  }, [selectedAlbum]);
+  
+  // Trigger HLS transcoding for a song
+  const triggerTranscoding = async (songId) => {
+    try {
+      await axios.post(`${API}/admin/hls/transcode/${songId}`, {}, { withCredentials: true });
+      toast.success("Transcoding started");
+      // Refresh songs to see updated status
+      setTimeout(() => fetchAlbumSongs(selectedAlbum.album_id), 2000);
+    } catch (error) {
+      toast.error("Failed to start transcoding");
+    }
+  };
+  
+  // Get HLS status badge
+  const getHlsStatusBadge = (song) => {
+    const status = song.hls_status;
+    
+    if (song.hls_url) {
+      return (
+        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
+          <Radio className="w-3 h-3 mr-1" />
+          HLS
+        </Badge>
+      );
+    }
+    
+    switch (status) {
+      case 'processing':
+        return (
+          <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-xs">
+            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            Transcoding
+          </Badge>
+        );
+      case 'failed':
+        return (
+          <Badge 
+            className="bg-red-500/20 text-red-400 border-red-500/30 text-xs cursor-pointer hover:bg-red-500/30"
+            onClick={(e) => { e.stopPropagation(); triggerTranscoding(song.song_id); }}
+          >
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        );
+      case 'pending':
+        return (
+          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        );
+      default:
+        if (song.audio_url) {
+          return (
+            <Badge 
+              className="bg-zinc-700/50 text-zinc-400 border-zinc-600/30 text-xs cursor-pointer hover:bg-zinc-700"
+              onClick={(e) => { e.stopPropagation(); triggerTranscoding(song.song_id); }}
+            >
+              <RefreshCw className="w-3 h-3 mr-1" />
+              MP3 Only
+            </Badge>
+          );
+        }
+        return null;
+    }
+  };
 
   useEffect(() => {
     fetchAlbums();
@@ -980,7 +1105,7 @@ export default function AlbumsPage() {
                           key={song.song_id} 
                           className={`flex items-center gap-4 p-4 hover:bg-zinc-800/30 transition-colors ${
                             song.status === "inactive" ? "opacity-60" : ""
-                          }`} 
+                          } ${playingSongId === song.song_id ? "bg-emerald-500/10" : ""}`} 
                           data-testid={`song-row-${song.song_id}`}
                         >
                           {/* Selection checkbox */}
@@ -993,15 +1118,34 @@ export default function AlbumsPage() {
                           </div>
                           
                           <span className="text-zinc-500 text-sm w-6 text-center">{song.track_number || index + 1}</span>
-                          <button className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center hover:bg-emerald-400 transition-colors">
-                            <Play size={14} className="text-white ml-0.5" fill="white" />
+                          
+                          {/* Play/Pause button - now functional */}
+                          <button 
+                            onClick={() => toggleAudioPreview(song)}
+                            disabled={!song.audio_url && !song.hls_url}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                              playingSongId === song.song_id && isAudioPlaying
+                                ? "bg-emerald-400 hover:bg-emerald-300"
+                                : song.audio_url || song.hls_url
+                                  ? "bg-emerald-500 hover:bg-emerald-400"
+                                  : "bg-zinc-700 cursor-not-allowed"
+                            }`}
+                          >
+                            {playingSongId === song.song_id && isAudioPlaying ? (
+                              <Pause size={14} className="text-white" fill="white" />
+                            ) : (
+                              <Play size={14} className="text-white ml-0.5" fill="white" />
+                            )}
                           </button>
+                          
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-white truncate">{song.title}</p>
                               {song.status === "inactive" && (
                                 <span className="text-xs text-zinc-500">(Inactive)</span>
                               )}
+                              {/* HLS Status Badge */}
+                              {getHlsStatusBadge(song)}
                             </div>
                             <p className="text-sm text-zinc-500 flex items-center gap-1">
                               <Clock size={12} />
