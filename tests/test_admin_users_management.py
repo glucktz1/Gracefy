@@ -22,7 +22,7 @@ from datetime import datetime
 # Get backend URL from environment
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://web-playback-preview.preview.emergentagent.com"
+    BASE_URL = "https://gracefy-hls-launch.preview.emergentagent.com"
 
 # Test data prefix for cleanup
 TEST_PREFIX = "TEST_admin_user_"

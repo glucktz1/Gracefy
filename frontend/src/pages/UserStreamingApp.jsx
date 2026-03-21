@@ -5,7 +5,7 @@ import {
   Heart, MoreHorizontal, ChevronLeft, ChevronRight, Home, Search, Library,
   Plus, Minus, Clock, Music2, Mic2, ListMusic, X, Share2, Download, Maximize2,
   BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2,
-  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music, ListPlus
+  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music, ListPlus, Shield, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -3030,7 +3030,7 @@ const LegalPageView = ({ pageType, language, onBack }) => {
 };
 
 // ==================== PROFILE VIEW ====================
-const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabled, t, onSelectPlan }) => {
+const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabled, t, onSelectPlan, onChangeLanguage }) => {
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -3244,6 +3244,57 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
             className="px-4 py-2 bg-amber-500 text-black rounded-full font-semibold text-sm hover:bg-amber-400 transition-colors"
           >
             {language === 'sw' ? 'Pakua' : 'Download'}
+          </a>
+        </div>
+      </div>
+
+      {/* Settings Section */}
+      <div className="bg-zinc-900/50 rounded-xl overflow-hidden mb-6">
+        <div className="p-4">
+          <h3 className="font-semibold text-white mb-3">{t('settings.title', 'Settings')}</h3>
+          
+          {/* Language Setting */}
+          <button
+            onClick={onChangeLanguage}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
+            data-testid="language-setting-btn"
+          >
+            <div className="flex items-center gap-3">
+              <Globe size={20} className="text-blue-400" />
+              <span className="text-white">{t('settings.language', 'Language')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-400">{language === 'sw' ? 'Kiswahili' : 'English'}</span>
+              <ChevronRight size={18} className="text-zinc-500" />
+            </div>
+          </button>
+          
+          {/* Privacy Policy */}
+          <a
+            href="/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
+          >
+            <div className="flex items-center gap-3">
+              <Shield size={20} className="text-emerald-400" />
+              <span className="text-white">{t('settings.privacy', 'Privacy Policy')}</span>
+            </div>
+            <ChevronRight size={18} className="text-zinc-500" />
+          </a>
+          
+          {/* Terms of Service */}
+          <a
+            href="/terms-of-service"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <FileText size={20} className="text-purple-400" />
+              <span className="text-white">{t('settings.terms', 'Terms of Service')}</span>
+            </div>
+            <ChevronRight size={18} className="text-zinc-500" />
           </a>
         </div>
       </div>
@@ -5623,6 +5674,7 @@ export default function UserStreamingApp() {
                 setSelectedPlanForCheckout(plan);
                 setShowCheckoutModal(true);
               }}
+              onChangeLanguage={() => setShowLanguageModal(true)}
             />
           )}
 

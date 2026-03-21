@@ -12,6 +12,8 @@ const defaultTranslations = {
     "nav.search": "Tafuta",
     "nav.library": "Maktaba",
     "nav.profile": "Wasifu",
+    "nav.bible": "Biblia",
+    "nav.radio": "Redio",
     
     // Home Screen
     "home.featured": "ILIYOANGAZIWA",
@@ -91,6 +93,7 @@ const defaultTranslations = {
     "auth.continueWithGoogle": "Endelea na Google",
     
     // Profile/Settings
+    "settings.title": "Mipangilio",
     "settings.settings": "Mipangilio",
     "settings.language": "Lugha",
     "settings.kiswahili": "Kiswahili",
@@ -98,7 +101,8 @@ const defaultTranslations = {
     "settings.changeLanguage": "Badilisha Lugha",
     "settings.account": "Akaunti",
     "settings.notifications": "Arifa",
-    "settings.privacy": "Faragha",
+    "settings.privacy": "Sera ya Faragha",
+    "settings.terms": "Masharti ya Huduma",
     "settings.help": "Msaada",
     "settings.about": "Kuhusu",
     "settings.version": "Toleo",
@@ -158,6 +162,8 @@ const defaultTranslations = {
     "nav.search": "Search",
     "nav.library": "Library",
     "nav.profile": "Profile",
+    "nav.bible": "Bible",
+    "nav.radio": "Radio",
     
     // Home Screen
     "home.featured": "FEATURED",
@@ -237,6 +243,7 @@ const defaultTranslations = {
     "auth.continueWithGoogle": "Continue with Google",
     
     // Profile/Settings
+    "settings.title": "Settings",
     "settings.settings": "Settings",
     "settings.language": "Language",
     "settings.kiswahili": "Kiswahili",
@@ -244,7 +251,8 @@ const defaultTranslations = {
     "settings.changeLanguage": "Change Language",
     "settings.account": "Account",
     "settings.notifications": "Notifications",
-    "settings.privacy": "Privacy",
+    "settings.privacy": "Privacy Policy",
+    "settings.terms": "Terms of Service",
     "settings.help": "Help & Support",
     "settings.about": "About",
     "settings.version": "Version",
