@@ -11,7 +11,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { API, getAudioUrl, getImageUrl } from '@/utils/streamingHelpers';
+import { API, getAudioUrl, getImageUrl, SAMPLE_AUDIO_URL } from '@/utils/streamingHelpers';
 
 const useAudioPlayer = () => {
   const [currentSong, setCurrentSong] = useState(null);
@@ -265,6 +265,14 @@ const useAudioPlayer = () => {
 
     // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
     const audioUrl = getAudioUrl(song.audio_url);
+    console.log('[Player] Audio URL:', audioUrl);
+    
+    // Validate audio URL before attempting to play
+    if (!audioUrl || audioUrl === SAMPLE_AUDIO_URL) {
+      console.error('[Player] Invalid or missing audio URL for song:', song.title);
+      setIsLoading(false);
+      return;
+    }
     
     // Set preload to auto for faster loading
     audioRef.current.preload = 'auto';
@@ -279,7 +287,7 @@ const useAudioPlayer = () => {
           // Preload next song after current starts playing
           preloadNextSong(index, q);
         }).catch(error => {
-          console.log('[Player] Autoplay blocked:', error.name);
+          console.log('[Player] Autoplay blocked:', error.name, error.message);
           // If autoplay is blocked, show a play button or wait for user interaction
           if (error.name === 'NotAllowedError') {
             // Browser blocked autoplay - this is normal on first interaction
@@ -287,6 +295,11 @@ const useAudioPlayer = () => {
             setIsLoading(false);
             return;
           }
+          // Log other errors for debugging
+          if (error.name === 'NotSupportedError') {
+            console.error('[Player] Audio format not supported or URL invalid:', audioUrl);
+          }
+          setIsLoading(false);
         });
       }
       
@@ -438,10 +451,43 @@ const useAudioPlayer = () => {
       handleSongEnd();
     };
     const onError = (e) => {
-      console.log('[Player] Audio error:', e);
+      const audio = audioRef.current;
+      const error = audio.error;
+      let errorMessage = 'Unknown error';
+      
+      if (error) {
+        switch (error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMessage = 'Playback aborted';
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMessage = 'Network error - check your connection';
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMessage = 'Audio decoding error';
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = 'Audio format not supported or source not found';
+            break;
+        }
+      }
+      
+      console.error('[Player] Audio error:', errorMessage, {
+        src: audio.src,
+        networkState: audio.networkState,
+        readyState: audio.readyState,
+        error: error
+      });
+      
+      // Show toast notification for the error
+      const currentSong = currentSongRef.current;
+      if (currentSong) {
+        toast.error(`Failed to play "${currentSong.title}": ${errorMessage}`);
+      }
+      
       setIsLoading(false);
-      // Auto-skip to next on error
-      handleSongEnd();
+      // Auto-skip to next on error (but don't keep skipping if all songs fail)
+      // handleSongEnd();
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
