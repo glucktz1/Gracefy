@@ -3341,9 +3341,9 @@ export default function UserStreamingApp() {
   // Default to premium TRUE - never block users before we confirm billing is ON
   const [isPremium, setIsPremium] = useState(true);
   
-  // Guest play limit state - Match native app: GUEST_PLAY_LIMIT = 3
-  const GUEST_PLAY_LIMIT = 3;
-  const GUEST_SKIP_LIMIT = 3;
+  // Guest play limit state - 5 plays or 5 skips before forcing login
+  const GUEST_PLAY_LIMIT = 5;
+  const GUEST_SKIP_LIMIT = 5;
   const MAX_PROMPT_ATTEMPTS = 3;
   
   const [guestPlayCount, setGuestPlayCount] = useState(0);
@@ -3505,6 +3505,12 @@ export default function UserStreamingApp() {
         // Resume from last position (within 24 hours)
         const ageMs = Date.now() - (saved.timestamp || 0);
         if (ageMs < 24 * 60 * 60 * 1000) {
+          // Check guest play limit before restoring
+          if (!user && billingEnabled && (guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT)) {
+            console.log('[Guest] Limit already reached - not restoring playback');
+            return;
+          }
+          
           try {
             // Fetch fresh album data
             const albumRes = await axios.get(`${API}/user/album/${saved.album.album_id}`);
@@ -4097,14 +4103,16 @@ export default function UserStreamingApp() {
       return false;
     }
     
-    // Check guest play count - MATCHES NATIVE: GUEST_PLAY_LIMIT = 3
+    // Check guest play count - 5 plays or 5 skips max
     console.log(`[Guest] Checking limits: plays=${guestPlayCount}/${GUEST_PLAY_LIMIT}, skips=${guestSkipCount}/${GUEST_SKIP_LIMIT}`);
     
-    if (guestPlayCount >= GUEST_PLAY_LIMIT) {
-      console.log('[Guest] PLAY LIMIT REACHED - showing modal (continuous play continues)');
+    if (guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT) {
+      console.log('[Guest] LIMIT REACHED - showing modal and STOPPING playback when song ends');
       setShowGuestLimitModal(true);
-      // Don't block autoplay - just show the modal
-      // Removed: player.setGuestLimitReached(true)
+      // BLOCK autoplay - when current song ends, stop until user signs in
+      if (player?.setGuestLimitReached) {
+        player.setGuestLimitReached(true);
+      }
       return false;
     }
     
@@ -4121,9 +4129,12 @@ export default function UserStreamingApp() {
     setGuestPlayCount(newCount);
     
     if (newCount >= GUEST_PLAY_LIMIT) {
-      console.log('[Guest] Play limit reached - showing prompt (continuous play continues)');
-      // Don't block autoplay - just show prompt when modal is displayed
-      // Removed: player.setGuestLimitReached(true)
+      console.log('[Guest] Play limit reached - showing prompt and BLOCKING autoplay');
+      // BLOCK autoplay - when current song ends, playback stops
+      if (player?.setGuestLimitReached) {
+        player.setGuestLimitReached(true);
+      }
+      setShowGuestLimitModal(true);
       return true;
     }
     return false;
@@ -4139,7 +4150,11 @@ export default function UserStreamingApp() {
     setGuestSkipCount(newCount);
     
     if (newCount >= GUEST_SKIP_LIMIT) {
-      console.log('[Guest] Skip limit reached');
+      console.log('[Guest] Skip limit reached - showing prompt and BLOCKING autoplay');
+      // BLOCK autoplay - when current song ends, playback stops
+      if (player?.setGuestLimitReached) {
+        player.setGuestLimitReached(true);
+      }
       setShowGuestLimitModal(true);
       return true;
     }
@@ -4485,20 +4500,31 @@ export default function UserStreamingApp() {
   // BILLING TRIGGER: Skip wrapper with subscription check (matches native app)
   // After PREMIUM_SKIP_LIMIT skips, logged-in non-premium users are prompted
   // After GUEST_SKIP_LIMIT skips, guests are prompted to login
-  // NOTE: We show prompts but ALLOW the action to complete (user-friendly)
+  // When limit is reached: BLOCK further skips, playback stops when current song ends
   const handleSkipWithBillingCheck = (skipFunction) => {
-    // Guest user skip limit check (matches native app)
+    // Guest user skip limit check
     if (!user) {
       // Only enforce if billing is enabled
       if (billingEnabled) {
+        // Check if limit already reached - BLOCK skip
+        if (guestSkipCount >= GUEST_SKIP_LIMIT || guestPlayCount >= GUEST_PLAY_LIMIT) {
+          console.log('[Guest] Limit already reached - BLOCKING skip');
+          setShowGuestLimitModal(true);
+          // Set flag to stop playback when song ends
+          if (player?.setGuestLimitReached) {
+            player.setGuestLimitReached(true);
+          }
+          return; // DO NOT allow skip
+        }
+        
         // Increment guest skip count and check limit
         if (incrementGuestSkipCount()) {
-          // Skip limit reached - show modal but ALLOW the skip
-          console.log('[Guest] Skip limit reached - showing prompt but allowing skip');
-          // Don't block - let the skip happen, user will see prompt
+          // Skip limit reached - show modal and BLOCK further actions
+          console.log('[Guest] Skip limit reached - BLOCKING skip');
+          return; // DO NOT allow skip
         }
       }
-      // Always allow the skip for guests
+      // Allow the skip for guests under limit
       skipFunction();
       return;
     }
@@ -4517,7 +4543,7 @@ export default function UserStreamingApp() {
       }
     }
     
-    // Always allow the skip
+    // Always allow the skip for logged-in users
     skipFunction();
   };
 

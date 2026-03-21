@@ -462,6 +462,7 @@ const useAudioPlayer = () => {
       console.log('[Player] ========== handleSongEnd called ==========');
       console.log('[Player] Queue length:', currentQueue.length, 'Current index:', currentQueueIndex);
       console.log('[Player] Repeat:', currentRepeat, 'Shuffle:', currentShuffle, 'ContinuousPlay:', currentContinuousPlay);
+      console.log('[Player] Guest limit reached:', guestLimitReachedRef.current);
       
       // Track the ended session with duration (for play count) - non-blocking
       if (sessionIdRef.current) {
@@ -473,8 +474,15 @@ const useAudioPlayer = () => {
       
       // Check if auto-play is blocked (screen lock payment feature or guest limit)
       if (blockAutoPlayNextRef.current) {
-        console.log('[Player] Auto-play blocked - stopping');
+        console.log('[Player] Auto-play blocked (screen lock) - stopping');
         blockAutoPlayNextRef.current = false;
+        setIsPlaying(false);
+        return;
+      }
+      
+      // CRITICAL: Check if guest limit reached - STOP playback until user signs in
+      if (guestLimitReachedRef.current) {
+        console.log('[Player] GUEST LIMIT REACHED - stopping playback, user must sign in');
         setIsPlaying(false);
         return;
       }

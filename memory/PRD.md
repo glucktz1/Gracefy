@@ -15,6 +15,19 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## What's Been Implemented
 
 ### Session: March 21, 2026 (Latest)
+- ✅ **Guest Limit Enforcement (5 songs/skips)** - Updated on BOTH web and mobile:
+  - Changed `GUEST_PLAY_LIMIT` from 3 to 5
+  - Changed `GUEST_SKIP_LIMIT` from 3 to 5
+  - **Web**: When limit reached, `setGuestLimitReached(true)` is called to STOP playback when current song ends
+  - **Web**: Skip attempts are BLOCKED when limit is reached (not just prompted)
+  - **Mobile**: Already had blocking logic via `guestLimitReachedRef` in PlayerContext.js
+  - Files updated: 
+    - `/app/frontend/src/pages/UserStreamingApp.jsx`
+    - `/app/frontend/src/hooks/useAudioPlayer.js`
+    - `/app/mobile/SpiritSongs/src/context/AuthContext.js`
+- ✅ **Android Build v1.0.168 COMPLETE** - APK ready for download:
+  - Build ID: 6016533c-bb27-44fb-88c7-99de52c59f97
+  - APK URL: https://expo.dev/artifacts/eas/cSbJe75mQMEpjHGmE2wpi2.apk
 - ✅ **Mobile App: Social Sharing** - Added share functionality:
   - Share songs with deep links (gracefy.net/song/{id})
   - Share albums with deep links (gracefy.net/album/{id})
@@ -29,8 +42,6 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
   - Auto-adjusts quality based on network speed
   - Silent fallback to MP3 if HLS not available
 - ✅ **EAS Project Transfer** - Transferred from gracefy12 to glucktz20 account
-- ✅ **Android Build v1.0.168 Triggered** - Build ID: 6016533c-bb27-44fb-88c7-99de52c59f97
-  - Build logs: https://expo.dev/accounts/glucktz20/projects/Gracefy-App/builds/6016533c-bb27-44fb-88c7-99de52c59f97
 - ✅ **HLS Adaptive Streaming (Web)** - Full implementation with admin dashboard
 - ✅ **Auto-Transcoding on Song Upload** - Songs automatically queued for HLS
 - ✅ **Admin Song Preview** - Play/Pause buttons work in Albums page

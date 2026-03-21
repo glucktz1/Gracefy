@@ -8,9 +8,9 @@ import locationService from '../services/locationService';
 
 const AuthContext = createContext(null);
 
-// Guest limits configuration
-const GUEST_PLAY_LIMIT = 3;           // Songs played
-const GUEST_SKIP_LIMIT = 3;           // Songs skipped
+// Guest limits configuration - 5 songs max OR 5 skips before forcing sign in
+const GUEST_PLAY_LIMIT = 5;           // Songs played
+const GUEST_SKIP_LIMIT = 5;           // Songs skipped
 const GUEST_TIME_LIMIT_MINUTES = 10;  // Minutes of listening
 const MAX_PROMPT_ATTEMPTS = 3;        // Lock after this many dismissals
 
