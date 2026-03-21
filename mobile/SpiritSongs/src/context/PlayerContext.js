@@ -683,16 +683,32 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   };
 
   // ============ CONVERT TRACK FORMAT ============
-  const toTrackPlayerFormat = (track) => ({
-    id: track.song_id,
-    songId: track.song_id, // Keep reference to original ID
-    url: getAudioUrl(track.audio_url || track.file_path),
-    title: track.title || 'Unknown Title',
-    artist: track.artist_name || 'Unknown Artist',
-    album: track.album_title || '',
-    artwork: getImageUrl(track.thumbnail || track.cover_url || track.album_thumbnail) || 'https://via.placeholder.com/300',
-    duration: track.duration || 0,
-  });
+  // Supports HLS adaptive streaming when available
+  const toTrackPlayerFormat = (track) => {
+    // Prioritize HLS URL for adaptive streaming, fallback to regular MP3
+    let audioUrl;
+    if (track.hls_url) {
+      // Use HLS for adaptive streaming (auto-adjusts quality based on network)
+      audioUrl = track.hls_url;
+      console.log('[Player] Using HLS adaptive streaming for:', track.title);
+    } else {
+      // Fallback to regular audio URL
+      audioUrl = getAudioUrl(track.audio_url || track.file_path);
+    }
+    
+    return {
+      id: track.song_id,
+      songId: track.song_id, // Keep reference to original ID
+      url: audioUrl,
+      title: track.title || 'Unknown Title',
+      artist: track.artist_name || 'Unknown Artist',
+      album: track.album_title || '',
+      artwork: getImageUrl(track.thumbnail || track.cover_url || track.album_thumbnail) || 'https://via.placeholder.com/300',
+      duration: track.duration || 0,
+      // Track type for analytics
+      isHLS: !!track.hls_url,
+    };
+  };
 
   // ============ PUBLIC API ============
 

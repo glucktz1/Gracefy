@@ -11,6 +11,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -118,6 +119,35 @@ const AlbumScreen = ({ route, navigation }) => {
       showToast('Imeshindwa kupakia nyimbo', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Share album/playlist handler
+  const handleShare = async () => {
+    if (!item) return;
+    
+    try {
+      const APP_URL = 'https://gracefy.net';
+      const itemTitle = item.title || item.name || 'Albamu';
+      const artistName = item.artist_name || '';
+      const itemId = item.album_id || item.playlist_id || item.mix_id;
+      const itemType = album ? 'album' : playlist ? 'playlist' : 'mix';
+      const songsText = songCount > 0 ? ` (Nyimbo ${songCount})` : '';
+      
+      // Create shareable message with deep link
+      const message = artistName 
+        ? `🎶 Sikiliza "${itemTitle}"${songsText} na ${artistName} kwenye Gracefy!\n\n${APP_URL}/${itemType}/${itemId}`
+        : `🎶 Sikiliza "${itemTitle}"${songsText} kwenye Gracefy!\n\n${APP_URL}/${itemType}/${itemId}`;
+      
+      await Share.share({
+        message,
+        title: itemTitle,
+        url: `${APP_URL}/${itemType}/${itemId}`,
+      });
+    } catch (error) {
+      if (error.message && !error.message.includes('cancel')) {
+        console.error('Error sharing:', error);
+      }
     }
   };
 
@@ -420,6 +450,14 @@ const AlbumScreen = ({ route, navigation }) => {
             <Ionicons name="chevron-back" size={28} color={COLORS.text} />
           </TouchableOpacity>
           
+          {/* Share button */}
+          <TouchableOpacity 
+            style={styles.shareButton} 
+            onPress={handleShare}
+          >
+            <Ionicons name="share-social-outline" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          
           {/* Album Art */}
           <View style={styles.artContainer}>
             <Image
@@ -647,6 +685,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: SPACING.md,
     left: SPACING.md,
+    zIndex: 10,
+    padding: SPACING.xs,
+    backgroundColor: COLORS.background + '80',
+    borderRadius: BORDER_RADIUS.full,
+  },
+  shareButton: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.md,
     zIndex: 10,
     padding: SPACING.xs,
     backgroundColor: COLORS.background + '80',

@@ -129,13 +129,29 @@ const NowPlayingScreen = ({ navigation }) => {
   };
 
   const handleShare = async () => {
+    if (!currentTrack) return;
+    
     try {
+      const APP_URL = 'https://gracefy.net';
+      const songId = currentTrack.song_id || currentTrack.id;
+      const title = currentTrack.title || 'Wimbo';
+      const artist = currentTrack.artist || currentTrack.artist_name || 'Gracefy';
+      const album = currentTrack.album || '';
+      
+      // Create shareable message with deep link
+      const message = album 
+        ? `🎵 Sikiliza "${title}" kutoka ${album} na ${artist} kwenye Gracefy!\n\n${APP_URL}/song/${songId}`
+        : `🎵 Sikiliza "${title}" na ${artist} kwenye Gracefy!\n\n${APP_URL}/song/${songId}`;
+      
       await Share.share({
-        message: `🎵 Sikiliza "${currentTrack.title}" na ${currentTrack.artist_name} kwenye Gracefy!`,
-        title: currentTrack.title,
+        message,
+        title: `${title} - ${artist}`,
+        url: `${APP_URL}/song/${songId}`, // iOS only
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      if (error.message && !error.message.includes('cancel')) {
+        console.error('Error sharing:', error);
+      }
     }
   };
 
