@@ -21,6 +21,8 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
   - Fixed stale closure bug in `nextSong()` - now uses `playFromQueueInternal` with `queueRef.current`
   - Songs now play from DIFFERENT albums (not repeating same album)
   - Created comprehensive test suite: `/app/backend/tests/test_continuous_playback.py`
+- ✅ **Fixed Quick Access Grid Duplication** - The "Makundi" section was showing TWICE on home page (once as static grid, once from API). Now properly filters out `quick_access` section type from dynamic sections loop.
+- ✅ **Improved Audio Error Handling** - Added detailed error messages for audio playback failures with MediaError codes (MEDIA_ERR_ABORTED, MEDIA_ERR_NETWORK, MEDIA_ERR_DECODE, MEDIA_ERR_SRC_NOT_SUPPORTED)
 
 ### Session: March 14, 2026
 - ✅ **Production Database Fix** - Updated Emergent deployment Secrets to use correct MongoDB cluster (gracefy.vuqjyu.mongodb.net instead of customer-apps.mmyrwf.mongodb.net)

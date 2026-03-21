@@ -4795,8 +4795,9 @@ export default function UserStreamingApp() {
 
                 {/* Dynamic Sections */}
                 {!activeCategory && homeData && homeData.sections?.map((section, idx) => {
-                  // Skip hero (handled above) but show quick_access if it has album items
+                  // Skip hero (handled above) and quick_access (handled in static grid above)
                   if (section.section_type === 'hero') return null;
+                  if (section.section_type === 'quick_access') return null; // Already rendered above
                   
                   const items = section.items || [];
                   if (items.length === 0) return null;
