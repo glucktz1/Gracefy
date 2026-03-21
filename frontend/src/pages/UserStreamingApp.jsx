@@ -3598,17 +3598,25 @@ export default function UserStreamingApp() {
         setAvailableTags(tagsRes.data?.tags || []);
         setHomeRadioStations(radioRes.data.stations?.slice(0, 6) || []);
         
-        // Get quick access section items
-        const quickSection = sectionsRes.data.sections?.find(s => s.section_type === 'quick_access');
-        if (quickSection?.content_ids?.length > 0) {
-          // Fetch the specific items
+        // Get quick access section items from homeRes (NOT sectionsRes)
+        const quickSection = homeRes.data.sections?.find(s => s.section_type === 'quick_access' || s.type === 'quick_access');
+        console.log('[QuickAccess] Section found:', quickSection?.name, 'Items:', quickSection?.items?.length);
+        
+        if (quickSection?.items?.length > 0) {
+          // Use items directly from the section
+          console.log('[QuickAccess] Using section items:', quickSection.items.map(i => i.name || i.title));
+          setQuickAccessItems(quickSection.items);
+        } else if (quickSection?.content_ids?.length > 0) {
+          // Fetch the specific items by content_ids
           const items = quickSection.content_type === 'categories' 
             ? catRes.data.categories?.filter(c => quickSection.content_ids.includes(c.category_id))
             : [];
+          console.log('[QuickAccess] Using content_ids items:', items.length);
           setQuickAccessItems(items);
         } else {
-          // Default to first 6 categories
-          setQuickAccessItems(catRes.data.categories?.slice(0, 6) || []);
+          // Default to first 4 categories (to combine with 4 user items = 8 total)
+          console.log('[QuickAccess] Using default categories');
+          setQuickAccessItems(catRes.data.categories?.slice(0, 4) || []);
         }
       } catch (e) {
         console.error("Failed to fetch data", e);

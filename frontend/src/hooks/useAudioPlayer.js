@@ -626,6 +626,106 @@ const useAudioPlayer = () => {
     };
   }, []); // Empty dependency array - setup ONCE on mount
 
+  // Setup MediaSession action handlers for lock screen controls
+  // These need to be set up ONCE and persist throughout the app lifecycle
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      // Play action
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log('[MediaSession] Play action triggered');
+        audioRef.current.play().catch(e => console.log('[MediaSession] Play failed:', e));
+      });
+      
+      // Pause action
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log('[MediaSession] Pause action triggered');
+        audioRef.current.pause();
+      });
+      
+      // Previous track
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        console.log('[MediaSession] Previous track action triggered');
+        const currentQueue = queueRef.current;
+        const currentIndex = queueIndexRef.current;
+        if (currentIndex > 0) {
+          playFromQueueInternalRef.current(currentIndex - 1, currentQueue);
+        } else if (currentQueue.length > 0) {
+          // Loop to last song
+          playFromQueueInternalRef.current(currentQueue.length - 1, currentQueue);
+        }
+      });
+      
+      // Next track
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        console.log('[MediaSession] Next track action triggered');
+        const currentQueue = queueRef.current;
+        const currentIndex = queueIndexRef.current;
+        if (currentIndex < currentQueue.length - 1) {
+          playFromQueueInternalRef.current(currentIndex + 1, currentQueue);
+        } else if (repeatRef.current === 'all' && currentQueue.length > 0) {
+          // Loop to first song
+          playFromQueueInternalRef.current(0, currentQueue);
+        }
+      });
+      
+      // Seek backward
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        const skipTime = details.seekOffset || 10;
+        audioRef.current.currentTime = Math.max(audioRef.current.currentTime - skipTime, 0);
+      });
+      
+      // Seek forward
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        const skipTime = details.seekOffset || 10;
+        audioRef.current.currentTime = Math.min(audioRef.current.currentTime + skipTime, audioRef.current.duration || 0);
+      });
+      
+      // Seek to specific position
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      });
+      
+      console.log('[MediaSession] Action handlers registered');
+    }
+    
+    return () => {
+      // Cleanup action handlers on unmount
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+        navigator.mediaSession.setActionHandler('seekto', null);
+      }
+    };
+  }, []);
+  
+  // Update MediaSession playback state when playing/paused
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+  
+  // Update MediaSession position state periodically
+  useEffect(() => {
+    if ('mediaSession' in navigator && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: audioRef.current.playbackRate || 1,
+          position: currentTime
+        });
+      } catch (e) {
+        // Position state not supported or invalid values
+      }
+    }
+  }, [currentTime, duration]);
+
   const playFromQueue = useCallback((index) => {
     playFromQueueInternal(index, queue);
   }, [playFromQueueInternal, queue]);
