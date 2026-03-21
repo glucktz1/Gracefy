@@ -265,9 +265,17 @@ export const AuthProvider = ({ children }) => {
     return { shouldPrompt: true, isLocked: false };
   }, [isAuthenticated, promptAttempts]);
 
-  // Increment play count - returns true if should show prompt
+  // Increment play count - returns true if limit reached and should BLOCK play
+  // IMPORTANT: Check limit BEFORE incrementing to block the play
   const incrementGuestPlayCount = useCallback(async () => {
     if (isAuthenticated) return false;
+    
+    // Check if limit ALREADY reached - block immediately
+    if (guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT) {
+      console.log(`[Guest] Limit already reached (plays: ${guestPlayCount}, skips: ${guestSkipCount}) - BLOCKING`);
+      checkAndTriggerPrompt('play');
+      return true; // BLOCK the play
+    }
     
     const newCount = guestPlayCount + 1;
     setGuestPlayCount(newCount);
@@ -276,17 +284,29 @@ export const AuthProvider = ({ children }) => {
       await SecureStore.setItemAsync('guest_play_count', newCount.toString());
     } catch (e) {}
     
+    console.log(`[Guest] Play count: ${newCount}/${GUEST_PLAY_LIMIT}`);
+    
+    // Check if this play reaches the limit
     if (newCount >= GUEST_PLAY_LIMIT) {
+      console.log('[Guest] Play limit reached - triggering prompt');
       checkAndTriggerPrompt('play');
-      return true;
+      return true; // BLOCK further plays
     }
     
-    return false;
-  }, [isAuthenticated, guestPlayCount, checkAndTriggerPrompt]);
+    return false; // Allow this play
+  }, [isAuthenticated, guestPlayCount, guestSkipCount, checkAndTriggerPrompt]);
 
-  // Increment skip count - returns true if should show prompt
+  // Increment skip count - returns true if limit reached and should BLOCK skip
+  // IMPORTANT: Check limit BEFORE incrementing to block the skip
   const incrementGuestSkipCount = useCallback(async () => {
     if (isAuthenticated) return false;
+    
+    // Check if limit ALREADY reached - block immediately
+    if (guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT) {
+      console.log(`[Guest] Limit already reached (plays: ${guestPlayCount}, skips: ${guestSkipCount}) - BLOCKING skip`);
+      checkAndTriggerPrompt('skip');
+      return true; // BLOCK the skip
+    }
     
     const newCount = guestSkipCount + 1;
     setGuestSkipCount(newCount);
@@ -295,13 +315,17 @@ export const AuthProvider = ({ children }) => {
       await SecureStore.setItemAsync('guest_skip_count', newCount.toString());
     } catch (e) {}
     
+    console.log(`[Guest] Skip count: ${newCount}/${GUEST_SKIP_LIMIT}`);
+    
+    // Check if this skip reaches the limit
     if (newCount >= GUEST_SKIP_LIMIT) {
+      console.log('[Guest] Skip limit reached - triggering prompt');
       checkAndTriggerPrompt('skip');
-      return true;
+      return true; // BLOCK further skips
     }
     
-    return false;
-  }, [isAuthenticated, guestSkipCount, checkAndTriggerPrompt]);
+    return false; // Allow this skip
+  }, [isAuthenticated, guestPlayCount, guestSkipCount, checkAndTriggerPrompt]);
 
   // Update guest listen time
   const updateGuestListenTime = useCallback(async (additionalMinutes) => {
@@ -318,6 +342,23 @@ export const AuthProvider = ({ children }) => {
       checkAndTriggerPrompt('time');
     }
   }, [isAuthenticated, guestListenMinutes, checkAndTriggerPrompt]);
+
+  // Check if guest limit is already reached - DOES NOT increment
+  // Use this to check before allowing any action
+  const checkGuestLimit = useCallback(() => {
+    if (isAuthenticated) return false; // Logged in users have no limit
+    
+    const limitReached = guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT;
+    
+    if (limitReached) {
+      console.log(`[Guest] Limit check: BLOCKED (plays: ${guestPlayCount}/${GUEST_PLAY_LIMIT}, skips: ${guestSkipCount}/${GUEST_SKIP_LIMIT})`);
+      checkAndTriggerPrompt('limit');
+      return true; // Limit reached - BLOCK action
+    }
+    
+    console.log(`[Guest] Limit check: OK (plays: ${guestPlayCount}/${GUEST_PLAY_LIMIT}, skips: ${guestSkipCount}/${GUEST_SKIP_LIMIT})`);
+    return false; // Under limit - allow action
+  }, [isAuthenticated, guestPlayCount, guestSkipCount, checkAndTriggerPrompt]);
 
   // Reset all guest stats (after login)
   const resetGuestStats = useCallback(async () => {
@@ -391,6 +432,7 @@ export const AuthProvider = ({ children }) => {
     resetGuestStats,
     dismissLoginPrompt,
     checkGuestLimits,
+    checkGuestLimit, // Quick check if limit reached (returns boolean)
   };
 
   return (

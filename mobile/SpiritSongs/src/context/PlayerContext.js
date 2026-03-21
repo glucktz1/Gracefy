@@ -94,7 +94,7 @@ export const usePlayer = () => {
 export const PlayerProvider = ({ children, billingEnabled = false, isPremium = false, isAuthenticated = false }) => {
   // ============ AUTH CONTEXT ============
   // NOTE: isAuthenticated is passed as a prop from App.js to avoid duplicate variable
-  const { incrementGuestPlayCount, user } = useAuth();
+  const { incrementGuestPlayCount, incrementGuestSkipCount, checkGuestLimit, user } = useAuth();
 
   // ============ STATE ============
   const [currentTrack, setCurrentTrack] = useState(null);
@@ -323,7 +323,27 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       }
       
       // Continuous play mode - fetch recommendations and keep playing
+      // BUT first check guest limits!
       if (continuousPlayRef.current && queueRef.current.length > 0) {
+        // Check guest limit before auto-playing next track
+        if (!isAuthenticatedRef.current) {
+          // For auto-play, we count it as a play (since a new song will start)
+          const limitReached = await incrementGuestPlayCount();
+          if (limitReached) {
+            console.log('[Player] Queue ended - guest limit reached during continuous play, STOPPING');
+            guestLimitReachedRef.current = true;
+            // Show login prompt
+            if (showLoginPromptCallback) {
+              showLoginPromptCallback();
+            }
+            // Stop playback
+            try {
+              await TrackPlayer.pause();
+            } catch (e) {}
+            return;
+          }
+        }
+        
         const lastTrack = queueRef.current[queueRef.current.length - 1];
         if (lastTrack?.song_id) {
           await fetchAndAddRecommendations(lastTrack.song_id);
@@ -341,7 +361,22 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
           }
         }
       } else if (repeatRef.current === 'all' && queueRef.current.length > 0) {
-        // Regular repeat all
+        // Regular repeat all - also check guest limits
+        if (!isAuthenticatedRef.current) {
+          const limitReached = await incrementGuestPlayCount();
+          if (limitReached) {
+            console.log('[Player] Queue ended - guest limit reached on repeat, STOPPING');
+            guestLimitReachedRef.current = true;
+            if (showLoginPromptCallback) {
+              showLoginPromptCallback();
+            }
+            try {
+              await TrackPlayer.pause();
+            } catch (e) {}
+            return;
+          }
+        }
+        
         try {
           await TrackPlayer.skip(0);
           await TrackPlayer.play();
@@ -881,8 +916,9 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Skip to next track - optimized for speed
+   * GUEST LIMIT: Block skips when limit is reached
    * BILLING LOGIC:
-   * - Guest users: Allow skip (no payment prompt)
+   * - Guest users: Allow up to GUEST_SKIP_LIMIT skips, then BLOCK
    * - Logged in + billing OFF: Allow skip
    * - Logged in + billing ON + not paid + in background: Block skip
    */
@@ -894,6 +930,23 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       const currentBillingEnabled = billingEnabledRef.current;
       const currentIsPremium = isPremiumRef.current;
       const currentIsAuthenticated = isAuthenticatedRef.current;
+      
+      // ============ GUEST SKIP LIMIT CHECK ============
+      // Check if guest user has reached their skip limit
+      if (!currentIsAuthenticated) {
+        const limitReached = await incrementGuestSkipCount();
+        if (limitReached) {
+          console.log('[Player] Guest skip limit reached - BLOCKING skip');
+          // Set flag to block autoplay when current song ends
+          guestLimitReachedRef.current = true;
+          // Show login prompt
+          if (showLoginPromptCallback) {
+            showLoginPromptCallback();
+          }
+          // DO NOT allow skip - user must login
+          return;
+        }
+      }
       
       // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
       if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
@@ -936,8 +989,9 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Skip to previous track
+   * GUEST LIMIT: Block skips when limit is reached
    * BILLING LOGIC:
-   * - Guest users: Allow skip (no payment prompt)
+   * - Guest users: Allow up to GUEST_SKIP_LIMIT skips, then BLOCK
    * - Logged in + billing OFF: Allow skip
    * - Logged in + billing ON + not paid + in background: Block skip
    */
@@ -949,6 +1003,23 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       const currentBillingEnabled = billingEnabledRef.current;
       const currentIsPremium = isPremiumRef.current;
       const currentIsAuthenticated = isAuthenticatedRef.current;
+      
+      // ============ GUEST SKIP LIMIT CHECK ============
+      // Check if guest user has reached their skip limit
+      if (!currentIsAuthenticated) {
+        const limitReached = await incrementGuestSkipCount();
+        if (limitReached) {
+          console.log('[Player] Guest skip limit reached - BLOCKING skip');
+          // Set flag to block autoplay when current song ends
+          guestLimitReachedRef.current = true;
+          // Show login prompt
+          if (showLoginPromptCallback) {
+            showLoginPromptCallback();
+          }
+          // DO NOT allow skip - user must login
+          return;
+        }
+      }
       
       // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
       if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
