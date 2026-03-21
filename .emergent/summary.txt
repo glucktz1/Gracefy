@@ -1,159 +1,183 @@
 <analysis>**original_problem_statement:**
-The user's goal is to finalize a go-live release for a Christian music streaming application (web, mobile). The session began with a list of tasks including performance optimization, fixing web player bugs, and resolving mobile app issues. However, the focus quickly shifted to critical production deployment issues after the user went live with a custom domain.
-
-The main problems reported by the user on the production site () are:
-1.  **No Content on Home Page:** The main landing page is mostly blank, missing all dynamic content like the hero section and album lists.
-2.  **Admin Login Fails:** The provided admin credentials () do not work on the production admin panel.
-3.  **Incorrect Billing Status:** The app incorrectly shows that billing is off for logged-in users.
-4.  **Mobile App Failures:** Native app login and account creation were failing with a inashindwa kusawazisha (failed to sync) error. The guest limit prompt was also not working as intended.
+The user's initial goal was to prepare a Christian music streaming application for a go-live release. The session's primary focus became resolving critical production issues on , including a blank home page and failing admin logins. After fixing the production environment, the user requested fixes for three new issues:
+1.  **Mobile App UI:** The login/registration forms are squished and overlaid by the keyboard.
+2.  **Web Continuous Playback:** The web player does not play songs continuously as intended. It either stops or repeats the same album instead of moving to the next. The next button also fails on single-song albums.
+3.  **Performance:** The app is slow, and the user requested re-enabling Redis with a more advanced hybrid (L1/L2) caching architecture.
+4.  **Guest Logic:** The guest limit feature should not stop continuous playback; it should only display a login prompt while music continues.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a React frontend, FastAPI backend, and React Native mobile app. It uses MongoDB for the database, Upstash Redis for caching, and Bunny.net for CDN.
+The P0 production deployment issue has been **resolved**. The agent successfully diagnosed that the production environment was pointing to an incorrect MongoDB cluster ( or an Emergent default DB) instead of the user's  cluster. The agent guided the user to update the  secret in the Emergent deployment settings, which fixed the no content and admin login failures on the live site.
 
-The agent has implemented several critical fixes in the development environment:
--   **Backend Performance:** Implemented Redis caching for the home API (), significantly speeding up response times for cached data.
--   **Authentication Fix:** Resolved a critical Firebase authentication bug in  by adding missing  and  imports. This was causing both web and mobile login/sync to fail.
--   **Database Connection Fix:** Removed an incorrect  variable from  that was causing the production environment to connect to a different, empty database.
--   **Critical Content Loading Fix:** Identified and fixed a major bug in . The database query to fetch platform-specific content was incorrect (using a direct string match on an array field instead of the  operator), causing the API to return no content for the web platform.
--   **Frontend Routing:** Reconfigured  to make the user-facing streaming app the default landing page () and move the admin panel to .
--   **Frontend Refactoring:** Started refactoring the monolithic  by extracting  and .
-
-The development environment is now reported to be fully functional, with all content loading correctly and all logins working.
+Following this, the agent addressed the user's new requests:
+-   **Admin Login:** The backend () and frontend () were modified to allow the admin () to log in with an empty password.
+-   **Hybrid Cache:** A new hybrid L1 (in-memory) / L2 (Redis) caching service () was created and integrated into the home API (), significantly improving performance.
+-   **Mobile UI:** The mobile login/register screens (, ) were wrapped in  to prevent the keyboard from covering the input fields.
+-   **Web Continuous Playback:** Multiple attempts were made to fix this in  and , but the issue persists.
 
 **Last working item**:
--   **Last item agent was working:** Debugging why the production environment () is still not working correctly even after multiple deployments and code fixes. The agent confirmed that the development environment is working perfectly, the backend APIs are returning the correct data (after fixing the DB query and clearing Redis), but the production frontend still fails to render content and logs show aborted requests.
--   **Status:** BLOCKED
--   **Agent Testing Done:** Y (in the dev environment)
--   **Which testing method agent to use?** Manual verification. The next agent must NOT re-debug the code. The problem is confirmed to be with the production infrastructure. The agent needs to guide the user to contact Emergent Support with specific details.
--   **User Testing Done:** Y (User has confirmed the production site is still broken after multiple deployments).
+-   **Last item agent was working:** The agent was trying to fix the web app's continuous playback logic for the third time. The user reported that the previous fixes were not working as expected and asked the agent to replicate the logic from the native mobile app, which works correctly. The agent had just started analyzing the native app's  and the backend's  endpoint to understand how to implement a similar recommendation-based continuous play feature for the web.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** Frontend testing agent (to verify the complex player state changes) and manual testing.
+-   **User Testing Done:** Y (User has repeatedly confirmed the existing fixes are not working).
 
 **All Pending/In progress Issue list**:
--   Issue 1: Production Environment is Broken (P0)
+-   Issue 1: Web continuous playback is broken (P0)
+-   Issue 2: Mobile app login/registration UI is broken (P1)
+-   Issue 3: Song loading time is perceived as too high (P2)
 
 **Issues Detail:**
--   **Issue 1: Production Environment is Broken**
+-   **Issue 1: Web continuous playback is broken**
     -   **Attempted fixes:**
-        1.  Fixed Firebase authentication backend service.
-        2.  Removed incorrect production MongoDB URL from .
-        3.  Fixed the critical database query in  that was causing the API to return empty content.
-        4.  Repeatedly flushed the Redis cache to resolve stale data issues.
-        5.  Verified all fixes in the dev environment, where the app now works perfectly.
+        1.  Changed default repeat mode from  to .
+        2.  Added logic to  to fetch more songs from the same album/category. This caused the player to repeat the album instead of moving to a new one.
+        3.  Modified guest limit logic, suspecting it was blocking playback.
+        4.  Corrected a  variable declaration bug introduced during fixes.
     -   **Next debug checklist:**
-        1.  Do NOT attempt to fix the code again. The dev environment is the source of truth, and it is working.
-        2.  Reiterate to the user that the code is correct, but the production deployment is not reflecting the changes. This is an infrastructure issue (CDN caching, build process, environment variable propagation).
-        3.  Firmly and clearly instruct the user to contact **Emergent Support** ().
-        4.  Provide a concise summary for the user to send to support, detailing the problem (dev works, prod fails), the suspected causes (CDN cache, build not updating), and the required action (force-clear CDN cache, force-rebuild and redeploy).
-    -   **Why fix this issue and what will be achieved with the fix?** This is a P0 blocker preventing the application from being usable in production.
-    -   **Status:** BLOCKED
+        1.  **Abandon previous fixes in .** The current approach is not working.
+        2.  **Replicate Native App Logic:** Study  and .
+        3.  Implement a  function in the web's  hook.
+        4.  Modify , , and  to call this new function when the queue is near its end or a user action requires it.
+        5.  Ensure the player doesn't repeat unless the user explicitly sets the repeat mode.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a core feature for a music streaming app. Fixing it will provide a seamless listening experience.
+    -   **Status:** IN PROGRESS
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** both (on the production environment, after support intervention).
-    -   **Blocked on other issue:** Blocked on action from the platform/support side.
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** None
+
+-   **Issue 2: Mobile app login/registration UI is broken**
+    -   **Attempted fixes:** Wrapped the screens in  in  and . This may not have been sufficient.
+    -   **Next debug checklist:**
+        1.  Trigger a new mobile app build.
+        2.  Ask the user to test the new APK to see if the  fix worked.
+        3.  If it's still broken, investigate alternative layouts like using  with .
+    -   **Why fix this issue and what will be achieved with the fix?** This blocks user registration and login on mobile, which is a critical user journey.
+    -   **Status:** USER VERIFICATION PENDING
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend (mobile)
+    -   **Blocked on other issue:** None
+
+-   **Issue 3: Song loading time is perceived as too high**
+    -   **Attempted fixes:** Added preloading for the next song in the queue in .
+    -   **Next debug checklist:**
+        1.  Verify the preloading logic is effective by checking network requests in the browser.
+        2.  Ensure audio files on Bunny CDN are optimized for streaming.
+        3.  The recommendation-based playback logic (from Issue 1) will also help, as it can preload songs more intelligently.
+    -   **Why fix this issue and what will be achieved with the fix?** Improves user experience by reducing wait times between songs.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Issue 1
 
 **In progress Task List**:
--   **Task 1: Refactor **
-    -   **Where to resume:** Use  to code-split the main view components (, , , etc.) out of the main file to improve load times. The  hook and helper functions have already been extracted.
-    -   **What will be achieved with this?** A faster, more maintainable frontend codebase.
+-   **Task 1: Implement Native App's Continuous Play Logic on Web**
+    -   **Where to resume:** Refactoring  to use the  endpoint.
+    -   **What will be achieved with this?** A robust, non-repeating continuous playback experience for the web app.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on something:** The P0 production issue has higher priority.
+    -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) Verify and fully fix any remaining inconsistent radio functionality on the web.
-    -   (P2) Implement Bible TTS voice selection from the admin panel.
-    -   (P2) Implement admin language file upload feature.
+    -   (P1) Authorize  domain in Firebase for Google OAuth to work.
+    -   (P1) Build and test the iOS version of the mobile app (requires user's Apple Developer Account).
 -   **Future Tasks:**
+    -   Implement Bible TTS voice selection from the admin panel.
+    -   Implement admin language file upload feature.
     -   Integrate Audio Ads.
     -   Integrate SendGrid for email campaigns.
     -   Consolidate the  and  database collections.
 
 **Completed work in this session**
--   **Backend Performance:** Integrated Redis caching for the home API.
--   **Critical Auth Fix:** Repaired the Firebase auth service, fixing login/sync failures on web and mobile.
--   **Critical DB Connection Fix:** Removed a conflicting  from , ensuring the correct database is used.
--   **Critical Content Loading Fix:** Fixed the core bug preventing home page content from loading by correcting a MongoDB query in .
--   **Frontend Improvements:** Restructured app routing and began refactoring the main  component.
--   **Deployment Readiness:** Fixed multiple mobile app configuration issues for deployment.
--   **Mobile Build Triggered:** Started a new Android build and provided the APK link to the user.
+-   **Production Environment Fix (P0):** Diagnosed and fixed the critical production issue by guiding the user to update the  in their Emergent deployment secrets to point to the correct MongoDB Atlas cluster ().
+-   **Admin Login Fix:** Enabled admin login with an empty password by modifying  and .
+-   **Performance Optimization:** Implemented a hybrid L1/L2 (in-memory/Redis) cache and re-enabled it, making the home page load ~35x faster on cache hits.
+-   **Mobile App Build:** Updated mobile app config and successfully triggered a new Android build (v1.0.167).
+-   **Mobile UI Fix (Attempted):** Wrapped mobile auth screens in .
+-   **PRD Update:** Updated  with recent changes.
 
 **Earlier issues found/mentioned but not fixed**
--   The full refactoring of  is incomplete.
+-   The full refactoring of  is still incomplete.
 
 **Known issue recurrence from previous fork**
--   **Production Deployment Failures:** The central, recurring theme of this session is that fixes applied in the dev environment do not successfully translate to the live production environment, indicating a problem with the deployment pipeline, caching (CDN), or environment variable configuration at the infrastructure level.
+-   **Production Deployment Failures:** This was the central issue from the previous fork. **It is now RESOLVED.** The root cause was an incorrect  environment variable in the production deployment settings, pointing to the wrong database cluster.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Production vs. Development Environment Drift:** The primary challenge. The production environment is not reflecting the state of the development environment post-deployment, pointing to infrastructure-level issues like CDN caching or build pipeline failures.
--   **MongoDB  Operator:** The critical bug fix involved correcting a query on an array field () to use the  operator, which was the root cause of the missing content.
--   **Redis Cache Invalidation:** A recurring issue where the Redis cache would hold stale or empty data, requiring manual flushes to get the API to serve correct content.
+-   **Environment Variable Drift:** The root cause of the production outage was a mismatch between development and production environment variables (). This was resolved in the Emergent deployment secrets.
+-   **Hybrid Caching:** An L1 (in-memory ) + L2 (Upstash Redis) cache was implemented for high-performance API responses.
+-   **React Hook State/Ref Management:** The continuous playback issue is complex and involves careful management of state (, ) and refs (, ) within the  custom hook.
+-   **React Native UI Layout:** The mobile UI issue involves using  to handle the on-screen keyboard.
 
 **key DB schema**
--   : Contains a  array (e.g., ) which was the source of a critical query bug.
--   : Contains admin credentials and roles.
+-   **admin_users**: Collection used for admin authentication. The password hash was updated to allow empty passwords.
+-   **users**: Fallback collection for users.
+-   **layout_sections**, **albums**, **songs**: Collections containing the app's content, which were not loading in production due to the database connection issue.
 
 **All files of reference**
--   : Contains the critical backend logic and the fix for content loading.
--   : The primary, very large frontend component.
--   : The file where the incorrect database URL was found and removed.
--   : Defines the application's routing structure.
+-   : The location of the broken continuous playback logic.
+-   : The reference for the correct continuous playback logic.
+-   : Where the high-performance hybrid cache is used.
+-   : The new caching implementation.
+-   : Where the admin empty password logic was added.
 
 **Areas that need refactoring**:
--   **/app/frontend/src/pages/UserStreamingApp.jsx:** This ~6000-line file is still the main source of technical debt and needs to be further broken down into lazily-loaded components to improve frontend performance.
+-   **/app/frontend/src/pages/UserStreamingApp.jsx:** This ~6000-line file remains a significant source of technical debt and complexity, making bugs (like the guest limit logic) difficult to trace and fix.
 
 **key api endpoints**
--   : The API for the main page content. It was returning empty data due to a bug, which is now fixed in the code.
--   : The admin login endpoint. Fails in production due to DB connection issues.
--   : An API endpoint that was failing in production and indicating the wrong billing status.
+-   : Now accelerated by the hybrid cache.
+-   : Now allows empty password for the admin user.
+-   : The endpoint the new web player should use to replicate native app continuous play.
+-   : A new endpoint to monitor the hybrid cache performance.
 
 **Critical Info for New Agent**
--   **THE PROBLEM IS NOT THE CODE. IT IS THE PRODUCTION ENVIRONMENT.** The development environment is fully working. You have verified this. All user-reported issues (no home content, failing admin login) have been traced to infrastructure problems (outdated builds, CDN caching, or incorrect environment variables in production).
--   **DO NOT GET STUCK IN A DEBUGGING LOOP.** Your primary task is to break the cycle of re-debugging the code. The fixes are already implemented.
--   **YOUR FIRST ACTION:** Propose a plan that states you will guide the user to resolve the production deployment issue. Your plan should clearly state that the next step is for the user to contact **Emergent Support** with a detailed report.
--   **User Reminder:** The user has explicitly asked to ensure the  is passed during forking for future mobile builds.
--   : 
+-   **The Production DB issue is FIXED.** Do not investigate why production is not loading content. The  has been corrected in the deployment secrets. The user has confirmed the site works.
+-   **Your main task is to fix web continuous playback.** The user is frustrated with this recurring bug. Your top priority is to implement the native app's recommendation-based logic. Do not try to patch the existing broken logic in .
+-   Remember the user's  for future forking: .
 
 **documents and test reports created in this job**
--    (updated multiple times)
+-    (updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Reports admin credentials don't work on dev or prod.
-2.  **Agent:** Proves they work on dev and finds the incorrect  variable causing the production issue. Fixes it and asks user to redeploy.
-3.  **User:** Agrees this might have caused the home page issue too.
-4.  **User:** After redeploying, reports production is still broken (no content, admin fails, wrong billing status).
-5.  **Agent:** Diagnoses that production has its own environment variables and the issue is infrastructure-related, advising the user to contact Emergent Support.
-6.  **User:** Asks for the support email.
-7.  **Agent:** Provides the support email.
-8.  **User:** Asks the agent to investigate further anyway.
-9.  **Agent:** Investigates again, finds and fixes the critical  query bug in , verifies dev is working perfectly, but sees production is still broken. Concludes again it's an infrastructure/caching issue.
-10. **User:** Reminds the agent to pass the  when forking.
+1.  **User:** Reports continuous play is still broken (repeats album or stops) and the next button doesn't work on single-song albums.
+2.  **Agent:** Implements another fix, changing the default repeat mode to 'off' and improving the fetch more songs logic.
+3.  **User:** Reports it's still not working, next/prev buttons are broken on single-song albums, and song loading is slow.
+4.  **Agent:** Investigates again, finds looping logic in  and , and adds preloading for the next song to improve perceived speed.
+5.  **User:** Reports the guest limit logic is now stopping continuous play.
+6.  **Agent:** Investigates and finds the guest limit flag blocks all autoplay. The agent modifies the logic to only show a prompt without stopping playback.
+7.  **User:** Reports the problem persists and skip doesn't work.
+8.  **Agent:** Discovers the guest limit logic is still too restrictive and fixes a critical  variable declaration bug. The agent modifies the logic to never block playback or skips.
+9.  **User:** Requests a hard restart of services as it's still not working.
+10. **User:** After the restart, confirms it's still not working and asks the agent to **copy the logic from the native app**, which works well.
 
 **Project Health Check:**
+-   **Working:** Production site is now live and serving content correctly after fixing the database connection string. Admin login works.
 -   **Broken:**
-    -   **Production Deployment ():** The entire application is non-functional in production. It fails to load content, process logins, or show correct statuses. This is a P0, site-down level issue.
--   **Mocked:** None.
+    -   Web app continuous playback.
+    -   Mobile app login screen UI.
 
 **3rd Party Integrations**
--   **Firebase:** Auth & FCM.
--   **MongoDB Atlas:** Production database.
--   **Upstash Redis:** Production cache.
--   **Azam Pay:** Payment gateway.
--   **Expo (EAS Build):** Mobile app build service.
--   **Bunny.net CDN:** File storage.
+-   Firebase: Auth & FCM
+-   MongoDB Atlas: Production database
+-   Upstash Redis: L2 Cache
+-   Azam Pay: Payment gateway
+-   Expo (EAS Build): Mobile app build service
+-   Bunny.net CDN: File storage
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
--   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** []
--   **Known regressions:** The entire production deployment is a regression.
+-   Testing agent used after significant changes: NO
+-   Troubleshoot agent used after agent stuck in loop: NO
+-   Test files created: []
+-   Known regressions: None.
 
 **Credentials to test flow:**
 -   **Admin Login:**  / 
--   **Expo Token:**  (User requested this be remembered).
+-   **Expo Token:** 
 
 **What agent forgot to execute**
--   The agent did not decisively stop debugging the code and instead got pulled back into it by the user, even after correctly identifying the problem was with the production infrastructure. The next agent must be more firm in guiding the user to the correct resolution path (contacting support).</analysis>
+-   The agent made multiple attempts to patch the continuous playback logic instead of rebuilding it based on the working native app logic, which the user eventually had to suggest. The next agent should follow this new direction.
+-   The agent implemented a fix for the mobile UI but did not trigger a new build for the user to verify it.</analysis>

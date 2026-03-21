@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class EnhancedAlbumTester:
-    def __init__(self, base_url="https://faith-audio-4.preview.emergentagent.com"):
+    def __init__(self, base_url="https://web-playback-preview.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.tests_run = 0

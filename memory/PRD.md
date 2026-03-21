@@ -48,7 +48,7 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - **EXPO_TOKEN**: `UZJmgfqPYVW2XJssC0C7D7XVwBiXyB6wpi1Io_bx` (save to `/app/mobile/SpiritSongs/.env` and `/app/backend/.env`)
 - **Admin Credentials**: `admin@gracefy.life` / (empty password - leave blank)
 - **Production URL**: https://gracefy.net
-- **Dev URL**: https://faith-audio-4.preview.emergentagent.com
+- **Dev URL**: https://web-playback-preview.preview.emergentagent.com
 - **MongoDB Cluster**: gracefy.vuqjyu.mongodb.net (NOT cluster0 or customer-apps)
 - **Database Name**: gracefy_db
 
