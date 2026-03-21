@@ -2325,15 +2325,13 @@ const ScreenLockPaymentModal = ({ show, onClose, onPay, language }) => {
 const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, isLocked, promptAttempts, maxAttempts }) => {
   if (!show) return null;
   
-  // Match native app messaging
+  // Improved Swahili messaging
   const getTitle = () => {
     if (isLocked) {
       return language === 'sw' ? 'Tafadhali Ingia Sasa' : 'Please Sign In Now';
     }
-    if (promptAttempts >= 2) {
-      return language === 'sw' ? 'Ingia ili Kuendelea' : 'Sign In to Continue';
-    }
-    return language === 'sw' ? 'Kufurahia Huduma Hii' : 'Enjoy Full Access';
+    // All other cases use "Ingia ili kuendelea"
+    return language === 'sw' ? 'Ingia ili kuendelea' : 'Sign In to Continue';
   };
   
   const getMessage = () => {
@@ -2342,14 +2340,10 @@ const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, is
         ? 'Ili kuendelea kutumia Gracefy, tafadhali ingia au jisajili.'
         : 'To continue using Gracefy, please sign in or register.';
     }
-    if (promptAttempts >= 2) {
-      return language === 'sw'
-        ? 'Umesikiliza nyimbo zako za bure. Ingia sasa ili kuendelea.'
-        : 'You\'ve used your free plays. Sign in now to continue.';
-    }
+    // Improved message: "To continue enjoying free listening, Register or Sign in if you already registered"
     return language === 'sw' 
-      ? 'Ingia au jiandikishe ili kusikiliza muziki usio na kikomo.'
-      : 'Sign in or register to enjoy unlimited music streaming.';
+      ? 'Kuendelea kufurahia kusikiliza kwa uhuru. Jiandikishe (register) au Ingia kama tayari ulishajiandikisha.'
+      : 'To continue enjoying free listening. Register or Sign in if you already have an account.';
   };
   
   return (
@@ -2399,8 +2393,8 @@ const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, is
           </div>
           <p className="text-xs text-zinc-500 mt-4">
             {language === 'sw' 
-              ? '✨ Ingia ili kupata huduma kamili za premium'
-              : '✨ Sign in to unlock all premium features'}
+              ? '✨ Ingia ili kupata huduma kamili za Gracefy kwa uhuru zaidi'
+              : '✨ Sign in to enjoy full Gracefy features freely'}
           </p>
         </div>
       </div>
