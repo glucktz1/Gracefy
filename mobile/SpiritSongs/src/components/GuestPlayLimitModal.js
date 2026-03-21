@@ -7,9 +7,9 @@
  * - After 10 minutes of listening
  * 
  * Behavior:
- * - First prompt: "Kufurahia huduma hii jisajili au ingia kwenye Gracefy"
- * - Second prompt: Friendly reminder
- * - Third prompt: Lock app - "Tafadhali jisajili au ingia sasa"
+ * - Title: "Ingia ili kuendelea"
+ * - Message: "Kuendelea kufurahia kusikiliza kwa uhuru. Jiandikishe (register) au Ingia kama tayari ulishajiandikisha."
+ * - After 3 dismissals: Lock app - must sign in
  */
 
 import React, { useState, useEffect } from 'react';
@@ -232,12 +232,12 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
     Linking.openURL(`${API_BASE_URL.replace('/api', '')}/choir-register`);
   };
 
-  // Get display message based on state
+  // Get display message based on state - improved Swahili text
   const getDisplayMessage = () => {
     if (loginPromptMessage) {
       return loginPromptMessage;
     }
-    return 'Kufurahia huduma hii jisajili au ingia kwenye Gracefy';
+    return 'Kuendelea kufurahia kusikiliza kwa uhuru. Jiandikishe (register) au Ingia kama tayari ulishajiandikisha.';
   };
 
   // Get stats message
@@ -264,7 +264,7 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
 
       {/* Title */}
       <Text style={[styles.title, isAppLocked && styles.lockedTitle]}>
-        {isAppLocked ? 'Jisajili Kuendelea' : 'Karibu Gracefy! 🎵'}
+        {isAppLocked ? 'Tafadhali Ingia Sasa' : 'Ingia ili kuendelea'}
       </Text>
       
       {/* Main Message */}

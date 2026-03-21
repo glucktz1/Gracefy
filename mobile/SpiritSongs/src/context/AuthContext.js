@@ -8,9 +8,9 @@ import locationService from '../services/locationService';
 
 const AuthContext = createContext(null);
 
-// Guest limits configuration - 5 songs max OR 5 skips before forcing sign in
-const GUEST_PLAY_LIMIT = 5;           // Songs played
-const GUEST_SKIP_LIMIT = 5;           // Songs skipped
+// Guest limits configuration - 3 songs max OR 3 skips before forcing sign in
+const GUEST_PLAY_LIMIT = 3;           // Songs played
+const GUEST_SKIP_LIMIT = 3;           // Songs skipped
 const GUEST_TIME_LIMIT_MINUTES = 10;  // Minutes of listening
 const MAX_PROMPT_ATTEMPTS = 3;        // Lock after this many dismissals
 
@@ -241,16 +241,10 @@ export const AuthProvider = ({ children }) => {
     await restoreAuthState();
   }, [restoreAuthState]);
 
-  // Get appropriate message based on prompt attempts
+  // Get appropriate message based on prompt attempts - improved Swahili text
   const getPromptMessage = (attempt) => {
-    if (attempt === 0) {
-      return 'Kufurahia huduma hii jisajili au ingia kwenye Gracefy';
-    } else if (attempt === 1) {
-      return 'Jisajili sasa kupata muziki zaidi na vipengele vyote!';
-    } else if (attempt >= 2) {
-      return 'Tafadhali jisajili au ingia sasa';
-    }
-    return 'Kufurahia huduma hii jisajili au ingia kwenye Gracefy';
+    // All attempts now use the same improved message
+    return 'Kuendelea kufurahia kusikiliza kwa uhuru. Jiandikishe (register) au Ingia kama tayari ulishajiandikisha.';
   };
 
   // Check and trigger login prompt
@@ -261,7 +255,7 @@ export const AuthProvider = ({ children }) => {
     
     if (currentAttempts >= MAX_PROMPT_ATTEMPTS) {
       setIsAppLocked(true);
-      setLoginPromptMessage('Tafadhali jisajili au ingia sasa');
+      setLoginPromptMessage('Ili kuendelea kutumia Gracefy, tafadhali ingia au jisajili.');
       setShouldPromptLogin(true);
       return { shouldPrompt: true, isLocked: true };
     }
