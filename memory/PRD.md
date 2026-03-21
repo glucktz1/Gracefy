@@ -15,16 +15,18 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## What's Been Implemented
 
 ### Session: March 21, 2026 (Latest)
-- ✅ **Guest Limit Enforcement (5 songs/skips)** - Updated on BOTH web and mobile:
+- ✅ **Guest Limit Enforcement (5 songs/skips) - INDEPENDENT OF BILLING** - Updated on BOTH web and mobile:
   - Changed `GUEST_PLAY_LIMIT` from 3 to 5
   - Changed `GUEST_SKIP_LIMIT` from 3 to 5
+  - **CRITICAL**: Guest limits now work INDEPENDENTLY of billing settings
+  - Removed all `if (!billingEnabled) return false;` checks from guest functions
   - **Web**: When limit reached, `setGuestLimitReached(true)` is called to STOP playback when current song ends
   - **Web**: Skip attempts are BLOCKED when limit is reached (not just prompted)
   - **Mobile**: Already had blocking logic via `guestLimitReachedRef` in PlayerContext.js
   - Files updated: 
-    - `/app/frontend/src/pages/UserStreamingApp.jsx`
-    - `/app/frontend/src/hooks/useAudioPlayer.js`
-    - `/app/mobile/SpiritSongs/src/context/AuthContext.js`
+    - `/app/frontend/src/pages/UserStreamingApp.jsx` - checkGuestPlayLimit, incrementGuestPlayCount, incrementGuestSkipCount, handleSkipWithBillingCheck
+    - `/app/frontend/src/hooks/useAudioPlayer.js` - handleSongEnd checks guestLimitReachedRef
+    - `/app/mobile/SpiritSongs/src/context/AuthContext.js` - limits updated to 5
 - ✅ **Android Build v1.0.168 COMPLETE** - APK ready for download:
   - Build ID: 6016533c-bb27-44fb-88c7-99de52c59f97
   - APK URL: https://expo.dev/artifacts/eas/cSbJe75mQMEpjHGmE2wpi2.apk
