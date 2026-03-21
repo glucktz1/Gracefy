@@ -1,0 +1,80 @@
+{
+  "summary": "Fixed critical bug in continuous playback - next button on single-song albums now correctly fetches recommendations and plays songs from different albums. The issue was a stale closure bug where playFromQueue was called with the old queue length instead of the updated queue after recommendations were fetched.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "backend_api_tests": {
+      "status": "PASS",
+      "tests_passed": 9,
+      "tests_failed": 0,
+      "details": "All recommendation API tests pass - endpoint returns songs from different albums, excludes current song, respects limit, includes album metadata"
+    },
+    "continuous_playback_next_button": {
+      "status": "PASS",
+      "details": "Clicking next on single-song album now fetches recommendations and plays songs from different albums",
+      "console_logs": [
+        "[Player] nextSong: End of queue",
+        "[Player] nextSong: Fetching recommendations...",
+        "[Player] Adding 10 recommended songs to queue",
+        "[Player] nextSong: Playing recommended song at index 1 queue now has 11 songs",
+        "[Player] Playing song: Bethlehemu Pangoni"
+      ]
+    },
+    "queue_growth": {
+      "status": "PASS",
+      "details": "Queue grows from 1 song to 11 songs after fetching recommendations"
+    },
+    "different_albums": {
+      "status": "PASS",
+      "details": "Tested 6 consecutive songs - all from different albums: TOKA VILINDINI, Bethlehemu Pangoni, Nasikia Yesu waniita, Ashukuriwe Mwenyezi, Unihurumie Mimi Bwana, heri aliyemfanya bwan"
+    }
+  },
+  "bugs_fixed": [
+    {
+      "issue": "Next button fails on single-song albums - recommendations fetched but song doesn't change",
+      "root_cause": "Stale closure bug in nextSong function - playFromQueue(queue.length) used old queue length instead of updated queue after async fetchAndAddRecommendations",
+      "fix": "Changed to use playFromQueueInternal(nextIdx, updatedQueue) with queueRef.current to get the updated queue",
+      "file": "/app/frontend/src/hooks/useAudioPlayer.js",
+      "lines_changed": "594-598",
+      "status": "FIXED"
+    }
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_continuous_playback.py",
+    "/app/test_reports/pytest/continuous_playback_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Line 594-598: Fixed stale closure bug - now uses playFromQueueInternal with queueRef.current to get updated queue after async recommendation fetch",
+    "Line 607: Added playFromQueueInternal to dependency array"
+  ],
+  "updated_files": [
+    "/app/frontend/src/hooks/useAudioPlayer.js"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% - Continuous playback working correctly"
+  },
+  "test_credentials": {},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Continuous playback bug has been fixed. The next button now correctly fetches recommendations from /api/recommendations/next-songs and plays songs from different albums. The fix was in useAudioPlayer.js line 594-598 - changed from playFromQueue(queue.length) to playFromQueueInternal(nextIdx, updatedQueue) to avoid stale closure issue.",
+  "rca_of_the_issue": {
+    "problem": "Next button on single-song albums fetched recommendations but didn't play the next song",
+    "root_cause": "In nextSong function, after calling fetchAndAddRecommendations (which is async), the code called playFromQueue(queue.length). However, 'queue' was a stale closure value from when the callback was created, not the updated queue with new songs. The queue state update via setQueue() is asynchronous, so queue.length was still 1 even though queueRef.current had 11 songs.",
+    "reproduction_steps": [
+      "1. Play a song from a single-song album (e.g., 'Kutoka Vilindini')",
+      "2. Click the next button",
+      "3. Observe console: recommendations fetched, 10 songs added, but playFromQueueInternal fails with 'Invalid index or empty queue, index: 1 queue length: 1'"
+    ],
+    "fix_applied": "Changed line 596 from 'playFromQueue(queue.length)' to 'playFromQueueInternal(nextIdx, updatedQueue)' where updatedQueue = queueRef.current (which is updated synchronously in fetchAndAddRecommendations)"
+  }
+}

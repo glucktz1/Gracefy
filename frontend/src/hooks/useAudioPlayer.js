@@ -1,7 +1,11 @@
 /**
  * Audio Player Hook
  * Handles all audio playback logic including music and radio streaming
- * Extracted from UserStreamingApp.jsx
+ * 
+ * CONTINUOUS PLAYBACK LOGIC (mirrored from native mobile app):
+ * - Uses /api/recommendations/next-songs endpoint for intelligent next-song selection
+ * - Pre-fetches recommendations when 2 songs from queue end
+ * - Seamlessly adds new songs to queue for uninterrupted playback
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -20,9 +24,10 @@ const useAudioPlayer = () => {
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
   const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState('off'); // Default OFF - no repeat, continuous play to next album
+  const [repeat, setRepeat] = useState('off'); // Default OFF - continuous play with recommendations
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
+  const [continuousPlay, setContinuousPlay] = useState(true); // Auto-recommendation enabled by default
   
   // Radio state
   const [isRadioMode, setIsRadioMode] = useState(false);
@@ -30,7 +35,7 @@ const useAudioPlayer = () => {
   
   const audioRef = useRef(new Audio());
   const sessionIdRef = useRef(null);
-  const fetchingMoreRef = useRef(false);
+  const isFetchingRecommendationsRef = useRef(false); // Prevent duplicate fetches
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   
@@ -38,15 +43,90 @@ const useAudioPlayer = () => {
   const queueRef = useRef(queue);
   const queueIndexRef = useRef(queueIndex);
   const currentAlbumRef = useRef(currentAlbum);
+  const currentSongRef = useRef(currentSong);
   const repeatRef = useRef(repeat);
   const shuffleRef = useRef(shuffle);
+  const continuousPlayRef = useRef(continuousPlay);
   
   // Keep refs in sync with state
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
   useEffect(() => { currentAlbumRef.current = currentAlbum; }, [currentAlbum]);
+  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
+  useEffect(() => { continuousPlayRef.current = continuousPlay; }, [continuousPlay]);
+
+  // ============ FETCH RECOMMENDATIONS FOR CONTINUOUS PLAY ============
+  // This mirrors the native mobile app's logic in PlayerContext.js
+  const fetchAndAddRecommendations = useCallback(async (currentSongId) => {
+    // Prevent duplicate fetches
+    if (isFetchingRecommendationsRef.current) {
+      console.log('[Player] Already fetching recommendations, skipping...');
+      return false;
+    }
+    
+    // Don't fetch in shuffle mode
+    if (shuffleRef.current) {
+      console.log('[Player] Shuffle mode active, skipping recommendation fetch');
+      return false;
+    }
+    
+    isFetchingRecommendationsRef.current = true;
+    console.log('[Player] Fetching recommendations for continuous play...');
+    
+    try {
+      const userId = localStorage.getItem('user_id') || null;
+      const res = await axios.get(`${API}/recommendations/next-songs`, {
+        params: {
+          current_song_id: currentSongId,
+          user_id: userId,
+          limit: 10
+        }
+      });
+      
+      if (res.data?.songs && res.data.songs.length > 0) {
+        const currentQueue = queueRef.current;
+        const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
+        
+        // Filter out songs already in queue
+        const newSongs = res.data.songs.filter(song => !currentSongIds.has(song.song_id));
+        
+        if (newSongs.length > 0) {
+          console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);
+          console.log('[Player] Criteria used:', res.data.criteria_used);
+          
+          // Format songs with album info for queue
+          const formattedSongs = newSongs.map(song => ({
+            song: song,
+            album: {
+              album_id: song.album_id,
+              title: song.album_title,
+              thumbnail: song.album_thumbnail || song.thumbnail,
+              artist_name: song.artist_name
+            }
+          }));
+          
+          // Add to queue
+          const updatedQueue = [...currentQueue, ...formattedSongs];
+          setQueue(updatedQueue);
+          queueRef.current = updatedQueue;
+          
+          return true;
+        } else {
+          console.log('[Player] All recommended songs already in queue');
+        }
+      } else {
+        console.log('[Player] No recommendations returned');
+      }
+    } catch (e) {
+      console.log('[Player] Recommendation fetch error:', e.message);
+    } finally {
+      isFetchingRecommendationsRef.current = false;
+    }
+    
+    return false;
+  }, []);
 
   // Track plays when leaving page
   useEffect(() => {
@@ -228,14 +308,14 @@ const useAudioPlayer = () => {
     }
   }, [queue, preloadNextSong]);
 
-  // Handle song end - with continuous playback
+  // Handle song end - with continuous playback using recommendations API
   // Use a ref to store playFromQueueInternal to avoid stale closures
   const playFromQueueInternalRef = useRef(playFromQueueInternal);
   useEffect(() => { playFromQueueInternalRef.current = playFromQueueInternal; }, [playFromQueueInternal]);
   
-  // Store currentSong and currentAlbum in refs for event handlers
-  const currentSongRef = useRef(currentSong);
-  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
+  // Store fetchAndAddRecommendations in ref for event handlers
+  const fetchAndAddRecommendationsRef = useRef(fetchAndAddRecommendations);
+  useEffect(() => { fetchAndAddRecommendationsRef.current = fetchAndAddRecommendations; }, [fetchAndAddRecommendations]);
   
   // Store savePlaybackState in ref
   const savePlaybackStateRef = useRef(savePlaybackState);
@@ -245,18 +325,19 @@ const useAudioPlayer = () => {
   useEffect(() => {
     const audio = audioRef.current;
     
+    // ============ HANDLE SONG END - MIRRORS NATIVE APP LOGIC ============
     const handleSongEnd = async () => {
       // Use refs to get latest values (avoids stale closures)
       const currentQueue = queueRef.current;
       const currentQueueIndex = queueIndexRef.current;
-      const album = currentAlbumRef.current;
       const currentRepeat = repeatRef.current;
       const currentShuffle = shuffleRef.current;
+      const currentContinuousPlay = continuousPlayRef.current;
+      const song = currentSongRef.current;
       
       console.log('[Player] ========== handleSongEnd called ==========');
       console.log('[Player] Queue length:', currentQueue.length, 'Current index:', currentQueueIndex);
-      console.log('[Player] Repeat mode:', currentRepeat, 'Shuffle:', currentShuffle);
-      console.log('[Player] Album:', album?.title);
+      console.log('[Player] Repeat:', currentRepeat, 'Shuffle:', currentShuffle, 'ContinuousPlay:', currentContinuousPlay);
       
       // Track the ended session with duration (for play count) - non-blocking
       if (sessionIdRef.current) {
@@ -266,9 +347,9 @@ const useAudioPlayer = () => {
         }).catch(e => console.log("Failed to track play end"));
       }
       
-      // Check if auto-play is blocked (screen lock payment feature)
+      // Check if auto-play is blocked (screen lock payment feature or guest limit)
       if (blockAutoPlayNextRef.current) {
-        console.log('[Player] Auto-play blocked due to screen lock billing - stopping');
+        console.log('[Player] Auto-play blocked - stopping');
         blockAutoPlayNextRef.current = false;
         setIsPlaying(false);
         return;
@@ -294,7 +375,7 @@ const useAudioPlayer = () => {
 
       console.log('[Player] Next index:', nextIndex, 'Queue length:', currentQueue.length);
 
-      // If still within queue, play next song (regardless of guest limit)
+      // If still within queue, play next song
       if (nextIndex < currentQueue.length) {
         console.log('[Player] Playing next song at index:', nextIndex);
         playFromQueueInternalRef.current(nextIndex, currentQueue);
@@ -304,107 +385,37 @@ const useAudioPlayer = () => {
       // End of queue reached
       console.log('[Player] End of queue reached');
       
-      // If REPEAT ALL is ON - loop back to start
+      // If REPEAT ALL is ON - loop back to start (like native app)
       if (currentRepeat === 'all' && currentQueue.length > 0) {
         console.log('[Player] Repeat ALL - looping to start');
         playFromQueueInternalRef.current(0, currentQueue);
         return;
       }
       
-      console.log('[Player] Repeat OFF - fetching more songs...');
-      
-      try {
-        let moreSongs = [];
-        const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
+      // CONTINUOUS PLAY MODE (mirrors native app) - fetch recommendations
+      if (currentContinuousPlay && currentQueue.length > 0) {
+        const lastItem = currentQueue[currentQueue.length - 1];
+        const lastSong = lastItem.song || lastItem;
         
-        // Strategy 1: Get more songs from the same album
-        if (album?.album_id) {
-          try {
-            console.log('[Player] Trying to get more from same album:', album.album_id);
-            const albumRes = await axios.get(`${API}/user/album/${album.album_id}/songs`);
-            const albumSongs = albumRes.data.songs || [];
-            const newSongs = albumSongs.filter(s => !currentSongIds.has(s.song_id));
-            if (newSongs.length > 0) {
-              moreSongs = newSongs.map(s => ({ song: s, album }));
-              console.log('[Player] Found', newSongs.length, 'more songs from same album');
+        if (lastSong?.song_id) {
+          console.log('[Player] Continuous play - fetching recommendations for:', lastSong.song_id);
+          
+          // Fetch recommendations using the dedicated API
+          const added = await fetchAndAddRecommendationsRef.current(lastSong.song_id);
+          
+          if (added) {
+            // New songs were added to queue, play the next one
+            const updatedQueue = queueRef.current;
+            if (currentQueue.length < updatedQueue.length) {
+              console.log('[Player] Playing first recommended song');
+              playFromQueueInternalRef.current(currentQueue.length, updatedQueue);
+              return;
             }
-          } catch (e) {
-            console.log('[Player] Album fetch failed:', e.message);
           }
         }
-        
-        // Strategy 2: Get songs from same category (different albums)
-        if (moreSongs.length === 0 && album?.category_id) {
-          try {
-            console.log('[Player] Trying category:', album.category_id);
-            const catRes = await axios.get(`${API}/user/browse/category/${album.category_id}`);
-            const albums = (catRes.data.albums || []).filter(a => a.album_id !== album?.album_id);
-            
-            for (const fetchedAlbum of albums.slice(0, 5)) {
-              try {
-                const songsRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}/songs`);
-                const songs = (songsRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
-                moreSongs.push(...songs.map(s => ({ song: s, album: fetchedAlbum })));
-                if (moreSongs.length >= 15) break;
-              } catch (e) { }
-            }
-            if (moreSongs.length > 0) {
-              console.log('[Player] Found', moreSongs.length, 'songs from category');
-            }
-          } catch (e) {
-            console.log('[Player] Category fetch failed:', e.message);
-          }
-        }
-        
-        // Strategy 3: Get songs from home page sections (any content)
-        if (moreSongs.length === 0) {
-          try {
-            console.log('[Player] Trying home page sections...');
-            const homeRes = await axios.get(`${API}/user/home?platform=web`);
-            const sections = homeRes.data.sections || [];
-            
-            for (const section of sections) {
-              const items = section.items || [];
-              for (const item of items) {
-                if (item.album_id && item.album_id !== album?.album_id) {
-                  try {
-                    const songsRes = await axios.get(`${API}/user/album/${item.album_id}/songs`);
-                    const songs = (songsRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
-                    if (songs.length > 0) {
-                      moreSongs.push(...songs.map(s => ({ song: s, album: item })));
-                      console.log('[Player] Added', songs.length, 'songs from', item.title);
-                      if (moreSongs.length >= 15) break;
-                    }
-                  } catch (e) { }
-                }
-              }
-              if (moreSongs.length >= 15) break;
-            }
-            if (moreSongs.length > 0) {
-              console.log('[Player] Found', moreSongs.length, 'songs from home sections');
-            }
-          } catch (e) {
-            console.log('[Player] Home fetch failed:', e.message);
-          }
-        }
-        
-        // If we found more songs, add to queue and play next
-        if (moreSongs.length > 0) {
-          console.log('[Player] SUCCESS - Adding', moreSongs.length, 'songs to queue and continuing');
-          const newQueue = [...currentQueue, ...moreSongs];
-          setQueue(newQueue);
-          queueRef.current = newQueue;
-          // Play the first new song (index = old queue length)
-          playFromQueueInternalRef.current(currentQueue.length, newQueue);
-          return;
-        }
-        
-        console.log('[Player] Could not find any more songs');
-      } catch (e) {
-        console.error('[Player] Error in fetch more songs:', e);
       }
       
-      // No more songs available - stop playback (DO NOT LOOP when repeat is off)
+      // No more songs available - stop playback
       console.log('[Player] No more songs - stopping playback');
       setIsPlaying(false);
     };
@@ -548,83 +559,52 @@ const useAudioPlayer = () => {
     // If still within queue, play next song
     if (nextIndex < queue.length) {
       playFromQueue(nextIndex);
+      
+      // Pre-fetch recommendations when 2 songs from queue end (like native app)
+      if (continuousPlay && !shuffle && queue.length - nextIndex <= 2) {
+        const currentItem = queue[nextIndex];
+        const song = currentItem.song || currentItem;
+        if (song?.song_id) {
+          console.log('[Player] Pre-fetching recommendations (near end of queue)');
+          fetchAndAddRecommendations(song.song_id);
+        }
+      }
       return;
     }
     
-    // End of queue - try to fetch more songs
-    console.log('[Player] nextSong: End of queue, fetching more...');
+    // End of queue reached
+    console.log('[Player] nextSong: End of queue');
     
-    try {
-      const currentAlbumData = queue[queueIndex]?.album || currentAlbum;
-      let moreSongs = [];
-      const currentSongIds = new Set(queue.map(q => (q.song || q).song_id));
-      
-      // Strategy 1: Same category different albums
-      if (currentAlbumData?.category_id) {
-        try {
-          const catRes = await axios.get(`${API}/user/browse/category/${currentAlbumData.category_id}`);
-          const albums = (catRes.data.albums || []).filter(a => a.album_id !== currentAlbumData?.album_id);
-          
-          for (const fetchedAlbum of albums.slice(0, 5)) {
-            try {
-              const albumRes = await axios.get(`${API}/user/album/${fetchedAlbum.album_id}/songs`);
-              const songs = (albumRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
-              moreSongs.push(...songs.map(s => ({ song: s, album: fetchedAlbum })));
-              if (moreSongs.length >= 15) break;
-            } catch (e) { }
-          }
-        } catch (e) {
-          console.log('[Player] Category fetch failed');
-        }
-      }
-      
-      // Strategy 2: Home page sections
-      if (moreSongs.length === 0) {
-        try {
-          const homeRes = await axios.get(`${API}/user/home?platform=web`);
-          const sections = homeRes.data.sections || [];
-          
-          for (const section of sections) {
-            for (const item of (section.items || [])) {
-              if (item.album_id && item.album_id !== currentAlbumData?.album_id) {
-                try {
-                  const albumRes = await axios.get(`${API}/user/album/${item.album_id}/songs`);
-                  const songs = (albumRes.data.songs || []).filter(s => !currentSongIds.has(s.song_id));
-                  if (songs.length > 0) {
-                    moreSongs.push(...songs.map(s => ({ song: s, album: item })));
-                    if (moreSongs.length >= 15) break;
-                  }
-                } catch (e) { }
-              }
-            }
-            if (moreSongs.length >= 15) break;
-          }
-        } catch (e) {
-          console.log('[Player] Home fetch failed');
-        }
-      }
-      
-      if (moreSongs.length > 0) {
-        console.log('[Player] nextSong: Found', moreSongs.length, 'more songs');
-        const newQueue = [...queue, ...moreSongs];
-        setQueue(newQueue);
-        queueRef.current = newQueue;
-        playFromQueue(queue.length); // Play first new song
-        return;
-      }
-    } catch (e) {
-      console.error('[Player] Error fetching more songs:', e);
-    }
-    
-    // No more songs - DO NOT LOOP, just stop (unless repeat is on)
+    // If REPEAT ALL - loop back
     if (repeat === 'all') {
       console.log('[Player] nextSong: Repeat ALL - looping');
       playFromQueue(0);
-    } else {
-      console.log('[Player] nextSong: No more songs, stopping');
-      // Stay on current song but don't play
+      return;
     }
-  }, [queue, queueIndex, shuffle, playFromQueue, repeat, currentAlbum]);
+    
+    // CONTINUOUS PLAY - fetch recommendations and play
+    if (continuousPlay) {
+      const currentItem = queue[queueIndex];
+      const song = currentItem?.song || currentItem;
+      
+      if (song?.song_id) {
+        console.log('[Player] nextSong: Fetching recommendations...');
+        const added = await fetchAndAddRecommendations(song.song_id);
+        
+        if (added) {
+          // Play first new song - use queueRef to get updated queue length after async fetch
+          const updatedQueue = queueRef.current;
+          const nextIdx = queue.length; // Original queue length = index of first new song
+          console.log('[Player] nextSong: Playing recommended song at index', nextIdx, 'queue now has', updatedQueue.length, 'songs');
+          playFromQueueInternal(nextIdx, updatedQueue);
+          return;
+        }
+      }
+    }
+    
+    // No more songs available
+    console.log('[Player] nextSong: No more songs, staying on current');
+  }, [queue, queueIndex, shuffle, playFromQueue, playFromQueueInternal, repeat, continuousPlay, fetchAndAddRecommendations]);
 
   const prevSong = useCallback(() => {
     if (currentTime > 3) {
@@ -752,11 +732,26 @@ const useAudioPlayer = () => {
     }
   };
   
+  // Toggle continuous play mode (auto-recommendations)
+  const toggleContinuousPlay = useCallback(() => {
+    setContinuousPlay(prev => {
+      const newValue = !prev;
+      console.log(`[Player] Continuous play ${newValue ? 'enabled' : 'disabled'}`);
+      // If enabling continuous play, disable shuffle (like native app)
+      if (newValue && shuffle) {
+        setShuffle(false);
+      }
+      return newValue;
+    });
+  }, [shuffle]);
+  
   return {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
     restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached,
+    // Continuous play (auto-recommendations) - mirrors native app
+    continuousPlay, toggleContinuousPlay,
     // Radio
     isRadioMode, currentRadioStation, playRadio, stopRadio
   };
