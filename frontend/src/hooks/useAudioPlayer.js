@@ -2,14 +2,17 @@
  * Audio Player Hook
  * Handles all audio playback logic including music and radio streaming
  * 
- * CONTINUOUS PLAYBACK LOGIC (mirrored from native mobile app):
- * - Uses /api/recommendations/next-songs endpoint for intelligent next-song selection
+ * FEATURES:
+ * - HLS Adaptive Streaming: Auto-adjusts quality based on network speed
+ * - Continuous Playback: Uses /api/recommendations/next-songs for intelligent next-song selection
  * - Pre-fetches recommendations when 2 songs from queue end
  * - Seamlessly adds new songs to queue for uninterrupted playback
+ * - Falls back to MP3 if HLS is not available
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
+import Hls from 'hls.js';
 import { toast } from 'sonner';
 import { API, getAudioUrl, getImageUrl, SAMPLE_AUDIO_URL } from '@/utils/streamingHelpers';
 
@@ -28,12 +31,14 @@ const useAudioPlayer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [continuousPlay, setContinuousPlay] = useState(true); // Auto-recommendation enabled by default
+  const [streamingQuality, setStreamingQuality] = useState('auto'); // 'auto', 'low', 'medium', 'high'
   
   // Radio state
   const [isRadioMode, setIsRadioMode] = useState(false);
   const [currentRadioStation, setCurrentRadioStation] = useState(null);
   
   const audioRef = useRef(new Audio());
+  const hlsRef = useRef(null); // HLS.js instance
   const sessionIdRef = useRef(null);
   const isFetchingRecommendationsRef = useRef(false); // Prevent duplicate fetches
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
@@ -56,6 +61,108 @@ const useAudioPlayer = () => {
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
   useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
   useEffect(() => { continuousPlayRef.current = continuousPlay; }, [continuousPlay]);
+
+  // ============ HLS ADAPTIVE STREAMING HELPERS ============
+  
+  /**
+   * Cleanup HLS instance when switching songs or unmounting
+   */
+  const cleanupHls = useCallback(() => {
+    if (hlsRef.current) {
+      console.log('[Player] Cleaning up HLS instance');
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+  }, []);
+  
+  /**
+   * Setup HLS playback for a song with adaptive streaming
+   * Falls back to direct MP3 if HLS is not available or fails
+   */
+  const setupAudioSource = useCallback((song, onReady) => {
+    const audio = audioRef.current;
+    const hlsUrl = song.hls_url;
+    const mp3Url = getAudioUrl(song.audio_url);
+    
+    // Cleanup any existing HLS instance
+    cleanupHls();
+    
+    // Check if song has HLS and browser supports it
+    if (hlsUrl && Hls.isSupported()) {
+      console.log('[Player] Using HLS adaptive streaming:', hlsUrl);
+      
+      const hls = new Hls({
+        // Auto quality selection based on bandwidth
+        autoStartLoad: true,
+        startLevel: -1, // Auto-select starting quality
+        capLevelToPlayerSize: false,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+      });
+      
+      hlsRef.current = hls;
+      
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(audio);
+      
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log('[Player] HLS manifest loaded, quality levels:', data.levels.length);
+        if (onReady) onReady();
+      });
+      
+      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+        const level = hls.levels[data.level];
+        console.log(`[Player] HLS quality switched to: ${level?.bitrate / 1000}kbps`);
+      });
+      
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('[Player] HLS error:', data.type, data.details);
+        
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log('[Player] HLS network error, falling back to MP3');
+              cleanupHls();
+              // Fallback to MP3
+              audio.src = mp3Url;
+              if (onReady) onReady();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log('[Player] HLS media error, attempting recovery');
+              hls.recoverMediaError();
+              break;
+            default:
+              console.log('[Player] HLS fatal error, falling back to MP3');
+              cleanupHls();
+              audio.src = mp3Url;
+              if (onReady) onReady();
+              break;
+          }
+        }
+      });
+      
+    } else if (hlsUrl && audio.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support (Safari)
+      console.log('[Player] Using native HLS (Safari):', hlsUrl);
+      audio.src = hlsUrl;
+      if (onReady) onReady();
+      
+    } else {
+      // No HLS available, use direct MP3
+      console.log('[Player] Using direct MP3:', mp3Url);
+      audio.src = mp3Url;
+      if (onReady) onReady();
+    }
+    
+    return { hlsUrl, mp3Url };
+  }, [cleanupHls]);
+  
+  // Cleanup HLS on unmount
+  useEffect(() => {
+    return () => {
+      cleanupHls();
+    };
+  }, [cleanupHls]);
 
   // ============ FETCH RECOMMENDATIONS FOR CONTINUOUS PLAY ============
   // This mirrors the native mobile app's logic in PlayerContext.js
@@ -263,11 +370,8 @@ const useAudioPlayer = () => {
       });
     }
 
-    // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
-    const audioUrl = getAudioUrl(song.audio_url);
-    console.log('[Player] Audio URL:', audioUrl);
-    
     // Validate audio URL before attempting to play
+    const audioUrl = getAudioUrl(song.audio_url);
     if (!audioUrl || audioUrl === SAMPLE_AUDIO_URL) {
       console.error('[Player] Invalid or missing audio URL for song:', song.title);
       setIsLoading(false);
@@ -276,33 +380,40 @@ const useAudioPlayer = () => {
     
     // Set preload to auto for faster loading
     audioRef.current.preload = 'auto';
-    audioRef.current.src = audioUrl;
+    
+    // Setup audio source (HLS with fallback to MP3)
+    setupAudioSource(song, async () => {
+      try {
+        // Use play() with promise handling for better browser compatibility
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log('[Player] Playback started successfully');
+            // Preload next song after current starts playing
+            preloadNextSong(index, q);
+          }).catch(error => {
+            console.log('[Player] Autoplay blocked:', error.name, error.message);
+            // If autoplay is blocked, show a play button or wait for user interaction
+            if (error.name === 'NotAllowedError') {
+              // Browser blocked autoplay - this is normal on first interaction
+              // The user will need to click play
+              setIsLoading(false);
+              return;
+            }
+            // Log other errors for debugging
+            if (error.name === 'NotSupportedError') {
+              console.error('[Player] Audio format not supported or URL invalid');
+            }
+            setIsLoading(false);
+          });
+        }
+      } catch (e) {
+        console.error('[Player] Play error:', e);
+        setIsLoading(false);
+      }
+    });
     
     try {
-      // Use play() with promise handling for better browser compatibility
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          console.log('[Player] Autoplay started successfully');
-          // Preload next song after current starts playing
-          preloadNextSong(index, q);
-        }).catch(error => {
-          console.log('[Player] Autoplay blocked:', error.name, error.message);
-          // If autoplay is blocked, show a play button or wait for user interaction
-          if (error.name === 'NotAllowedError') {
-            // Browser blocked autoplay - this is normal on first interaction
-            // The user will need to click play
-            setIsLoading(false);
-            return;
-          }
-          // Log other errors for debugging
-          if (error.name === 'NotSupportedError') {
-            console.error('[Player] Audio format not supported or URL invalid:', audioUrl);
-          }
-          setIsLoading(false);
-        });
-      }
-      
       // Determine content type for analytics
       const isTeaching = song.is_teaching || song.song_id?.startsWith('lesson_');
       
@@ -798,6 +909,8 @@ const useAudioPlayer = () => {
     restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached,
     // Continuous play (auto-recommendations) - mirrors native app
     continuousPlay, toggleContinuousPlay,
+    // HLS Adaptive Streaming
+    streamingQuality, setStreamingQuality,
     // Radio
     isRadioMode, currentRadioStation, playRadio, stopRadio
   };

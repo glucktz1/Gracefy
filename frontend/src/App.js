@@ -67,6 +67,7 @@ const ReligiousLeadersPage = lazy(() => import("@/pages/ReligiousLeadersPage"));
 const LeaderLoginPage = lazy(() => import("@/pages/LeaderLoginPage"));
 const LeaderDashboardPage = lazy(() => import("@/pages/LeaderDashboardPage"));
 const SeeAllPage = lazy(() => import("@/pages/SeeAllPage"));
+const HLSTranscodingPage = lazy(() => import("@/pages/HLSTranscodingPage"));
 
 // Icons
 import { 
@@ -139,6 +140,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/admin/approvals", icon: CheckCircle, label: "Approvals", permissions: ["content_approval", "choir_onboarding_approval"] },
         { path: "/admin/layout-management", icon: Layout, label: "Layout Management", permissions: ["layout_promotion_control"] },
         { path: "/admin/cdn", icon: Cloud, label: "CDN Management", permissions: ["platform_settings"] },
+        { path: "/admin/hls-transcoding", icon: Radio, label: "HLS Streaming", permissions: ["platform_settings"] },
         { path: "/admin/app-health", icon: Smartphone, label: "App Health Monitoring", permissions: ["platform_settings"] },
       ]
     },
@@ -592,6 +594,7 @@ function AppRouter() {
         <Route path="/admin/singers" element={<ProtectedRoute><SingersPage /></ProtectedRoute>} />
         <Route path="/admin/seminars" element={<ProtectedRoute><SeminarsPage /></ProtectedRoute>} />
         <Route path="/admin/radio" element={<ProtectedRoute><RadioManagementPage /></ProtectedRoute>} />
+        <Route path="/admin/hls-transcoding" element={<ProtectedRoute><HLSTranscodingPage /></ProtectedRoute>} />
         <Route path="/admin/audiorooms" element={<ProtectedRoute><AudioRoomsPage /></ProtectedRoute>} />
         <Route path="/admin/donations" element={<ProtectedRoute><DonationsPage /></ProtectedRoute>} />
         <Route path="/admin/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />

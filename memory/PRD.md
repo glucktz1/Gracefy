@@ -10,10 +10,21 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 - **Payments**: Azam Pay (production)
 - **CDN**: Bunny.net
 - **Cache**: Hybrid L1/L2 (In-Memory + Upstash Redis)
+- **Streaming**: HLS Adaptive Streaming (96kbps/192kbps/320kbps)
 
 ## What's Been Implemented
 
 ### Session: March 21, 2026 (Latest)
+- ✅ **HLS Adaptive Streaming Implementation** - Full adaptive streaming support:
+  - Backend transcoding service: `/app/backend/services/hls_transcoding_service.py`
+  - Admin API routes: `/app/backend/routes/hls_admin.py`
+  - Frontend hls.js integration in useAudioPlayer hook
+  - Admin dashboard page: `/admin/hls-transcoding`
+  - 3 quality tiers: 96kbps (low), 192kbps (medium), 320kbps (high)
+  - Auto-switches quality based on network speed
+  - Silent fallback to MP3 if HLS unavailable
+  - Batch transcoding with progress tracking
+  - 97 songs pending transcoding
 - ✅ **Web Continuous Playback Complete Rewrite** - Fixed recurring bug by replicating native mobile app logic:
   - New `fetchAndAddRecommendations()` function that calls `/api/recommendations/next-songs` endpoint
   - Pre-fetches recommendations when 2 songs from queue end (proactive, like native app)

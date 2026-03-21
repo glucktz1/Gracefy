@@ -79,6 +79,7 @@ from routes.leaders import router as leaders_router
 from routes.branding import router as branding_router
 from routes.legal import router as legal_router
 from routes.firebase_auth import router as firebase_router
+from routes.hls_admin import router as hls_admin_router
 
 # Legacy cache service for backward compatibility
 from cache_service import cache as legacy_cache
@@ -157,6 +158,9 @@ def create_app() -> FastAPI:
     
     # Firebase authentication router
     app.include_router(firebase_router)       # /api/firebase/*
+    
+    # HLS Transcoding Admin
+    app.include_router(hls_admin_router)      # /api/admin/hls/*
     
     # ============== ROOT ENDPOINTS ==============
     
