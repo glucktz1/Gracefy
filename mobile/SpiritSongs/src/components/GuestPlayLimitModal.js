@@ -28,8 +28,6 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
@@ -465,17 +463,20 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
       animationType="fade"
       onRequestClose={isAppLocked ? undefined : onClose}
     >
-      <BlurView intensity={20} style={styles.overlay}>
+      <View style={styles.overlay}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <View style={styles.modalContainer}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
+          <ScrollView
+            style={styles.scrollViewStyle}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View style={styles.modalContainer}>
               {mode === 'main' && renderMainContent()}
               {mode === 'login' && renderLoginForm()}
               {mode === 'register' && renderRegisterForm()}
@@ -495,10 +496,10 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            </ScrollView>
-          </View>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
-      </BlurView>
+      </View>
     </Modal>
   );
 };
@@ -506,24 +507,26 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
   keyboardView: {
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex: 1,
   },
-  modalContainer: {
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '85%',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    overflow: 'hidden',
+  scrollViewStyle: {
+    flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.xl,
   },
   illustrationContainer: {
