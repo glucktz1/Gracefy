@@ -68,6 +68,8 @@ const LeaderLoginPage = lazy(() => import("@/pages/LeaderLoginPage"));
 const LeaderDashboardPage = lazy(() => import("@/pages/LeaderDashboardPage"));
 const SeeAllPage = lazy(() => import("@/pages/SeeAllPage"));
 const HLSTranscodingPage = lazy(() => import("@/pages/HLSTranscodingPage"));
+const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
+const TermsOfServicePage = lazy(() => import("@/pages/TermsOfServicePage"));
 
 // Icons
 import { 
@@ -649,6 +651,10 @@ function AppRouter() {
         <Route path="/choir/dashboard" element={<ChoirDashboard />} />
         <Route path="/church/login" element={<ChurchLeaderLoginPage />} />
         <Route path="/church/dashboard" element={<ChurchLeaderDashboard />} />
+        
+        {/* Public Legal Pages */}
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-of-service" element={<TermsOfServicePage />} />
         
         {/* Catch-all - redirect to user app */}
         <Route path="*" element={<UserStreamingApp />} />
