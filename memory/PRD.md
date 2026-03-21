@@ -13,7 +13,16 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 14, 2026 (Latest)
+### Session: March 21, 2026 (Latest)
+- ✅ **Web Continuous Playback Complete Rewrite** - Fixed recurring bug by replicating native mobile app logic:
+  - New `fetchAndAddRecommendations()` function that calls `/api/recommendations/next-songs` endpoint
+  - Pre-fetches recommendations when 2 songs from queue end (proactive, like native app)
+  - Added `continuousPlay` state (default: true) that enables auto-recommendations
+  - Fixed stale closure bug in `nextSong()` - now uses `playFromQueueInternal` with `queueRef.current`
+  - Songs now play from DIFFERENT albums (not repeating same album)
+  - Created comprehensive test suite: `/app/backend/tests/test_continuous_playback.py`
+
+### Session: March 14, 2026
 - ✅ **Production Database Fix** - Updated Emergent deployment Secrets to use correct MongoDB cluster (gracefy.vuqjyu.mongodb.net instead of customer-apps.mmyrwf.mongodb.net)
 - ✅ **Hybrid L1/L2 Cache Architecture** - Implemented ultra-fast caching:
   - L1: In-memory cache (0ms latency, per-instance)
@@ -22,7 +31,6 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
   - Fire-and-forget async writes
 - ✅ **Performance Improvement** - Home API: 5.2s (uncached) → 0.15s (cached) = 35x faster
 - ✅ **Admin Empty Password Login** - Admin can now login with just email (empty password field)
-- ✅ **Web Continuous Playback Fix** - Songs now continue playing when one ends (follows repeat mode)
 - ✅ **Mobile Login Screen UI Fix** - Fixed keyboard overlay and form squeeze issues:
   - Added keyboardVerticalOffset for proper keyboard handling
   - Added keyboardShouldPersistTaps="handled"
