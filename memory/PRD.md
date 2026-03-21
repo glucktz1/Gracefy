@@ -15,20 +15,27 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 ## What's Been Implemented
 
 ### Session: March 21, 2026 (Latest)
-- ✅ **HLS Adaptive Streaming Implementation** - Full adaptive streaming support
-- ✅ **Auto-Transcoding on Song Upload** - Songs automatically queued for HLS transcoding
+- ✅ **Mobile App: Social Sharing** - Added share functionality:
+  - Share songs with deep links (gracefy.net/song/{id})
+  - Share albums with deep links (gracefy.net/album/{id})
+  - Share playlists with deep links
+  - Share app itself with Play Store link
+  - Share button added to Now Playing screen and Album screen
+  - New sharing service: `/app/mobile/SpiritSongs/src/services/sharing.js`
+  - Reusable ShareButton component: `/app/mobile/SpiritSongs/src/components/ShareButton.js`
+- ✅ **Mobile App: HLS Adaptive Streaming** - Added HLS support:
+  - PlayerContext now prioritizes `hls_url` over `audio_url`
+  - react-native-track-player supports HLS natively
+  - Auto-adjusts quality based on network speed
+  - Silent fallback to MP3 if HLS not available
+- ✅ **EAS Project Transfer** - Transferred from gracefy12 to glucktz20 account
+- ✅ **Android Build v1.0.168 Triggered** - Build ID: 6016533c-bb27-44fb-88c7-99de52c59f97
+  - Build logs: https://expo.dev/accounts/glucktz20/projects/Gracefy-App/builds/6016533c-bb27-44fb-88c7-99de52c59f97
+- ✅ **HLS Adaptive Streaming (Web)** - Full implementation with admin dashboard
+- ✅ **Auto-Transcoding on Song Upload** - Songs automatically queued for HLS
 - ✅ **Admin Song Preview** - Play/Pause buttons work in Albums page
-- ✅ **HLS Status Badges per Song** - Shows transcoding status with clickable retry
-- ✅ **Fixed Quick Access Grid (8 tiles)** - Was only showing 4 user items, now shows 4 user items + 4 admin-configured categories. Fixed by using `homeRes.data.sections` instead of `sectionsRes.data.sections`
-- ✅ **Lock Screen Mini Player Persistence** - Added proper MediaSession action handlers:
-  - Play/Pause controls
-  - Previous/Next track buttons
-  - Seek forward/backward (10 sec)
-  - Seek to specific position
-  - Playback state sync (playing/paused)
-  - Position state updates for progress bar
-- ✅ **Web Continuous Playback Complete Rewrite** - Uses recommendations API like native app
-- ✅ **Improved Audio Error Handling** - Detailed MediaError messages
+- ✅ **Fixed Quick Access Grid (8 tiles)** - Now shows 4 user items + 4 admin categories
+- ✅ **Lock Screen Mini Player Persistence** - MediaSession handlers for continuous play
 
 ### Session: March 14, 2026
 - ✅ **Production Database Fix** - Updated Emergent deployment Secrets to use correct MongoDB cluster (gracefy.vuqjyu.mongodb.net instead of customer-apps.mmyrwf.mongodb.net)

@@ -93,10 +93,10 @@
       ],
       "expo-task-manager"
     ],
-    "owner": "gracefy12",
+    "owner": "glucktz20",
     "extra": {
       "eas": {
-        "projectId": "cd514690-f423-48aa-8dc8-390319ff0d67"
+        "projectId": "dfed6cdf-2735-493a-9d00-5ae01d9d6612"
       },
       "backendUrl": "https://gracefy.net"
     }
