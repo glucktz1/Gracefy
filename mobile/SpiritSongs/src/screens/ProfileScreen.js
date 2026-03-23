@@ -402,7 +402,8 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Subscription Section */}
+        {/* Subscription Section - Only show when billing is ON */}
+        {billingEnabled && (
         <View style={styles.menuSection}>
           <View style={styles.menuSectionHeader}>
             <Text style={styles.menuSectionTitle}>Usajili</Text>
@@ -422,94 +423,45 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
           
-          {/* Billing Status Indicator - Always shown */}
-          <View style={styles.billingStatusContainer}>
-            <View style={styles.billingStatusRow}>
-              <View style={styles.billingStatusLeft}>
-                <Ionicons 
-                  name={billingEnabled ? "card" : "card-outline"} 
-                  size={20} 
-                  color={billingEnabled ? COLORS.warning : COLORS.textMuted} 
-                />
-                <Text style={styles.billingStatusLabel}>Hali ya Malipo</Text>
-              </View>
-              <View style={[
-                styles.billingStatusBadge,
-                billingEnabled ? styles.billingStatusOn : styles.billingStatusOff
-              ]}>
-                <View style={[
-                  styles.billingStatusDot,
-                  { backgroundColor: billingEnabled ? '#22C55E' : COLORS.textMuted }
-                ]} />
-                <Text style={[
-                  styles.billingStatusText,
-                  { color: billingEnabled ? '#22C55E' : COLORS.textMuted }
-                ]}>
-                  {billingEnabled ? 'IMEWASHWA' : 'IMEZIMWA'}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.billingStatusHint}>
-              {billingEnabled 
-                ? 'Vipengele vya Premium vinahitaji malipo' 
-                : 'Vipengele vyote ni bure kwa sasa'}
-            </Text>
-          </View>
-          
-          {billingEnabled ? (
-            // Show subscription info when billing is ON
-            isPremium ? (
-              <View style={styles.premiumCard}>
-                <LinearGradient
-                  colors={[COLORS.primary, '#1ed760']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.premiumGradient}
-                >
-                  <View style={styles.premiumHeader}>
-                    <Ionicons name="star" size={24} color="#FFD700" />
-                    <Text style={styles.premiumTitle}>Premium Amilifu</Text>
-                  </View>
-                  <Text style={styles.premiumPlan}>{subscription?.plan_name || 'Premium'}</Text>
-                  <Text style={styles.premiumExpiry}>
-                    {subscription?.expires_at 
-                      ? `Inaisha: ${formatDate(subscription.expires_at)}`
-                      : 'Usajili wako upo sawa'}
-                  </Text>
-                </LinearGradient>
-              </View>
-            ) : (
-              <TouchableOpacity 
-                style={styles.upgradeBanner}
-                onPress={() => navigation.navigate('Subscription')}
+          {/* Show subscription info when billing is ON */}
+          {isPremium ? (
+            <View style={styles.premiumCard}>
+              <LinearGradient
+                colors={[COLORS.primary, '#1ed760']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.premiumGradient}
               >
-                <View style={styles.upgradeContent}>
-                  <Ionicons name="star" size={24} color={COLORS.warning} />
-                  <View style={styles.upgradeText}>
-                    <Text style={styles.upgradeTitle}>Pata Gracefy Premium</Text>
-                    <Text style={styles.upgradeSubtitle}>Fungua vipengele vyote bila kikomo</Text>
-                  </View>
+                <View style={styles.premiumHeader}>
+                  <Ionicons name="star" size={24} color="#FFD700" />
+                  <Text style={styles.premiumTitle}>Premium Amilifu</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            )
+                <Text style={styles.premiumPlan}>{subscription?.plan_name || 'Premium'}</Text>
+                <Text style={styles.premiumExpiry}>
+                  {subscription?.expires_at 
+                    ? `Inaisha: ${formatDate(subscription.expires_at)}`
+                    : 'Usajili wako upo sawa'}
+                </Text>
+              </LinearGradient>
+            </View>
           ) : (
-            // Show free access message when billing is OFF
-            <View style={styles.freeAccessCard}>
-              <View style={styles.freeAccessContent}>
-                <Ionicons name="gift" size={32} color={COLORS.primary} />
-                <View style={styles.freeAccessText}>
-                  <Text style={styles.freeAccessTitle}>Huduma Bure!</Text>
-                  <Text style={styles.freeAccessSubtitle}>
-                    Vipengele vyote viko bure kwa sasa. Furahia muziki bila kikomo!
-                  </Text>
+            <TouchableOpacity 
+              style={styles.upgradeBanner}
+              onPress={() => navigation.navigate('Subscription')}
+            >
+              <View style={styles.upgradeContent}>
+                <Ionicons name="star" size={24} color={COLORS.warning} />
+                <View style={styles.upgradeText}>
+                  <Text style={styles.upgradeTitle}>Pata Gracefy Premium</Text>
+                  <Text style={styles.upgradeSubtitle}>Fungua vipengele vyote bila kikomo</Text>
                 </View>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
+            </TouchableOpacity>
           )}
 
           {/* Recent Transactions - Only show if billing is enabled */}
-          {billingEnabled && transactions.length > 0 && (
+          {transactions.length > 0 && (
               <View style={styles.transactionsContainer}>
                 <Text style={styles.transactionsTitle}>Historia ya Malipo</Text>
                 {transactions.slice(0, 3).map((txn, index) => (
@@ -542,7 +494,16 @@ const ProfileScreen = ({ navigation }) => {
                 ))}
               </View>
             )}
-          </View>
+        </View>
+        )}
+
+        {/* Billing Status Dot - Shows green when billing ON, gray when OFF */}
+        <View style={styles.billingDotContainer}>
+          <View style={[
+            styles.billingDot,
+            { backgroundColor: billingEnabled ? '#22C55E' : COLORS.textMuted }
+          ]} />
+        </View>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
@@ -753,6 +714,16 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     color: COLORS.text,
+  },
+  // Billing status dot - subtle indicator
+  billingDotContainer: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+  },
+  billingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   loginPrompt: {
     flex: 1,
