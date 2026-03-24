@@ -341,6 +341,9 @@ export const LanguageProvider = ({ children }) => {
     if (newLanguage !== language) {
       setLanguage(newLanguage);
       localStorage.setItem('app_language', newLanguage);
+      // Force a page refresh to ensure all components re-render
+      // This is a workaround for components that don't re-render on context change
+      window.location.reload();
     }
   }, [language]);
 

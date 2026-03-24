@@ -177,16 +177,34 @@ const LibraryScreen = ({ navigation, route }) => {
 
     try {
       setCreatingPlaylist(true);
+      console.log('[Library] Creating playlist with name:', name);
       const response = await libraryAPI.createPlaylist({ name });
       console.log('[Library] Create playlist response:', response?.data);
       
-      showToast(`Playlist "${name}" imetengenezwa`, 'success');
-      setNewPlaylistName('');
-      setShowCreatePlaylistModal(false);
-      await loadLibraryData();
+      if (response?.data?.playlist_id) {
+        showToast(`Playlist "${name}" imetengenezwa`, 'success');
+        setNewPlaylistName('');
+        setShowCreatePlaylistModal(false);
+        await loadLibraryData();
+      } else {
+        console.log('[Library] Unexpected response format:', response?.data);
+        showToast('Imeshindikana kutengeneza playlist', 'error');
+      }
     } catch (error) {
-      console.error('[Library] Create playlist error:', error.response?.data || error.message);
-      showToast('Imeshindikana kutengeneza playlist', 'error');
+      console.error('[Library] Create playlist error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      
+      // Show more specific error messages
+      if (error.response?.status === 401) {
+        showToast('Tafadhali ingia tena', 'error');
+      } else if (error.response?.status === 403) {
+        showToast('Unahitaji Premium kutengeneza playlist', 'error');
+      } else {
+        showToast('Imeshindikana kutengeneza playlist', 'error');
+      }
     } finally {
       setCreatingPlaylist(false);
     }

@@ -14,6 +14,7 @@ import { PlayerProvider, usePlayer, setShowLoginPromptCallback, clearShowLoginPr
 import { BillingProvider, useBilling } from './src/context/BillingContext';
 import { DownloadProvider } from './src/context/DownloadContext';
 import { GeoProvider } from './src/context/GeoContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 
 // Components
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -499,19 +500,21 @@ export default function App() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
-        <AuthProvider>
-          <BillingProvider>
-            <GeoProvider>
-              <DownloadProvider>
-                <PlayerProviderWithBilling>
-                  <ToastProvider>
-                    <AppContent />
-                  </ToastProvider>
-                </PlayerProviderWithBilling>
-              </DownloadProvider>
-            </GeoProvider>
-          </BillingProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <BillingProvider>
+              <GeoProvider>
+                <DownloadProvider>
+                  <PlayerProviderWithBilling>
+                    <ToastProvider>
+                      <AppContent />
+                    </ToastProvider>
+                  </PlayerProviderWithBilling>
+                </DownloadProvider>
+              </GeoProvider>
+            </BillingProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

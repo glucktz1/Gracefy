@@ -18,10 +18,9 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
 import { useBilling } from '../context/BillingContext';
 import { useDownloads } from '../context/DownloadContext';
+import { useLanguage } from '../context/LanguageContext';
 import { userAPI, libraryAPI, billingAPI, getImageUrl } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const LANGUAGE_KEY = '@gracefy_language';
 const THEME_KEY = '@gracefy_theme';
 
 const ProfileScreen = ({ navigation }) => {
@@ -33,6 +32,7 @@ const ProfileScreen = ({ navigation }) => {
     getTotalDownloadSize,
     clearAllDownloads 
   } = useDownloads();
+  const { language, toggleLanguage, isSwahili } = useLanguage();
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,7 +46,6 @@ const ProfileScreen = ({ navigation }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedPhone, setEditedPhone] = useState('');
-  const [currentLanguage, setCurrentLanguage] = useState('sw');
   const [currentTheme, setCurrentTheme] = useState('dark');
   const [transactions, setTransactions] = useState([]);
 
@@ -71,11 +70,7 @@ const ProfileScreen = ({ navigation }) => {
 
   const loadSettings = async () => {
     try {
-      const [lang, theme] = await Promise.all([
-        AsyncStorage.getItem(LANGUAGE_KEY),
-        AsyncStorage.getItem(THEME_KEY),
-      ]);
-      if (lang) setCurrentLanguage(lang);
+      const theme = await AsyncStorage.getItem(THEME_KEY);
       if (theme) setCurrentTheme(theme);
     } catch (error) {
       console.log('Error loading settings:', error);
@@ -176,18 +171,15 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleLanguageChange = async () => {
-    const newLang = currentLanguage === 'sw' ? 'en' : 'sw';
-    try {
-      await AsyncStorage.setItem(LANGUAGE_KEY, newLang);
-      setCurrentLanguage(newLang);
+    const success = await toggleLanguage();
+    if (success) {
+      const newLang = isSwahili ? 'en' : 'sw'; // After toggle, it's the opposite
       Alert.alert(
-        newLang === 'sw' ? 'Lugha Imebadilishwa' : 'Language Changed',
+        newLang === 'sw' ? 'Language Changed' : 'Lugha Imebadilishwa',
         newLang === 'sw' 
-          ? 'Sasa programu itatumia Kiswahili' 
-          : 'App will now use English'
+          ? 'App will now use Swahili'
+          : 'Sasa programu itatumia Kiingereza'
       );
-    } catch (error) {
-      console.error('Error saving language:', error);
     }
   };
 
@@ -614,10 +606,10 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.menuIconContainer}>
               <Ionicons name="language" size={20} color={COLORS.primary} />
             </View>
-            <Text style={styles.menuItemText}>Lugha</Text>
+            <Text style={styles.menuItemText}>{isSwahili ? 'Lugha' : 'Language'}</Text>
             <View style={styles.menuItemBadge}>
               <Text style={styles.menuItemBadgeText}>
-                {currentLanguage === 'sw' ? 'Kiswahili' : 'English'}
+                {isSwahili ? 'Kiswahili' : 'English'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
