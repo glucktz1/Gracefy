@@ -487,4 +487,14 @@ export const radioAPI = {
   trackStop: (data) => api.post('/radio/stop', data),
 };
 
+// ============ NENO LA LEO (TODAY'S WORD) API ============
+export const nenoLaLeoAPI = {
+  // Get active Neno la Leo entries
+  getActive: () => api.get('/neno-la-leo/active'),
+  // Get single Neno la Leo entry
+  get: (nenoId) => api.get(`/neno-la-leo/${nenoId}`),
+  // Track play count
+  trackPlay: (nenoId, audioType = 'reading') => api.post('/neno-la-leo/play', { neno_id: nenoId, audio_type: audioType }),
+};
+
 export default api;

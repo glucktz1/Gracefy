@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl, radioAPI, geoAPI } from '../services/api';
+import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl, radioAPI, geoAPI, nenoLaLeoAPI } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useGeo } from '../context/GeoContext';
@@ -52,6 +52,9 @@ const HomeScreen = ({ navigation }) => {
   const [bibleSnippets, setBibleSnippets] = useState([]);
   const [churches, setChurches] = useState([]);
   const [mafundishoContent, setMafundishoContent] = useState([]);
+  
+  // Neno la Leo (Today's Word)
+  const [nenoLaLeo, setNenoLaLeo] = useState([]);
   
   // Additional sections from Layout Manager
   const [lentSongs, setLentSongs] = useState([]);
@@ -142,6 +145,7 @@ const HomeScreen = ({ navigation }) => {
         tagsRes,
         radioRes,
         geoAlbumsRes,
+        nenoLaLeoRes,
       ] = await Promise.all([
         // Get home data with sections, hero, and burners in correct layout order
         homeAPI.getAppHome().catch(() => ({ data: { sections: [], hero: { items: [] }, burners: [] } })),
@@ -154,6 +158,8 @@ const HomeScreen = ({ navigation }) => {
         useGeoFiltering 
           ? geoAPI.getLocalizedFeed(userCountry, 'albums').catch(() => ({ data: { albums: [] } }))
           : Promise.resolve({ data: { albums: [] } }),
+        // Get Neno la Leo (Today's Word) entries
+        nenoLaLeoAPI.getActive().catch(() => ({ data: { neno_list: [] } })),
       ]);
 
       // Album Tags
@@ -276,6 +282,10 @@ const HomeScreen = ({ navigation }) => {
       // Radio Stations
       const stations = radioRes.data?.stations || [];
       setRadioStations(Array.isArray(stations) ? stations : []);
+
+      // Neno la Leo (Today's Word)
+      const nenoList = nenoLaLeoRes.data?.neno_list || [];
+      setNenoLaLeo(Array.isArray(nenoList) ? nenoList : []);
 
       // Quick Access config
       const quickAccessSection = activeSections.find(s => 
@@ -800,6 +810,12 @@ const HomeScreen = ({ navigation }) => {
       }
     }
     
+    // Neno la Leo (Today's Word) - Before Mafundisho
+    if (nenoLaLeo.length > 0 && !addedSectionTypes.has('nenoLaLeo')) {
+      sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
+      addedSectionTypes.add('nenoLaLeo');
+    }
+    
     // Mafundisho na Katekesi - ADD ONCE at the end (before Nyimbo Zote)
     if (mafundishoContent.length > 0 && !addedSectionTypes.has('mafundisho')) {
       sections.push({ type: 'mafundisho', key: 'mafundisho', data: mafundishoContent });
@@ -827,7 +843,7 @@ const HomeScreen = ({ navigation }) => {
     
     return sections;
   }, [heroContent, categories, mafundishoContent, layoutSections, specialMixes, radioStations, 
-      mostListenedAlbums, hotNewReleases, bibleSnippets, churches, allSongs, recentAlbums]);
+      mostListenedAlbums, hotNewReleases, bibleSnippets, churches, allSongs, recentAlbums, nenoLaLeo]);
 
   // Render item for FlatList
   const renderFlatListItem = useCallback(({ item }) => {
@@ -858,6 +874,9 @@ const HomeScreen = ({ navigation }) => {
       
       case 'mafundisho':
         return renderMafundishoSection(item.data);
+      
+      case 'nenoLaLeo':
+        return renderNenoLaLeoSection(item.data);
       
       case 'dynamicSection':
         return renderDynamicSection(item.data);
@@ -897,7 +916,7 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [greeting, navigation, heroContent, categories, userPlaylists, recentAlbums, user, 
       mafundishoContent, specialMixes, radioStations, mostListenedAlbums, hotNewReleases,
-      bibleSnippets, churches, allSongs, currentTrack, isPlaying, activeCategory]);
+      bibleSnippets, churches, allSongs, currentTrack, isPlaying, activeCategory, nenoLaLeo]);
 
   // Helper render functions for FlatList sections
   const renderHeroSection = (heroData) => {
@@ -1118,6 +1137,108 @@ const HomeScreen = ({ navigation }) => {
       </ScrollView>
     </View>
   );
+
+  // Neno la Leo (Today's Word) Section
+  const renderNenoLaLeoSection = (data) => {
+    const handlePlayNenoAudio = async (neno, audioType) => {
+      const audioUrl = audioType === 'reading' ? neno.reading_audio_url : neno.reflection_audio_url;
+      if (!audioUrl) return;
+      
+      // Track play
+      try {
+        await nenoLaLeoAPI.trackPlay(neno.neno_id, audioType);
+      } catch (e) {
+        console.log('[Neno] Track play error:', e.message);
+      }
+      
+      // Play audio (you can integrate with player context if needed)
+      // For now, this opens in a modal or uses the player
+      // Simple implementation: create a pseudo-track for the player
+      const pseudoTrack = {
+        song_id: `neno_${neno.neno_id}_${audioType}`,
+        title: `${neno.verse_reference} - ${audioType === 'reading' ? 'Kusoma' : 'Tafakari'}`,
+        artist_name: `${neno.leader?.title || ''} ${neno.leader?.name || 'Unknown'}`,
+        album_name: 'Neno la Leo',
+        audio_url: audioUrl,
+        thumbnail: neno.leader?.photo_url || 'https://via.placeholder.com/200',
+        duration: 0, // Unknown
+      };
+      
+      playTrack(pseudoTrack, [pseudoTrack], 0);
+    };
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderWithIcon}>
+            <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+              <Ionicons name="book" size={18} color="#8B5CF6" />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>Neno la Leo</Text>
+              <Text style={styles.sectionSubtitleText}>Tafakari ya Kila Siku</Text>
+            </View>
+          </View>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+          {data.map((neno, index) => (
+            <View key={neno.neno_id} style={styles.nenoCard}>
+              <LinearGradient 
+                colors={index % 3 === 0 ? ['#7c3aed', '#8b5cf6'] : index % 3 === 1 ? ['#059669', '#10b981'] : ['#d97706', '#f59e0b']} 
+                start={{ x: 0, y: 0 }} 
+                end={{ x: 1, y: 1 }} 
+                style={styles.nenoGradient}
+              >
+                {/* Leader photo */}
+                <View style={styles.nenoLeaderSection}>
+                  <View style={styles.nenoLeaderAvatar}>
+                    {neno.leader?.photo_url ? (
+                      <Image source={{ uri: neno.leader.photo_url }} style={styles.nenoLeaderImage} />
+                    ) : (
+                      <Ionicons name="person" size={24} color="rgba(255,255,255,0.7)" />
+                    )}
+                  </View>
+                  <View style={styles.nenoLeaderInfo}>
+                    <Text style={styles.nenoVerseRef} numberOfLines={1}>{neno.verse_reference}</Text>
+                    <Text style={styles.nenoLeaderName} numberOfLines={1}>{neno.leader?.title} {neno.leader?.name}</Text>
+                    <Text style={styles.nenoDate}>{neno.word_day_name || ''} - {neno.word_date}</Text>
+                  </View>
+                </View>
+                
+                {/* Play buttons */}
+                <View style={styles.nenoButtons}>
+                  {neno.reading_audio_url ? (
+                    <TouchableOpacity 
+                      style={styles.nenoPlayBtn} 
+                      onPress={() => handlePlayNenoAudio(neno, 'reading')}
+                    >
+                      <Ionicons name="book-outline" size={14} color="#fff" />
+                      <Text style={styles.nenoPlayBtnText}>Kusoma</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {neno.reflection_audio_url ? (
+                    <TouchableOpacity 
+                      style={styles.nenoPlayBtn} 
+                      onPress={() => handlePlayNenoAudio(neno, 'reflection')}
+                    >
+                      <Ionicons name="mic-outline" size={14} color="#fff" />
+                      <Text style={styles.nenoPlayBtnText}>Tafakari</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {!neno.reading_audio_url && !neno.reflection_audio_url && (
+                    <View style={styles.nenoComingSoon}>
+                      <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.5)" />
+                      <Text style={styles.nenoComingSoonText}>Inakuja</Text>
+                    </View>
+                  )}
+                </View>
+              </LinearGradient>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
 
   const renderSpecialMixesSection = (data) => (
     <View style={styles.section}>
@@ -2177,6 +2298,87 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
     marginLeft: SPACING.sm,
+  },
+  // Neno la Leo (Today's Word) styles
+  nenoCard: {
+    width: 280,
+    height: 160,
+    marginRight: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  nenoGradient: {
+    flex: 1,
+    padding: SPACING.md,
+    justifyContent: 'space-between',
+  },
+  nenoLeaderSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+  },
+  nenoLeaderAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  nenoLeaderImage: {
+    width: '100%',
+    height: '100%',
+  },
+  nenoLeaderInfo: {
+    flex: 1,
+  },
+  nenoVerseRef: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  nenoLeaderName: {
+    fontSize: FONT_SIZES.sm,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  nenoDate: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+  nenoButtons: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  nenoPlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 20,
+  },
+  nenoPlayBtnText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  nenoComingSoon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 20,
+  },
+  nenoComingSoonText: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.5)',
   },
 });
 

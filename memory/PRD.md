@@ -14,7 +14,36 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 21, 2026 (Latest)
+### Session: March 24, 2026 (Latest)
+- ✅ **Neno la Leo (Today's Word) Feature - COMPLETE**:
+  - **Backend APIs** (`/app/backend/routes/neno_la_leo.py`):
+    - Admin CRUD for leaders and Neno entries
+    - Leader portal authentication and content management
+    - Public API for active entries (`/api/neno-la-leo/active`)
+    - Play tracking (`/api/neno-la-leo/play`)
+  - **Admin UI** (`/app/frontend/src/pages/NenoLaLeoPage.jsx`):
+    - Stats dashboard (Total Entries, Active, Leaders, Pending)
+    - Tabbed interface (Content, Leaders, Pending approvals)
+    - Create/Edit Neno entries with Bible book selector
+    - Audio recording and upload functionality
+    - Leader management with temporary password generation
+  - **Leader Portal** (`/app/frontend/src/pages/LeaderDashboardPage.jsx`):
+    - Dedicated login at `/leader/login`
+    - Dashboard with stats and recent entries
+    - Create/Edit Neno entries with audio recording
+    - Analytics view (total plays, reading/reflection counts)
+  - **User App (Web)** - NenoLaLeoSection in `UserStreamingApp.jsx`:
+    - Horizontal scrollable cards with gradient backgrounds
+    - Shows verse reference, leader name, date
+    - "Kusoma" (Reading) and "Tafakari" (Reflection) play buttons
+    - "Inakuja Hivi Karibuni" (Coming Soon) for entries without audio
+  - **Mobile App** - NenoLaLeoSection in `HomeScreen.js`:
+    - Matching design with gradient cards
+    - Integrated with player context for audio playback
+    - Play tracking API calls
+  - **Testing**: 100% pass rate (20/20 backend tests, all frontend features verified)
+
+### Session: March 21, 2026
 - ✅ **Guest Limit Enforcement (5 songs/skips) - INDEPENDENT OF BILLING** - Updated on BOTH web and mobile:
   - Changed `GUEST_PLAY_LIMIT` from 3 to 5
   - Changed `GUEST_SKIP_LIMIT` from 3 to 5
@@ -164,11 +193,15 @@ DB_NAME = gracefy_db
 
 ## Backlog / Future Tasks
 1. **URGENT: Refactor UserStreamingApp.jsx** - 6500+ lines, needs to be split into smaller components
-2. Bible TTS voice selection from admin settings
-3. Admin language file upload feature
-4. Audio Ad integration
-5. SendGrid email campaigns
-6. Consolidate `users`/`app_users` collections
+2. **P0: Fix Playlist Creation Bug** - Mobile app sends requests without Auth header
+3. Bible TTS voice selection from admin settings
+4. Admin language file upload feature
+5. Audio Ad integration
+6. SendGrid email campaigns
+7. Consolidate `users`/`app_users` collections
+8. Publish app to stores (generate AAB build for Google Play)
+9. Start HLS transcoding batch process
+10. Authorize `gracefy.net` in Firebase for production Google OAuth
 
 ## Key Files
 - `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (6500+ lines - NEEDS REFACTORING)
