@@ -175,9 +175,25 @@ const LibraryScreen = ({ navigation, route }) => {
       return;
     }
 
+    // Debug: Check if user is authenticated
+    console.log('[Library] isAuthenticated:', isAuthenticated);
+    console.log('[Library] user:', user?.user_id);
+    
+    if (!isAuthenticated) {
+      showToast('Tafadhali ingia kwanza', 'error');
+      return;
+    }
+
     try {
       setCreatingPlaylist(true);
       console.log('[Library] Creating playlist with name:', name);
+      
+      // Check if token exists in SecureStore
+      const SecureStore = require('expo-secure-store');
+      const token = await SecureStore.getItemAsync('auth_token');
+      console.log('[Library] Token exists:', !!token);
+      console.log('[Library] Token preview:', token ? token.substring(0, 20) + '...' : 'null');
+      
       const response = await libraryAPI.createPlaylist({ name });
       console.log('[Library] Create playlist response:', response?.data);
       
