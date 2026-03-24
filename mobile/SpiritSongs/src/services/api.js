@@ -50,11 +50,16 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const token = await SecureStore.getItemAsync('auth_token');
+      console.log('[API] Request to:', config.url);
+      console.log('[API] Token exists:', !!token);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('[API] Added auth header');
+      } else {
+        console.log('[API] No token found in SecureStore');
       }
     } catch (e) {
-      console.log('Error getting token:', e);
+      console.log('[API] Error getting token:', e);
     }
     return config;
   },

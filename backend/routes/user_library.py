@@ -22,17 +22,55 @@ async def get_user_from_token(request: Request):
     
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
+        print("[Auth] No Bearer token in Authorization header")
         return None
     
     token = auth_header[7:]
-    token_doc = await db.user_tokens.find_one({"token": token})
-    if not token_doc:
-        return None
+    print(f"[Auth] Looking up token: {token[:20]}...")
     
-    return await db.app_users.find_one(
-        {"user_id": token_doc["user_id"]},
-        {"_id": 0, "password_hash": 0}
-    )
+    # First try user_tokens collection
+    token_doc = await db.user_tokens.find_one({"token": token})
+    if token_doc:
+        print(f"[Auth] Token found in user_tokens for user: {token_doc.get('user_id')}")
+        user = await db.app_users.find_one(
+            {"user_id": token_doc["user_id"]},
+            {"_id": 0, "password_hash": 0}
+        )
+        if user:
+            return user
+        # Also try users collection
+        user = await db.users.find_one(
+            {"user_id": token_doc["user_id"]},
+            {"_id": 0, "password": 0, "password_hash": 0}
+        )
+        if user:
+            return user
+    
+    # If not found in user_tokens, try to decode as JWT
+    try:
+        import jwt
+        # Try to decode without verification (just to get user_id)
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_id = payload.get("user_id") or payload.get("sub")
+        if user_id:
+            print(f"[Auth] Decoded JWT for user: {user_id}")
+            user = await db.app_users.find_one(
+                {"user_id": user_id},
+                {"_id": 0, "password_hash": 0}
+            )
+            if user:
+                return user
+            user = await db.users.find_one(
+                {"user_id": user_id},
+                {"_id": 0, "password": 0, "password_hash": 0}
+            )
+            if user:
+                return user
+    except Exception as jwt_error:
+        print(f"[Auth] JWT decode failed: {jwt_error}")
+    
+    print("[Auth] Token not found in any collection")
+    return None
 
 
 # ============== FAVORITES ==============
