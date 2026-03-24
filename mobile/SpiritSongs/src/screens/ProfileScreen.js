@@ -394,8 +394,7 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Subscription Section - Only show when billing is ON */}
-        {billingEnabled && (
+        {/* Subscription Section - Always visible */}
         <View style={styles.menuSection}>
           <View style={styles.menuSectionHeader}>
             <Text style={styles.menuSectionTitle}>Usajili</Text>
@@ -415,86 +414,98 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
           
-          {/* Show subscription info when billing is ON */}
-          {isPremium ? (
-            <View style={styles.premiumCard}>
-              <LinearGradient
-                colors={[COLORS.primary, '#1ed760']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.premiumGradient}
-              >
-                <View style={styles.premiumHeader}>
-                  <Ionicons name="star" size={24} color="#FFD700" />
-                  <Text style={styles.premiumTitle}>Premium Amilifu</Text>
-                </View>
-                <Text style={styles.premiumPlan}>{subscription?.plan_name || 'Premium'}</Text>
-                <Text style={styles.premiumExpiry}>
-                  {subscription?.expires_at 
-                    ? `Inaisha: ${formatDate(subscription.expires_at)}`
-                    : 'Usajili wako upo sawa'}
-                </Text>
-              </LinearGradient>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={styles.upgradeBanner}
-              onPress={() => navigation.navigate('Subscription')}
-            >
-              <View style={styles.upgradeContent}>
-                <Ionicons name="star" size={24} color={COLORS.warning} />
-                <View style={styles.upgradeText}>
-                  <Text style={styles.upgradeTitle}>Pata Gracefy Premium</Text>
-                  <Text style={styles.upgradeSubtitle}>Fungua vipengele vyote bila kikomo</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-          )}
-
-          {/* Recent Transactions - Only show if billing is enabled */}
-          {transactions.length > 0 && (
-              <View style={styles.transactionsContainer}>
-                <Text style={styles.transactionsTitle}>Historia ya Malipo</Text>
-                {transactions.slice(0, 3).map((txn, index) => (
-                  <View key={txn.transaction_id || index} style={styles.transactionItem}>
-                    <View style={styles.transactionIcon}>
-                      <Ionicons 
-                        name={txn.status === 'completed' ? 'checkmark-circle' : 
-                              txn.status === 'pending' ? 'time' : 'close-circle'} 
-                        size={20} 
-                        color={txn.status === 'completed' ? COLORS.primary : 
-                               txn.status === 'pending' ? COLORS.warning : COLORS.error} 
-                      />
+          {billingEnabled ? (
+            // BILLING ON - Show plans and subscription status
+            <>
+              {isPremium ? (
+                <View style={styles.premiumCard}>
+                  <LinearGradient
+                    colors={[COLORS.primary, '#1ed760']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.premiumGradient}
+                  >
+                    <View style={styles.premiumHeader}>
+                      <Ionicons name="star" size={24} color="#FFD700" />
+                      <Text style={styles.premiumTitle}>Premium Amilifu</Text>
+                      {/* Green active dot */}
+                      <View style={[styles.statusDotTopRight, { backgroundColor: '#22C55E' }]} />
                     </View>
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionPlan}>{txn.plan_name}</Text>
-                      <Text style={styles.transactionDate}>{formatDate(txn.initiated_at)}</Text>
-                    </View>
-                    <View style={styles.transactionAmount}>
-                      <Text style={styles.transactionPrice}>{formatPrice(txn.amount)}</Text>
-                      <Text style={[
-                        styles.transactionStatus,
-                        { color: txn.status === 'completed' ? COLORS.primary : 
-                                 txn.status === 'pending' ? COLORS.warning : COLORS.error }
-                      ]}>
-                        {txn.status === 'completed' ? 'Imekamilika' : 
-                         txn.status === 'pending' ? 'Inasubiri' : 'Imeshindikana'}
-                      </Text>
+                    <Text style={styles.premiumPlan}>{subscription?.plan_name || 'Premium'}</Text>
+                    <Text style={styles.premiumExpiry}>
+                      {subscription?.expires_at 
+                        ? `Inaisha: ${formatDate(subscription.expires_at)}`
+                        : 'Usajili wako upo sawa'}
+                    </Text>
+                  </LinearGradient>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.upgradeBanner}
+                  onPress={() => navigation.navigate('Subscription')}
+                >
+                  <View style={styles.upgradeContent}>
+                    <Ionicons name="heart" size={24} color={COLORS.warning} />
+                    <View style={styles.upgradeText}>
+                      <Text style={styles.upgradeTitle}>Changia Kidogo</Text>
+                      <Text style={styles.upgradeSubtitle}>Saidia kuendeleza teknolojia hii</Text>
                     </View>
                   </View>
-                ))}
+                  <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
+                </TouchableOpacity>
+              )}
+              
+              {/* Recent Transactions */}
+              {transactions.length > 0 && (
+                <View style={styles.transactionsContainer}>
+                  <Text style={styles.transactionsTitle}>Historia ya Malipo</Text>
+                  {transactions.slice(0, 3).map((txn, index) => (
+                    <View key={txn.transaction_id || index} style={styles.transactionItem}>
+                      <View style={styles.transactionIcon}>
+                        <Ionicons 
+                          name={txn.status === 'completed' ? 'checkmark-circle' : 
+                                txn.status === 'pending' ? 'time' : 'close-circle'} 
+                          size={20} 
+                          color={txn.status === 'completed' ? COLORS.primary : 
+                                 txn.status === 'pending' ? COLORS.warning : COLORS.error} 
+                        />
+                      </View>
+                      <View style={styles.transactionDetails}>
+                        <Text style={styles.transactionPlan}>{txn.plan_name}</Text>
+                        <Text style={styles.transactionDate}>{formatDate(txn.initiated_at)}</Text>
+                      </View>
+                      <View style={styles.transactionAmount}>
+                        <Text style={styles.transactionPrice}>{formatPrice(txn.amount)}</Text>
+                        <Text style={[
+                          styles.transactionStatus,
+                          { color: txn.status === 'completed' ? COLORS.primary : 
+                                   txn.status === 'pending' ? COLORS.warning : COLORS.error }
+                        ]}>
+                          {txn.status === 'completed' ? 'Imekamilika' : 
+                           txn.status === 'pending' ? 'Inasubiri' : 'Imeshindikana'}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : (
+            // BILLING OFF - Show "Huduma Bure!" with gray dot, no plans, no contribute prompt
+            <View style={styles.freeAccessCard}>
+              <View style={styles.freeAccessContent}>
+                <Ionicons name="gift" size={32} color={COLORS.primary} />
+                <View style={styles.freeAccessText}>
+                  <Text style={styles.freeAccessTitle}>Huduma Bure!</Text>
+                  <Text style={styles.freeAccessSubtitle}>
+                    Vipengele vyote viko bure kwa sasa. Furahia muziki bila kikomo!
+                  </Text>
+                </View>
+                {/* Gray inactive dot - top right */}
+                <View style={[styles.statusDotTopRight, { backgroundColor: COLORS.textMuted }]} />
               </View>
-            )}
-        </View>
-        )}
-
-        {/* Billing Status Dot - Shows green when billing ON, gray when OFF */}
-        <View style={styles.billingDotContainer}>
-          <View style={[
-            styles.billingDot,
-            { backgroundColor: billingEnabled ? '#22C55E' : COLORS.textMuted }
-          ]} />
+            </View>
+          )}
         </View>
 
         {/* Menu Items */}
@@ -707,15 +718,55 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  // Billing status dot - subtle indicator
-  billingDotContainer: {
+  // Billing status row with dot
+  billingStatusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.xs,
+    gap: SPACING.sm,
   },
-  billingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  billingStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  // Free access card (billing OFF)
+  freeAccessCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+    position: 'relative',
+  },
+  freeAccessContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  freeAccessText: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  freeAccessTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: SPACING.xs,
+  },
+  freeAccessSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
+  // Status dot positioned top-right of the box
+  statusDotTopRight: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.surface,
   },
   loginPrompt: {
     flex: 1,

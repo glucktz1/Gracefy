@@ -344,16 +344,26 @@ async def get_playlists(request: Request):
 
 @router.post("/library/playlists")
 async def create_playlist(request: Request, data: dict):
-    """Create a new playlist - requires premium when billing is enabled"""
+    """Create a new playlist - requires premium only when billing is enabled"""
     db = get_db()
+    
+    # Get auth header for debugging
+    auth_header = request.headers.get("Authorization", "")
+    print(f"[Playlist] Auth header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}")
+    
     user = await get_user_from_token(request)
     
     if not user:
+        print(f"[Playlist] User not found from token")
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    print(f"[Playlist] Creating playlist for user: {user.get('user_id')}")
     
     # Check billing status - if billing is enabled, check user's premium status
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
     billing_enabled = settings.get("billing_enabled", False) if settings else False
+    
+    print(f"[Playlist] Billing enabled: {billing_enabled}")
     
     if billing_enabled:
         # Check if user is premium
@@ -366,15 +376,19 @@ async def create_playlist(request: Request, data: dict):
             is_premium = expires_at > datetime.now(timezone.utc)
         
         if not is_premium:
+            print(f"[Playlist] User not premium, blocking")
             raise HTTPException(
                 status_code=403, 
                 detail="Playlist creation requires a Premium subscription"
             )
     
+    playlist_name = data.get("name", "My Playlist")
+    print(f"[Playlist] Creating playlist with name: {playlist_name}")
+    
     playlist = {
         "playlist_id": f"pl_{uuid.uuid4().hex[:12]}",
         "user_id": user["user_id"],
-        "name": data.get("name", "My Playlist"),
+        "name": playlist_name,
         "description": data.get("description"),
         "thumbnail": data.get("thumbnail"),
         "songs": [],
@@ -384,6 +398,8 @@ async def create_playlist(request: Request, data: dict):
     
     await db.user_playlists.insert_one(playlist)
     playlist.pop("_id", None)
+    
+    print(f"[Playlist] Created successfully: {playlist.get('playlist_id')}")
     
     return playlist
 
