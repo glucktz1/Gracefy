@@ -830,7 +830,6 @@ const NenoLaLeoSection = ({ language, t }) => {
   const [nenoList, setNenoList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState(null);
-  const [playingType, setPlayingType] = useState(null); // 'reading' or 'reflection'
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -847,18 +846,18 @@ const NenoLaLeoSection = ({ language, t }) => {
     fetchNeno();
   }, []);
 
-  const handlePlay = (neno, type) => {
-    const audioUrl = type === 'reading' ? neno.reading_audio_url : neno.reflection_audio_url;
+  const handlePlay = (neno) => {
+    // Prioritize reading audio, fallback to reflection
+    const audioUrl = neno.reading_audio_url || neno.reflection_audio_url;
     if (!audioUrl) return;
 
     // If same audio playing, stop
-    if (playingId === neno.neno_id && playingType === type) {
+    if (playingId === neno.neno_id) {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
       setPlayingId(null);
-      setPlayingType(null);
       return;
     }
 
@@ -872,14 +871,13 @@ const NenoLaLeoSection = ({ language, t }) => {
     audio.play();
     audioRef.current = audio;
     setPlayingId(neno.neno_id);
-    setPlayingType(type);
 
     // Track play
-    axios.post(`${API}/neno-la-leo/play`, { neno_id: neno.neno_id, audio_type: type }).catch(() => {});
+    const audioType = neno.reading_audio_url ? 'reading' : 'reflection';
+    axios.post(`${API}/neno-la-leo/play`, { neno_id: neno.neno_id, audio_type: audioType }).catch(() => {});
 
     audio.onended = () => {
       setPlayingId(null);
-      setPlayingType(null);
     };
   };
 
@@ -894,115 +892,129 @@ const NenoLaLeoSection = ({ language, t }) => {
 
   if (loading || nenoList.length === 0) return null;
 
-  // Swahili day names
-  const getDayName = (dateStr) => {
-    const days = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
-    const date = new Date(dateStr);
-    return days[date.getDay()];
-  };
+  // Bible book background images
+  const bibleBackgrounds = [
+    'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=600&q=80', // Open Bible with light
+    'https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?w=600&q=80', // Bible on wooden table
+    'https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=600&q=80', // Bible pages close up
+  ];
 
   return (
     <section className="relative" data-testid="neno-la-leo-section">
       {/* Section Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <BookMarked size={20} className="text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <BookOpen size={20} className="text-white" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">{t('nenoLaLeo.title', 'Neno la Leo')}</h2>
-            <p className="text-xs text-zinc-400">{t('nenoLaLeo.subtitle', 'Tafakari ya Kila Siku')}</p>
+            <p className="text-xs text-zinc-400">{t('nenoLaLeo.subtitle', 'Sikiliza Neno la Mungu')}</p>
           </div>
         </div>
       </div>
 
-      {/* Horizontal Scroll Cards */}
+      {/* Horizontal Scroll Cards - Clean Bible Design */}
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-        {nenoList.map((neno, idx) => (
-          <div 
-            key={neno.neno_id}
-            className="flex-shrink-0 w-72 md:w-80 group"
-            data-testid={`neno-card-${neno.neno_id}`}
-          >
-            <div className={`relative h-48 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group-hover:scale-[1.02] ${
-              idx % 3 === 0 ? 'bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 shadow-violet-900/30 group-hover:shadow-violet-500/30' :
-              idx % 3 === 1 ? 'bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 shadow-emerald-900/30 group-hover:shadow-emerald-500/30' :
-              'bg-gradient-to-br from-amber-900 via-orange-800 to-red-900 shadow-amber-900/30 group-hover:shadow-amber-500/30'
-            }`}>
-              {/* Background Blur */}
-              <div className="absolute inset-0 opacity-20">
-                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white blur-3xl" />
-              </div>
+        {nenoList.map((neno, idx) => {
+          const hasAudio = neno.reading_audio_url || neno.reflection_audio_url;
+          const isPlaying = playingId === neno.neno_id;
+          
+          return (
+            <div 
+              key={neno.neno_id}
+              className="flex-shrink-0 w-80 md:w-96 group cursor-pointer"
+              data-testid={`neno-card-${neno.neno_id}`}
+              onClick={() => hasAudio && handlePlay(neno)}
+            >
+              <div className="relative h-52 rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-[1.02] group-hover:shadow-amber-500/20">
+                {/* Background Image */}
+                <img 
+                  src={bibleBackgrounds[idx % bibleBackgrounds.length]} 
+                  alt="Bible" 
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                
+                {/* Dark Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+                
+                {/* Warm Light Effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent" />
 
-              {/* Content */}
-              <div className="relative h-full p-4 flex flex-col justify-between">
-                {/* Top: Leader Info */}
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {neno.leader?.photo_url ? (
-                      <img src={neno.leader.photo_url} alt="" className="w-full h-full object-cover" />
+                {/* Content */}
+                <div className="relative h-full p-5 flex flex-col justify-between">
+                  {/* Top Row: Duration Badge & Expand Icon */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full">
+                      <Clock size={12} className="text-white/80" />
+                      <span className="text-xs font-medium text-white/90">1 min</span>
+                    </div>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <ChevronRight size={20} className="text-white/60 rotate-[-90deg]" />
+                    </div>
+                  </div>
+
+                  {/* Middle: Neno la Leo Label & Verse */}
+                  <div className="flex-1 flex flex-col justify-center">
+                    <p className="text-sm text-white/70 font-medium mb-1">Neno la Leo</p>
+                    <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+                      {neno.verse_reference}
+                    </h3>
+                  </div>
+
+                  {/* Bottom Row: Action Buttons */}
+                  <div className="flex items-center gap-3">
+                    {hasAudio ? (
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handlePlay(neno); }}
+                          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-md transition-all ${
+                            isPlaying 
+                              ? 'bg-white text-black' 
+                              : 'bg-white/20 text-white hover:bg-white/30'
+                          }`}
+                        >
+                          {isPlaying ? (
+                            <Pause size={16} className="animate-pulse" />
+                          ) : (
+                            <Headphones size={16} />
+                          )}
+                          <span className="text-sm font-semibold">{isPlaying ? 'Simamisha' : 'Sikiliza'}</span>
+                        </button>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-2.5 px-5 py-2.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-all"
+                        >
+                          <List size={16} />
+                          <span className="text-sm font-semibold">Soma</span>
+                        </button>
+                      </>
                     ) : (
-                      <User size={20} className="text-white/70" />
+                      <div className="flex items-center gap-2.5 px-5 py-2.5 bg-white/10 backdrop-blur-md rounded-full text-white/50">
+                        <Clock size={16} />
+                        <span className="text-sm font-medium">Inakuja Hivi Karibuni</span>
+                      </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-white truncate">{neno.verse_reference}</h3>
-                    <p className="text-sm text-white/70 truncate">{neno.leader?.title} {neno.leader?.name}</p>
-                    <p className="text-xs text-white/50">{getDayName(neno.word_date)} - {neno.word_date}</p>
-                  </div>
                 </div>
 
-                {/* Bottom: Play Buttons */}
-                <div className="flex items-center gap-2">
-                  {neno.reading_audio_url && (
-                    <button
-                      onClick={() => handlePlay(neno, 'reading')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-                        playingId === neno.neno_id && playingType === 'reading'
-                          ? 'bg-white text-black'
-                          : 'bg-white/20 text-white hover:bg-white/30'
-                      }`}
-                    >
-                      {playingId === neno.neno_id && playingType === 'reading' ? (
-                        <Pause size={14} className="animate-pulse" />
-                      ) : (
-                        <BookOpen size={14} />
-                      )}
-                      <span className="text-xs font-medium">Kusoma</span>
-                    </button>
-                  )}
-                  {neno.reflection_audio_url && (
-                    <button
-                      onClick={() => handlePlay(neno, 'reflection')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-                        playingId === neno.neno_id && playingType === 'reflection'
-                          ? 'bg-white text-black'
-                          : 'bg-white/20 text-white hover:bg-white/30'
-                      }`}
-                    >
-                      {playingId === neno.neno_id && playingType === 'reflection' ? (
-                        <Pause size={14} className="animate-pulse" />
-                      ) : (
-                        <Mic size={14} />
-                      )}
-                      <span className="text-xs font-medium">Tafakari</span>
-                    </button>
-                  )}
-                  {!neno.reading_audio_url && !neno.reflection_audio_url && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-white/50">
-                      <Clock size={14} />
-                      <span className="text-xs">Inakuja Hivi Karibuni</span>
-                    </div>
-                  )}
-                </div>
+                {/* Playing Animation Indicator */}
+                {isPlaying && (
+                  <div className="absolute top-4 right-4 flex items-center gap-1">
+                    <div className="w-1 h-3 bg-amber-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1 h-4 bg-amber-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1 h-2 bg-amber-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
 };
+
 
 
 // Radio View Component - Live Christian Radio Streaming

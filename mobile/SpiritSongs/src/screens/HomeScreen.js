@@ -1138,30 +1138,37 @@ const HomeScreen = ({ navigation }) => {
     </View>
   );
 
-  // Neno la Leo (Today's Word) Section
+  // Neno la Leo (Today's Word) Section - Clean Bible Design
   const renderNenoLaLeoSection = (data) => {
-    const handlePlayNenoAudio = async (neno, audioType) => {
-      const audioUrl = audioType === 'reading' ? neno.reading_audio_url : neno.reflection_audio_url;
+    // Bible background images
+    const bibleBackgrounds = [
+      'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=600&q=80',
+      'https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?w=600&q=80',
+      'https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=600&q=80',
+    ];
+
+    const handlePlayNenoAudio = async (neno) => {
+      // Prioritize reading audio, fallback to reflection
+      const audioUrl = neno.reading_audio_url || neno.reflection_audio_url;
       if (!audioUrl) return;
       
       // Track play
+      const audioType = neno.reading_audio_url ? 'reading' : 'reflection';
       try {
         await nenoLaLeoAPI.trackPlay(neno.neno_id, audioType);
       } catch (e) {
         console.log('[Neno] Track play error:', e.message);
       }
       
-      // Play audio (you can integrate with player context if needed)
-      // For now, this opens in a modal or uses the player
-      // Simple implementation: create a pseudo-track for the player
+      // Create a pseudo-track for the player
       const pseudoTrack = {
-        song_id: `neno_${neno.neno_id}_${audioType}`,
-        title: `${neno.verse_reference} - ${audioType === 'reading' ? 'Kusoma' : 'Tafakari'}`,
-        artist_name: `${neno.leader?.title || ''} ${neno.leader?.name || 'Unknown'}`,
+        song_id: `neno_${neno.neno_id}`,
+        title: neno.verse_reference,
+        artist_name: `${neno.leader?.title || ''} ${neno.leader?.name || 'Neno la Leo'}`,
         album_name: 'Neno la Leo',
         audio_url: audioUrl,
-        thumbnail: neno.leader?.photo_url || 'https://via.placeholder.com/200',
-        duration: 0, // Unknown
+        thumbnail: bibleBackgrounds[0],
+        duration: 60, // Assume 1 min
       };
       
       playTrack(pseudoTrack, [pseudoTrack], 0);
@@ -1171,70 +1178,80 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderWithIcon}>
-            <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-              <Ionicons name="book" size={18} color="#8B5CF6" />
+            <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+              <Ionicons name="book" size={18} color="#f59e0b" />
             </View>
             <View>
               <Text style={styles.sectionTitle}>Neno la Leo</Text>
-              <Text style={styles.sectionSubtitleText}>Tafakari ya Kila Siku</Text>
+              <Text style={styles.sectionSubtitleText}>Sikiliza Neno la Mungu</Text>
             </View>
           </View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-          {data.map((neno, index) => (
-            <View key={neno.neno_id} style={styles.nenoCard}>
-              <LinearGradient 
-                colors={index % 3 === 0 ? ['#7c3aed', '#8b5cf6'] : index % 3 === 1 ? ['#059669', '#10b981'] : ['#d97706', '#f59e0b']} 
-                start={{ x: 0, y: 0 }} 
-                end={{ x: 1, y: 1 }} 
-                style={styles.nenoGradient}
+          {data.map((neno, index) => {
+            const hasAudio = neno.reading_audio_url || neno.reflection_audio_url;
+            
+            return (
+              <TouchableOpacity 
+                key={neno.neno_id} 
+                style={styles.nenoCard}
+                activeOpacity={0.9}
+                onPress={() => hasAudio && handlePlayNenoAudio(neno)}
               >
-                {/* Leader photo */}
-                <View style={styles.nenoLeaderSection}>
-                  <View style={styles.nenoLeaderAvatar}>
-                    {neno.leader?.photo_url ? (
-                      <Image source={{ uri: neno.leader.photo_url }} style={styles.nenoLeaderImage} />
-                    ) : (
-                      <Ionicons name="person" size={24} color="rgba(255,255,255,0.7)" />
-                    )}
-                  </View>
-                  <View style={styles.nenoLeaderInfo}>
-                    <Text style={styles.nenoVerseRef} numberOfLines={1}>{neno.verse_reference}</Text>
-                    <Text style={styles.nenoLeaderName} numberOfLines={1}>{neno.leader?.title} {neno.leader?.name}</Text>
-                    <Text style={styles.nenoDate}>{neno.word_day_name || ''} - {neno.word_date}</Text>
-                  </View>
-                </View>
-                
-                {/* Play buttons */}
-                <View style={styles.nenoButtons}>
-                  {neno.reading_audio_url ? (
-                    <TouchableOpacity 
-                      style={styles.nenoPlayBtn} 
-                      onPress={() => handlePlayNenoAudio(neno, 'reading')}
-                    >
-                      <Ionicons name="book-outline" size={14} color="#fff" />
-                      <Text style={styles.nenoPlayBtnText}>Kusoma</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  {neno.reflection_audio_url ? (
-                    <TouchableOpacity 
-                      style={styles.nenoPlayBtn} 
-                      onPress={() => handlePlayNenoAudio(neno, 'reflection')}
-                    >
-                      <Ionicons name="mic-outline" size={14} color="#fff" />
-                      <Text style={styles.nenoPlayBtnText}>Tafakari</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  {!neno.reading_audio_url && !neno.reflection_audio_url && (
-                    <View style={styles.nenoComingSoon}>
-                      <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.5)" />
-                      <Text style={styles.nenoComingSoonText}>Inakuja</Text>
+                {/* Background Image */}
+                <ImageBackground 
+                  source={{ uri: bibleBackgrounds[index % bibleBackgrounds.length] }}
+                  style={styles.nenoBackground}
+                  imageStyle={{ borderRadius: BORDER_RADIUS.xl }}
+                >
+                  {/* Dark Overlay */}
+                  <LinearGradient 
+                    colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.85)']} 
+                    style={styles.nenoOverlay}
+                  >
+                    {/* Top: Duration Badge */}
+                    <View style={styles.nenoTopRow}>
+                      <View style={styles.nenoDurationBadge}>
+                        <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.8)" />
+                        <Text style={styles.nenoDurationText}>1 min</Text>
+                      </View>
+                      <Ionicons name="chevron-up" size={20} color="rgba(255,255,255,0.5)" />
                     </View>
-                  )}
-                </View>
-              </LinearGradient>
-            </View>
-          ))}
+
+                    {/* Middle: Label & Verse Reference */}
+                    <View style={styles.nenoMiddle}>
+                      <Text style={styles.nenoLabel}>Neno la Leo</Text>
+                      <Text style={styles.nenoVerseRef} numberOfLines={1}>{neno.verse_reference}</Text>
+                    </View>
+
+                    {/* Bottom: Action Buttons */}
+                    <View style={styles.nenoButtons}>
+                      {hasAudio ? (
+                        <>
+                          <TouchableOpacity 
+                            style={styles.nenoListenBtn} 
+                            onPress={() => handlePlayNenoAudio(neno)}
+                          >
+                            <Ionicons name="headset-outline" size={16} color="#fff" />
+                            <Text style={styles.nenoListenBtnText}>Sikiliza</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.nenoReadBtn}>
+                            <Ionicons name="list-outline" size={16} color="#fff" />
+                            <Text style={styles.nenoReadBtnText}>Soma</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <View style={styles.nenoComingSoon}>
+                          <Ionicons name="time-outline" size={16} color="rgba(255,255,255,0.5)" />
+                          <Text style={styles.nenoComingSoonText}>Inakuja Hivi Karibuni</Text>
+                        </View>
+                      )}
+                    </View>
+                  </LinearGradient>
+                </ImageBackground>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
     );
@@ -2299,85 +2316,103 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: SPACING.sm,
   },
-  // Neno la Leo (Today's Word) styles
+  // Neno la Leo (Today's Word) - Clean Bible Design styles
   nenoCard: {
-    width: 280,
-    height: 160,
+    width: 320,
+    height: 200,
     marginRight: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
   },
-  nenoGradient: {
+  nenoBackground: {
     flex: 1,
-    padding: SPACING.md,
-    justifyContent: 'space-between',
-  },
-  nenoLeaderSection: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
-  },
-  nenoLeaderAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  nenoLeaderImage: {
     width: '100%',
     height: '100%',
   },
-  nenoLeaderInfo: {
+  nenoOverlay: {
     flex: 1,
+    padding: SPACING.lg,
+    justifyContent: 'space-between',
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  nenoTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  nenoDurationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 20,
+  },
+  nenoDurationText: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
+  },
+  nenoMiddle: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nenoLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
+    marginBottom: 4,
   },
   nenoVerseRef: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: 26,
     fontWeight: 'bold',
     color: COLORS.text,
-  },
-  nenoLeaderName: {
-    fontSize: FONT_SIZES.sm,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
-  },
-  nenoDate: {
-    fontSize: FONT_SIZES.xs,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 2,
+    letterSpacing: -0.5,
   },
   nenoButtons: {
     flexDirection: 'row',
     gap: SPACING.sm,
-    marginTop: SPACING.sm,
   },
-  nenoPlayBtn: {
+  nenoListenBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: 25,
   },
-  nenoPlayBtnText: {
-    fontSize: FONT_SIZES.xs,
+  nenoListenBtnText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  nenoReadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: 25,
+  },
+  nenoReadBtnText: {
+    fontSize: FONT_SIZES.sm,
     color: COLORS.text,
     fontWeight: '600',
   },
   nenoComingSoon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: 25,
   },
   nenoComingSoonText: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.sm,
     color: 'rgba(255,255,255,0.5)',
   },
 });
