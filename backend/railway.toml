@@ -1,0 +1,19 @@
+# Railway configuration for Gracefy Backend
+# This file configures the build and deploy settings
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+numReplicas = 2
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Resource limits (adjust based on your plan)
+# Uncomment if needed:
+# [deploy.resources]
+# memory = "512Mi"
+# cpu = "0.5"

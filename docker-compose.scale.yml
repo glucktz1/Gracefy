@@ -1,0 +1,107 @@
+# Docker Compose for Local Testing of Horizontal Scaling
+# Run: docker-compose -f docker-compose.scale.yml up --scale backend=3
+
+version: '3.8'
+
+services:
+  # Load Balancer / Reverse Proxy
+  traefik:
+    image: traefik:v2.10
+    container_name: gracefy-traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - gracefy-network
+
+  # Backend API (scalable)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URL=${MONGO_URL}
+      - DB_NAME=${DB_NAME:-gracefy_db}
+      - UPSTASH_REDIS_REST_URL=${UPSTASH_REDIS_REST_URL}
+      - UPSTASH_REDIS_REST_TOKEN=${UPSTASH_REDIS_REST_TOKEN}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - BUNNY_API_KEY=${BUNNY_API_KEY}
+      - BUNNY_STORAGE_ZONE=${BUNNY_STORAGE_ZONE}
+      - BUNNY_CDN_URL=${BUNNY_CDN_URL}
+      - PORT=8001
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=8001"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.interval=10s"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - gracefy-network
+
+  # Frontend (scalable)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL:-http://localhost/api}
+    environment:
+      - BACKEND_URL=http://backend:8001
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - gracefy-network
+    depends_on:
+      - backend
+
+networks:
+  gracefy-network:
+    driver: bridge
+
+# Usage:
+# 1. Copy .env.example to .env and fill in values
+# 2. Run: docker-compose -f docker-compose.scale.yml up -d
+# 3. Scale: docker-compose -f docker-compose.scale.yml up -d --scale backend=5
+# 4. Access: http://localhost (app) or http://localhost:8080 (traefik dashboard)
