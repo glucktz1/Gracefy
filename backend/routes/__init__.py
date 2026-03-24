@@ -26,6 +26,7 @@ from .app_control import router as app_control_router
 from .recommendations import router as recommendations_router
 from .radio import router as radio_router
 from .geo_content import router as geo_content_router
+from .neno_la_leo import router as neno_la_leo_router
 
 __all__ = [
     'auth_router',
@@ -51,4 +52,5 @@ __all__ = [
     'recommendations_router',
     'radio_router',
     'geo_content_router',
+    'neno_la_leo_router',
 ]

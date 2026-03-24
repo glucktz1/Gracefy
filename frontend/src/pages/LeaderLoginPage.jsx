@@ -19,14 +19,13 @@ export default function LeaderLoginPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/leader/login`, { email, password });
-      const { token, account, leader } = response.data;
+      const response = await axios.post(`${API}/neno-la-leo/leader/login`, { email, password });
+      const { token, leader } = response.data;
 
-      localStorage.setItem("leader_token", token);
-      localStorage.setItem("leader_account", JSON.stringify(account));
-      localStorage.setItem("leader_info", JSON.stringify(leader));
+      localStorage.setItem("neno_leader_token", token);
+      localStorage.setItem("neno_leader_info", JSON.stringify(leader));
 
-      toast.success(`Karibu, ${leader?.name || account?.leader_name}!`);
+      toast.success(`Karibu, ${leader?.title} ${leader?.name}!`);
       window.location.href = "/leader/dashboard";
     } catch (error) {
       const message = error.response?.data?.detail || "Login failed";

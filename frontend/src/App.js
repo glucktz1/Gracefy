@@ -70,6 +70,7 @@ const SeeAllPage = lazy(() => import("@/pages/SeeAllPage"));
 const HLSTranscodingPage = lazy(() => import("@/pages/HLSTranscodingPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const TermsOfServicePage = lazy(() => import("@/pages/TermsOfServicePage"));
+const NenoLaLeoPage = lazy(() => import("@/pages/NenoLaLeoPage"));
 
 // Icons
 import { 
@@ -193,6 +194,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       permissions: ["user_management", "content_management"],
       children: [
         { path: "/admin/religious-leaders", icon: Users, label: "Leader Management", permissions: ["user_management"] },
+        { path: "/admin/neno-la-leo", icon: BookMarked, label: "Neno la Leo", permissions: ["content_management"] },
         { path: "/admin/teachings", icon: BookMarked, label: "Teachings (Mafundisho)", permissions: ["content_management"] },
       ]
     },
@@ -458,7 +460,8 @@ const ProtectedRoute = ({ children }) => {
           "platform_settings", "role_assignment", "user_management", "choir_onboarding_approval",
           "create_albums", "upload_songs", "content_moderation", "content_approval", "set_content_monetization",
           "view_platform_analytics", "revenue_configuration", "view_all_revenue_reports",
-          "approve_payouts", "layout_promotion_control", "access_free_content", "access_premium_content"
+          "approve_payouts", "layout_promotion_control", "access_free_content", "access_premium_content",
+          "content_management"
         ]);
       }
     } catch (error) {
@@ -468,7 +471,8 @@ const ProtectedRoute = ({ children }) => {
         "platform_settings", "role_assignment", "user_management", "choir_onboarding_approval",
         "create_albums", "upload_songs", "content_moderation", "content_approval", "set_content_monetization",
         "view_platform_analytics", "revenue_configuration", "view_all_revenue_reports",
-        "approve_payouts", "layout_promotion_control", "access_free_content", "access_premium_content"
+        "approve_payouts", "layout_promotion_control", "access_free_content", "access_premium_content",
+        "content_management"
       ]);
     } finally {
       setLoading(false);
@@ -597,6 +601,7 @@ function AppRouter() {
         <Route path="/admin/seminars" element={<ProtectedRoute><SeminarsPage /></ProtectedRoute>} />
         <Route path="/admin/radio" element={<ProtectedRoute><RadioManagementPage /></ProtectedRoute>} />
         <Route path="/admin/hls-transcoding" element={<ProtectedRoute><HLSTranscodingPage /></ProtectedRoute>} />
+        <Route path="/admin/neno-la-leo" element={<ProtectedRoute><NenoLaLeoPage /></ProtectedRoute>} />
         <Route path="/admin/audiorooms" element={<ProtectedRoute><AudioRoomsPage /></ProtectedRoute>} />
         <Route path="/admin/donations" element={<ProtectedRoute><DonationsPage /></ProtectedRoute>} />
         <Route path="/admin/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />

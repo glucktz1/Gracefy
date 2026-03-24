@@ -80,6 +80,7 @@ from routes.branding import router as branding_router
 from routes.legal import router as legal_router
 from routes.firebase_auth import router as firebase_router
 from routes.hls_admin import router as hls_admin_router
+from routes.neno_la_leo import router as neno_la_leo_router
 
 # Legacy cache service for backward compatibility
 from cache_service import cache as legacy_cache
@@ -161,6 +162,9 @@ def create_app() -> FastAPI:
     
     # HLS Transcoding Admin
     app.include_router(hls_admin_router)      # /api/admin/hls/*
+    
+    # Neno la Leo (Today's Word)
+    app.include_router(neno_la_leo_router)    # /api/neno-la-leo/*
     
     # ============== ROOT ENDPOINTS ==============
     

@@ -5,7 +5,8 @@ import {
   Heart, MoreHorizontal, ChevronLeft, ChevronRight, Home, Search, Library,
   Plus, Minus, Clock, Music2, Mic2, ListMusic, X, Share2, Download, Maximize2,
   BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2,
-  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music, ListPlus, Shield, FileText
+  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music, ListPlus, Shield, FileText,
+  BookMarked, Mic
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -822,6 +823,187 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
     </section>
   );
 };
+
+
+// Neno la Leo Section - Today's Word from Religious Leaders
+const NenoLaLeoSection = ({ language, t }) => {
+  const [nenoList, setNenoList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [playingId, setPlayingId] = useState(null);
+  const [playingType, setPlayingType] = useState(null); // 'reading' or 'reflection'
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    const fetchNeno = async () => {
+      try {
+        const res = await axios.get(`${API}/neno-la-leo/active`);
+        setNenoList(res.data.neno_list || []);
+      } catch (e) {
+        console.error("Error fetching Neno la Leo:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNeno();
+  }, []);
+
+  const handlePlay = (neno, type) => {
+    const audioUrl = type === 'reading' ? neno.reading_audio_url : neno.reflection_audio_url;
+    if (!audioUrl) return;
+
+    // If same audio playing, stop
+    if (playingId === neno.neno_id && playingType === type) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setPlayingId(null);
+      setPlayingType(null);
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    // Play new audio
+    const audio = new Audio(audioUrl);
+    audio.play();
+    audioRef.current = audio;
+    setPlayingId(neno.neno_id);
+    setPlayingType(type);
+
+    // Track play
+    axios.post(`${API}/neno-la-leo/play`, { neno_id: neno.neno_id, audio_type: type }).catch(() => {});
+
+    audio.onended = () => {
+      setPlayingId(null);
+      setPlayingType(null);
+    };
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
+
+  if (loading || nenoList.length === 0) return null;
+
+  // Swahili day names
+  const getDayName = (dateStr) => {
+    const days = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
+    const date = new Date(dateStr);
+    return days[date.getDay()];
+  };
+
+  return (
+    <section className="relative" data-testid="neno-la-leo-section">
+      {/* Section Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <BookMarked size={20} className="text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">{t('nenoLaLeo.title', 'Neno la Leo')}</h2>
+            <p className="text-xs text-zinc-400">{t('nenoLaLeo.subtitle', 'Tafakari ya Kila Siku')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Horizontal Scroll Cards */}
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+        {nenoList.map((neno, idx) => (
+          <div 
+            key={neno.neno_id}
+            className="flex-shrink-0 w-72 md:w-80 group"
+            data-testid={`neno-card-${neno.neno_id}`}
+          >
+            <div className={`relative h-48 rounded-2xl overflow-hidden shadow-xl transition-all duration-300 group-hover:scale-[1.02] ${
+              idx % 3 === 0 ? 'bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 shadow-violet-900/30 group-hover:shadow-violet-500/30' :
+              idx % 3 === 1 ? 'bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 shadow-emerald-900/30 group-hover:shadow-emerald-500/30' :
+              'bg-gradient-to-br from-amber-900 via-orange-800 to-red-900 shadow-amber-900/30 group-hover:shadow-amber-500/30'
+            }`}>
+              {/* Background Blur */}
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white blur-3xl" />
+              </div>
+
+              {/* Content */}
+              <div className="relative h-full p-4 flex flex-col justify-between">
+                {/* Top: Leader Info */}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {neno.leader?.photo_url ? (
+                      <img src={neno.leader.photo_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={20} className="text-white/70" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-white truncate">{neno.verse_reference}</h3>
+                    <p className="text-sm text-white/70 truncate">{neno.leader?.title} {neno.leader?.name}</p>
+                    <p className="text-xs text-white/50">{getDayName(neno.word_date)} - {neno.word_date}</p>
+                  </div>
+                </div>
+
+                {/* Bottom: Play Buttons */}
+                <div className="flex items-center gap-2">
+                  {neno.reading_audio_url && (
+                    <button
+                      onClick={() => handlePlay(neno, 'reading')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                        playingId === neno.neno_id && playingType === 'reading'
+                          ? 'bg-white text-black'
+                          : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      {playingId === neno.neno_id && playingType === 'reading' ? (
+                        <Pause size={14} className="animate-pulse" />
+                      ) : (
+                        <BookOpen size={14} />
+                      )}
+                      <span className="text-xs font-medium">Kusoma</span>
+                    </button>
+                  )}
+                  {neno.reflection_audio_url && (
+                    <button
+                      onClick={() => handlePlay(neno, 'reflection')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                        playingId === neno.neno_id && playingType === 'reflection'
+                          ? 'bg-white text-black'
+                          : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      {playingId === neno.neno_id && playingType === 'reflection' ? (
+                        <Pause size={14} className="animate-pulse" />
+                      ) : (
+                        <Mic size={14} />
+                      )}
+                      <span className="text-xs font-medium">Tafakari</span>
+                    </button>
+                  )}
+                  {!neno.reading_audio_url && !neno.reflection_audio_url && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-white/50">
+                      <Clock size={14} />
+                      <span className="text-xs">Inakuja Hivi Karibuni</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 
 // Radio View Component - Live Christian Radio Streaming
 const RadioView = ({ t, onBack, player }) => {
@@ -4858,6 +5040,9 @@ export default function UserStreamingApp() {
                     </div>
                   </section>
                 )}
+
+                {/* Neno la Leo Section - Today's Word */}
+                {!activeCategory && <NenoLaLeoSection language={language} t={t} />}
 
                 {/* Dynamic Sections */}
                 {!activeCategory && homeData && homeData.sections?.map((section, idx) => {
