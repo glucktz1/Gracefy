@@ -899,6 +899,22 @@ const NenoLaLeoSection = ({ language, t }) => {
     'https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=600&q=80', // Bible pages close up
   ];
 
+  // Swahili day names
+  const getDayName = (dateStr) => {
+    const days = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
+    const date = new Date(dateStr);
+    return days[date.getDay()];
+  };
+
+  // Format date as DD/MM/YYYY
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   return (
     <section className="relative" data-testid="neno-la-leo-section">
       {/* Section Header */}
@@ -919,6 +935,9 @@ const NenoLaLeoSection = ({ language, t }) => {
         {nenoList.map((neno, idx) => {
           const hasAudio = neno.reading_audio_url || neno.reflection_audio_url;
           const isPlaying = playingId === neno.neno_id;
+          const leaderName = `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown';
+          const dayName = getDayName(neno.word_date);
+          const formattedDate = formatDate(neno.word_date);
           
           return (
             <div 
@@ -927,7 +946,7 @@ const NenoLaLeoSection = ({ language, t }) => {
               data-testid={`neno-card-${neno.neno_id}`}
               onClick={() => hasAudio && handlePlay(neno)}
             >
-              <div className="relative h-52 rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-[1.02] group-hover:shadow-amber-500/20">
+              <div className="relative h-56 rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-[1.02] group-hover:shadow-amber-500/20">
                 {/* Background Image */}
                 <img 
                   src={bibleBackgrounds[idx % bibleBackgrounds.length]} 
@@ -936,7 +955,7 @@ const NenoLaLeoSection = ({ language, t }) => {
                 />
                 
                 {/* Dark Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/30" />
                 
                 {/* Warm Light Effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent" />
@@ -957,9 +976,17 @@ const NenoLaLeoSection = ({ language, t }) => {
                   {/* Middle: Neno la Leo Label & Verse */}
                   <div className="flex-1 flex flex-col justify-center">
                     <p className="text-sm text-white/70 font-medium mb-1">Neno la Leo</p>
-                    <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
                       {neno.verse_reference}
                     </h3>
+                    {/* Leader Name */}
+                    <p className="text-sm text-amber-200/90 font-medium">
+                      Tafakari ya neno la leo na {leaderName}
+                    </p>
+                    {/* Date and Day */}
+                    <p className="text-xs text-white/60 mt-1">
+                      {dayName} {formattedDate}
+                    </p>
                   </div>
 
                   {/* Bottom Row: Action Buttons */}

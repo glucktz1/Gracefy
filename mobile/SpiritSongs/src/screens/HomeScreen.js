@@ -1147,6 +1147,22 @@ const HomeScreen = ({ navigation }) => {
       'https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=600&q=80',
     ];
 
+    // Swahili day names
+    const getDayName = (dateStr) => {
+      const days = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
+      const date = new Date(dateStr);
+      return days[date.getDay()];
+    };
+
+    // Format date as DD/MM/YYYY
+    const formatDate = (dateStr) => {
+      const date = new Date(dateStr);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
     const handlePlayNenoAudio = async (neno) => {
       // Prioritize reading audio, fallback to reflection
       const audioUrl = neno.reading_audio_url || neno.reflection_audio_url;
@@ -1161,10 +1177,11 @@ const HomeScreen = ({ navigation }) => {
       }
       
       // Create a pseudo-track for the player
+      const leaderName = `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Neno la Leo';
       const pseudoTrack = {
         song_id: `neno_${neno.neno_id}`,
         title: neno.verse_reference,
-        artist_name: `${neno.leader?.title || ''} ${neno.leader?.name || 'Neno la Leo'}`,
+        artist_name: leaderName,
         album_name: 'Neno la Leo',
         audio_url: audioUrl,
         thumbnail: bibleBackgrounds[0],
@@ -1190,6 +1207,9 @@ const HomeScreen = ({ navigation }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
           {data.map((neno, index) => {
             const hasAudio = neno.reading_audio_url || neno.reflection_audio_url;
+            const leaderName = `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown';
+            const dayName = getDayName(neno.word_date);
+            const formattedDate = formatDate(neno.word_date);
             
             return (
               <TouchableOpacity 
@@ -1206,7 +1226,7 @@ const HomeScreen = ({ navigation }) => {
                 >
                   {/* Dark Overlay */}
                   <LinearGradient 
-                    colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.85)']} 
+                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.9)']} 
                     style={styles.nenoOverlay}
                   >
                     {/* Top: Duration Badge */}
@@ -1218,10 +1238,16 @@ const HomeScreen = ({ navigation }) => {
                       <Ionicons name="chevron-up" size={20} color="rgba(255,255,255,0.5)" />
                     </View>
 
-                    {/* Middle: Label & Verse Reference */}
+                    {/* Middle: Label, Verse Reference, Leader & Date */}
                     <View style={styles.nenoMiddle}>
                       <Text style={styles.nenoLabel}>Neno la Leo</Text>
                       <Text style={styles.nenoVerseRef} numberOfLines={1}>{neno.verse_reference}</Text>
+                      <Text style={styles.nenoLeaderText} numberOfLines={1}>
+                        Tafakari ya neno la leo na {leaderName}
+                      </Text>
+                      <Text style={styles.nenoDateText}>
+                        {dayName} {formattedDate}
+                      </Text>
                     </View>
 
                     {/* Bottom: Action Buttons */}
@@ -2365,10 +2391,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   nenoVerseRef: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
     letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  nenoLeaderText: {
+    fontSize: FONT_SIZES.sm,
+    color: '#fcd34d', // amber-200 equivalent
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  nenoDateText: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.6)',
   },
   nenoButtons: {
     flexDirection: 'row',
