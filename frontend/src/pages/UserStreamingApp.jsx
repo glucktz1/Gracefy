@@ -5310,7 +5310,7 @@ export default function UserStreamingApp() {
                             const thumbnailUrl = song.thumbnail 
                               ? (song.thumbnail.startsWith('http') 
                                 ? song.thumbnail 
-                                : `${process.env.REACT_APP_BACKEND_URL}${song.thumbnail}${song.thumbnail.includes('/stream') ? '' : '/stream'}`)
+                                : `${process.env.REACT_APP_BACKEND_URL || ''}${song.thumbnail}${song.thumbnail.includes('/stream') ? '' : '/stream'}`)
                               : null;
                             
                             return (
@@ -5357,7 +5357,7 @@ export default function UserStreamingApp() {
                             const thumbnailUrl = teaching.thumbnail 
                               ? (teaching.thumbnail.startsWith('http') 
                                 ? teaching.thumbnail 
-                                : `${process.env.REACT_APP_BACKEND_URL}${teaching.thumbnail}${teaching.thumbnail.includes('/stream') ? '' : '/stream'}`)
+                                : `${process.env.REACT_APP_BACKEND_URL || ''}${teaching.thumbnail}${teaching.thumbnail.includes('/stream') ? '' : '/stream'}`)
                               : null;
                             
                             return (

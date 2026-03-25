@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { Shield, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Key } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+const API = (process.env.REACT_APP_BACKEND_URL || '') + '/api';
 
 export default function SecuritySettingsPage() {
   const [loading, setLoading] = useState(false);

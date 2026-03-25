@@ -18,7 +18,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
-const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const API = (process.env.REACT_APP_BACKEND_URL || '') + "/api";
 
 // Page icons mapping
 const PAGE_ICONS = {

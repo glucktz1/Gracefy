@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Bell, BellRing, Check, CheckCheck, X, CreditCard, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 // Notification sound (simple beep)
 const playNotificationSound = () => {

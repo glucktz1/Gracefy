@@ -37,7 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Megaphone, Send, Mail, MessageSquare, Bell, Users, Upload, Play, Pause, Trash2, Edit, Eye, Search, MapPin, Music, X, UserMinus, Check } from "lucide-react";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function AdvertisingPage() {
   // Settings state

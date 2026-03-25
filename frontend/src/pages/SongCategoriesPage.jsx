@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const API = (process.env.REACT_APP_BACKEND_URL || '') + "/api";
 
 // Icon mapping for categories
 const CATEGORY_ICONS = {

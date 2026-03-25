@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, Music, Building, Users, BookOpen, Play, Pause, Grid, List } from 'lucide-react';
 import axios from 'axios';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 const SeeAllPage = () => {
   const { sectionId } = useParams();

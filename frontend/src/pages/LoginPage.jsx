@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useBranding, BrandLogo } from "@/context/BrandingContext";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
 export default function LoginPage() {

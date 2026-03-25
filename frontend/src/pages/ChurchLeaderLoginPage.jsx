@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Church, Mail, Lock, User, Phone } from "lucide-react";
 import { BrandLogo } from "@/context/BrandingContext";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
 export default function ChurchLeaderLoginPage() {

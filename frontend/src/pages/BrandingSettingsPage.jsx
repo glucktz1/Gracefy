@@ -7,7 +7,7 @@ import { Image, Upload, RefreshCw, Save, Palette, Type, ExternalLink, Check, X }
 import axios from 'axios';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function BrandingSettingsPage() {
   const [loading, setLoading] = useState(true);

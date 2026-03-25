@@ -29,7 +29,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
-const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const API = (process.env.REACT_APP_BACKEND_URL || '') + "/api";
 
 // Permission category icons
 const CATEGORY_ICONS = {
