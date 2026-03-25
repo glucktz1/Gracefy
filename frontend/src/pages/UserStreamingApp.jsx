@@ -826,11 +826,9 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
 
 
 // Neno la Leo Section - Today's Word from Religious Leaders
-const NenoLaLeoSection = ({ language, t }) => {
+const NenoLaLeoSection = ({ language, t, player }) => {
   const [nenoList, setNenoList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [playingId, setPlayingId] = useState(null);
-  const audioRef = useRef(null);
   const [readingModal, setReadingModal] = useState({ open: false, neno: null, verses: [], loading: false });
 
   useEffect(() => {
@@ -852,34 +850,29 @@ const NenoLaLeoSection = ({ language, t }) => {
     const audioUrl = neno.reading_audio_url || neno.reflection_audio_url;
     if (!audioUrl) return;
 
-    // If same audio playing, stop
-    if (playingId === neno.neno_id) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setPlayingId(null);
-      return;
-    }
+    // Create a "song-like" object for the player
+    const nenoSong = {
+      song_id: `neno_${neno.neno_id}`,
+      title: neno.verse_reference,
+      audio_url: audioUrl,
+      duration: 0, // Unknown for Neno la Leo
+      is_neno: true // Flag to identify Neno la Leo content
+    };
 
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
+    // Create album-like object with leader info
+    const nenoAlbum = {
+      album_id: `neno_album_${neno.neno_id}`,
+      title: 'Neno la Leo',
+      artist_name: `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown Leader',
+      thumbnail: neno.leader?.photo_url || 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=300&q=80'
+    };
 
-    // Play new audio
-    const audio = new Audio(audioUrl);
-    audio.play();
-    audioRef.current = audio;
-    setPlayingId(neno.neno_id);
+    // Use the global player to play the audio
+    player.playSong(nenoSong, nenoAlbum);
 
     // Track play
     const audioType = neno.reading_audio_url ? 'reading' : 'reflection';
     axios.post(`${API}/neno-la-leo/play`, { neno_id: neno.neno_id, audio_type: audioType }).catch(() => {});
-
-    audio.onended = () => {
-      setPlayingId(null);
-    };
   };
 
   // Fetch Bible verses for reading
@@ -899,15 +892,6 @@ const NenoLaLeoSection = ({ language, t }) => {
       setReadingModal(prev => ({ ...prev, verses: [{ verse_number: neno.verse_start, text: 'Imeshindwa kupakia maandiko. Tafadhali jaribu tena.' }], loading: false }));
     }
   };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
 
   if (loading || nenoList.length === 0) return null;
 
@@ -953,7 +937,8 @@ const NenoLaLeoSection = ({ language, t }) => {
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
         {nenoList.map((neno, idx) => {
           const hasAudio = neno.reading_audio_url || neno.reflection_audio_url;
-          const isPlaying = playingId === neno.neno_id;
+          // Check if this neno is currently playing in the global player
+          const isPlaying = player?.currentSong?.song_id === `neno_${neno.neno_id}` && player?.isPlaying;
           const leaderName = `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown';
           const dayName = getDayName(neno.word_date);
           const formattedDate = formatDate(neno.word_date);
@@ -5196,7 +5181,7 @@ export default function UserStreamingApp() {
                   return (
                     <div key={section.section_id || idx}>
                       {/* Insert Neno la Leo after 2nd section */}
-                      {idx === 2 && <NenoLaLeoSection language={language} t={t} />}
+                      {idx === 2 && <NenoLaLeoSection language={language} t={t} player={player} />}
                       
                       <section>
                         <SectionHeader 
