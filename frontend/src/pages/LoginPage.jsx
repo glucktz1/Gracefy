@@ -219,6 +219,12 @@ export default function LoginPage() {
             <p className="text-zinc-600 text-xs">
               By signing in, you agree to manage content responsibly.
             </p>
+            <p className="text-zinc-500 text-xs mt-3">
+              Jisajili kama kiongozi wa dini?{' '}
+              <a href="/leader/login" className="text-amber-400 hover:underline">
+                Bofya hapa
+              </a>
+            </p>
           </div>
         </div>
 

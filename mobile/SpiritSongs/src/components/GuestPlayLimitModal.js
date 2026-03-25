@@ -496,6 +496,18 @@ const GuestPlayLimitModal = ({ visible, onClose, onSuccess }) => {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* Religious Leader Portal Link */}
+              <View style={styles.leaderSection}>
+                <Text style={styles.leaderTitle}>Jisajili kama kiongozi wa dini?</Text>
+                <TouchableOpacity 
+                  style={styles.leaderButton} 
+                  onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/leader/login`)}
+                >
+                  <Ionicons name="book-outline" size={18} color="#f59e0b" />
+                  <Text style={styles.leaderButtonText}>Bofya hapa</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -750,6 +762,28 @@ const styles = StyleSheet.create({
   choirButtonText: {
     fontSize: FONT_SIZES.sm,
     color: '#10B981',
+    marginLeft: SPACING.xs,
+    fontWeight: '500',
+  },
+  leaderSection: {
+    marginTop: SPACING.md,
+    alignItems: 'center',
+  },
+  leaderTitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  leaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  leaderButtonText: {
+    fontSize: FONT_SIZES.sm,
+    color: '#f59e0b',
     marginLeft: SPACING.xs,
     fontWeight: '500',
   },

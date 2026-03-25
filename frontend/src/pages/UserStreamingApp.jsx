@@ -3212,6 +3212,12 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                   Register here
                 </a>
               </p>
+              <p className="text-xs text-zinc-500 mt-2">
+                Jisajili kama kiongozi wa dini?{' '}
+                <a href="/leader/login" className="text-amber-400 hover:underline">
+                  Bofya hapa
+                </a>
+              </p>
             </div>
           </>
         )}
