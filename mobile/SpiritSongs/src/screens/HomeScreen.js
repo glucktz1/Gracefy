@@ -1258,6 +1258,8 @@ const HomeScreen = ({ navigation }) => {
             const leaderName = `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown';
             const dayName = getDayName(neno.word_date);
             const formattedDate = formatDate(neno.word_date);
+            // Check if this neno is currently playing in the mini player
+            const isThisPlaying = currentTrack?.song_id === `neno_${neno.neno_id}` && isPlaying;
             
             return (
               <TouchableOpacity 
@@ -1283,7 +1285,13 @@ const HomeScreen = ({ navigation }) => {
                         <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.8)" />
                         <Text style={styles.nenoDurationText}>1 min</Text>
                       </View>
-                      <Ionicons name="chevron-up" size={20} color="rgba(255,255,255,0.5)" />
+                      {isThisPlaying ? (
+                        <View style={styles.nenoPlayingIndicator}>
+                          <Ionicons name="musical-notes" size={16} color="#f59e0b" />
+                        </View>
+                      ) : (
+                        <Ionicons name="chevron-up" size={20} color="rgba(255,255,255,0.5)" />
+                      )}
                     </View>
 
                     {/* Middle: Label, Verse Reference, Leader & Date */}
@@ -1305,11 +1313,11 @@ const HomeScreen = ({ navigation }) => {
                     <View style={styles.nenoButtons}>
                       {hasAudio ? (
                         <TouchableOpacity 
-                          style={styles.nenoListenBtn} 
+                          style={[styles.nenoListenBtn, isThisPlaying && styles.nenoListenBtnPlaying]} 
                           onPress={() => handlePlayNenoAudio(neno)}
                         >
-                          <Ionicons name="headset-outline" size={16} color="#fff" />
-                          <Text style={styles.nenoListenBtnText}>Sikiliza</Text>
+                          <Ionicons name={isThisPlaying ? "pause" : "headset-outline"} size={16} color="#fff" />
+                          <Text style={styles.nenoListenBtnText}>{isThisPlaying ? 'Simamisha' : 'Sikiliza'}</Text>
                         </TouchableOpacity>
                       ) : null}
                       <TouchableOpacity 
@@ -2548,6 +2556,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm + 2,
     borderRadius: 25,
+  },
+  nenoListenBtnPlaying: {
+    backgroundColor: '#f59e0b',
+  },
+  nenoPlayingIndicator: {
+    backgroundColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: 12,
+    padding: 4,
   },
   nenoListenBtnText: {
     fontSize: FONT_SIZES.sm,
