@@ -10,6 +10,9 @@
       "android": {
         "buildType": "apk",
         "withoutCredentials": true
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "preview": {
@@ -19,11 +22,17 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease",
         "withoutCredentials": true
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "production": {
       "android": {
         "buildType": "apk",
+        "credentialsSource": "remote"
+      },
+      "ios": {
         "credentialsSource": "remote"
       }
     }
