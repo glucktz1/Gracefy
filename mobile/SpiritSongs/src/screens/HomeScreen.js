@@ -1243,7 +1243,10 @@ const HomeScreen = ({ navigation }) => {
                       <Text style={styles.nenoLabel}>Neno la Leo</Text>
                       <Text style={styles.nenoVerseRef} numberOfLines={1}>{neno.verse_reference}</Text>
                       <Text style={styles.nenoLeaderText} numberOfLines={1}>
-                        Tafakari ya neno la leo na {leaderName}
+                        Tafakari ya neno la leo
+                      </Text>
+                      <Text style={styles.nenoLeaderName} numberOfLines={1}>
+                        na {leaderName}
                       </Text>
                       <Text style={styles.nenoDateText}>
                         {dayName} {formattedDate}
@@ -2401,6 +2404,10 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: '#fcd34d', // amber-200 equivalent
     fontWeight: '500',
+  },
+  nenoLeaderName: {
+    fontSize: FONT_SIZES.sm,
+    color: 'rgba(255,255,255,0.7)',
     marginBottom: 2,
   },
   nenoDateText: {

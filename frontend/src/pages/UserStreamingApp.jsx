@@ -979,9 +979,12 @@ const NenoLaLeoSection = ({ language, t }) => {
                     <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
                       {neno.verse_reference}
                     </h3>
-                    {/* Leader Name */}
+                    {/* Leader Name - Two lines */}
                     <p className="text-sm text-amber-200/90 font-medium">
-                      Tafakari ya neno la leo na {leaderName}
+                      Tafakari ya neno la leo
+                    </p>
+                    <p className="text-sm text-white/70">
+                      na {leaderName}
                     </p>
                     {/* Date and Day */}
                     <p className="text-xs text-white/60 mt-1">
@@ -5080,9 +5083,6 @@ export default function UserStreamingApp() {
                   </section>
                 )}
 
-                {/* Neno la Leo Section - Today's Word */}
-                {!activeCategory && <NenoLaLeoSection language={language} t={t} />}
-
                 {/* Dynamic Sections */}
                 {!activeCategory && homeData && homeData.sections?.map((section, idx) => {
                   // Skip hero (handled above) and quick_access (handled in static grid above)
@@ -5120,14 +5120,18 @@ export default function UserStreamingApp() {
                   const layoutType = idx % 4;
 
                   return (
-                    <section key={section.section_id || idx}>
-                      <SectionHeader 
-                        title={section.title} 
-                        subtitle={section.description}
-                        onSeeMore={items.length > 5 ? () => {
-                          window.location.href = `/app/see-all/${section.section_id}?title=${encodeURIComponent(section.title || section.name || '')}`;
-                        } : null}
-                      />
+                    <div key={section.section_id || idx}>
+                      {/* Insert Neno la Leo after 2nd section */}
+                      {idx === 2 && <NenoLaLeoSection language={language} t={t} />}
+                      
+                      <section>
+                        <SectionHeader 
+                          title={section.title} 
+                          subtitle={section.description}
+                          onSeeMore={items.length > 5 ? () => {
+                            window.location.href = `/app/see-all/${section.section_id}?title=${encodeURIComponent(section.title || section.name || '')}`;
+                          } : null}
+                        />
 
                       {/* Special Mixes Section */}
                       {isSpecialMixSection && (
@@ -5472,6 +5476,7 @@ export default function UserStreamingApp() {
                         </>
                       )}
                     </section>
+                    </div>
                   );
                 })}
 
