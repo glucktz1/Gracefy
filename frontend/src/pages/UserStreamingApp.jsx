@@ -831,6 +831,7 @@ const NenoLaLeoSection = ({ language, t }) => {
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState(null);
   const audioRef = useRef(null);
+  const [readingModal, setReadingModal] = useState({ open: false, neno: null, verses: [], loading: false });
 
   useEffect(() => {
     const fetchNeno = async () => {
@@ -879,6 +880,24 @@ const NenoLaLeoSection = ({ language, t }) => {
     audio.onended = () => {
       setPlayingId(null);
     };
+  };
+
+  // Fetch Bible verses for reading
+  const handleRead = async (neno) => {
+    setReadingModal({ open: true, neno, verses: [], loading: true });
+    try {
+      const res = await axios.get(`${API}/bible/books/${encodeURIComponent(neno.book)}/chapters/${neno.chapter}`);
+      const allVerses = res.data?.verses || [];
+      // Filter only the specified verse range
+      const filtered = allVerses.filter(v => {
+        const num = parseInt(v.verse_number || v.verse);
+        return num >= neno.verse_start && num <= neno.verse_end;
+      });
+      setReadingModal(prev => ({ ...prev, verses: filtered.length > 0 ? filtered : allVerses.slice(neno.verse_start - 1, neno.verse_end), loading: false }));
+    } catch (e) {
+      console.error("Error fetching verses:", e);
+      setReadingModal(prev => ({ ...prev, verses: [{ verse_number: neno.verse_start, text: 'Imeshindwa kupakia maandiko. Tafadhali jaribu tena.' }], loading: false }));
+    }
   };
 
   // Cleanup on unmount
@@ -994,37 +1013,30 @@ const NenoLaLeoSection = ({ language, t }) => {
 
                   {/* Bottom Row: Action Buttons */}
                   <div className="flex items-center gap-3">
-                    {hasAudio ? (
-                      <>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handlePlay(neno); }}
-                          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-md transition-all ${
-                            isPlaying 
-                              ? 'bg-white text-black' 
-                              : 'bg-white/20 text-white hover:bg-white/30'
-                          }`}
-                        >
-                          {isPlaying ? (
-                            <Pause size={16} className="animate-pulse" />
-                          ) : (
-                            <Headphones size={16} />
-                          )}
-                          <span className="text-sm font-semibold">{isPlaying ? 'Simamisha' : 'Sikiliza'}</span>
-                        </button>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-2.5 px-5 py-2.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-all"
-                        >
-                          <List size={16} />
-                          <span className="text-sm font-semibold">Soma</span>
-                        </button>
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-2.5 px-5 py-2.5 bg-white/10 backdrop-blur-md rounded-full text-white/50">
-                        <Clock size={16} />
-                        <span className="text-sm font-medium">Inakuja Hivi Karibuni</span>
-                      </div>
+                    {hasAudio && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePlay(neno); }}
+                        className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-md transition-all ${
+                          isPlaying 
+                            ? 'bg-white text-black' 
+                            : 'bg-white/20 text-white hover:bg-white/30'
+                        }`}
+                      >
+                        {isPlaying ? (
+                          <Pause size={16} className="animate-pulse" />
+                        ) : (
+                          <Headphones size={16} />
+                        )}
+                        <span className="text-sm font-semibold">{isPlaying ? 'Simamisha' : 'Sikiliza'}</span>
+                      </button>
                     )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRead(neno); }}
+                      className="flex items-center gap-2.5 px-5 py-2.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-all"
+                    >
+                      <BookOpen size={16} />
+                      <span className="text-sm font-semibold">Soma</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1041,6 +1053,68 @@ const NenoLaLeoSection = ({ language, t }) => {
           );
         })}
       </div>
+
+      {/* Bible Reading Modal */}
+      {readingModal.open && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setReadingModal({ open: false, neno: null, verses: [], loading: false })}>
+          <div className="bg-zinc-900 w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b border-zinc-800 flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white">{readingModal.neno?.verse_reference}</h3>
+                <p className="text-sm text-zinc-400 mt-1">
+                  {readingModal.neno?.leader?.title} {readingModal.neno?.leader?.name}
+                </p>
+              </div>
+              <button 
+                onClick={() => setReadingModal({ open: false, neno: null, verses: [], loading: false })}
+                className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors"
+              >
+                <X size={20} className="text-white" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {readingModal.loading ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {readingModal.verses.map((verse, idx) => (
+                    <div key={idx} className="flex gap-3">
+                      <span className="text-amber-500 font-bold text-sm min-w-[24px]">
+                        {verse.verse_number || verse.verse || (readingModal.neno?.verse_start + idx)}
+                      </span>
+                      <p className="text-white text-lg leading-relaxed">{verse.text}</p>
+                    </div>
+                  ))}
+                  {readingModal.verses.length === 0 && (
+                    <p className="text-zinc-400 text-center py-8">Maandiko hayapatikani kwa sasa.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer with Listen button */}
+            {(readingModal.neno?.reading_audio_url || readingModal.neno?.reflection_audio_url) && (
+              <div className="p-5 border-t border-zinc-800">
+                <button
+                  onClick={() => {
+                    handlePlay(readingModal.neno);
+                    setReadingModal({ open: false, neno: null, verses: [], loading: false });
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-full transition-colors"
+                >
+                  <Headphones size={20} />
+                  Sikiliza Tafakari
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

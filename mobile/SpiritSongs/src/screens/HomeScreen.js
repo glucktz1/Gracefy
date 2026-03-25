@@ -12,6 +12,7 @@ import {
   Image,
   ImageBackground,
   Linking,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1138,6 +1139,39 @@ const HomeScreen = ({ navigation }) => {
     </View>
   );
 
+  // Neno la Leo Bible Reading Modal State
+  const [nenoReadingModal, setNenoReadingModal] = useState({ visible: false, neno: null, verses: [], loading: false });
+
+  // Fetch Bible verses for Neno la Leo
+  const fetchNenoVerses = async (neno) => {
+    setNenoReadingModal({ visible: true, neno, verses: [], loading: true });
+    try {
+      // Fetch Swahili Bible chapter verses
+      const response = await bibleAPI.getVerses(neno.book, neno.chapter);
+      const allVerses = response.data?.verses || [];
+      
+      // Filter only the verses in the range
+      const filteredVerses = allVerses.filter(v => {
+        const verseNum = parseInt(v.verse_number || v.verse);
+        return verseNum >= neno.verse_start && verseNum <= neno.verse_end;
+      });
+      
+      // If filtering didn't work, try to slice by index
+      const verses = filteredVerses.length > 0 ? filteredVerses : 
+        allVerses.slice(neno.verse_start - 1, neno.verse_end);
+      
+      setNenoReadingModal(prev => ({ ...prev, verses, loading: false }));
+    } catch (error) {
+      console.log('[Neno] Error fetching verses:', error.message);
+      // If API fails, show placeholder
+      setNenoReadingModal(prev => ({ 
+        ...prev, 
+        verses: [{ verse_number: neno.verse_start, text: 'Imeshindwa kupakia maandiko. Tafadhali jaribu tena.' }], 
+        loading: false 
+      }));
+    }
+  };
+
   // Neno la Leo (Today's Word) Section - Clean Bible Design
   const renderNenoLaLeoSection = (data) => {
     // Bible background images
@@ -1166,7 +1200,10 @@ const HomeScreen = ({ navigation }) => {
     const handlePlayNenoAudio = async (neno) => {
       // Prioritize reading audio, fallback to reflection
       const audioUrl = neno.reading_audio_url || neno.reflection_audio_url;
-      if (!audioUrl) return;
+      if (!audioUrl) {
+        console.log('[Neno] No audio URL available');
+        return;
+      }
       
       // Track play
       const audioType = neno.reading_audio_url ? 'reading' : 'reflection';
@@ -1186,9 +1223,20 @@ const HomeScreen = ({ navigation }) => {
         audio_url: audioUrl,
         thumbnail: bibleBackgrounds[0],
         duration: 60, // Assume 1 min
+        is_neno_la_leo: true,
       };
       
-      playTrack(pseudoTrack, [pseudoTrack], 0);
+      // Play using player context
+      if (playTrack) {
+        playTrack(pseudoTrack, [pseudoTrack], 0);
+      } else {
+        console.log('[Neno] playTrack function not available');
+      }
+    };
+
+    const handleReadNeno = (neno) => {
+      // Open Bible reading modal with the verses
+      fetchNenoVerses(neno);
     };
 
     return (
@@ -1256,25 +1304,21 @@ const HomeScreen = ({ navigation }) => {
                     {/* Bottom: Action Buttons */}
                     <View style={styles.nenoButtons}>
                       {hasAudio ? (
-                        <>
-                          <TouchableOpacity 
-                            style={styles.nenoListenBtn} 
-                            onPress={() => handlePlayNenoAudio(neno)}
-                          >
-                            <Ionicons name="headset-outline" size={16} color="#fff" />
-                            <Text style={styles.nenoListenBtnText}>Sikiliza</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.nenoReadBtn}>
-                            <Ionicons name="list-outline" size={16} color="#fff" />
-                            <Text style={styles.nenoReadBtnText}>Soma</Text>
-                          </TouchableOpacity>
-                        </>
-                      ) : (
-                        <View style={styles.nenoComingSoon}>
-                          <Ionicons name="time-outline" size={16} color="rgba(255,255,255,0.5)" />
-                          <Text style={styles.nenoComingSoonText}>Inakuja Hivi Karibuni</Text>
-                        </View>
-                      )}
+                        <TouchableOpacity 
+                          style={styles.nenoListenBtn} 
+                          onPress={() => handlePlayNenoAudio(neno)}
+                        >
+                          <Ionicons name="headset-outline" size={16} color="#fff" />
+                          <Text style={styles.nenoListenBtnText}>Sikiliza</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      <TouchableOpacity 
+                        style={styles.nenoReadBtn}
+                        onPress={() => handleReadNeno(neno)}
+                      >
+                        <Ionicons name="book-outline" size={16} color="#fff" />
+                        <Text style={styles.nenoReadBtnText}>Soma</Text>
+                      </TouchableOpacity>
                     </View>
                   </LinearGradient>
                 </ImageBackground>
@@ -1536,6 +1580,84 @@ const HomeScreen = ({ navigation }) => {
         song={selectedSong}
         isAuthenticated={isAuthenticated}
       />
+
+      {/* Neno la Leo Bible Reading Modal */}
+      <Modal
+        visible={nenoReadingModal.visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setNenoReadingModal({ visible: false, neno: null, verses: [], loading: false })}
+      >
+        <View style={styles.nenoModalOverlay}>
+          <View style={styles.nenoModalContent}>
+            {/* Header */}
+            <View style={styles.nenoModalHeader}>
+              <View>
+                <Text style={styles.nenoModalTitle}>{nenoReadingModal.neno?.verse_reference || 'Neno la Leo'}</Text>
+                <Text style={styles.nenoModalSubtitle}>
+                  {nenoReadingModal.neno?.leader?.title} {nenoReadingModal.neno?.leader?.name}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.nenoModalCloseBtn}
+                onPress={() => setNenoReadingModal({ visible: false, neno: null, verses: [], loading: false })}
+              >
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            <ScrollView style={styles.nenoModalBody} showsVerticalScrollIndicator={false}>
+              {nenoReadingModal.loading ? (
+                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+              ) : (
+                <View style={styles.nenoVerseContainer}>
+                  {nenoReadingModal.verses.map((verse, idx) => (
+                    <View key={idx} style={styles.nenoVerseRow}>
+                      <Text style={styles.nenoVerseNumber}>{verse.verse_number || (nenoReadingModal.neno?.verse_start + idx)}</Text>
+                      <Text style={styles.nenoVerseText}>{verse.text}</Text>
+                    </View>
+                  ))}
+                  {nenoReadingModal.verses.length === 0 && !nenoReadingModal.loading && (
+                    <Text style={styles.nenoNoVerses}>Maandiko hayapatikani kwa sasa.</Text>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Footer with listen button */}
+            {(nenoReadingModal.neno?.reading_audio_url || nenoReadingModal.neno?.reflection_audio_url) && (
+              <View style={styles.nenoModalFooter}>
+                <TouchableOpacity 
+                  style={styles.nenoModalListenBtn}
+                  onPress={() => {
+                    const neno = nenoReadingModal.neno;
+                    setNenoReadingModal({ visible: false, neno: null, verses: [], loading: false });
+                    if (neno) {
+                      const audioUrl = neno.reading_audio_url || neno.reflection_audio_url;
+                      const leaderName = `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Neno la Leo';
+                      const pseudoTrack = {
+                        song_id: `neno_${neno.neno_id}`,
+                        title: neno.verse_reference,
+                        artist_name: leaderName,
+                        album_name: 'Neno la Leo',
+                        audio_url: audioUrl,
+                        thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=600&q=80',
+                        duration: 60,
+                        is_neno_la_leo: true,
+                      };
+                      if (playTrack) playTrack(pseudoTrack, [pseudoTrack], 0);
+                    }
+                  }}
+                >
+                  <Ionicons name="headset-outline" size={20} color="#fff" />
+                  <Text style={styles.nenoModalListenText}>Sikiliza Tafakari</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -2458,6 +2580,91 @@ const styles = StyleSheet.create({
   nenoComingSoonText: {
     fontSize: FONT_SIZES.sm,
     color: 'rgba(255,255,255,0.5)',
+  },
+  // Neno la Leo Bible Reading Modal Styles
+  nenoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end',
+  },
+  nenoModalContent: {
+    backgroundColor: COLORS.cardBackground,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingBottom: 30,
+  },
+  nenoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  nenoModalTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  nenoModalSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+  },
+  nenoModalCloseBtn: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  nenoModalBody: {
+    padding: SPACING.lg,
+    maxHeight: 400,
+  },
+  nenoVerseContainer: {
+    paddingBottom: SPACING.lg,
+  },
+  nenoVerseRow: {
+    flexDirection: 'row',
+    marginBottom: SPACING.md,
+  },
+  nenoVerseNumber: {
+    width: 30,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    marginRight: SPACING.sm,
+  },
+  nenoVerseText: {
+    flex: 1,
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.text,
+    lineHeight: 28,
+  },
+  nenoNoVerses: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 40,
+  },
+  nenoModalFooter: {
+    padding: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  nenoModalListenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#f59e0b',
+    paddingVertical: SPACING.md,
+    borderRadius: 25,
+  },
+  nenoModalListenText: {
+    fontSize: FONT_SIZES.md,
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 
