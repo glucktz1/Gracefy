@@ -1200,7 +1200,7 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View>
               <Text style={styles.sectionTitle}>Neno la Leo</Text>
-              <Text style={styles.sectionSubtitleText}>Sikiliza Neno la Mungu</Text>
+              <Text style={styles.sectionSubtitleText}>Sikiliza Neno la kila siku na tafakari</Text>
             </View>
           </View>
         </View>

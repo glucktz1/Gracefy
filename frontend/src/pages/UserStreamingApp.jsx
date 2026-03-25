@@ -925,7 +925,7 @@ const NenoLaLeoSection = ({ language, t }) => {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">{t('nenoLaLeo.title', 'Neno la Leo')}</h2>
-            <p className="text-xs text-zinc-400">{t('nenoLaLeo.subtitle', 'Sikiliza Neno la Mungu')}</p>
+            <p className="text-xs text-zinc-400">{t('nenoLaLeo.subtitle', 'Sikiliza Neno la kila siku na tafakari')}</p>
           </div>
         </div>
       </div>

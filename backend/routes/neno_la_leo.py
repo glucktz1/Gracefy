@@ -607,6 +607,78 @@ async def get_leader_analytics(request: Request):
         "top_neno": sorted(neno_list, key=lambda x: x.get("stats", {}).get("total_plays", 0), reverse=True)[:5]
     }
 
+@router.get("/admin/analytics")
+async def get_admin_neno_analytics():
+    """Get overall Neno la Leo analytics for admin dashboard"""
+    db = get_db()
+    
+    # Get all neno entries
+    all_neno = await db.neno_la_leo.find({}, {"_id": 0}).to_list(1000)
+    
+    # Get all leaders
+    all_leaders = await db.religious_leaders.find({"is_approved": True}, {"_id": 0}).to_list(100)
+    
+    # Calculate totals
+    total_reading_plays = sum(n.get("stats", {}).get("reading_plays", 0) for n in all_neno)
+    total_reflection_plays = sum(n.get("stats", {}).get("reflection_plays", 0) for n in all_neno)
+    total_plays = total_reading_plays + total_reflection_plays
+    
+    # Active vs scheduled
+    active_count = len([n for n in all_neno if n.get("is_active")])
+    scheduled_count = len([n for n in all_neno if not n.get("is_active")])
+    
+    # Top performing neno
+    top_neno = sorted(all_neno, key=lambda x: x.get("stats", {}).get("total_plays", 0), reverse=True)[:10]
+    
+    # Top leaders by plays
+    leader_plays = {}
+    for n in all_neno:
+        lid = n.get("leader_id", "unknown")
+        plays = n.get("stats", {}).get("total_plays", 0)
+        leader_plays[lid] = leader_plays.get(lid, 0) + plays
+    
+    # Map leader IDs to names
+    leader_map = {l["leader_id"]: f"{l.get('title', '')} {l.get('name', '')}".strip() for l in all_leaders}
+    top_leaders = [
+        {"leader_id": lid, "name": leader_map.get(lid, "Unknown"), "total_plays": plays}
+        for lid, plays in sorted(leader_plays.items(), key=lambda x: x[1], reverse=True)[:5]
+    ]
+    
+    # Recent activity (last 7 days)
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    recent_neno = [n for n in all_neno if n.get("created_at", "") >= seven_days_ago]
+    
+    # Get books distribution
+    book_counts = {}
+    for n in all_neno:
+        book = n.get("book", "Unknown")
+        book_counts[book] = book_counts.get(book, 0) + 1
+    top_books = [{"book": b, "count": c} for b, c in sorted(book_counts.items(), key=lambda x: x[1], reverse=True)[:10]]
+    
+    return {
+        "total_entries": len(all_neno),
+        "active_entries": active_count,
+        "scheduled_entries": scheduled_count,
+        "total_leaders": len(all_leaders),
+        "total_reading_plays": total_reading_plays,
+        "total_reflection_plays": total_reflection_plays,
+        "total_plays": total_plays,
+        "recent_entries_7d": len(recent_neno),
+        "top_neno": [
+            {
+                "neno_id": n.get("neno_id"),
+                "verse_reference": n.get("verse_reference"),
+                "leader_name": leader_map.get(n.get("leader_id"), "Unknown"),
+                "total_plays": n.get("stats", {}).get("total_plays", 0),
+                "reading_plays": n.get("stats", {}).get("reading_plays", 0),
+                "reflection_plays": n.get("stats", {}).get("reflection_plays", 0),
+            }
+            for n in top_neno
+        ],
+        "top_leaders": top_leaders,
+        "top_books": top_books
+    }
+
 # ==================== USER ENDPOINTS ====================
 
 @router.get("/active")

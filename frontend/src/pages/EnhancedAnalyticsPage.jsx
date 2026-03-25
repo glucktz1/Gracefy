@@ -49,6 +49,7 @@ export default function EnhancedAnalyticsPage() {
   const [realtime, setRealtime] = useState(null);
   const [bibleAnalytics, setBibleAnalytics] = useState(null);
   const [navigationAnalytics, setNavigationAnalytics] = useState(null);
+  const [nenoLaLeoAnalytics, setNenoLaLeoAnalytics] = useState(null);
   const [replayStats, setReplayStats] = useState(null);
   const [deviceDistribution, setDeviceDistribution] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,18 +60,20 @@ export default function EnhancedAnalyticsPage() {
   const fetchAnalytics = useCallback(async () => {
     try {
       const periodDays = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
-      const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes] = await Promise.all([
+      const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes, nenoRes] = await Promise.all([
         axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }),
         axios.get(`${API}/analytics/realtime`, { withCredentials: true }),
         axios.get(`${API}/admin/bible/analytics?days=30`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/admin/analytics/navigation?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/analytics/device-distribution`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API}/neno-la-leo/admin/analytics`, { withCredentials: true }).catch(() => ({ data: null })),
       ]);
       setAnalytics(analyticsRes.data);
       setRealtime(realtimeRes.data);
       setBibleAnalytics(bibleRes.data);
       setNavigationAnalytics(navRes.data);
       setDeviceDistribution(deviceRes.data);
+      setNenoLaLeoAnalytics(nenoRes.data);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast.error("Failed to load analytics");
@@ -305,6 +308,9 @@ export default function EnhancedAnalyticsPage() {
           </TabsTrigger>
           <TabsTrigger value="bible" className="data-[state=active]:bg-amber-600">
             <BookOpen size={14} className="mr-1" /> Bible
+          </TabsTrigger>
+          <TabsTrigger value="neno" className="data-[state=active]:bg-orange-600">
+            <BookOpen size={14} className="mr-1" /> Neno la Leo
           </TabsTrigger>
           <TabsTrigger value="choirs" className="data-[state=active]:bg-violet-600">Choirs</TabsTrigger>
         </TabsList>
@@ -994,6 +1000,136 @@ export default function EnhancedAnalyticsPage() {
                 </div>
               ) : (
                 <p className="text-zinc-500 text-center py-8">No snippet plays yet</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Neno la Leo Tab */}
+        <TabsContent value="neno" className="space-y-6">
+          {/* Neno Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard 
+              icon={BookOpen} iconColor="orange"
+              label="Jumla ya Neno"
+              value={nenoLaLeoAnalytics?.total_entries || 0}
+              subValue={`${nenoLaLeoAnalytics?.active_entries || 0} active, ${nenoLaLeoAnalytics?.scheduled_entries || 0} scheduled`}
+            />
+            <StatCard 
+              icon={Users} iconColor="violet"
+              label="Viongozi"
+              value={nenoLaLeoAnalytics?.total_leaders || 0}
+            />
+            <StatCard 
+              icon={Play} iconColor="emerald"
+              label="Jumla ya Kusikiliza"
+              value={nenoLaLeoAnalytics?.total_plays?.toLocaleString() || 0}
+              subValue={`${nenoLaLeoAnalytics?.total_reading_plays || 0} reading, ${nenoLaLeoAnalytics?.total_reflection_plays || 0} reflection`}
+            />
+            <StatCard 
+              icon={Activity} iconColor="blue"
+              label="Neno Mpya (7 siku)"
+              value={nenoLaLeoAnalytics?.recent_entries_7d || 0}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Neno */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <TrendingUp size={18} className="text-orange-400" />
+                  Neno Zinazopendwa Zaidi
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {nenoLaLeoAnalytics?.top_neno?.length > 0 ? (
+                  <div className="space-y-3">
+                    {nenoLaLeoAnalytics.top_neno.map((neno, idx) => (
+                      <div key={neno.neno_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            idx === 0 ? 'bg-amber-500 text-black' :
+                            idx === 1 ? 'bg-zinc-400 text-black' :
+                            idx === 2 ? 'bg-amber-700 text-white' :
+                            'bg-zinc-700 text-white'
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <p className="font-medium text-white">{neno.verse_reference}</p>
+                            <p className="text-xs text-zinc-400">{neno.leader_name}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge className="bg-orange-500/20 text-orange-400">{neno.total_plays} plays</Badge>
+                          <p className="text-xs text-zinc-500 mt-1">
+                            {neno.reading_plays} kusoma • {neno.reflection_plays} tafakari
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-center py-8">Hakuna data bado</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Leaders */}
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <Users size={18} className="text-violet-400" />
+                  Viongozi Wanaopendwa Zaidi
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {nenoLaLeoAnalytics?.top_leaders?.length > 0 ? (
+                  <div className="space-y-3">
+                    {nenoLaLeoAnalytics.top_leaders.map((leader, idx) => (
+                      <div key={leader.leader_id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            idx === 0 ? 'bg-amber-500 text-black' :
+                            idx === 1 ? 'bg-zinc-400 text-black' :
+                            idx === 2 ? 'bg-amber-700 text-white' :
+                            'bg-zinc-700 text-white'
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <p className="font-medium text-white">{leader.name}</p>
+                        </div>
+                        <Badge className="bg-violet-500/20 text-violet-400">{leader.total_plays} plays</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-center py-8">Hakuna data bado</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Books */}
+          <Card className="bg-zinc-900/50 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <BookOpen size={18} className="text-amber-400" />
+                Vitabu vya Biblia Vinavyotumika Zaidi
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {nenoLaLeoAnalytics?.top_books?.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {nenoLaLeoAnalytics.top_books.map((book) => (
+                    <Badge key={book.book} className="bg-amber-500/20 text-amber-400 px-3 py-1.5">
+                      {book.book} ({book.count})
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-zinc-500 text-center py-8">Hakuna data bado</p>
               )}
             </CardContent>
           </Card>
