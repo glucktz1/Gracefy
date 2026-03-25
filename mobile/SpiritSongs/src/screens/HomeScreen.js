@@ -810,16 +810,16 @@ const HomeScreen = ({ navigation }) => {
       }
     }
     
-    // Neno la Leo (Today's Word) - Before Mafundisho
-    if (nenoLaLeo.length > 0 && !addedSectionTypes.has('nenoLaLeo')) {
-      sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
-      addedSectionTypes.add('nenoLaLeo');
-    }
-    
     // Mafundisho na Katekesi - ADD ONCE at the end (before Nyimbo Zote)
     if (mafundishoContent.length > 0 && !addedSectionTypes.has('mafundisho')) {
       sections.push({ type: 'mafundisho', key: 'mafundisho', data: mafundishoContent });
       addedSectionTypes.add('mafundisho');
+    }
+    
+    // Neno la Leo (Today's Word) - After 2 sections (Radio and Mafundisho)
+    if (nenoLaLeo.length > 0 && !addedSectionTypes.has('nenoLaLeo')) {
+      sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
+      addedSectionTypes.add('nenoLaLeo');
     }
     
     // All Albums (Nyimbo Zote) - THIS IS THE LAST CONTENT SECTION
