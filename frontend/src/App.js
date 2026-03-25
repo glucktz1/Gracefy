@@ -118,15 +118,16 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
         { path: "/admin/withdrawals", icon: CreditCard, label: "Withdrawals", permissions: ["approve_payouts"] },
       ]
     },
-    // Contents Group (Albums, Songs, Mafundisho, Bible, Special Mixes)
+    // Contents Group (Albums, Songs, Mafundisho, Bible, Special Mixes, Neno la Leo)
     { 
       groupId: "contents",
       icon: FolderTree, 
       label: "Contents", 
-      permissions: ["content_moderation", "content_approval", "create_albums", "platform_settings", "layout_promotion_control"],
+      permissions: ["content_moderation", "content_approval", "create_albums", "platform_settings", "layout_promotion_control", "content_management"],
       children: [
         { path: "/admin/albums", icon: Music2, label: "Albums & Songs", permissions: ["content_moderation", "content_approval"] },
         { path: "/admin/teachings", icon: BookOpen, label: "Mafundisho", permissions: ["content_moderation", "platform_settings"] },
+        { path: "/admin/neno-la-leo", icon: BookMarked, label: "Neno la Leo", permissions: ["content_management", "content_moderation"] },
         { path: "/admin/bible", icon: BookMarked, label: "Biblia na Vitabu", permissions: ["content_moderation", "platform_settings"] },
         { path: "/admin/special-mixes", icon: Disc, label: "Special Mixes", permissions: ["create_albums", "layout_promotion_control"] },
         { path: "/admin/song-categories", icon: Tags, label: "Song Categories", permissions: ["content_moderation", "platform_settings"] },
@@ -194,8 +195,6 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       permissions: ["user_management", "content_management"],
       children: [
         { path: "/admin/religious-leaders", icon: Users, label: "Leader Management", permissions: ["user_management"] },
-        { path: "/admin/neno-la-leo", icon: BookMarked, label: "Neno la Leo", permissions: ["content_management"] },
-        { path: "/admin/teachings", icon: BookMarked, label: "Teachings (Mafundisho)", permissions: ["content_management"] },
       ]
     },
     // Standalone items

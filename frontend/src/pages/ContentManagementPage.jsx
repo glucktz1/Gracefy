@@ -2,8 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { 
   BookOpen, Plus, Search, Edit2, Trash2, Eye, MoreVertical, Upload,
-  Play, Clock, Users, ChevronRight, ChevronDown, Mic2, FileAudio,
-  Layers, ListOrdered, Music2, Image, DollarSign, Tag, Check, X
+  Play, Pause, Clock, Users, ChevronRight, ChevronDown, Mic2, FileAudio,
+  Layers, ListOrdered, Music2, Image, DollarSign, Tag, Check, X,
+  Calendar, Filter, RefreshCw, BookMarked, Headphones, ToggleLeft, ToggleRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -71,9 +73,137 @@ export default function ContentManagementPage() {
   const seriesThumbnailRef = useRef(null);
   const episodeAudioRef = useRef(null);
 
+  // Neno la Leo State
+  const [activeTab, setActiveTab] = useState("teachings");
+  const [nenoList, setNenoList] = useState([]);
+  const [nenoLeaders, setNenoLeaders] = useState([]);
+  const [nenoLoading, setNenoLoading] = useState(false);
+  const [nenoFilter, setNenoFilter] = useState({ leader: "all", date: "", status: "all" });
+  const [nenoSearch, setNenoSearch] = useState("");
+  const [playingNenoId, setPlayingNenoId] = useState(null);
+  const [playingAudioType, setPlayingAudioType] = useState(null);
+  const nenoAudioRef = useRef(null);
+  const [isNenoEditModalOpen, setIsNenoEditModalOpen] = useState(false);
+  const [editingNeno, setEditingNeno] = useState(null);
+
   useEffect(() => {
     fetchData();
   }, [filterType, filterStatus]);
+
+  useEffect(() => {
+    if (activeTab === "neno") {
+      fetchNenoData();
+    }
+  }, [activeTab]);
+
+  const fetchNenoData = async () => {
+    setNenoLoading(true);
+    try {
+      const [nenoRes, leadersRes] = await Promise.all([
+        axios.get(`${API}/neno-la-leo/admin/neno`, { withCredentials: true }),
+        axios.get(`${API}/neno-la-leo/admin/leaders`, { withCredentials: true })
+      ]);
+      setNenoList(nenoRes.data.neno_list || []);
+      setNenoLeaders(leadersRes.data.leaders || []);
+    } catch (error) {
+      console.error("Error fetching Neno la Leo:", error);
+      toast.error("Failed to load Neno la Leo content");
+    } finally {
+      setNenoLoading(false);
+    }
+  };
+
+  const handleNenoToggleActive = async (neno) => {
+    try {
+      await axios.put(`${API}/neno-la-leo/admin/neno/${neno.neno_id}`, {
+        ...neno,
+        is_active: !neno.is_active
+      }, { withCredentials: true });
+      toast.success(neno.is_active ? "Neno deactivated" : "Neno activated");
+      fetchNenoData();
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const handleNenoDelete = async (nenoId) => {
+    if (!window.confirm("Are you sure you want to delete this Neno la Leo entry?")) return;
+    try {
+      await axios.delete(`${API}/neno-la-leo/admin/neno/${nenoId}`, { withCredentials: true });
+      toast.success("Neno la Leo deleted");
+      fetchNenoData();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleNenoPlay = (neno, audioType) => {
+    const audioUrl = audioType === 'reading' ? neno.reading_audio_url : neno.reflection_audio_url;
+    if (!audioUrl) return;
+
+    // If same audio playing, stop
+    if (playingNenoId === neno.neno_id && playingAudioType === audioType) {
+      if (nenoAudioRef.current) {
+        nenoAudioRef.current.pause();
+        nenoAudioRef.current = null;
+      }
+      setPlayingNenoId(null);
+      setPlayingAudioType(null);
+      return;
+    }
+
+    // Stop any currently playing
+    if (nenoAudioRef.current) {
+      nenoAudioRef.current.pause();
+    }
+
+    // Play new
+    const audio = new Audio(audioUrl);
+    audio.play();
+    nenoAudioRef.current = audio;
+    setPlayingNenoId(neno.neno_id);
+    setPlayingAudioType(audioType);
+
+    audio.onended = () => {
+      setPlayingNenoId(null);
+      setPlayingAudioType(null);
+    };
+  };
+
+  const openNenoEditModal = (neno) => {
+    setEditingNeno(neno);
+    setIsNenoEditModalOpen(true);
+  };
+
+  const handleNenoUpdate = async () => {
+    if (!editingNeno) return;
+    try {
+      await axios.put(`${API}/neno-la-leo/admin/neno/${editingNeno.neno_id}`, editingNeno, { withCredentials: true });
+      toast.success("Neno la Leo updated");
+      setIsNenoEditModalOpen(false);
+      setEditingNeno(null);
+      fetchNenoData();
+    } catch (error) {
+      toast.error("Failed to update");
+    }
+  };
+
+  // Filter Neno list
+  const filteredNenoList = nenoList.filter(neno => {
+    if (nenoFilter.leader !== "all" && neno.leader_id !== nenoFilter.leader) return false;
+    if (nenoFilter.status === "active" && !neno.is_active) return false;
+    if (nenoFilter.status === "inactive" && neno.is_active) return false;
+    if (nenoFilter.date && neno.word_date !== nenoFilter.date) return false;
+    if (nenoSearch) {
+      const search = nenoSearch.toLowerCase();
+      return (
+        neno.verse_reference?.toLowerCase().includes(search) ||
+        neno.leader?.name?.toLowerCase().includes(search) ||
+        neno.book?.toLowerCase().includes(search)
+      );
+    }
+    return true;
+  });
 
   const fetchData = async () => {
     try {
@@ -332,113 +462,128 @@ export default function ContentManagementPage() {
   }
 
   return (
-    <div className="space-y-6" data-testid="content-management-page">
+    <div className="space-y-6 p-6" data-testid="content-management-page">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3">
             <BookOpen className="text-violet-500" size={28} />
-            Leader Content
+            Content Management
           </h1>
-          <p className="text-zinc-400 text-sm mt-1">Manage teachings, sermons, prayers, and more</p>
+          <p className="text-zinc-400 text-sm mt-1">Manage all leader content including teachings and Neno la Leo</p>
         </div>
-        <Button onClick={() => { resetContainerForm(); setIsContainerModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700">
-          <Plus size={18} className="mr-2" /> Add Content
-        </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <Layers size={20} className="text-violet-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{containers.length}</p>
-                <p className="text-xs text-zinc-400">Total Content</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <ListOrdered size={20} className="text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{containers.reduce((a, c) => a + (c.total_series || 0), 0)}</p>
-                <p className="text-xs text-zinc-400">Total Series</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <FileAudio size={20} className="text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{containers.reduce((a, c) => a + (c.total_episodes || 0), 0)}</p>
-                <p className="text-xs text-zinc-400">Total Episodes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <Clock size={20} className="text-blue-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{formatDuration(containers.reduce((a, c) => a + (c.total_duration_minutes || 0), 0))}</p>
-                <p className="text-xs text-zinc-400">Total Duration</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="bg-zinc-800/50 border border-zinc-700 p-1 w-fit">
+          <TabsTrigger value="teachings" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white px-6">
+            <BookOpen size={16} className="mr-2" /> Mafundisho
+          </TabsTrigger>
+          <TabsTrigger value="neno" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-6">
+            <BookMarked size={16} className="mr-2" /> Neno la Leo
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search content..."
-            className="pl-10 bg-zinc-900 border-zinc-700"
-          />
-        </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-40 bg-zinc-900 border-zinc-700">
-            <SelectValue placeholder="Content Type" />
-          </SelectTrigger>
-          <SelectContent className="bg-zinc-900 border-zinc-800">
-            <SelectItem value="all">All Types</SelectItem>
-            {CONTENT_TYPES.map(t => (
-              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-32 bg-zinc-900 border-zinc-700">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent className="bg-zinc-900 border-zinc-800">
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        {/* Mafundisho (Teachings) Tab */}
+        <TabsContent value="teachings" className="mt-6 space-y-6">
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-4">
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                    <Layers size={20} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{containers.length}</p>
+                    <p className="text-xs text-zinc-400">Total Content</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <ListOrdered size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{containers.reduce((a, c) => a + (c.total_series || 0), 0)}</p>
+                    <p className="text-xs text-zinc-400">Total Series</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                    <FileAudio size={20} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{containers.reduce((a, c) => a + (c.total_episodes || 0), 0)}</p>
+                    <p className="text-xs text-zinc-400">Total Episodes</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <Clock size={20} className="text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{formatDuration(containers.reduce((a, c) => a + (c.total_duration_minutes || 0), 0))}</p>
+                    <p className="text-xs text-zinc-400">Total Duration</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Content List */}
+          {/* Filters & Add Button */}
+          <div className="flex gap-4 items-center justify-between">
+            <div className="flex gap-4 items-center flex-1">
+              <div className="relative flex-1 max-w-sm">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search content..."
+                  className="pl-10 bg-zinc-900 border-zinc-700"
+                />
+              </div>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-40 bg-zinc-900 border-zinc-700">
+                  <SelectValue placeholder="Content Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="all">All Types</SelectItem>
+                  {CONTENT_TYPES.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-32 bg-zinc-900 border-zinc-700">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={() => { resetContainerForm(); setIsContainerModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700">
+              <Plus size={18} className="mr-2" /> Add Content
+            </Button>
+          </div>
+
+          {/* Content List */}
       <div className="grid gap-4">
         {filteredContainers.length === 0 ? (
           <div className="text-center py-12 text-zinc-500">
@@ -519,7 +664,239 @@ export default function ContentManagementPage() {
             </Card>
           ))
         )}
-      </div>
+          </div>
+        </TabsContent>
+
+        {/* Neno la Leo Tab */}
+        <TabsContent value="neno" className="mt-6 space-y-6">
+          {/* Neno Stats */}
+          <div className="grid grid-cols-4 gap-4">
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <BookMarked size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{nenoList.length}</p>
+                    <p className="text-xs text-zinc-400">Total Entries</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                    <Check size={20} className="text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{nenoList.filter(n => n.is_active).length}</p>
+                    <p className="text-xs text-zinc-400">Active</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                    <Calendar size={20} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{nenoList.filter(n => !n.is_active).length}</p>
+                    <p className="text-xs text-zinc-400">Scheduled</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                    <Users size={20} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{nenoLeaders.length}</p>
+                    <p className="text-xs text-zinc-400">Leaders</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Neno Filters */}
+          <div className="flex gap-4 items-center flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <Input
+                value={nenoSearch}
+                onChange={(e) => setNenoSearch(e.target.value)}
+                placeholder="Search by verse or leader..."
+                className="pl-10 bg-zinc-900 border-zinc-700"
+              />
+            </div>
+            <Select value={nenoFilter.leader} onValueChange={(v) => setNenoFilter({...nenoFilter, leader: v})}>
+              <SelectTrigger className="w-48 bg-zinc-900 border-zinc-700">
+                <SelectValue placeholder="All Leaders" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800">
+                <SelectItem value="all">All Leaders</SelectItem>
+                {nenoLeaders.map(l => (
+                  <SelectItem key={l.leader_id} value={l.leader_id}>{l.title} {l.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={nenoFilter.status} onValueChange={(v) => setNenoFilter({...nenoFilter, status: v})}>
+              <SelectTrigger className="w-36 bg-zinc-900 border-zinc-700">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800">
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Scheduled</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={nenoFilter.date}
+              onChange={(e) => setNenoFilter({...nenoFilter, date: e.target.value})}
+              className="w-40 bg-zinc-900 border-zinc-700"
+              placeholder="Filter by date"
+            />
+            <Button variant="outline" className="border-zinc-700" onClick={fetchNenoData}>
+              <RefreshCw size={16} className="mr-2" /> Refresh
+            </Button>
+          </div>
+
+          {/* Neno Table */}
+          {nenoLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
+                    <TableHead>Verse Reference</TableHead>
+                    <TableHead>Leader</TableHead>
+                    <TableHead>Word Date</TableHead>
+                    <TableHead>Audio</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Plays</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredNenoList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-zinc-400">
+                        <BookMarked size={32} className="mx-auto mb-2 opacity-50" />
+                        <p>No Neno la Leo entries found</p>
+                        <p className="text-sm mt-1">Go to <a href="/admin/neno-la-leo" className="text-emerald-400 hover:underline">Neno la Leo page</a> to add new entries</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredNenoList.map((neno) => (
+                      <TableRow key={neno.neno_id} className="border-zinc-800 hover:bg-zinc-800/50">
+                        <TableCell className="font-medium">{neno.verse_reference}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {neno.leader?.photo_url ? (
+                              <img src={neno.leader.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
+                                <Users size={14} />
+                              </div>
+                            )}
+                            <span className="text-sm">{neno.leader?.title} {neno.leader?.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <p>{neno.word_date}</p>
+                            <p className="text-xs text-zinc-500">{neno.word_day_name}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {neno.reading_audio_url && (
+                              <Button
+                                size="sm"
+                                variant={playingNenoId === neno.neno_id && playingAudioType === 'reading' ? "default" : "outline"}
+                                className={`h-7 px-2 ${playingNenoId === neno.neno_id && playingAudioType === 'reading' ? 'bg-emerald-600' : 'border-zinc-700'}`}
+                                onClick={() => handleNenoPlay(neno, 'reading')}
+                              >
+                                {playingNenoId === neno.neno_id && playingAudioType === 'reading' ? <Pause size={12} /> : <Play size={12} />}
+                                <span className="ml-1 text-xs">Read</span>
+                              </Button>
+                            )}
+                            {neno.reflection_audio_url && (
+                              <Button
+                                size="sm"
+                                variant={playingNenoId === neno.neno_id && playingAudioType === 'reflection' ? "default" : "outline"}
+                                className={`h-7 px-2 ${playingNenoId === neno.neno_id && playingAudioType === 'reflection' ? 'bg-violet-600' : 'border-zinc-700'}`}
+                                onClick={() => handleNenoPlay(neno, 'reflection')}
+                              >
+                                {playingNenoId === neno.neno_id && playingAudioType === 'reflection' ? <Pause size={12} /> : <Play size={12} />}
+                                <span className="ml-1 text-xs">Reflect</span>
+                              </Button>
+                            )}
+                            {!neno.reading_audio_url && !neno.reflection_audio_url && (
+                              <span className="text-xs text-zinc-500">No audio</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={neno.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}>
+                            {neno.is_active ? "Active" : "Scheduled"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <p>{neno.stats?.total_plays || 0}</p>
+                            <p className="text-xs text-zinc-500">R: {neno.stats?.reading_plays || 0} / T: {neno.stats?.reflection_plays || 0}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleNenoToggleActive(neno)}
+                              title={neno.is_active ? "Deactivate" : "Activate"}
+                            >
+                              {neno.is_active ? <ToggleRight size={16} className="text-emerald-400" /> : <ToggleLeft size={16} className="text-zinc-400" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => openNenoEditModal(neno)}
+                            >
+                              <Edit2 size={14} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
+                              onClick={() => handleNenoDelete(neno.neno_id)}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Container Modal */}
       <Dialog open={isContainerModalOpen} onOpenChange={setIsContainerModalOpen}>
@@ -1019,6 +1396,99 @@ export default function ContentManagementPage() {
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Neno la Leo Edit Modal */}
+      <Dialog open={isNenoEditModalOpen} onOpenChange={setIsNenoEditModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Neno la Leo</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Update the entry for {editingNeno?.verse_reference}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingNeno && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-zinc-800/50 rounded-lg">
+                <p className="text-sm text-zinc-400">Verse Reference</p>
+                <p className="font-medium">{editingNeno.verse_reference}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1.5 block">Word Date</label>
+                  <Input
+                    type="date"
+                    value={editingNeno.word_date || ''}
+                    onChange={(e) => setEditingNeno({...editingNeno, word_date: e.target.value})}
+                    className="bg-zinc-950 border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1.5 block">Publish Date</label>
+                  <Input
+                    type="date"
+                    value={editingNeno.publish_date || ''}
+                    onChange={(e) => setEditingNeno({...editingNeno, publish_date: e.target.value})}
+                    className="bg-zinc-950 border-zinc-700"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm text-zinc-400 mb-1.5 block">Publish Time</label>
+                <Input
+                  type="time"
+                  value={editingNeno.publish_time || ''}
+                  onChange={(e) => setEditingNeno({...editingNeno, publish_time: e.target.value})}
+                  className="bg-zinc-950 border-zinc-700"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm text-zinc-400 mb-1.5 block">Reading Audio URL</label>
+                <Input
+                  value={editingNeno.reading_audio_url || ''}
+                  onChange={(e) => setEditingNeno({...editingNeno, reading_audio_url: e.target.value})}
+                  placeholder="Audio URL"
+                  className="bg-zinc-950 border-zinc-700"
+                />
+                {editingNeno.reading_audio_url && (
+                  <audio src={editingNeno.reading_audio_url} controls className="w-full mt-2 h-8" />
+                )}
+              </div>
+              
+              <div>
+                <label className="text-sm text-zinc-400 mb-1.5 block">Reflection Audio URL</label>
+                <Input
+                  value={editingNeno.reflection_audio_url || ''}
+                  onChange={(e) => setEditingNeno({...editingNeno, reflection_audio_url: e.target.value})}
+                  placeholder="Audio URL"
+                  className="bg-zinc-950 border-zinc-700"
+                />
+                {editingNeno.reflection_audio_url && (
+                  <audio src={editingNeno.reflection_audio_url} controls className="w-full mt-2 h-8" />
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                <span className="text-sm">Active Status</span>
+                <Switch
+                  checked={editingNeno.is_active || false}
+                  onCheckedChange={(checked) => setEditingNeno({...editingNeno, is_active: checked})}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNenoEditModalOpen(false)} className="border-zinc-700">Cancel</Button>
+            <Button onClick={handleNenoUpdate} className="bg-emerald-600 hover:bg-emerald-700">
+              Save Changes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
