@@ -560,3 +560,105 @@ async def reject_church_leader(account_id: str, data: dict = None):
         raise HTTPException(status_code=404, detail="Account not found")
     
     return {"message": "Account rejected"}
+
+
+
+# ============== PRAYER SCHEDULE ENDPOINTS ==============
+
+@router.get("/churches/{church_id}/prayer-schedule")
+async def get_prayer_schedule(church_id: str):
+    """Get prayer schedule for a church"""
+    db = get_db()
+    
+    church = await db.churches.find_one(
+        {"church_id": church_id},
+        {"_id": 0, "prayer_schedule": 1}
+    )
+    
+    if not church:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    return {"schedule": church.get("prayer_schedule", [])}
+
+
+@router.put("/churches/{church_id}/prayer-schedule")
+async def update_prayer_schedule(church_id: str, data: dict):
+    """Update prayer schedule for a church"""
+    db = get_db()
+    
+    schedule = data.get("schedule", [])
+    
+    # Validate schedule format
+    for item in schedule:
+        if "day" not in item or "services" not in item:
+            raise HTTPException(status_code=400, detail="Invalid schedule format")
+    
+    result = await db.churches.update_one(
+        {"church_id": church_id},
+        {"$set": {
+            "prayer_schedule": schedule,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    return {"message": "Prayer schedule updated successfully"}
+
+
+@router.post("/churches/{church_id}/follow")
+async def follow_church(church_id: str, data: dict):
+    """Follow/unfollow a church"""
+    db = get_db()
+    
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    church = await db.churches.find_one({"church_id": church_id})
+    if not church:
+        raise HTTPException(status_code=404, detail="Church not found")
+    
+    # Check if already following
+    existing = await db.church_followers.find_one({
+        "church_id": church_id,
+        "user_id": user_id
+    })
+    
+    if existing:
+        # Unfollow
+        await db.church_followers.delete_one({
+            "church_id": church_id,
+            "user_id": user_id
+        })
+        await db.churches.update_one(
+            {"church_id": church_id},
+            {"$inc": {"followers_count": -1}}
+        )
+        return {"following": False, "message": "Unfollowed church"}
+    else:
+        # Follow
+        await db.church_followers.insert_one({
+            "church_id": church_id,
+            "user_id": user_id,
+            "followed_at": datetime.now(timezone.utc).isoformat()
+        })
+        await db.churches.update_one(
+            {"church_id": church_id},
+            {"$inc": {"followers_count": 1}}
+        )
+        return {"following": True, "message": "Now following church"}
+
+
+@router.get("/churches/{church_id}/is-following")
+async def check_following(church_id: str, user_id: str):
+    """Check if user is following a church"""
+    db = get_db()
+    
+    existing = await db.church_followers.find_one({
+        "church_id": church_id,
+        "user_id": user_id
+    })
+    
+    return {"following": existing is not None}

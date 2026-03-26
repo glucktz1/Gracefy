@@ -329,19 +329,68 @@ export default function ChurchesPage() {
 
   const addSchedule = () => {
     if (newSchedule.day && newSchedule.time && newSchedule.service_type) {
-      setFormData({
-        ...formData,
-        prayer_schedule: [...formData.prayer_schedule, { ...newSchedule }]
-      });
+      // Find if day already exists
+      const existingDayIndex = formData.prayer_schedule.findIndex(s => s.day === newSchedule.day);
+      
+      if (existingDayIndex !== -1) {
+        // Add service to existing day
+        const updatedSchedule = [...formData.prayer_schedule];
+        if (!updatedSchedule[existingDayIndex].services) {
+          // Convert old format to new format
+          updatedSchedule[existingDayIndex] = {
+            day: updatedSchedule[existingDayIndex].day,
+            services: [{
+              name: updatedSchedule[existingDayIndex].service_type || updatedSchedule[existingDayIndex].service,
+              time: updatedSchedule[existingDayIndex].time,
+              description: updatedSchedule[existingDayIndex].description
+            }]
+          };
+        }
+        updatedSchedule[existingDayIndex].services.push({
+          name: newSchedule.service_type,
+          time: newSchedule.time,
+          description: newSchedule.description
+        });
+        setFormData({ ...formData, prayer_schedule: updatedSchedule });
+      } else {
+        // Create new day with service
+        setFormData({
+          ...formData,
+          prayer_schedule: [...formData.prayer_schedule, {
+            day: newSchedule.day,
+            services: [{
+              name: newSchedule.service_type,
+              time: newSchedule.time,
+              description: newSchedule.description
+            }]
+          }]
+        });
+      }
       setNewSchedule({ day: "", time: "", service_type: "", description: "" });
     }
   };
 
-  const removeSchedule = (index) => {
-    setFormData({
-      ...formData,
-      prayer_schedule: formData.prayer_schedule.filter((_, i) => i !== index)
-    });
+  const removeSchedule = (dayIndex, serviceIndex = null) => {
+    if (serviceIndex !== null) {
+      // Remove specific service from a day
+      const updatedSchedule = [...formData.prayer_schedule];
+      if (updatedSchedule[dayIndex].services) {
+        updatedSchedule[dayIndex].services = updatedSchedule[dayIndex].services.filter((_, i) => i !== serviceIndex);
+        // Remove day if no services left
+        if (updatedSchedule[dayIndex].services.length === 0) {
+          updatedSchedule.splice(dayIndex, 1);
+        }
+      } else {
+        updatedSchedule.splice(dayIndex, 1);
+      }
+      setFormData({ ...formData, prayer_schedule: updatedSchedule });
+    } else {
+      // Remove entire day
+      setFormData({
+        ...formData,
+        prayer_schedule: formData.prayer_schedule.filter((_, i) => i !== dayIndex)
+      });
+    }
   };
 
   const openAnnouncementModal = (church) => {
@@ -885,13 +934,31 @@ export default function ChurchesPage() {
                 </Button>
               </div>
               {formData.prayer_schedule.length > 0 && (
-                <div className="space-y-2 bg-zinc-950 rounded-lg p-3">
-                  {formData.prayer_schedule.map((s, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-300">{s.day} at {s.time} - {s.service_type}</span>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => removeSchedule(idx)} className="text-red-400 h-6 w-6 p-0">
-                        <X size={14} />
-                      </Button>
+                <div className="space-y-3 bg-zinc-950 rounded-lg p-3">
+                  {formData.prayer_schedule.map((scheduleDay, dayIdx) => (
+                    <div key={dayIdx} className="border-b border-zinc-800 last:border-0 pb-2 last:pb-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-violet-400 font-medium text-sm">{scheduleDay.day}</span>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => removeSchedule(dayIdx)} className="text-red-400 h-6 w-6 p-0">
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
+                      {scheduleDay.services ? (
+                        <div className="space-y-1 ml-2">
+                          {scheduleDay.services.map((service, sIdx) => (
+                            <div key={sIdx} className="flex items-center justify-between text-sm">
+                              <span className="text-zinc-300">{service.time} - {service.name}</span>
+                              <Button type="button" size="sm" variant="ghost" onClick={() => removeSchedule(dayIdx, sIdx)} className="text-red-400/70 h-5 w-5 p-0">
+                                <X size={12} />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-sm ml-2">
+                          <span className="text-zinc-300">{scheduleDay.time} - {scheduleDay.service_type || scheduleDay.service}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

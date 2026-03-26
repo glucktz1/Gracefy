@@ -282,159 +282,410 @@ const ChurchCard = ({ church, onClick }) => (
   </button>
 );
 
-// Church Detail Modal
-const ChurchDetailModal = ({ church, onClose, choirs = [] }) => {
+// Church Detail Modal - Enhanced with Tabs
+const ChurchDetailModal = ({ church, onClose, choirs = [], onChoirClick, user, API }) => {
+  const [activeTab, setActiveTab] = useState('matangazo');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [churchData, setChurchData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (church?.church_id) {
+      // Fetch full church details
+      axios.get(`${API}/churches/${church.church_id}/full`)
+        .then(res => {
+          setChurchData(res.data);
+          setLoading(false);
+        })
+        .catch(() => {
+          setChurchData({ church, announcements: [], choirs: [], leaders: [] });
+          setLoading(false);
+        });
+
+      // Check if following
+      if (user?.user_id) {
+        axios.get(`${API}/churches/${church.church_id}/is-following?user_id=${user.user_id}`)
+          .then(res => setIsFollowing(res.data.following))
+          .catch(() => {});
+      }
+    }
+  }, [church, user, API]);
+
+  const handleFollow = async () => {
+    if (!user?.user_id) return;
+    setFollowLoading(true);
+    try {
+      const res = await axios.post(`${API}/churches/${church.church_id}/follow`, {
+        user_id: user.user_id
+      });
+      setIsFollowing(res.data.following);
+    } catch (err) {
+      console.error('Follow error:', err);
+    }
+    setFollowLoading(false);
+  };
+
   if (!church) return null;
-  
+
+  const displayChurch = churchData?.church || church;
+  const announcements = churchData?.announcements || [];
+  const churchChoirs = churchData?.choirs || choirs || [];
+  const leaders = churchData?.leaders || [];
+  const schedule = displayChurch.prayer_schedule || [];
+
   return (
-    <div className="fixed inset-0 bg-black/90 z-50 overflow-y-auto" data-testid="church-detail-modal">
-      <div className="min-h-screen p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={onClose} className="p-2 rounded-full bg-zinc-800/50 hover:bg-zinc-700">
-            <X size={24} />
-          </button>
-          <h2 className="text-lg font-bold">Kanisa</h2>
-          <div className="w-10" />
-        </div>
-        
-        {/* Church Image */}
-        <div className="relative h-48 rounded-xl overflow-hidden mb-6">
-          {church.thumbnail ? (
-            <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
+    <div className="fixed inset-0 bg-black/95 z-50 overflow-y-auto" data-testid="church-detail-modal">
+      <div className="min-h-screen">
+        {/* Hero Section with Church Image */}
+        <div className="relative h-72 sm:h-80">
+          {displayChurch.thumbnail || displayChurch.cover_image ? (
+            <img 
+              src={displayChurch.cover_image || displayChurch.thumbnail} 
+              alt={displayChurch.name} 
+              className="w-full h-full object-cover"
+            />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-blue-800 to-teal-900 flex items-center justify-center">
-              <Church size={64} className="text-blue-400/60" />
+            <div className="w-full h-full bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 flex items-center justify-center">
+              <Church size={80} className="text-blue-400/40" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-          <div className="absolute bottom-4 left-4 right-4">
-            <h1 className="text-2xl font-bold text-white">{church.name}</h1>
-            <p className="text-blue-400">{church.denomination || 'Kanisa'}</p>
-          </div>
-        </div>
-        
-        {/* Church Info */}
-        <div className="space-y-4 mb-6">
-          {/* Location & Direction */}
-          <div className="bg-zinc-900/60 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <MapPin className="text-blue-400 mt-1" size={20} />
-              <div className="flex-1">
-                <p className="text-white font-medium">{church.location}</p>
-                {church.address && <p className="text-zinc-400 text-sm">{church.address}</p>}
-              </div>
-            </div>
-            {church.direction && (
-              <a 
-                href={church.direction} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="mt-3 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg w-full justify-center transition-colors"
-              >
-                <Navigation size={18} />
-                <span>Pata Njia (Directions)</span>
-              </a>
-            )}
-          </div>
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
           
-          {/* Leader Info */}
-          {church.priest_name && (
-            <div className="bg-zinc-900/60 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center">
-                <User size={24} className="text-blue-400" />
-              </div>
-              <div>
-                <p className="text-zinc-400 text-sm">{church.leader_title || 'Kiongozi'}</p>
-                <p className="text-white font-medium">{church.priest_name}</p>
-              </div>
-            </div>
-          )}
-          
-          {/* Contact */}
-          {church.phone && (
-            <a href={`tel:${church.phone}`} className="bg-zinc-900/60 rounded-xl p-4 flex items-center gap-3 hover:bg-zinc-800/60">
-              <Phone size={20} className="text-blue-400" />
-              <span className="text-white">{church.phone}</span>
-            </a>
-          )}
-          
-          {/* Bio */}
-          {church.bio && (
-            <div className="bg-zinc-900/60 rounded-xl p-4">
-              <h3 className="text-blue-400 font-medium mb-2">Kuhusu</h3>
-              <p className="text-zinc-300 text-sm leading-relaxed">{church.bio}</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Prayer Schedule */}
-        {church.prayer_schedule && church.prayer_schedule.length > 0 && (
-          <div className="bg-zinc-900/60 rounded-xl p-4 mb-6">
-            <h3 className="text-blue-400 font-medium mb-3 flex items-center gap-2">
-              <Clock size={18} />
-              Ratiba ya Ibada
-            </h3>
-            <div className="space-y-2">
-              {church.prayer_schedule.map((schedule, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
-                  <div>
-                    <p className="text-white font-medium">{schedule.day}</p>
-                    <p className="text-zinc-400 text-sm">{schedule.service}</p>
-                  </div>
-                  <span className="text-blue-400 text-sm">{schedule.time}</span>
-                </div>
-              ))}
-            </div>
+          {/* Header Controls */}
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-10">
+            <button 
+              onClick={onClose} 
+              className="p-2.5 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/70 transition-colors"
+            >
+              <X size={22} className="text-white" />
+            </button>
+            <button 
+              onClick={handleFollow}
+              disabled={followLoading || !user}
+              className={`px-5 py-2 rounded-full font-medium text-sm flex items-center gap-2 transition-all ${
+                isFollowing 
+                  ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {followLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : isFollowing ? (
+                <>
+                  <Check size={16} />
+                  <span>Unafuatilia</span>
+                </>
+              ) : (
+                <>
+                  <Plus size={16} />
+                  <span>Fuatilia</span>
+                </>
+              )}
+            </button>
           </div>
-        )}
-        
-        {/* Announcements */}
-        {church.announcements && church.announcements.length > 0 && (
-          <div className="bg-zinc-900/60 rounded-xl p-4 mb-6">
-            <h3 className="text-amber-400 font-medium mb-3 flex items-center gap-2">
-              <Bell size={18} />
-              Matangazo
-            </h3>
-            <div className="space-y-3">
-              {church.announcements.map((ann, idx) => (
-                <div key={idx} className="p-3 bg-zinc-800/50 rounded-lg">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="text-white font-medium">{ann.title}</h4>
-                    <span className="text-xs text-zinc-500">{ann.date}</span>
-                  </div>
-                  <p className="text-zinc-400 text-sm">{ann.message}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Choirs */}
-        {choirs && choirs.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-violet-400 font-medium mb-3 flex items-center gap-2">
-              <Users size={18} />
-              Kwaya za Kanisa Hili
-            </h3>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {choirs.map(choir => (
-                <div key={choir.choir_id} className="flex-shrink-0 w-32 text-center">
-                  <div className="w-20 h-20 rounded-full bg-violet-600/20 mx-auto mb-2 overflow-hidden">
-                    {choir.profile_image ? (
-                      <img src={choir.profile_image} alt={choir.name} className="w-full h-full object-cover" />
+
+          {/* Church Info Overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-5">
+            <div className="flex items-end gap-4">
+              {/* Parish Priest Circular Photo */}
+              {(displayChurch.leader_photo || displayChurch.leader_name) && (
+                <div className="relative flex-shrink-0">
+                  <div className="w-16 h-16 rounded-full border-3 border-white shadow-xl overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700">
+                    {displayChurch.leader_photo ? (
+                      <img 
+                        src={displayChurch.leader_photo} 
+                        alt={displayChurch.leader_name} 
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Users size={32} className="text-violet-400/60" />
+                        <User size={28} className="text-white/80" />
                       </div>
                     )}
                   </div>
-                  <p className="text-white text-sm font-medium truncate">{choir.name}</p>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-black" />
                 </div>
-              ))}
+              )}
+              <div className="flex-1 min-w-0">
+                <span className="inline-block px-2.5 py-0.5 bg-blue-600/80 backdrop-blur-sm rounded-full text-xs text-white mb-2">
+                  {displayChurch.denomination || 'Kanisa'}
+                </span>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight truncate">
+                  {displayChurch.name}
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  {displayChurch.leader_name && (
+                    <p className="text-white/80 text-sm">
+                      {displayChurch.leader_title || 'Fr.'} {displayChurch.leader_name}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 mt-1 text-white/60 text-sm">
+                  <MapPin size={14} />
+                  <span className="truncate">{displayChurch.location}</span>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Stats Bar */}
+        <div className="flex items-center justify-around py-4 border-b border-zinc-800 bg-zinc-900/80">
+          <div className="text-center">
+            <p className="text-xl font-bold text-white">{displayChurch.followers_count || 0}</p>
+            <p className="text-xs text-zinc-400">Wafuasi</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-white">{churchChoirs.length}</p>
+            <p className="text-xs text-zinc-400">Kwaya</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-white">{announcements.length}</p>
+            <p className="text-xs text-zinc-400">Matangazo</p>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-zinc-800 bg-zinc-900/50 sticky top-0 z-10">
+          <button
+            onClick={() => setActiveTab('matangazo')}
+            className={`flex-1 py-3.5 text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+              activeTab === 'matangazo'
+                ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-400/5'
+                : 'text-zinc-400 hover:text-zinc-300'
+            }`}
+          >
+            <Bell size={18} />
+            Matangazo
+          </button>
+          <button
+            onClick={() => setActiveTab('ratiba')}
+            className={`flex-1 py-3.5 text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+              activeTab === 'ratiba'
+                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5'
+                : 'text-zinc-400 hover:text-zinc-300'
+            }`}
+          >
+            <Clock size={18} />
+            Ratiba za Ibada
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={32} className="animate-spin text-blue-400" />
+            </div>
+          ) : (
+            <>
+              {/* Matangazo (Announcements) Tab */}
+              {activeTab === 'matangazo' && (
+                <div className="space-y-4">
+                  {announcements.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
+                        <Bell size={32} className="text-amber-400/50" />
+                      </div>
+                      <p className="text-zinc-400">Hakuna matangazo kwa sasa</p>
+                      <p className="text-zinc-500 text-sm mt-1">Matangazo mapya yataonekana hapa</p>
+                    </div>
+                  ) : (
+                    announcements.map((ann, idx) => (
+                      <div 
+                        key={ann.announcement_id || idx} 
+                        className="bg-gradient-to-br from-zinc-800/80 to-zinc-900/80 rounded-xl p-4 border border-zinc-700/50"
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <h4 className="font-semibold text-white">{ann.title}</h4>
+                          <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full whitespace-nowrap">
+                            {ann.created_at ? new Date(ann.created_at).toLocaleDateString('sw-TZ') : ann.date}
+                          </span>
+                        </div>
+                        <p className="text-zinc-300 text-sm leading-relaxed">{ann.message || ann.content}</p>
+                        {ann.image_url && (
+                          <img src={ann.image_url} alt="" className="mt-3 rounded-lg w-full max-h-48 object-cover" />
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Ratiba za Ibada (Prayer Schedule) Tab */}
+              {activeTab === 'ratiba' && (
+                <div className="space-y-4">
+                  {schedule.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+                        <Clock size={32} className="text-blue-400/50" />
+                      </div>
+                      <p className="text-zinc-400">Ratiba ya ibada haijaongezwa</p>
+                      <p className="text-zinc-500 text-sm mt-1">Wasiliana na kanisa kwa habari zaidi</p>
+                    </div>
+                  ) : (
+                    <div className="bg-zinc-800/50 rounded-xl overflow-hidden border border-zinc-700/50">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-blue-600/20 border-b border-zinc-700">
+                            <th className="text-left py-3 px-4 text-blue-400 font-medium text-sm">Siku</th>
+                            <th className="text-left py-3 px-4 text-blue-400 font-medium text-sm">Ibada</th>
+                            <th className="text-right py-3 px-4 text-blue-400 font-medium text-sm">Muda</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {schedule.map((item, idx) => {
+                            // Handle both old format (direct properties) and new format (services array)
+                            if (item.services && item.services.length > 0) {
+                              return item.services.map((service, sIdx) => (
+                                <tr 
+                                  key={`${idx}-${sIdx}`} 
+                                  className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/30 transition-colors"
+                                >
+                                  {sIdx === 0 && (
+                                    <td 
+                                      rowSpan={item.services.length} 
+                                      className="py-3 px-4 font-medium text-white align-top border-r border-zinc-800"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                          item.day === 'Jumapili' || item.day === 'Sunday' ? 'bg-amber-400' : 'bg-blue-400'
+                                        }`} />
+                                        {item.day}
+                                      </div>
+                                    </td>
+                                  )}
+                                  <td className="py-3 px-4 text-zinc-300 text-sm">{service.name}</td>
+                                  <td className="py-3 px-4 text-right">
+                                    <span className="text-blue-400 text-sm font-mono bg-blue-400/10 px-2 py-1 rounded">
+                                      {service.time}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ));
+                            } else {
+                              // Old format: single service per row
+                              return (
+                                <tr key={idx} className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/30">
+                                  <td className="py-3 px-4 font-medium text-white">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${
+                                        item.day === 'Jumapili' || item.day === 'Sunday' ? 'bg-amber-400' : 'bg-blue-400'
+                                      }`} />
+                                      {item.day}
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4 text-zinc-300 text-sm">{item.service || item.service_type}</td>
+                                  <td className="py-3 px-4 text-right">
+                                    <span className="text-blue-400 text-sm font-mono bg-blue-400/10 px-2 py-1 rounded">{item.time}</span>
+                                  </td>
+                                </tr>
+                              );
+                            }
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Choirs Section */}
+        <div className="p-4 pt-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Users size={20} className="text-violet-400" />
+              Kwaya za Kanisa Hili
+            </h3>
+            {churchChoirs.length > 0 && (
+              <span className="text-xs text-zinc-500">{churchChoirs.length} kwaya</span>
+            )}
+          </div>
+
+          {churchChoirs.length === 0 ? (
+            <div className="bg-gradient-to-br from-violet-900/30 to-purple-900/30 rounded-xl p-6 text-center border border-violet-500/20">
+              <div className="w-16 h-16 rounded-full bg-violet-500/20 flex items-center justify-center mx-auto mb-4">
+                <Users size={32} className="text-violet-400" />
+              </div>
+              <p className="text-zinc-300 mb-4">Hakuna kwaya iliyosajiliwa bado</p>
+              <a 
+                href="/choir-register"
+                className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-full font-medium transition-colors"
+              >
+                <Plus size={18} />
+                Sajili Kwaya ya Kanisa
+              </a>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {churchChoirs.map(choir => (
+                <button
+                  key={choir.singer_id || choir.choir_id}
+                  onClick={() => onChoirClick && onChoirClick(choir)}
+                  className="bg-zinc-800/60 hover:bg-zinc-700/60 rounded-xl p-4 text-center transition-all hover:scale-[1.02] border border-zinc-700/50"
+                >
+                  <div className="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden bg-gradient-to-br from-violet-600 to-purple-700 shadow-lg">
+                    {choir.thumbnail || choir.profile_image ? (
+                      <img 
+                        src={choir.thumbnail || choir.profile_image} 
+                        alt={choir.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Users size={28} className="text-white/80" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-white font-medium text-sm truncate">{choir.name}</p>
+                  <p className="text-zinc-500 text-xs mt-1">{choir.followers_count || 0} wafuasi</p>
+                </button>
+              ))}
+              
+              {/* Register Choir Button */}
+              <a 
+                href="/choir-register"
+                className="bg-violet-600/20 hover:bg-violet-600/30 rounded-xl p-4 text-center transition-all border border-violet-500/30 border-dashed flex flex-col items-center justify-center"
+              >
+                <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-violet-600/30 flex items-center justify-center">
+                  <Plus size={28} className="text-violet-400" />
+                </div>
+                <p className="text-violet-400 font-medium text-sm">Sajili Kwaya</p>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Contact Section */}
+        <div className="p-4 pt-2 pb-8">
+          <div className="flex gap-3">
+            {displayChurch.phone && (
+              <a 
+                href={`tel:${displayChurch.phone}`}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 rounded-xl py-3 flex items-center justify-center gap-2 text-white transition-colors"
+              >
+                <Phone size={18} className="text-green-400" />
+                <span className="text-sm">Piga Simu</span>
+              </a>
+            )}
+            {displayChurch.direction || displayChurch.google_maps_url && (
+              <a 
+                href={displayChurch.direction || displayChurch.google_maps_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-xl py-3 flex items-center justify-center gap-2 text-white transition-colors"
+              >
+                <Navigation size={18} />
+                <span className="text-sm">Pata Njia</span>
+              </a>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -6414,6 +6665,12 @@ export default function UserStreamingApp() {
           church={selectedChurch} 
           onClose={() => setSelectedChurch(null)}
           choirs={churchChoirs}
+          onChoirClick={(choir) => {
+            setSelectedChurch(null);
+            handleSingerClick(choir);
+          }}
+          user={user}
+          API={API}
         />
       )}
       
