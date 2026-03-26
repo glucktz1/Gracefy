@@ -4080,7 +4080,31 @@ export default function UserStreamingApp() {
     const fetchData = async () => {
       console.log('[Home] Starting data fetch, API URL:', API);
       try {
-        // Check for cached data first (instant load)
+        // Check for preloaded data first (instant load)
+        const preloaded = typeof window !== 'undefined' ? window.__preloadedData : null;
+        if (preloaded && !preloaded.loading && preloaded.home?.sections?.length > 0) {
+          console.log('[Preload] Using preloaded data for instant display');
+          setHomeData(preloaded.home);
+          setCategories(preloaded.categories?.categories || []);
+          setQuickAccessItems(preloaded.categories?.categories?.slice(0, 6) || []);
+          setLoading(false);
+          
+          // Apply preloaded billing status
+          if (preloaded.billing) {
+            const finalBillingStatus = preloaded.billing.billing_enabled && preloaded.billing.web_billing_enabled !== false;
+            setBillingEnabled(finalBillingStatus);
+            setBillingStatusChecked(true);
+            if (!finalBillingStatus) {
+              setIsPremium(true);
+            }
+          }
+          
+          // Clear preloaded data after use
+          window.__preloadedData = null;
+          return; // Skip fresh fetch since we have preloaded data
+        }
+        
+        // Check for cached data (fallback)
         const cachedHome = cache.get('home_data');
         const cachedCategories = cache.get('categories');
         const cachedBilling = cache.get('billing_status');

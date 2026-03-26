@@ -15,6 +15,38 @@ import LoginPage from "@/pages/LoginPage";
 import UserStreamingApp from "@/pages/UserStreamingApp";
 import { LanguageProvider } from "@/context/LanguageContext";
 
+// Preload critical data immediately when script loads (before React mounts)
+(function preloadData() {
+  if (typeof window === 'undefined' || window.__preloadedData) return;
+  
+  const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+  const apiUrl = `${backendUrl}/api`;
+  
+  window.__preloadedData = {
+    home: null,
+    billing: null,
+    loading: true
+  };
+  
+  // Start preloading in parallel
+  Promise.all([
+    fetch(`${apiUrl}/billing-status`).then(r => r.json()).catch(() => ({ billing_enabled: false })),
+    fetch(`${apiUrl}/user/home?platform=web`).then(r => r.json()).catch(() => ({ sections: [] })),
+    fetch(`${apiUrl}/user/browse/categories`).then(r => r.json()).catch(() => ({ categories: [] }))
+  ]).then(([billing, home, categories]) => {
+    window.__preloadedData = {
+      billing,
+      home,
+      categories,
+      loading: false
+    };
+    console.log('[Preload] Data ready');
+  }).catch(err => {
+    console.error('[Preload] Failed:', err);
+    window.__preloadedData.loading = false;
+  });
+})();
+
 // Lazy-loaded pages - loaded on demand
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
 const AlbumsPage = lazy(() => import("@/pages/AlbumsPage"));
