@@ -673,15 +673,15 @@ const ChurchDetailModal = ({ church, onClose, choirs = [], onChoirClick, user, A
                 <span className="text-sm">Piga Simu</span>
               </a>
             )}
-            {displayChurch.direction || displayChurch.google_maps_url && (
+            {(displayChurch.direction || displayChurch.google_maps_url) && (
               <a 
-                href={displayChurch.direction || displayChurch.google_maps_url}
+                href={displayChurch.google_maps_url || displayChurch.direction}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-xl py-3 flex items-center justify-center gap-2 text-white transition-colors"
               >
-                <Navigation size={18} />
-                <span className="text-sm">Pata Njia</span>
+                <MapPin size={18} />
+                <span className="text-sm">Kanisa Lilipo</span>
               </a>
             )}
           </div>

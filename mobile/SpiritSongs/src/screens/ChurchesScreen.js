@@ -502,11 +502,11 @@ const ChurchesScreen = ({ navigation, route }) => {
           <View style={styles.actionButtons}>
             {(church.direction || church.latitude || church.google_maps_url) && (
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={[styles.actionButton, styles.actionButtonMap]}
                 onPress={() => openMap(church)}
               >
-                <Ionicons name="navigate" size={20} color={COLORS.text} />
-                <Text style={styles.actionButtonText}>Uelekeo</Text>
+                <Ionicons name="location" size={20} color="#fff" />
+                <Text style={[styles.actionButtonText, { color: '#fff' }]}>Kanisa Lilipo</Text>
               </TouchableOpacity>
             )}
             {(church.phone || church.leader_phone) && (
@@ -1008,6 +1008,9 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     gap: SPACING.sm,
+  },
+  actionButtonMap: {
+    backgroundColor: '#2563eb',
   },
   actionButtonText: {
     fontSize: FONT_SIZES.md,
