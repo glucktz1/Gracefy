@@ -14,7 +14,26 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 24, 2026 (Latest)
+### Session: April 2, 2026 (Latest)
+- ✅ **HLS Transcoding Status Display** - Fixed backend to return `hls_status` and `hls_url` in song listings:
+  - Updated `SONG_LIST_PROJECTION` in `/app/backend/routes/music.py` to include `hls_status` and `hls_url` fields
+  - GET /api/songs now returns: `hls_status: "completed"` and `hls_url: "https://gracefy-cdn.b-cdn.net/hls/..."`
+  - Admin can now see HLS transcoding status (ongoing/failed/completed) for each song
+
+- ✅ **Analytics Crash Fix** - Fixed `TypeError: unhashable type: 'dict'` in analytics endpoints:
+  - `/app/backend/routes/analytics.py` - Updated `get_user_demographics()` and `get_device_distribution()` 
+  - Now handles dict-type location values gracefully by converting to string before using as dict key
+  - Both endpoints now return 200 OK with proper location distribution data
+
+- ✅ **Mobile Playlist Authentication Fix** - Improved auth token handling for playlist operations:
+  - Added `makeAuthenticatedRequest()` helper function in `/app/mobile/SpiritSongs/src/services/api.js`
+  - This explicitly fetches and attaches auth token before critical API calls
+  - Updated `libraryAPI` to use this helper for: `getPlaylists`, `createPlaylist`, `deletePlaylist`, `addToPlaylist`, `removeFromPlaylist`
+  - Updated fallback API URL to production (`https://gracefy.net`)
+
+- ✅ **Android Build v1.0.182 Triggered** - Build ID: `4693ea34-f2e4-4066-acb4-4bc6633b2ef8`
+
+### Session: March 24, 2026
 - ✅ **Neno la Leo (Today's Word) Feature - COMPLETE**:
   - **Backend APIs** (`/app/backend/routes/neno_la_leo.py`):
     - Admin CRUD for leaders and Neno entries
