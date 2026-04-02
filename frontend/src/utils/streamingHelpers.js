@@ -74,12 +74,14 @@ export const cache = {
   }
 };
 
-// Sample audio for demo (royalty-free)
-export const SAMPLE_AUDIO_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+// Sample audio for demo (royalty-free) - SHOULD NEVER ACTUALLY PLAY
+// If this plays, it means the song has no audio_url in the database
+export const SAMPLE_AUDIO_URL = null; // Return null so player can detect missing audio
 
 // Helper function to get proper audio URL - handles CDN URLs, relative URLs, and file IDs
 export const getAudioUrl = (audioUrl) => {
-  if (!audioUrl) return SAMPLE_AUDIO_URL;
+  // Return null for missing audio - let the player handle it
+  if (!audioUrl) return null;
   
   // If it's already a full CDN URL (https://), return as is
   if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {

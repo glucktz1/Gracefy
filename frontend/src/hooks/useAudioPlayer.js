@@ -414,9 +414,18 @@ const useAudioPlayer = () => {
 
     // Validate audio URL before attempting to play
     const audioUrl = getAudioUrl(song.audio_url);
-    if (!audioUrl || audioUrl === SAMPLE_AUDIO_URL) {
-      console.error('[Player] Invalid or missing audio URL for song:', song.title);
+    if (!audioUrl) {
+      console.error('[Player] Missing audio URL for song:', song.title, song.song_id);
+      toast.error(`"${song.title}" - Audio not available. Skipping...`);
       setIsLoading(false);
+      
+      // Auto-skip to next song if audio is missing
+      const nextIndex = index + 1;
+      if (nextIndex < q.length) {
+        setTimeout(() => {
+          playFromQueueInternalRef.current(nextIndex, q);
+        }, 500);
+      }
       return;
     }
     

@@ -878,24 +878,51 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       // Determine queue and index
       let tracksToPlay = [];
       let playIndex = 0;
+      let validQueue = [];
 
       if (newQueue && Array.isArray(newQueue) && newQueue.length > 0) {
-        // New queue provided
-        setQueue(newQueue);
-        queueRef.current = newQueue;
-        playIndex = startIndex ?? newQueue.findIndex(t => t.song_id === track.song_id);
+        // Filter out tracks with missing audio URLs
+        validQueue = newQueue.filter(t => t.audio_url || t.hls_url || t.file_path);
+        if (validQueue.length === 0) {
+          console.warn('[Player] No valid tracks in queue - all missing audio');
+          setIsLoading(false);
+          return;
+        }
+        setQueue(validQueue);
+        queueRef.current = validQueue;
+        playIndex = startIndex ?? validQueue.findIndex(t => t.song_id === track.song_id);
         if (playIndex < 0) playIndex = 0;
-        tracksToPlay = newQueue.map(toTrackPlayerFormat);
+        tracksToPlay = validQueue.map(toTrackPlayerFormat);
       } else if (queue.length > 0) {
-        // Use existing queue
-        playIndex = queue.findIndex(t => t.song_id === track.song_id);
+        // Filter existing queue
+        validQueue = queue.filter(t => t.audio_url || t.hls_url || t.file_path);
+        playIndex = validQueue.findIndex(t => t.song_id === track.song_id);
         if (playIndex < 0) playIndex = 0;
-        tracksToPlay = queue.map(toTrackPlayerFormat);
+        tracksToPlay = validQueue.map(toTrackPlayerFormat);
       } else {
-        // Single track
+        // Single track - check if it has audio
+        if (!track.audio_url && !track.hls_url && !track.file_path) {
+          console.warn('[Player] Track has no audio URL:', track.title);
+          setIsLoading(false);
+          return;
+        }
         setQueue([track]);
         queueRef.current = [track];
         tracksToPlay = [toTrackPlayerFormat(track)];
+        playIndex = 0;
+      }
+
+      // Filter out any tracks with empty URLs (failsafe)
+      tracksToPlay = tracksToPlay.filter(t => t.url && t.url.startsWith('http'));
+      
+      if (tracksToPlay.length === 0) {
+        console.warn('[Player] No playable tracks after filtering');
+        setIsLoading(false);
+        return;
+      }
+
+      // Recalculate playIndex if tracks were filtered
+      if (playIndex >= tracksToPlay.length) {
         playIndex = 0;
       }
 
