@@ -539,31 +539,58 @@ async def create_user(data: dict):
 
 @router.put("/users/{user_id}")
 async def update_user(user_id: str, data: dict):
-    """Update a user"""
+    """Update a user in either users or app_users collection"""
     db = get_db()
     
     data.pop("_id", None)
     data.pop("user_id", None)
     
+    # Add updated timestamp
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Try to update in users collection first (admin users)
     result = await db.users.update_one(
         {"user_id": user_id},
         {"$set": data}
     )
     
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
+        # If not found in users, try app_users collection
+        result = await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$set": data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
     
-    return {"message": "User updated"}
+    return {"message": "User updated successfully"}
 
 
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str):
-    """Delete a user"""
+    """Delete a user from either users or app_users collection"""
     db = get_db()
     
+    # Try to delete from users collection first (admin users)
     result = await db.users.delete_one({"user_id": user_id})
     
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
+        # If not found in users, try app_users collection
+        result = await db.app_users.delete_one({"user_id": user_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
     
-    return {"message": "User deleted"}
+    # Also clean up related data
+    try:
+        await db.user_playlists.delete_many({"user_id": user_id})
+        await db.user_library.delete_many({"user_id": user_id})
+        await db.play_history.delete_many({"user_id": user_id})
+        await db.payments.delete_many({"user_id": user_id})
+        await db.church_followers.delete_many({"user_id": user_id})
+    except Exception as e:
+        # Log but don't fail if cleanup fails
+        print(f"Warning: Failed to cleanup user data for {user_id}: {e}")
+    
+    return {"message": "User deleted successfully"}

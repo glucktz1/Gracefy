@@ -301,20 +301,41 @@ export default function UsersPage() {
     }
     
     setBulkActionLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    
     try {
-      // Delete all selected users
-      await Promise.all(
+      // Delete all selected users one by one to track success/failure
+      const results = await Promise.allSettled(
         selectedUsers.map(userId => 
           axios.delete(`${API}/users/${userId}`, { withCredentials: true })
         )
       );
-      toast.success(`${selectedUsers.length} users deleted successfully`);
+      
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          successCount++;
+        } else {
+          failCount++;
+          console.error('Delete failed:', result.reason);
+        }
+      });
+      
+      if (failCount === 0) {
+        toast.success(`${successCount} users deleted successfully`);
+      } else if (successCount > 0) {
+        toast.warning(`Deleted ${successCount} users, ${failCount} failed`);
+      } else {
+        toast.error(`Failed to delete users`);
+      }
+      
       setSelectedUsers([]);
       setIsBulkDeleteModalOpen(false);
       setDeleteConfirmText("");
       fetchUsers();
     } catch (error) {
-      toast.error("Failed to delete some users");
+      console.error('Bulk delete error:', error);
+      toast.error("Failed to delete users: " + (error.response?.data?.detail || error.message));
     } finally {
       setBulkActionLoading(false);
     }
