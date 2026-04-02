@@ -49,6 +49,8 @@ SONG_LIST_PROJECTION = {
     "status": 1,
     "song_categories": 1,
     "song_category_names": 1,
+    "hls_status": 1,
+    "hls_url": 1,
 }
 
 

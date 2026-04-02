@@ -11,7 +11,7 @@ const getBackendUrl = () => {
   if (!url) {
     console.error('[API] EXPO_PUBLIC_BACKEND_URL not configured, using fallback');
     // For production builds, use the production URL
-    return 'https://faith-audio-platform.emergent.host';
+    return 'https://gracefy.net';
   }
   
   return url;
@@ -45,25 +45,74 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Helper function to make authenticated requests
+// This explicitly adds the token before each request to avoid async interceptor issues
+const makeAuthenticatedRequest = async (method, url, data = null, config = {}) => {
+  try {
+    const token = await SecureStore.getItemAsync('auth_token');
+    console.log('[API] makeAuthenticatedRequest to:', url);
+    console.log('[API] Token for auth:', token ? `${token.substring(0, 20)}...` : 'null');
+    
+    const headers = {
+      ...config.headers,
+      'Content-Type': 'application/json',
+    };
+    
+    if (token && token.length > 0) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log('[API] Auth header added to request');
+    }
+    
+    const requestConfig = {
+      ...config,
+      headers,
+      method,
+      url,
+    };
+    
+    if (data && (method === 'post' || method === 'put' || method === 'patch')) {
+      requestConfig.data = data;
+    }
+    
+    return api.request(requestConfig);
+  } catch (e) {
+    console.error('[API] makeAuthenticatedRequest error:', e);
+    throw e;
+  }
+};
+
+// Request interceptor to add auth token (kept as fallback)
 api.interceptors.request.use(
   async (config) => {
     try {
+      // Skip if Authorization already set (by makeAuthenticatedRequest)
+      if (config.headers?.Authorization) {
+        console.log('[API] Auth header already present, skipping interceptor');
+        return config;
+      }
+      
+      // Always try to get token from SecureStore
       const token = await SecureStore.getItemAsync('auth_token');
       console.log('[API] Request to:', config.url);
-      console.log('[API] Token exists:', !!token);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-        console.log('[API] Added auth header');
+      console.log('[API] Token retrieved:', token ? `${token.substring(0, 20)}...` : 'null');
+      
+      if (token && token.length > 0) {
+        // Ensure Authorization header is set
+        config.headers = config.headers || {};
+        config.headers['Authorization'] = `Bearer ${token}`;
+        console.log('[API] Auth header set successfully');
       } else {
-        console.log('[API] No token found in SecureStore');
+        console.log('[API] No valid token found in SecureStore');
       }
     } catch (e) {
-      console.log('[API] Error getting token:', e);
+      console.error('[API] SecureStore error:', e.message);
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('[API] Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor for error handling
@@ -272,12 +321,12 @@ export const libraryAPI = {
   getLikedSongs: () => api.get('/library/likes'),
   likeSong: (songId) => api.post(`/library/like/${songId}`),
   unlikeSong: (songId) => api.delete(`/library/like/${songId}`),
-  getPlaylists: () => api.get('/library/playlists'),
+  getPlaylists: () => makeAuthenticatedRequest('get', '/library/playlists'),
   getPlaylistSongs: (playlistId) => api.get(`/user/playlist/${playlistId}`),
-  createPlaylist: (data) => api.post('/library/playlists', data),
-  deletePlaylist: (playlistId) => api.delete(`/library/playlists/${playlistId}`),
-  addToPlaylist: (playlistId, songId) => api.post(`/library/playlists/${playlistId}/songs/${songId}`),
-  removeFromPlaylist: (playlistId, songId) => api.delete(`/library/playlists/${playlistId}/songs/${songId}`),
+  createPlaylist: (data) => makeAuthenticatedRequest('post', '/library/playlists', data),
+  deletePlaylist: (playlistId) => makeAuthenticatedRequest('delete', `/library/playlists/${playlistId}`),
+  addToPlaylist: (playlistId, songId) => makeAuthenticatedRequest('post', `/library/playlists/${playlistId}/songs/${songId}`),
+  removeFromPlaylist: (playlistId, songId) => makeAuthenticatedRequest('delete', `/library/playlists/${playlistId}/songs/${songId}`),
   getHistory: () => api.get('/library/history'),
 };
 

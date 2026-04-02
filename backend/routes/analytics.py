@@ -204,6 +204,9 @@ async def get_user_demographics():
         location = user.get("location") or user.get("country") or "Unknown"
         if isinstance(location, dict):
             location = location.get("country") or location.get("name") or "Unknown"
+        # Ensure location is a string (hashable) for dict key
+        if not isinstance(location, str):
+            location = str(location) if location else "Unknown"
         location_stats[location] = location_stats.get(location, 0) + 1
         
         # Age calculation
@@ -1767,8 +1770,12 @@ async def get_device_distribution():
         )
         os_version_stats[os_ver] = os_version_stats.get(os_ver, 0) + 1
         
-        # Location
+        # Location - handle dict format gracefully
         location = user.get("location") or user.get("country") or user.get("city") or "Unknown"
+        if isinstance(location, dict):
+            location = location.get("country") or location.get("name") or location.get("city") or "Unknown"
+        if not isinstance(location, str):
+            location = str(location) if location else "Unknown"
         location_stats[location] = location_stats.get(location, 0) + 1
     
     # Sort and limit results
