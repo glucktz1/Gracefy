@@ -1025,6 +1025,12 @@ async def get_realtime_analytics():
         "created_at": {"$gte": today_start}
     })
     
+    # Transactions today
+    transactions_today = await db.payments.count_documents({
+        "created_at": {"$gte": today_start},
+        "status": {"$in": ["completed", "success", "paid"]}
+    })
+    
     # Hourly plays trend
     hourly_pipeline = [
         {"$match": {"counted_as_play": True, "start_time": {"$gte": one_hour_ago}}},
@@ -1052,6 +1058,7 @@ async def get_realtime_analytics():
         "platforms": platforms,
         "plays_today": plays_today,
         "new_users_today": new_users_today,
+        "transactions_today": transactions_today,
         "hourly_trend": [{"time": h["_id"], "plays": h["plays"]} for h in hourly_plays],
         "recent_plays": recent_plays
     }

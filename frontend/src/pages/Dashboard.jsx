@@ -141,6 +141,14 @@ export default function Dashboard() {
                 <div className="text-zinc-300">
                   <span className="font-semibold text-white">{streamingStats?.plays_today || 0}</span> plays today
                 </div>
+                <div className="text-zinc-500">•</div>
+                <div className="text-zinc-300">
+                  <span className="font-semibold text-emerald-400">{streamingStats?.new_users_today || 0}</span> new users today
+                </div>
+                <div className="text-zinc-500">•</div>
+                <div className="text-zinc-300">
+                  <span className="font-semibold text-amber-400">{streamingStats?.transactions_today || 0}</span> transactions today
+                </div>
               </div>
             </div>
             {/* Currently Playing */}
