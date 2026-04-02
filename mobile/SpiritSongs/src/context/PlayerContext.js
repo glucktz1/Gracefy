@@ -395,11 +395,22 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
           if (currentIndex !== null && currentIndex < trackPlayerQueue.length - 1) {
             try {
               await TrackPlayer.skipToNext();
+              return; // Successfully moved to next track
             } catch (e) {
               console.error('[Player] Skip to recommended error:', e);
             }
           }
         }
+        
+        // Recommendations didn't add new songs - loop back to start as fallback
+        console.log('[Player] No new recommendations - looping back to start');
+        try {
+          await TrackPlayer.skip(0);
+          await TrackPlayer.play();
+        } catch (e) {
+          console.error('[Player] Loop back error:', e);
+        }
+        return;
       } else if (repeatRef.current === 'all' && queueRef.current.length > 0) {
         // Regular repeat all - also check guest limits
         if (!isAuthenticatedRef.current) {
@@ -422,6 +433,15 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
           await TrackPlayer.play();
         } catch (e) {
           console.error('[Player] Restart queue error:', e);
+        }
+      } else if (queueRef.current.length > 0) {
+        // Even if repeat is off, loop back for better UX
+        console.log('[Player] Queue ended with repeat off - looping for better UX');
+        try {
+          await TrackPlayer.skip(0);
+          await TrackPlayer.play();
+        } catch (e) {
+          console.error('[Player] Loop error:', e);
         }
       }
     });

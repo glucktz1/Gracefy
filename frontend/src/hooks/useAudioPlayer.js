@@ -595,7 +595,19 @@ const useAudioPlayer = () => {
               return;
             }
           }
+          
+          // Recommendations failed or returned empty - loop back to start as fallback
+          console.log('[Player] No recommendations available - looping to start');
+          playFromQueueInternalRef.current(0, currentQueue);
+          return;
         }
+      }
+      
+      // If repeat is off and no continuous play, still loop the queue for better UX
+      if (currentQueue.length > 0) {
+        console.log('[Player] End of queue with repeat off - looping to start for better UX');
+        playFromQueueInternalRef.current(0, currentQueue);
+        return;
       }
       
       // No more songs available - stop playback
