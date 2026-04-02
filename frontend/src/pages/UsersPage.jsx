@@ -4,7 +4,7 @@ import {
   Users, Search, Plus, Edit2, Trash2, MoreVertical, Shield, User, 
   Phone, Mail, Calendar, Clock, CreditCard, Music2, Smartphone, 
   FileText, ChevronLeft, Eye, Ban, CheckCircle, Filter, Download,
-  Globe, Crown, Activity, History, X
+  Globe, Crown, Activity, History, X, Check, AlertTriangle, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,14 @@ export default function UsersPage() {
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  // Bulk selection states
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkDeactivateModalOpen, setIsBulkDeactivateModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -243,6 +251,72 @@ export default function UsersPage() {
       }
     } catch (error) {
       toast.error("Failed to delete user");
+    }
+  };
+
+  // Bulk selection handlers
+  const handleSelectUser = (userId) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedUsers.length === users.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(users.map(u => u.user_id));
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedUsers.length === 0) return;
+    
+    setBulkActionLoading(true);
+    try {
+      // Deactivate all selected users
+      await Promise.all(
+        selectedUsers.map(userId => 
+          axios.put(`${API}/users/${userId}`, { status: "suspended" }, { withCredentials: true })
+        )
+      );
+      toast.success(`${selectedUsers.length} users deactivated successfully`);
+      setSelectedUsers([]);
+      setIsBulkDeactivateModalOpen(false);
+      fetchUsers();
+    } catch (error) {
+      toast.error("Failed to deactivate some users");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const expectedText = `delete ${selectedUsers.length} users`;
+    if (deleteConfirmText.toLowerCase() !== expectedText.toLowerCase()) {
+      toast.error(`Please type "${expectedText}" to confirm`);
+      return;
+    }
+    
+    setBulkActionLoading(true);
+    try {
+      // Delete all selected users
+      await Promise.all(
+        selectedUsers.map(userId => 
+          axios.delete(`${API}/users/${userId}`, { withCredentials: true })
+        )
+      );
+      toast.success(`${selectedUsers.length} users deleted successfully`);
+      setSelectedUsers([]);
+      setIsBulkDeleteModalOpen(false);
+      setDeleteConfirmText("");
+      fetchUsers();
+    } catch (error) {
+      toast.error("Failed to delete some users");
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -912,9 +986,59 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
+              {/* Bulk Action Toolbar */}
+              {selectedUsers.length > 0 && (
+                <div className="flex items-center justify-between bg-violet-600/20 border border-violet-500/30 rounded-lg p-3 mb-4 mx-4 mt-4">
+                  <div className="flex items-center gap-3">
+                    <Check size={20} className="text-violet-400" />
+                    <span className="text-white font-medium">{selectedUsers.length} user{selectedUsers.length > 1 ? 's' : ''} selected</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedUsers([])}
+                      className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
+                    >
+                      <X size={14} className="mr-1" /> Clear
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setIsBulkDeactivateModalOpen(true)}
+                      className="border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                    >
+                      <Ban size={14} className="mr-1" /> Deactivate
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setIsBulkDeleteModalOpen(true)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <Trash2 size={14} className="mr-1" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-zinc-800 text-left">
+                    <th className="py-4 px-4 w-12">
+                      <button
+                        onClick={handleSelectAll}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          selectedUsers.length === users.length && users.length > 0
+                            ? 'bg-violet-600 border-violet-600 text-white'
+                            : selectedUsers.length > 0
+                            ? 'bg-violet-600/50 border-violet-600 text-white'
+                            : 'border-zinc-600 hover:border-zinc-500'
+                        }`}
+                      >
+                        {selectedUsers.length > 0 && <Check size={12} />}
+                      </button>
+                    </th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">User ID</th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Email ID / Mobile No.</th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Membership Type</th>
@@ -930,26 +1054,39 @@ export default function UsersPage() {
                   {users.map((user) => (
                     <tr 
                       key={user.user_id} 
-                      className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors"
-                      onClick={() => handleViewUser(user)}
+                      className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors ${
+                        selectedUsers.includes(user.user_id) ? 'bg-violet-600/10' : ''
+                      }`}
                       data-testid={`user-row-${user.user_id}`}
                     >
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleSelectUser(user.user_id)}
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            selectedUsers.includes(user.user_id)
+                              ? 'bg-violet-600 border-violet-600 text-white'
+                              : 'border-zinc-600 hover:border-zinc-500'
+                          }`}
+                        >
+                          {selectedUsers.includes(user.user_id) && <Check size={12} />}
+                        </button>
+                      </td>
+                      <td className="py-4 px-4" onClick={() => handleViewUser(user)}>
                         <span className="text-white font-medium">{user.user_id?.substring(0, 12) || "-"}</span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4" onClick={() => handleViewUser(user)}>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{getCountryFlag(user.country)}</span>
                           <span className="text-zinc-300">{user.phone || user.email || "-"}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4" onClick={() => handleViewUser(user)}>
                         {getMembershipBadge(user.membership_type || user.subscription_tier || "free")}
                       </td>
-                      <td className="py-4 px-4 text-zinc-400">
+                      <td className="py-4 px-4 text-zinc-400" onClick={() => handleViewUser(user)}>
                         {user.country || "-"}
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4" onClick={() => handleViewUser(user)}>
                         <div className="flex items-center gap-2 text-zinc-400">
                           {user.register_by === "phone" ? (
                             <><Phone size={14} className="text-emerald-400" /> Mobile No</>
@@ -960,16 +1097,16 @@ export default function UsersPage() {
                           )}
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-violet-400">
+                      <td className="py-4 px-4 text-violet-400" onClick={() => handleViewUser(user)}>
                         {user.current_plan || "-"}
                       </td>
-                      <td className="py-4 px-4 text-zinc-400">
+                      <td className="py-4 px-4 text-zinc-400" onClick={() => handleViewUser(user)}>
                         {formatDateTime(user.plan_expiry_at || user.trial_ends_at)}
                       </td>
-                      <td className="py-4 px-4 text-zinc-400">
+                      <td className="py-4 px-4 text-zinc-400" onClick={() => handleViewUser(user)}>
                         {user.last_active_at ? formatDateTime(user.last_active_at) : "-"}
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4" onClick={() => handleViewUser(user)}>
                         {getStatusBadge(user.status)}
                       </td>
                     </tr>
@@ -1138,6 +1275,122 @@ export default function UsersPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Deactivate Confirmation Dialog */}
+      <Dialog open={isBulkDeactivateModalOpen} onOpenChange={setIsBulkDeactivateModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <AlertTriangle size={24} />
+              Deactivate Users
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Are you sure you want to deactivate {selectedUsers.length} user{selectedUsers.length > 1 ? 's' : ''}? 
+              They will no longer be able to access their accounts.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <p className="text-amber-400 text-sm">
+                This action will suspend {selectedUsers.length} user account{selectedUsers.length > 1 ? 's' : ''}. 
+                Users can be reactivated later.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsBulkDeactivateModalOpen(false)} 
+              className="border-zinc-700 text-zinc-300"
+              disabled={bulkActionLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleBulkDeactivate}
+              disabled={bulkActionLoading}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {bulkActionLoading ? (
+                <><Loader2 size={16} className="animate-spin mr-2" /> Processing...</>
+              ) : (
+                <><Ban size={16} className="mr-2" /> Deactivate {selectedUsers.length} User{selectedUsers.length > 1 ? 's' : ''}</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog - Two Step */}
+      <Dialog open={isBulkDeleteModalOpen} onOpenChange={(open) => {
+        setIsBulkDeleteModalOpen(open);
+        if (!open) setDeleteConfirmText("");
+      }}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <AlertTriangle size={24} />
+              Delete Users Permanently
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              This action is irreversible. All data for {selectedUsers.length} user{selectedUsers.length > 1 ? 's' : ''} will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+              <p className="text-red-400 text-sm font-medium mb-2">⚠️ Warning: This cannot be undone!</p>
+              <ul className="text-red-400/80 text-sm list-disc list-inside space-y-1">
+                <li>All user profiles will be deleted</li>
+                <li>Playlists and favorites will be lost</li>
+                <li>Transaction history will be removed</li>
+                <li>Listening history will be erased</li>
+              </ul>
+            </div>
+            
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">
+                To confirm, type: <span className="text-red-400 font-mono bg-red-500/10 px-2 py-0.5 rounded">delete {selectedUsers.length} users</span>
+              </label>
+              <Input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={`delete ${selectedUsers.length} users`}
+                className="bg-zinc-950 border-zinc-700 text-white font-mono"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsBulkDeleteModalOpen(false);
+                setDeleteConfirmText("");
+              }} 
+              className="border-zinc-700 text-zinc-300"
+              disabled={bulkActionLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleBulkDelete}
+              disabled={bulkActionLoading || deleteConfirmText.toLowerCase() !== `delete ${selectedUsers.length} users`}
+              className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {bulkActionLoading ? (
+                <><Loader2 size={16} className="animate-spin mr-2" /> Deleting...</>
+              ) : (
+                <><Trash2 size={16} className="mr-2" /> Delete {selectedUsers.length} User{selectedUsers.length > 1 ? 's' : ''}</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
