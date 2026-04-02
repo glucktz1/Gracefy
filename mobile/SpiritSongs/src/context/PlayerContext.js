@@ -465,10 +465,33 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       }
     });
 
+    // Listen for playback errors to auto-recover or skip
+    const errorSub = TrackPlayer.addEventListener(Event.PlaybackError, async (event) => {
+      console.error('[Player] Playback error:', event.message || event.code);
+      
+      // Attempt to recover by skipping to next track
+      try {
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+        const trackQueue = await TrackPlayer.getQueue();
+        
+        if (currentIndex !== null && currentIndex < trackQueue.length - 1) {
+          console.log('[Player] Skipping to next track after error');
+          await TrackPlayer.skipToNext();
+          await TrackPlayer.play();
+        } else {
+          console.log('[Player] No more tracks to skip to, pausing');
+          await TrackPlayer.pause();
+        }
+      } catch (e) {
+        console.error('[Player] Error recovery failed:', e);
+      }
+    });
+
     // Cleanup
     return () => {
       queueEndedSub.remove();
       trackChangedSub.remove();
+      errorSub.remove();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
     };
@@ -770,17 +793,28 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const toTrackPlayerFormat = (track) => {
     // Prioritize HLS URL for adaptive streaming, fallback to regular MP3
     let audioUrl;
+    
     if (track.hls_url) {
       // Use HLS for adaptive streaming (auto-adjusts quality based on network)
       audioUrl = track.hls_url;
-      console.log('[Player] Using HLS adaptive streaming for:', track.title);
-    } else {
+      console.log('[Player] Using HLS for:', track.title);
+    } else if (track.audio_url || track.file_path) {
       // Fallback to regular audio URL
       audioUrl = getAudioUrl(track.audio_url || track.file_path);
+      console.log('[Player] Using MP3 for:', track.title);
+    } else {
+      // No valid URL - this track will fail but we log it
+      console.warn('[Player] No audio URL for track:', track.title, track.song_id);
+      audioUrl = ''; // Will fail gracefully
+    }
+    
+    // Validate URL format
+    if (audioUrl && !audioUrl.startsWith('http')) {
+      console.warn('[Player] Invalid audio URL format:', audioUrl);
     }
     
     return {
-      id: track.song_id,
+      id: track.song_id || `track_${Date.now()}`,
       songId: track.song_id, // Keep reference to original ID
       url: audioUrl,
       title: track.title || 'Unknown Title',
@@ -878,7 +912,40 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (playIndex > 0) {
         await TrackPlayer.skip(playIndex);
       }
-      await TrackPlayer.play();
+      
+      // Play with retry logic for failed starts
+      let playAttempts = 0;
+      const maxAttempts = 3;
+      
+      while (playAttempts < maxAttempts) {
+        try {
+          await TrackPlayer.play();
+          
+          // Wait briefly and verify playback started
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const state = await TrackPlayer.getPlaybackState();
+          
+          if (state.state === State.Playing || state.state === State.Buffering || state.state === State.Loading) {
+            console.log('[Player] Playback started successfully');
+            break;
+          }
+          
+          playAttempts++;
+          console.log(`[Player] Play attempt ${playAttempts} - state: ${state.state}`);
+          
+          if (playAttempts < maxAttempts) {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (playError) {
+          playAttempts++;
+          console.log(`[Player] Play attempt ${playAttempts} failed:`, playError.message);
+          
+          if (playAttempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
 
       // Update state
       setQueueIndex(playIndex);
