@@ -334,11 +334,16 @@ async def get_admin_users(
     status: Optional[str] = None,
     search: Optional[str] = None,
     user_type: Optional[str] = None,  # 'admin', 'app', 'all'
-    skip: int = Query(0, ge=0),
+    membership_type: Optional[str] = None,
+    register_by: Optional[str] = None,
+    page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200)
 ):
     """Get all users for admin panel - includes both admin users and app users"""
     db = get_db()
+    
+    # Calculate skip from page
+    skip = (page - 1) * limit
     
     query = {}
     if role:
@@ -348,7 +353,9 @@ async def get_admin_users(
     if search:
         query["$or"] = [
             {"email": {"$regex": search, "$options": "i"}},
-            {"name": {"$regex": search, "$options": "i"}}
+            {"name": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}},
+            {"user_id": {"$regex": search, "$options": "i"}}
         ]
     
     all_users = []
@@ -362,9 +369,15 @@ async def get_admin_users(
             u["user_type"] = "admin"
         all_users.extend(admin_users)
     
+    # Build app_users query with additional filters
+    app_query = {k: v for k, v in query.items() if k != 'role'}  # app_users don't have role field
+    if membership_type and membership_type != 'all':
+        app_query["membership_type"] = membership_type
+    if register_by and register_by != 'all':
+        app_query["register_by"] = register_by
+    
     # Get app users (from 'app_users' collection)
     if user_type != 'admin':
-        app_query = {k: v for k, v in query.items() if k != 'role'}  # app_users don't have role field
         app_users = await db.app_users.find(app_query, {"_id": 0, "password_hash": 0})\
             .sort("created_at", -1)\
             .to_list(500)
@@ -380,7 +393,7 @@ async def get_admin_users(
     total = len(all_users)
     paginated_users = all_users[skip:skip + limit]
     
-    return {"users": paginated_users, "total": total, "skip": skip, "limit": limit}
+    return {"users": paginated_users, "total": total, "page": page, "limit": limit, "total_pages": (total + limit - 1) // limit}
 
 
 @router.get("/admin/users/{user_id}")

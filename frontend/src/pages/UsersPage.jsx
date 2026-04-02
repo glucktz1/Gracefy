@@ -74,7 +74,7 @@ export default function UsersPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,7 +129,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchQuery, membershipFilter, statusFilter, registerByFilter]);
+  }, [currentPage, itemsPerPage, searchQuery, membershipFilter, statusFilter, registerByFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -1117,64 +1117,99 @@ export default function UsersPage() {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <div className="flex items-center justify-between p-4 border-t border-zinc-800">
-              <Select value={String(itemsPerPage)} onValueChange={() => {}}>
-                <SelectTrigger className="w-[80px] bg-zinc-950 border-zinc-800 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400 text-sm">Show</span>
+                <Select 
+                  value={String(itemsPerPage)} 
+                  onValueChange={(value) => {
+                    setItemsPerPage(parseInt(value));
+                    setCurrentPage(1); // Reset to first page when changing items per page
+                  }}
+                >
+                  <SelectTrigger className="w-[80px] bg-zinc-950 border-zinc-800 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-zinc-400 text-sm">of {totalUsers} users</span>
+              </div>
 
               <div className="flex items-center gap-1">
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => setCurrentPage(1)}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                   className="text-zinc-400"
                 >
-                  First
+                  Previous
                 </Button>
-                {[...Array(Math.min(6, totalPages))].map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={currentPage === pageNum ? "bg-blue-500 text-white" : "text-zinc-400"}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                {totalPages > 6 && (
-                  <>
-                    <span className="text-zinc-500 px-2">...</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCurrentPage(totalPages)}
-                      className="text-zinc-400"
-                    >
-                      {totalPages}
-                    </Button>
-                  </>
-                )}
+                
+                {/* Smart page number display */}
+                {(() => {
+                  const pages = [];
+                  const showPages = 5;
+                  let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
+                  let endPage = Math.min(totalPages, startPage + showPages - 1);
+                  
+                  // Adjust if we're near the end
+                  if (endPage - startPage < showPages - 1) {
+                    startPage = Math.max(1, endPage - showPages + 1);
+                  }
+                  
+                  // First page and ellipsis
+                  if (startPage > 1) {
+                    pages.push(
+                      <Button key={1} variant="ghost" size="sm" onClick={() => setCurrentPage(1)} className="text-zinc-400">1</Button>
+                    );
+                    if (startPage > 2) {
+                      pages.push(<span key="start-ellipsis" className="text-zinc-500 px-1">...</span>);
+                    }
+                  }
+                  
+                  // Page numbers
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <Button
+                        key={i}
+                        variant={currentPage === i ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setCurrentPage(i)}
+                        className={currentPage === i ? "bg-blue-500 text-white" : "text-zinc-400"}
+                      >
+                        {i}
+                      </Button>
+                    );
+                  }
+                  
+                  // Last page and ellipsis
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(<span key="end-ellipsis" className="text-zinc-500 px-1">...</span>);
+                    }
+                    pages.push(
+                      <Button key={totalPages} variant="ghost" size="sm" onClick={() => setCurrentPage(totalPages)} className="text-zinc-400">{totalPages}</Button>
+                    );
+                  }
+                  
+                  return pages;
+                })()}
+                
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => setCurrentPage(totalPages)}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
                   className="text-zinc-400"
                 >
-                  Last
+                  Next
                 </Button>
               </div>
             </div>
