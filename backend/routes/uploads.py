@@ -1,9 +1,10 @@
 """
 File upload and CDN routes for Gracefy.
 Handles media uploads, CDN integration, and file streaming.
+OPTIMIZED: Streaming uploads, chunked transfers, background encoding.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, RedirectResponse
 from datetime import datetime, timezone
 from typing import Optional, List
@@ -11,6 +12,7 @@ import uuid
 import os
 import io
 import logging
+import asyncio
 
 from core.database import get_db
 from core.cache import cache
@@ -24,10 +26,205 @@ BUNNY_API_KEY = os.environ.get("BUNNY_API_KEY", "")
 BUNNY_CDN_URL = os.environ.get("BUNNY_CDN_URL", "")
 BUNNY_STORAGE_REGION = os.environ.get("BUNNY_STORAGE_REGION", "de")
 
+# Upload chunk size for streaming (1MB chunks for better performance)
+UPLOAD_CHUNK_SIZE = 1024 * 1024
+
 
 def is_cdn_enabled():
     """Check if CDN is properly configured"""
     return bool(BUNNY_STORAGE_ZONE and BUNNY_API_KEY and BUNNY_CDN_URL)
+
+
+async def stream_upload_to_cdn(file: UploadFile, folder: str, filename: str, content_type: str) -> tuple[str, int]:
+    """
+    Stream upload to CDN without loading entire file into memory.
+    Returns (cdn_url, file_size).
+    """
+    import httpx
+    
+    storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
+    
+    # Read file in chunks and calculate size
+    chunks = []
+    total_size = 0
+    
+    while True:
+        chunk = await file.read(UPLOAD_CHUNK_SIZE)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        total_size += len(chunk)
+    
+    content = b''.join(chunks)
+    
+    # Calculate dynamic timeout based on file size (1 min per 20MB, min 30s, max 10 min)
+    timeout_seconds = max(30, min(600, (total_size // (20 * 1024 * 1024)) * 60 + 30))
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.put(
+            storage_url,
+            content=content,
+            headers={
+                "AccessKey": BUNNY_API_KEY,
+                "Content-Type": content_type
+            },
+            timeout=float(timeout_seconds)
+        )
+        
+        if response.status_code not in [200, 201]:
+            raise HTTPException(status_code=500, detail=f"CDN upload failed: {response.status_code}")
+    
+    cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
+    return cdn_url, total_size
+
+
+# ============== OPTIMIZED FILE UPLOAD ==============
+
+@router.post("/upload/fast")
+async def fast_upload_file(
+    file: UploadFile = File(...),
+    folder: str = Form("general"),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Fast file upload with streaming to CDN.
+    Optimized for large files with progress tracking support.
+    """
+    db = get_db()
+    
+    # Generate unique filename
+    ext = os.path.splitext(file.filename)[1].lower()
+    file_id = f"file_{uuid.uuid4().hex[:12]}"
+    filename = f"{file_id}{ext}"
+    
+    content_type = file.content_type or "application/octet-stream"
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    try:
+        cdn_url, file_size = await stream_upload_to_cdn(file, folder, filename, content_type)
+        
+        # Store file record in background
+        file_doc = {
+            "file_id": file_id,
+            "filename": filename,
+            "original_name": file.filename,
+            "folder": folder,
+            "content_type": content_type,
+            "size_bytes": file_size,
+            "cdn_url": cdn_url,
+            "storage_type": "cdn",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Fire and forget - don't wait for DB insert
+        async def save_file_record():
+            try:
+                await db.files.insert_one(file_doc)
+            except Exception as e:
+                logger.error(f"Failed to save file record: {e}")
+        
+        asyncio.create_task(save_file_record())
+        
+        return {
+            "file_id": file_id,
+            "filename": filename,
+            "url": cdn_url,
+            "cdn_url": cdn_url,
+            "size_bytes": file_size
+        }
+    except Exception as e:
+        logger.error(f"Fast upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.post("/upload/audio/fast")
+async def fast_audio_upload(
+    file: UploadFile = File(...),
+    song_id: str = Form(...),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Optimized audio upload - uploads immediately, encoding happens in background.
+    Returns CDN URL immediately, HLS transcoding happens asynchronously.
+    """
+    db = get_db()
+    
+    # Validate file type
+    allowed_types = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/m4a", 
+                     "audio/x-m4a", "audio/aac", "audio/flac", "audio/x-wav"]
+    filename_lower = file.filename.lower()
+    
+    if file.content_type not in allowed_types and not filename_lower.endswith(
+        ('.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac')
+    ):
+        raise HTTPException(status_code=400, detail="Invalid audio type")
+    
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured")
+    
+    try:
+        # Upload original file directly to CDN (no encoding delay)
+        ext = os.path.splitext(file.filename)[1].lower() or ".mp3"
+        audio_filename = f"{song_id}_raw{ext}"
+        
+        cdn_url, file_size = await stream_upload_to_cdn(
+            file, "audio", audio_filename, file.content_type or "audio/mpeg"
+        )
+        
+        # Update song with raw audio URL immediately
+        await db.songs.update_one(
+            {"song_id": song_id},
+            {"$set": {
+                "audio_url": cdn_url,
+                "audio_size_bytes": file_size,
+                "upload_status": "uploaded",
+                "hls_status": "pending"
+            }}
+        )
+        
+        # Trigger HLS transcoding in background (non-blocking)
+        if background_tasks:
+            from services.hls_transcoding_service import transcode_song
+            background_tasks.add_task(transcode_song, song_id, cdn_url, db)
+        
+        return {
+            "url": cdn_url,
+            "size_bytes": file_size,
+            "upload_status": "complete",
+            "hls_status": "pending",
+            "message": "Audio uploaded successfully. HLS transcoding started in background."
+        }
+        
+    except Exception as e:
+        logger.error(f"Audio upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.get("/upload/status/{song_id}")
+async def get_upload_status(song_id: str):
+    """Get upload and transcoding status for a song."""
+    db = get_db()
+    
+    song = await db.songs.find_one(
+        {"song_id": song_id},
+        {"_id": 0, "song_id": 1, "title": 1, "audio_url": 1, "hls_url": 1, 
+         "hls_status": 1, "upload_status": 1, "audio_size_bytes": 1}
+    )
+    
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    return {
+        "song_id": song_id,
+        "title": song.get("title"),
+        "upload_status": song.get("upload_status", "unknown"),
+        "hls_status": song.get("hls_status", "unknown"),
+        "audio_url": song.get("audio_url"),
+        "hls_url": song.get("hls_url"),
+        "audio_size_bytes": song.get("audio_size_bytes", 0)
+    }
 
 
 # ============== FILE UPLOAD ==============

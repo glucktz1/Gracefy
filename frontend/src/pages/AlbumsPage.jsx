@@ -305,17 +305,51 @@ export default function AlbumsPage() {
     }
   }, [selectedAlbum, fetchAlbumSongs]);
 
-  const handleFileUpload = async (file) => {
+  // Optimized file upload with progress tracking
+  const handleFileUpload = async (file, onProgress = null) => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await axios.post(`${API}/upload`, formData, {
+      const response = await axios.post(`${API}/upload/fast`, formData, {
         withCredentials: true,
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percentCompleted);
+          }
+        },
+        timeout: 300000 // 5 min timeout for large files
       });
       return response.data.url;
     } catch (error) {
+      console.error("Upload error:", error);
       toast.error("Failed to upload file");
+      return null;
+    }
+  };
+
+  // Optimized audio upload with background HLS transcoding
+  const handleAudioUpload = async (file, songId, onProgress = null) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("song_id", songId);
+    try {
+      const response = await axios.post(`${API}/upload/audio/fast`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percentCompleted);
+          }
+        },
+        timeout: 600000 // 10 min timeout for large audio files
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Audio upload error:", error);
+      toast.error("Failed to upload audio");
       return null;
     }
   };
@@ -482,37 +516,52 @@ export default function AlbumsPage() {
 
     try {
       const totalSongs = bulkSongs.length;
+      let completedUploads = 0;
+      let completedSongs = 0;
       
-      // Upload all files in parallel first
-      const uploadPromises = bulkSongs.map(async (song, index) => {
-        let audioUrl = "";
-        if (song.file) {
-          audioUrl = await handleFileUpload(song.file);
-        }
-        return {
-          title: song.title,
-          album_id: selectedAlbum.album_id,
-          duration: parseInt(song.duration) || 0,
-          duration_formatted: song.duration_formatted || "",
-          audio_url: audioUrl,
-          track_number: index + 1 + albumSongs.length,
-          status: "active"
-        };
-      });
-
-      // Wait for all uploads to complete
-      setUploadProgress(30);
-      const songDataList = await Promise.all(uploadPromises);
-      setUploadProgress(60);
-
-      // Create all songs in parallel
-      const createPromises = songDataList.map(songData => 
-        axios.post(`${API}/songs`, songData, { withCredentials: true })
+      // First, create song records to get song_ids
+      const songRecords = await Promise.all(
+        bulkSongs.map(async (song, index) => {
+          const songData = {
+            title: song.title,
+            album_id: selectedAlbum.album_id,
+            duration: parseInt(song.duration) || 0,
+            duration_formatted: song.duration_formatted || "",
+            track_number: index + 1 + albumSongs.length,
+            status: "active"
+          };
+          const response = await axios.post(`${API}/songs`, songData, { withCredentials: true });
+          return { ...songData, song_id: response.data.song_id, file: song.file };
+        })
       );
-      await Promise.all(createPromises);
+      
+      setUploadProgress(20); // Song records created
+      
+      // Now upload audio files in parallel with progress tracking
+      const uploadResults = await Promise.all(
+        songRecords.map(async (record) => {
+          if (record.file) {
+            const result = await handleAudioUpload(
+              record.file, 
+              record.song_id,
+              (percent) => {
+                // Update progress: 20% for song creation, 80% for uploads
+                const uploadProgress = 20 + Math.round((completedUploads + percent / 100) / totalSongs * 80);
+                setUploadProgress(uploadProgress);
+              }
+            );
+            completedUploads++;
+            return result;
+          }
+          completedUploads++;
+          return null;
+        })
+      );
+      
       setUploadProgress(100);
-
-      toast.success(`${totalSongs} songs uploaded successfully`);
+      
+      const successCount = uploadResults.filter(r => r !== null).length;
+      toast.success(`${successCount} songs uploaded successfully. HLS transcoding started in background.`);
       setIsBulkSongModalOpen(false);
       setBulkSongs([]);
       fetchAlbumSongs(selectedAlbum.album_id);

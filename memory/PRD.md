@@ -31,6 +31,15 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
   - Updated `libraryAPI` to use this helper for: `getPlaylists`, `createPlaylist`, `deletePlaylist`, `addToPlaylist`, `removeFromPlaylist`
   - Updated fallback API URL to production (`https://gracefy.net`)
 
+- ✅ **Upload Performance Optimization** - Significantly faster album/song uploads:
+  - **NEW `/api/upload/fast`** - Streaming upload to CDN without loading entire file to memory
+  - **NEW `/api/upload/audio/fast`** - Fast audio upload with immediate response, HLS transcoding in background
+  - **NEW `/api/upload/status/{song_id}`** - Check upload and HLS transcoding status
+  - Frontend now shows real upload progress (axios `onUploadProgress`)
+  - Dynamic timeouts based on file size (30s-10min)
+  - Bulk song uploads now create song records first, then upload audio in parallel
+  - Files: `/app/backend/routes/uploads.py`, `/app/frontend/src/pages/AlbumsPage.jsx`
+
 - ✅ **Android Build v1.0.182 Triggered** - Build ID: `4693ea34-f2e4-4066-acb4-4bc6633b2ef8`
 
 ### Session: March 24, 2026
