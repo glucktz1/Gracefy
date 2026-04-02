@@ -35,8 +35,10 @@ QUALITY_TIERS = [
     {'name': 'high', 'bitrate': '320k', 'bandwidth': 320000},
 ]
 
-# Segment duration in seconds
-SEGMENT_DURATION = 10
+# Segment duration in seconds (6 seconds is optimal for music streaming)
+# Shorter segments = faster start but more requests
+# Longer segments = smoother playback but slower start
+SEGMENT_DURATION = 6
 
 
 def get_storage_url():

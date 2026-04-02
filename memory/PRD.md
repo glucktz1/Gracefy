@@ -40,7 +40,16 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
   - Bulk song uploads now create song records first, then upload audio in parallel
   - Files: `/app/backend/routes/uploads.py`, `/app/frontend/src/pages/AlbumsPage.jsx`
 
-- ✅ **Android Build v1.0.182 Triggered** - Build ID: `4693ea34-f2e4-4066-acb4-4bc6633b2ef8`
+- ✅ **Playback Optimization** - Smoother song loading and playback:
+  - **Web (HLS.js)**: Enhanced buffer settings (60s buffer, 120s max), faster quality switching, prefetch first fragment
+  - **Web**: Added stall detection with automatic recovery, HLS manifest prefetching for next song
+  - **Mobile (TrackPlayer)**: Increased buffer from default to 30s min, 120s max, 5s playBuffer
+  - **Mobile**: Added buffering state tracking, stall detection with seek-based recovery
+  - **HLS Transcoding**: Optimized segment duration from 10s to 6s for faster start times
+  - Exposed `isBuffering` state in mobile PlayerContext for UI feedback
+  - Files: `/app/frontend/src/hooks/useAudioPlayer.js`, `/app/mobile/SpiritSongs/src/context/PlayerContext.js`
+
+- ✅ **Android Build v1.0.183 Triggered** - Build ID: `ff70c7b5-117d-4c43-9bb8-83d17107373b`
 
 ### Session: March 24, 2026
 - ✅ **Neno la Leo (Today's Word) Feature - COMPLETE**:

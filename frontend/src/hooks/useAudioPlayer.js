@@ -92,12 +92,38 @@ const useAudioPlayer = () => {
       console.log('[Player] Using HLS adaptive streaming:', hlsUrl);
       
       const hls = new Hls({
-        // Auto quality selection based on bandwidth
+        // Optimized for smooth playback
         autoStartLoad: true,
-        startLevel: -1, // Auto-select starting quality
+        startLevel: -1, // Auto-select starting quality based on bandwidth
         capLevelToPlayerSize: false,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
+        
+        // Buffer settings optimized for music streaming
+        maxBufferLength: 60, // Buffer up to 60 seconds ahead
+        maxMaxBufferLength: 120, // Allow up to 120 seconds during good network
+        maxBufferSize: 30 * 1000 * 1000, // 30MB max buffer
+        maxBufferHole: 0.5, // Allow small buffer holes
+        
+        // Low latency settings for faster starts
+        lowLatencyMode: false, // Not needed for pre-recorded music
+        backBufferLength: 30, // Keep 30 seconds of back buffer for seeking
+        
+        // Bandwidth estimation for quality switching
+        abrEwmaDefaultEstimate: 500000, // Start with 500kbps assumption
+        abrEwmaFastLive: 3.0,
+        abrEwmaSlowLive: 9.0,
+        abrEwmaFastVoD: 3.0,
+        abrEwmaSlowVoD: 9.0,
+        abrBandWidthFactor: 0.95, // Be slightly conservative
+        abrBandWidthUpFactor: 0.7, // Faster quality upgrades
+        
+        // Error recovery
+        fragLoadingMaxRetry: 4,
+        manifestLoadingMaxRetry: 3,
+        levelLoadingMaxRetry: 4,
+        fragLoadingMaxRetryTimeout: 64000,
+        
+        // Faster initial load
+        startFragPrefetch: true, // Prefetch first fragment
       });
       
       hlsRef.current = hls;
@@ -286,19 +312,81 @@ const useAudioPlayer = () => {
     audioRef.current.volume = isMuted ? 0 : volume / 100;
   }, [volume, isMuted]);
 
+  // Stall detection and recovery
+  const stallCountRef = useRef(0);
+  const lastProgressTimeRef = useRef(0);
+  
+  useEffect(() => {
+    const audio = audioRef.current;
+    
+    // Handle stall/waiting events
+    const handleWaiting = () => {
+      console.log('[Player] Buffering/waiting...');
+      stallCountRef.current++;
+      
+      // If stuck for too long (5+ stalls in short time), try recovery
+      if (stallCountRef.current >= 5 && hlsRef.current) {
+        console.log('[Player] Multiple stalls detected, attempting HLS recovery');
+        stallCountRef.current = 0;
+        try {
+          hlsRef.current.recoverMediaError();
+        } catch (e) {
+          console.log('[Player] HLS recovery failed:', e);
+        }
+      }
+    };
+    
+    const handlePlaying = () => {
+      // Reset stall count when playback resumes
+      stallCountRef.current = 0;
+    };
+    
+    const handleStalled = () => {
+      console.log('[Player] Playback stalled, attempting recovery...');
+      // Try to resume playback
+      setTimeout(() => {
+        if (audio.paused && isPlaying) {
+          audio.play().catch(() => {});
+        }
+      }, 1000);
+    };
+    
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('stalled', handleStalled);
+    
+    return () => {
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('stalled', handleStalled);
+    };
+  }, [isPlaying]);
+
   // Play a song from the queue by index
-  // Preload next song for faster playback
+  // Enhanced preloading for faster next-song transitions
   const preloadNextSong = useCallback((currentIndex, currentQueue) => {
     const nextIndex = currentIndex + 1;
     if (nextIndex < currentQueue.length) {
       const nextItem = currentQueue[nextIndex];
       const nextSong = nextItem.song || nextItem;
-      if (nextSong?.audio_url) {
-        const nextAudioUrl = getAudioUrl(nextSong.audio_url);
-        const preloadAudio = new Audio();
-        preloadAudio.preload = 'auto';
-        preloadAudio.src = nextAudioUrl;
-        console.log('[Player] Preloading next song:', nextSong.title);
+      
+      // Prefer HLS for preloading if available
+      const preloadUrl = nextSong?.hls_url || (nextSong?.audio_url ? getAudioUrl(nextSong.audio_url) : null);
+      
+      if (preloadUrl) {
+        // For HLS, we can prefetch the manifest
+        if (nextSong?.hls_url && Hls.isSupported()) {
+          // Prefetch HLS manifest for faster start
+          fetch(preloadUrl, { method: 'GET', mode: 'cors' })
+            .then(() => console.log('[Player] Prefetched HLS manifest for:', nextSong.title))
+            .catch(() => {}); // Ignore errors
+        } else {
+          // For MP3, use audio preload
+          const preloadAudio = new Audio();
+          preloadAudio.preload = 'metadata'; // Just load metadata, not full file
+          preloadAudio.src = preloadUrl;
+          console.log('[Player] Preloading next song:', nextSong.title);
+        }
       }
     }
   }, []);

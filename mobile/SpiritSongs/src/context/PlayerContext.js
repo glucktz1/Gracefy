@@ -101,6 +101,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false); // Track buffering state
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('all');
   const [isLiked, setIsLiked] = useState(false);
@@ -122,6 +123,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const appStateRef = useRef(AppState.currentState);
   const wasPlayingBeforeBackgroundRef = useRef(false);
   const guestLimitReachedRef = useRef(false); // Block autoplay when guest limit reached
+  const stallCountRef = useRef(0); // Track stall events for recovery
+  const lastRecoveryAttemptRef = useRef(0); // Prevent recovery spam
   
   // Analytics tracking
   const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
@@ -135,6 +138,38 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const isPlaying = playbackState.state === State.Playing;
   const position = (progress.position || 0) * 1000; // Convert to milliseconds
   const duration = (progress.duration || 0) * 1000; // Convert to milliseconds
+  
+  // Track buffering state from playback state
+  useEffect(() => {
+    const state = playbackState.state;
+    const buffering = state === State.Buffering || state === State.Loading;
+    setIsBuffering(buffering);
+    
+    // Handle stall recovery
+    if (state === State.Buffering) {
+      stallCountRef.current++;
+      console.log(`[Player] Buffering (stall count: ${stallCountRef.current})`);
+      
+      // If stuck buffering for too long (5+ consecutive stalls)
+      if (stallCountRef.current >= 5) {
+        const now = Date.now();
+        // Only attempt recovery every 30 seconds
+        if (now - lastRecoveryAttemptRef.current > 30000) {
+          lastRecoveryAttemptRef.current = now;
+          stallCountRef.current = 0;
+          console.log('[Player] Multiple stalls detected, attempting recovery...');
+          
+          // Try to recover by seeking slightly
+          TrackPlayer.getPosition().then(pos => {
+            TrackPlayer.seekTo(pos + 0.5).catch(() => {});
+          }).catch(() => {});
+        }
+      }
+    } else if (state === State.Playing) {
+      // Reset stall count when playing successfully
+      stallCountRef.current = 0;
+    }
+  }, [playbackState.state]);
 
   // ============ SYNC REFS ============
   useEffect(() => { queueRef.current = queue; }, [queue]);
@@ -158,9 +193,17 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         return true;
       }
 
-      // Setup player with configuration
+      // Setup player with configuration optimized for music streaming
       await TrackPlayer.setupPlayer({
         autoHandleInterruptions: true,
+        // Increase buffer for smoother playback
+        minBuffer: 30, // Buffer at least 30 seconds
+        maxBuffer: 120, // Buffer up to 120 seconds when network is good
+        playBuffer: 5, // Start playing after 5 seconds buffered
+        backBuffer: 30, // Keep 30 seconds behind for seeking
+        // iOS specific
+        iosCategory: 'playback',
+        iosCategoryMode: 'default',
       });
 
       // Configure player options for background playback
@@ -168,6 +211,11 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         // Android: Continue playback when app is killed
         android: {
           appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+          // Increase buffer for Android
+          minBuffer: 30000, // 30 seconds in ms
+          maxBuffer: 120000, // 120 seconds in ms
+          bufferForPlayback: 5000, // 5 seconds before starting
+          bufferForPlaybackAfterRebuffer: 10000, // 10 seconds after rebuffer
         },
         // Capabilities shown in notification/lock screen
         capabilities: [
@@ -1337,6 +1385,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     queueIndex,
     isPlaying,
     isLoading,
+    isBuffering, // Expose buffering state for UI feedback
     position,
     duration,
     shuffle,
