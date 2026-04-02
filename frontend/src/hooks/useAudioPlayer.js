@@ -77,7 +77,8 @@ const useAudioPlayer = () => {
   
   /**
    * Setup HLS playback for a song with adaptive streaming
-   * Falls back to direct MP3 if HLS is not available or fails
+   * UPDATED: Prioritize MP3 for reliability, use HLS only as fallback
+   * This prevents "format not supported" errors on problematic HLS streams
    */
   const setupAudioSource = useCallback((song, onReady) => {
     const audio = audioRef.current;
@@ -87,43 +88,26 @@ const useAudioPlayer = () => {
     // Cleanup any existing HLS instance
     cleanupHls();
     
-    // Check if song has HLS and browser supports it
+    // PRIORITIZE MP3 for reliability - works on all browsers
+    // Only use HLS if no MP3 available
+    if (mp3Url && mp3Url !== SAMPLE_AUDIO_URL) {
+      console.log('[Player] Using MP3 (reliable):', mp3Url);
+      audio.src = mp3Url;
+      if (onReady) onReady();
+      return { hlsUrl, mp3Url };
+    }
+    
+    // Fallback to HLS if no MP3 available
     if (hlsUrl && Hls.isSupported()) {
-      console.log('[Player] Using HLS adaptive streaming:', hlsUrl);
+      console.log('[Player] Using HLS (no MP3 available):', hlsUrl);
       
       const hls = new Hls({
-        // Optimized for smooth playback
         autoStartLoad: true,
-        startLevel: -1, // Auto-select starting quality based on bandwidth
-        capLevelToPlayerSize: false,
-        
-        // Buffer settings optimized for music streaming
-        maxBufferLength: 60, // Buffer up to 60 seconds ahead
-        maxMaxBufferLength: 120, // Allow up to 120 seconds during good network
-        maxBufferSize: 30 * 1000 * 1000, // 30MB max buffer
-        maxBufferHole: 0.5, // Allow small buffer holes
-        
-        // Low latency settings for faster starts
-        lowLatencyMode: false, // Not needed for pre-recorded music
-        backBufferLength: 30, // Keep 30 seconds of back buffer for seeking
-        
-        // Bandwidth estimation for quality switching
-        abrEwmaDefaultEstimate: 500000, // Start with 500kbps assumption
-        abrEwmaFastLive: 3.0,
-        abrEwmaSlowLive: 9.0,
-        abrEwmaFastVoD: 3.0,
-        abrEwmaSlowVoD: 9.0,
-        abrBandWidthFactor: 0.95, // Be slightly conservative
-        abrBandWidthUpFactor: 0.7, // Faster quality upgrades
-        
-        // Error recovery
-        fragLoadingMaxRetry: 4,
-        manifestLoadingMaxRetry: 3,
-        levelLoadingMaxRetry: 4,
-        fragLoadingMaxRetryTimeout: 64000,
-        
-        // Faster initial load
-        startFragPrefetch: true, // Prefetch first fragment
+        startLevel: -1,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        fragLoadingMaxRetry: 2,
+        manifestLoadingMaxRetry: 2,
       });
       
       hlsRef.current = hls;
@@ -131,39 +115,19 @@ const useAudioPlayer = () => {
       hls.loadSource(hlsUrl);
       hls.attachMedia(audio);
       
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        console.log('[Player] HLS manifest loaded, quality levels:', data.levels.length);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('[Player] HLS manifest loaded');
         if (onReady) onReady();
-      });
-      
-      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-        const level = hls.levels[data.level];
-        console.log(`[Player] HLS quality switched to: ${level?.bitrate / 1000}kbps`);
       });
       
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error('[Player] HLS error:', data.type, data.details);
-        
         if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('[Player] HLS network error, falling back to MP3');
-              cleanupHls();
-              // Fallback to MP3
-              audio.src = mp3Url;
-              if (onReady) onReady();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('[Player] HLS media error, attempting recovery');
-              hls.recoverMediaError();
-              break;
-            default:
-              console.log('[Player] HLS fatal error, falling back to MP3');
-              cleanupHls();
-              audio.src = mp3Url;
-              if (onReady) onReady();
-              break;
-          }
+          console.log('[Player] HLS fatal error, no fallback available');
+          cleanupHls();
+          // Trigger error so it auto-skips to next
+          const errorEvent = new Event('error');
+          audio.dispatchEvent(errorEvent);
         }
       });
       
@@ -174,10 +138,9 @@ const useAudioPlayer = () => {
       if (onReady) onReady();
       
     } else {
-      // No HLS available, use direct MP3
-      console.log('[Player] Using direct MP3:', mp3Url);
-      audio.src = mp3Url;
-      if (onReady) onReady();
+      // No valid audio source
+      console.error('[Player] No valid audio source for song:', song.title);
+      if (onReady) onReady(); // Let it fail and auto-skip
     }
     
     return { hlsUrl, mp3Url };
@@ -363,30 +326,21 @@ const useAudioPlayer = () => {
   }, [isPlaying]);
 
   // Play a song from the queue by index
-  // Enhanced preloading for faster next-song transitions
+  // Simple preloading for faster next-song transitions
   const preloadNextSong = useCallback((currentIndex, currentQueue) => {
     const nextIndex = currentIndex + 1;
     if (nextIndex < currentQueue.length) {
       const nextItem = currentQueue[nextIndex];
       const nextSong = nextItem.song || nextItem;
       
-      // Prefer HLS for preloading if available
-      const preloadUrl = nextSong?.hls_url || (nextSong?.audio_url ? getAudioUrl(nextSong.audio_url) : null);
+      // Preload MP3 URL (more reliable than HLS)
+      const preloadUrl = nextSong?.audio_url ? getAudioUrl(nextSong.audio_url) : null;
       
       if (preloadUrl) {
-        // For HLS, we can prefetch the manifest
-        if (nextSong?.hls_url && Hls.isSupported()) {
-          // Prefetch HLS manifest for faster start
-          fetch(preloadUrl, { method: 'GET', mode: 'cors' })
-            .then(() => console.log('[Player] Prefetched HLS manifest for:', nextSong.title))
-            .catch(() => {}); // Ignore errors
-        } else {
-          // For MP3, use audio preload
-          const preloadAudio = new Audio();
-          preloadAudio.preload = 'metadata'; // Just load metadata, not full file
-          preloadAudio.src = preloadUrl;
-          console.log('[Player] Preloading next song:', nextSong.title);
-        }
+        const preloadAudio = new Audio();
+        preloadAudio.preload = 'metadata';
+        preloadAudio.src = preloadUrl;
+        console.log('[Player] Preloading next song:', nextSong.title);
       }
     }
   }, []);
@@ -693,8 +647,21 @@ const useAudioPlayer = () => {
       }
       
       setIsLoading(false);
-      // Auto-skip to next on error (but don't keep skipping if all songs fail)
-      // handleSongEnd();
+      
+      // Auto-skip to next song on error for continuous playback
+      // Small delay to prevent rapid skipping if multiple songs fail
+      setTimeout(() => {
+        const currentQueue = queueRef.current;
+        const currentQueueIndex = queueIndexRef.current;
+        const nextIndex = currentQueueIndex + 1;
+        
+        if (nextIndex < currentQueue.length) {
+          console.log('[Player] Auto-skipping to next song after error');
+          playFromQueueInternalRef.current(nextIndex, currentQueue);
+        } else {
+          console.log('[Player] No more songs to skip to');
+        }
+      }, 500);
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
