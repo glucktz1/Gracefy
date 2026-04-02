@@ -196,14 +196,11 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       // Setup player with configuration optimized for music streaming
       await TrackPlayer.setupPlayer({
         autoHandleInterruptions: true,
-        // Increase buffer for smoother playback
-        minBuffer: 30, // Buffer at least 30 seconds
-        maxBuffer: 120, // Buffer up to 120 seconds when network is good
-        playBuffer: 5, // Start playing after 5 seconds buffered
-        backBuffer: 30, // Keep 30 seconds behind for seeking
-        // iOS specific
-        iosCategory: 'playback',
-        iosCategoryMode: 'default',
+        // Keep buffer settings reasonable for mobile
+        minBuffer: 15, // 15 seconds minimum
+        maxBuffer: 50, // 50 seconds max (not too aggressive)
+        playBuffer: 2, // Start playing after 2 seconds buffered
+        backBuffer: 10, // 10 seconds behind for seeking
       });
 
       // Configure player options for background playback
@@ -211,11 +208,6 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         // Android: Continue playback when app is killed
         android: {
           appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
-          // Increase buffer for Android
-          minBuffer: 30000, // 30 seconds in ms
-          maxBuffer: 120000, // 120 seconds in ms
-          bufferForPlayback: 5000, // 5 seconds before starting
-          bufferForPlaybackAfterRebuffer: 10000, // 10 seconds after rebuffer
         },
         // Capabilities shown in notification/lock screen
         capabilities: [
@@ -789,19 +781,21 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   };
 
   // ============ CONVERT TRACK FORMAT ============
-  // Supports HLS adaptive streaming when available
+  // IMPORTANT: React Native Track Player has LIMITED HLS support on Android
+  // We prioritize MP3 for reliable playback across all devices
   const toTrackPlayerFormat = (track) => {
-    // Prioritize HLS URL for adaptive streaming, fallback to regular MP3
     let audioUrl;
     
-    if (track.hls_url) {
-      // Use HLS for adaptive streaming (auto-adjusts quality based on network)
-      audioUrl = track.hls_url;
-      console.log('[Player] Using HLS for:', track.title);
-    } else if (track.audio_url || track.file_path) {
-      // Fallback to regular audio URL
+    // ALWAYS prefer MP3 for mobile - HLS support is inconsistent on Android
+    // MP3 works reliably on all devices
+    if (track.audio_url || track.file_path) {
       audioUrl = getAudioUrl(track.audio_url || track.file_path);
       console.log('[Player] Using MP3 for:', track.title);
+    } else if (track.hls_url) {
+      // Fallback to HLS only if no MP3 available (rare case)
+      // Note: HLS may not work on all Android devices
+      audioUrl = track.hls_url;
+      console.log('[Player] Using HLS fallback for:', track.title);
     } else {
       // No valid URL - this track will fail but we log it
       console.warn('[Player] No audio URL for track:', track.title, track.song_id);
