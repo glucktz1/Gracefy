@@ -1029,12 +1029,12 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
                   
                   {/* Reference */}
                   <h3 className="text-lg font-bold text-white leading-tight">
-                    {snippet.reference}
+                    {snippet.reference || snippet.title || `${snippet.book_name || 'Bible'} ${snippet.chapter ? snippet.chapter + ':' : ''}${snippet.verses || ''}`}
                   </h3>
                   
                   {/* Subtitle - Can show more text now */}
                   <p className="text-sm text-zinc-300 italic mt-1 line-clamp-2">
-                    {snippet.subtitle || snippet.description || snippet.title}
+                    {snippet.subtitle || snippet.description || (snippet.reference !== snippet.title ? snippet.title : '')}
                   </p>
                 </div>
                 

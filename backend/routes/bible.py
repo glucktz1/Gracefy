@@ -656,7 +656,8 @@ async def get_bible_snippets(
     """Get Bible snippets/daily verses"""
     db = get_db()
     
-    query = {"status": "active"}
+    # Include snippets that are active OR have no status set (for backwards compatibility)
+    query = {"$or": [{"status": "active"}, {"status": None}, {"status": {"$exists": False}}]}
     if category:
         query["category"] = category
     
@@ -664,6 +665,8 @@ async def get_bible_snippets(
         .sort("created_at", -1)\
         .limit(limit)\
         .to_list(limit)
+    
+    return {"snippets": snippets}
     
     return {"snippets": snippets}
 
@@ -682,14 +685,24 @@ async def get_bible_snippet(snippet_id: str):
 
 @router.get("/bible/featured-snippets")
 async def get_featured_snippets():
-    """Get featured/daily Bible snippets"""
+    """Get featured/daily Bible snippets for home page"""
     db = get_db()
     
-    # Query for featured snippets (don't require status=active for flexibility)
+    # Get all active snippets (featured or not) - for home page display
+    # Include snippets with is_featured=true, or active status, or no status (backwards compat)
+    query = {
+        "$or": [
+            {"is_featured": True},
+            {"status": "active"},
+            {"status": None},
+            {"status": {"$exists": False}}
+        ]
+    }
+    
     snippets = await db.bible_snippets.find(
-        {"is_featured": True},
+        query,
         {"_id": 0}
-    ).sort("sort_order", 1).limit(10).to_list(10)
+    ).sort("created_at", -1).limit(10).to_list(10)
     
     return {"snippets": snippets}
 
