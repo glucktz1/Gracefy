@@ -4787,16 +4787,43 @@ export default function UserStreamingApp() {
     }
     
     try {
+      // First get the snippet details
       const res = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
+      const snippetData = res.data;
+      
+      let audioData = snippetData.audio_base64;
+      
+      // If no pre-generated audio, generate TTS on-the-fly
+      if (!audioData && snippetData.text) {
+        toast.info("Generating audio...", { duration: 2000 });
+        const ttsRes = await axios.post(`${API}/bible/tts/generate`, {
+          text: snippetData.text,
+          voice: snippetData.voice || snippet.voice || "alloy",
+          speed: snippetData.speed || snippet.speed || 1.0
+        });
+        audioData = ttsRes.data.audio_base64;
+      }
+      
+      if (!audioData) {
+        toast.error("No audio available for this snippet");
+        return;
+      }
+      
       if (bibleAudioElement) bibleAudioElement.pause();
       
-      const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
+      const audio = new Audio(`data:audio/mp3;base64,${audioData}`);
       audio.onended = () => setBibleAudioPlaying(null);
+      audio.onerror = () => {
+        toast.error("Failed to play audio");
+        setBibleAudioPlaying(null);
+      };
       audio.play();
       setBibleAudioElement(audio);
       setBibleAudioPlaying(snippet.snippet_id);
     } catch (e) {
-      toast.error("Failed to play audio");
+      console.error("Play Bible snippet error:", e);
+      toast.error(e.response?.data?.detail || "Failed to play audio");
+      setBibleAudioPlaying(null);
     }
   };
 
@@ -5387,6 +5414,13 @@ export default function UserStreamingApp() {
                     ))}
                   </div>
                 </section>
+
+                {/* Bible Devotional Section - Featured Snippets */}
+                <BibleDevotionalSection 
+                  language={language} 
+                  t={t} 
+                  onPlaySnippet={handlePlayBibleSnippet}
+                />
 
                 {/* Category Filter Pills */}
                 {!activeCategory && (

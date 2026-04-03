@@ -415,8 +415,27 @@ export default function BibleManagementPage() {
     }
     
     try {
-      const res = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
-      const audioData = res.data.audio_base64;
+      // First check if snippet has pre-generated audio
+      const snippetRes = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
+      const snippetData = snippetRes.data;
+      
+      let audioData = snippetData.audio_base64;
+      
+      // If no pre-generated audio, generate TTS on-the-fly
+      if (!audioData && snippetData.text) {
+        toast.info("Generating audio...");
+        const ttsRes = await axios.post(`${API}/bible/tts/generate`, {
+          text: snippetData.text,
+          voice: snippetData.voice || snippet.voice || "alloy",
+          speed: snippetData.speed || snippet.speed || 1.0
+        });
+        audioData = ttsRes.data.audio_base64;
+      }
+      
+      if (!audioData) {
+        toast.error("No audio available for this snippet");
+        return;
+      }
       
       if (audioElement) {
         audioElement.pause();
@@ -424,11 +443,17 @@ export default function BibleManagementPage() {
       
       const audio = new Audio(`data:audio/mp3;base64,${audioData}`);
       audio.onended = () => setPlayingSnippet(null);
+      audio.onerror = () => {
+        toast.error("Failed to play audio");
+        setPlayingSnippet(null);
+      };
       audio.play();
       setAudioElement(audio);
       setPlayingSnippet(snippet.snippet_id);
     } catch (e) {
-      toast.error("Failed to play audio");
+      console.error("Play snippet error:", e);
+      toast.error(e.response?.data?.detail || "Failed to play audio");
+      setPlayingSnippet(null);
     }
   };
 
