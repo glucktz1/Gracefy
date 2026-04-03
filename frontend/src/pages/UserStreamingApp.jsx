@@ -5415,13 +5415,6 @@ export default function UserStreamingApp() {
                   </div>
                 </section>
 
-                {/* Bible Devotional Section - Featured Snippets */}
-                <BibleDevotionalSection 
-                  language={language} 
-                  t={t} 
-                  onPlaySnippet={handlePlayBibleSnippet}
-                />
-
                 {/* Category Filter Pills */}
                 {!activeCategory && (
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -5463,6 +5456,9 @@ export default function UserStreamingApp() {
                   if (section.section_type === 'hero') return null;
                   if (section.section_type === 'quick_access') return null; // Already rendered above
                   
+                  // Skip bible_content - we use BibleDevotionalSection instead
+                  if (section.content_type === 'bible_content' || section.section_type === 'bible_content') return null;
+                  
                   const items = section.items || [];
                   if (items.length === 0) return null;
                   
@@ -5497,6 +5493,15 @@ export default function UserStreamingApp() {
                     <div key={section.section_id || idx}>
                       {/* Insert Neno la Leo after 2nd section */}
                       {idx === 2 && <NenoLaLeoSection language={language} t={t} player={player} />}
+                      
+                      {/* Insert Bible Devotional Section after 5th section (6th row) */}
+                      {idx === 5 && (
+                        <BibleDevotionalSection 
+                          language={language} 
+                          t={t} 
+                          onPlaySnippet={handlePlayBibleSnippet}
+                        />
+                      )}
                       
                       <section>
                         <SectionHeader 
