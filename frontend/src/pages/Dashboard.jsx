@@ -135,7 +135,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-zinc-500">•</div>
                 <div className="text-zinc-300">
-                  <span className="font-semibold text-white">{liveListeners?.unique_devices || streamingStats?.active_listeners || 0}</span> devices
+                  <span className="font-semibold text-orange-400">{streamingStats?.guest_visitors_today || 0}</span> guest visitors
                 </div>
                 <div className="text-zinc-500">•</div>
                 <div className="text-zinc-300">

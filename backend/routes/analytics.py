@@ -1034,6 +1034,38 @@ async def get_realtime_analytics():
         "status": {"$in": ["completed", "success", "paid"]}
     })
     
+    # Guest visitors today (users with listening sessions but no user_id or anonymous)
+    guest_visitors_today = await db.listening_sessions.count_documents({
+        "start_time": {"$gte": today_start},
+        "$or": [
+            {"user_id": None},
+            {"user_id": ""},
+            {"user_id": {"$exists": False}},
+            {"user_id": {"$regex": "^guest_"}},
+            {"is_guest": True}
+        ]
+    })
+    
+    # Also count unique guest device IDs for more accurate count
+    guest_devices_pipeline = [
+        {
+            "$match": {
+                "start_time": {"$gte": today_start},
+                "$or": [
+                    {"user_id": None},
+                    {"user_id": ""},
+                    {"user_id": {"$exists": False}},
+                    {"user_id": {"$regex": "^guest_"}},
+                    {"is_guest": True}
+                ]
+            }
+        },
+        {"$group": {"_id": "$device_id"}},
+        {"$count": "count"}
+    ]
+    guest_devices_result = await db.listening_sessions.aggregate(guest_devices_pipeline).to_list(1)
+    unique_guest_visitors = guest_devices_result[0]["count"] if guest_devices_result else guest_visitors_today
+    
     # Hourly plays trend
     hourly_pipeline = [
         {"$match": {"counted_as_play": True, "start_time": {"$gte": one_hour_ago}}},
@@ -1061,6 +1093,7 @@ async def get_realtime_analytics():
         "platforms": platforms,
         "plays_today": plays_today,
         "new_users_today": new_users_today,
+        "guest_visitors_today": unique_guest_visitors,
         "transactions_today": transactions_today,
         "hourly_trend": [{"time": h["_id"], "plays": h["plays"]} for h in hourly_plays],
         "recent_plays": recent_plays
