@@ -210,7 +210,8 @@ async def get_upload_status(song_id: str):
     song = await db.songs.find_one(
         {"song_id": song_id},
         {"_id": 0, "song_id": 1, "title": 1, "audio_url": 1, "hls_url": 1, 
-         "hls_status": 1, "upload_status": 1, "audio_size_bytes": 1}
+         "hls_status": 1, "upload_status": 1, "audio_size_bytes": 1,
+         "encoding_status": 1, "encoded": 1}
     )
     
     if not song:
@@ -220,6 +221,8 @@ async def get_upload_status(song_id: str):
         "song_id": song_id,
         "title": song.get("title"),
         "upload_status": song.get("upload_status", "unknown"),
+        "encoding_status": song.get("encoding_status", "unknown"),
+        "encoded": song.get("encoded", False),
         "hls_status": song.get("hls_status", "unknown"),
         "audio_url": song.get("audio_url"),
         "hls_url": song.get("hls_url"),
@@ -860,9 +863,13 @@ async def migrate_to_cdn(data: dict):
 async def upload_thumbnail(
     file: UploadFile = File(...),
     entity_type: str = Form("album"),
-    entity_id: str = Form(...)
+    entity_id: str = Form(...),
+    background_tasks: BackgroundTasks = None
 ):
-    """Upload thumbnail for content (album, song, choir, etc.)"""
+    """
+    Upload thumbnail for content (album, song, choir, etc.)
+    NON-BLOCKING: DB update happens in background.
+    """
     db = get_db()
     
     # Validate file type
@@ -871,8 +878,7 @@ async def upload_thumbnail(
         raise HTTPException(status_code=400, detail="Invalid image type")
     
     content = await file.read()
-    
-    # Resize if needed (placeholder - actual implementation would use Pillow)
+    content_type = file.content_type
     
     # Upload to CDN if available
     if is_cdn_enabled():
@@ -880,7 +886,8 @@ async def upload_thumbnail(
             import httpx
             filename = f"{entity_type}_{entity_id}_thumb.jpg"
             folder = f"thumbnails/{entity_type}"
-            storage_url = f"https://{BUNNY_STORAGE_REGION}.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
+            # Use main storage URL (not region-specific which may fail)
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
             
             async with httpx.AsyncClient() as client:
                 response = await client.put(
@@ -888,43 +895,55 @@ async def upload_thumbnail(
                     content=content,
                     headers={
                         "AccessKey": BUNNY_API_KEY,
-                        "Content-Type": file.content_type
+                        "Content-Type": content_type
                     },
-                    timeout=30.0
+                    timeout=60.0  # Increased timeout for larger images
                 )
                 
                 if response.status_code in [200, 201]:
                     cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
                     
-                    # Update entity
-                    collection_map = {
-                        "album": "albums",
-                        "song": "songs",
-                        "choir": "singers",
-                        "church": "churches"
-                    }
-                    id_field_map = {
-                        "album": "album_id",
-                        "song": "song_id",
-                        "choir": "singer_id",
-                        "church": "church_id"
-                    }
+                    # Update entity in background (non-blocking return)
+                    async def update_entity_thumbnail():
+                        collection_map = {
+                            "album": "albums",
+                            "song": "songs",
+                            "choir": "singers",
+                            "church": "churches"
+                        }
+                        id_field_map = {
+                            "album": "album_id",
+                            "song": "song_id",
+                            "choir": "singer_id",
+                            "church": "church_id"
+                        }
+                        
+                        collection = collection_map.get(entity_type, "albums")
+                        id_field = id_field_map.get(entity_type, "album_id")
+                        
+                        try:
+                            await db[collection].update_one(
+                                {id_field: entity_id},
+                                {"$set": {"thumbnail": cdn_url}}
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to update {entity_type} thumbnail: {e}")
                     
-                    collection = collection_map.get(entity_type, "albums")
-                    id_field = id_field_map.get(entity_type, "album_id")
+                    # Fire and forget - return immediately
+                    asyncio.create_task(update_entity_thumbnail())
                     
-                    await db[collection].update_one(
-                        {id_field: entity_id},
-                        {"$set": {"thumbnail": cdn_url}}
-                    )
-                    
-                    return {"url": cdn_url}
+                    return {"url": cdn_url, "status": "uploaded"}
+                else:
+                    logger.error(f"CDN upload failed: {response.status_code}")
         except Exception as e:
             logger.error(f"Thumbnail upload error: {e}")
     
-    # Fallback to base64
+    # Fallback to base64 (for small images only)
+    if len(content) > 2 * 1024 * 1024:  # 2MB limit for base64
+        raise HTTPException(status_code=400, detail="Image too large. CDN upload failed.")
+    
     import base64
-    thumbnail_b64 = f"data:{file.content_type};base64,{base64.b64encode(content).decode('utf-8')}"
+    thumbnail_b64 = f"data:{content_type};base64,{base64.b64encode(content).decode('utf-8')}"
     
     return {"url": thumbnail_b64, "type": "base64"}
 
@@ -933,11 +952,13 @@ async def upload_thumbnail(
 async def upload_audio(
     file: UploadFile = File(...),
     song_id: str = Form(...),
-    encode: bool = Form(True)  # Enable encoding by default
+    encode: bool = Form(True),  # Enable encoding by default
+    background_tasks: BackgroundTasks = None
 ):
     """
     Upload audio file for a song with optional encoding.
     Converts to MP3 128kbps for optimal streaming.
+    NON-BLOCKING: Returns immediately, encoding happens in background.
     """
     db = get_db()
     
@@ -948,64 +969,184 @@ async def upload_audio(
     
     content = await file.read()
     original_size = len(content)
+    original_filename = file.filename
+    content_type = file.content_type
     
-    # Encode audio to MP3 if enabled and not already MP3
-    if encode and file.content_type not in ["audio/mpeg", "audio/mp3"]:
+    if not is_cdn_enabled():
+        raise HTTPException(status_code=503, detail="CDN not configured for audio uploads")
+    
+    # Check if encoding is needed
+    needs_encoding = encode and content_type not in ["audio/mpeg", "audio/mp3"] and not original_filename.lower().endswith('.mp3')
+    
+    if needs_encoding:
+        # For non-MP3 files: Upload raw first, then encode in background
+        import httpx
+        
+        # Upload original file immediately (no waiting for encoding)
+        raw_ext = os.path.splitext(original_filename)[1].lower() or ".wav"
+        raw_filename = f"{song_id}_raw{raw_ext}"
+        storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/audio/{raw_filename}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                storage_url,
+                content=content,
+                headers={
+                    "AccessKey": BUNNY_API_KEY,
+                    "Content-Type": content_type or "audio/mpeg"
+                },
+                timeout=120.0
+            )
+            
+            if response.status_code not in [200, 201]:
+                raise HTTPException(status_code=500, detail=f"Upload failed: {response.status_code}")
+        
+        raw_cdn_url = f"{BUNNY_CDN_URL}/audio/{raw_filename}"
+        
+        # Update song with raw URL immediately (user can start using it)
+        await db.songs.update_one(
+            {"song_id": song_id},
+            {"$set": {
+                "audio_url": raw_cdn_url,
+                "audio_size_bytes": original_size,
+                "original_size_bytes": original_size,
+                "encoding_status": "pending",
+                "encoded": False
+            }}
+        )
+        
+        # Schedule encoding in background (non-blocking)
+        if background_tasks:
+            background_tasks.add_task(
+                encode_audio_background,
+                song_id=song_id,
+                raw_url=raw_cdn_url,
+                content=content,
+                original_filename=original_filename
+            )
+        else:
+            # Fallback: use asyncio task
+            asyncio.create_task(
+                encode_audio_background(song_id, raw_cdn_url, content, original_filename)
+            )
+        
+        return {
+            "url": raw_cdn_url,
+            "size_bytes": original_size,
+            "original_size_bytes": original_size,
+            "encoded": False,
+            "encoding_status": "pending",
+            "message": "Audio uploaded. MP3 encoding started in background."
+        }
+    else:
+        # Already MP3 or encoding disabled: Upload directly
+        import httpx
+        
+        ext = ".mp3" if encode else (os.path.splitext(original_filename)[1].lower() or ".mp3")
+        filename = f"{song_id}{ext}"
+        storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/audio/{filename}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                storage_url,
+                content=content,
+                headers={
+                    "AccessKey": BUNNY_API_KEY,
+                    "Content-Type": "audio/mpeg"
+                },
+                timeout=120.0
+            )
+            
+            if response.status_code in [200, 201]:
+                cdn_url = f"{BUNNY_CDN_URL}/audio/{filename}"
+                
+                await db.songs.update_one(
+                    {"song_id": song_id},
+                    {"$set": {
+                        "audio_url": cdn_url,
+                        "audio_size_bytes": len(content),
+                        "original_size_bytes": original_size,
+                        "encoded": True,
+                        "encoding_status": "complete"
+                    }}
+                )
+                
+                return {
+                    "url": cdn_url, 
+                    "size_bytes": len(content),
+                    "original_size_bytes": original_size,
+                    "encoded": True,
+                    "encoding_status": "complete",
+                    "compression_ratio": round(original_size / len(content), 2) if len(content) > 0 else 1
+                }
+        
+        raise HTTPException(status_code=500, detail="Upload failed")
+
+
+async def encode_audio_background(song_id: str, raw_url: str, content: bytes, original_filename: str):
+    """
+    Background task to encode audio to MP3 without blocking the event loop.
+    Uses run_in_executor to run FFmpeg in a thread pool.
+    """
+    import tempfile
+    import subprocess
+    import httpx
+    from concurrent.futures import ThreadPoolExecutor
+    
+    db = get_db()
+    
+    def run_ffmpeg_encoding(input_path: str, output_path: str) -> bool:
+        """Synchronous FFmpeg encoding - runs in thread pool"""
         try:
-            import subprocess
-            import tempfile
-            
-            # Save original file to temp
-            with tempfile.NamedTemporaryFile(suffix=os.path.splitext(file.filename)[1], delete=False) as tmp_in:
-                tmp_in.write(content)
-                tmp_in_path = tmp_in.name
-            
-            # Output file path
-            tmp_out_path = tmp_in_path + ".mp3"
-            
-            # Convert using ffmpeg (128kbps MP3, mono for smaller size)
             process = subprocess.run([
                 "ffmpeg", "-y",
-                "-i", tmp_in_path,
+                "-i", input_path,
                 "-codec:a", "libmp3lame",
                 "-b:a", "128k",
                 "-ar", "44100",
                 "-ac", "2",  # Stereo
-                tmp_out_path
+                output_path
             ], capture_output=True, timeout=300)
             
-            if process.returncode == 0 and os.path.exists(tmp_out_path):
-                with open(tmp_out_path, "rb") as f:
-                    content = f.read()
-                logger.info(f"Audio encoded: {original_size} bytes -> {len(content)} bytes")
-            else:
-                logger.warning(f"FFmpeg encoding failed: {process.stderr.decode()}")
-            
-            # Cleanup temp files
-            try:
-                os.unlink(tmp_in_path)
-                if os.path.exists(tmp_out_path):
-                    os.unlink(tmp_out_path)
-            except:
-                pass
-                
+            return process.returncode == 0
         except Exception as e:
-            logger.warning(f"Audio encoding skipped: {e}")
-            # Continue with original file if encoding fails
+            logger.error(f"FFmpeg encoding error: {e}")
+            return False
     
-    if is_cdn_enabled():
-        try:
-            import httpx
-            # Always save as .mp3 after encoding
-            ext = ".mp3" if encode else (os.path.splitext(file.filename)[1].lower() or ".mp3")
-            filename = f"{song_id}{ext}"
-            folder = "audio"
-            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
+    try:
+        logger.info(f"Starting background encoding for song {song_id}")
+        
+        # Write content to temp file
+        ext = os.path.splitext(original_filename)[1].lower() or ".wav"
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp_in:
+            tmp_in.write(content)
+            tmp_in_path = tmp_in.name
+        
+        tmp_out_path = tmp_in_path + ".mp3"
+        
+        # Run FFmpeg in thread pool (non-blocking)
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            success = await loop.run_in_executor(
+                executor,
+                run_ffmpeg_encoding,
+                tmp_in_path,
+                tmp_out_path
+            )
+        
+        if success and os.path.exists(tmp_out_path):
+            # Read encoded file
+            with open(tmp_out_path, "rb") as f:
+                encoded_content = f.read()
+            
+            # Upload encoded MP3 to CDN
+            filename = f"{song_id}.mp3"
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/audio/{filename}"
             
             async with httpx.AsyncClient() as client:
                 response = await client.put(
                     storage_url,
-                    content=content,
+                    content=encoded_content,
                     headers={
                         "AccessKey": BUNNY_API_KEY,
                         "Content-Type": "audio/mpeg"
@@ -1014,30 +1155,47 @@ async def upload_audio(
                 )
                 
                 if response.status_code in [200, 201]:
-                    cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
+                    cdn_url = f"{BUNNY_CDN_URL}/audio/{filename}"
                     
+                    # Update song with encoded URL
                     await db.songs.update_one(
                         {"song_id": song_id},
                         {"$set": {
                             "audio_url": cdn_url,
-                            "audio_size_bytes": len(content),
-                            "original_size_bytes": original_size,
-                            "encoded": encode
+                            "audio_size_bytes": len(encoded_content),
+                            "encoded": True,
+                            "encoding_status": "complete"
                         }}
                     )
                     
-                    return {
-                        "url": cdn_url, 
-                        "size_bytes": len(content),
-                        "original_size_bytes": original_size,
-                        "encoded": encode,
-                        "compression_ratio": round(original_size / len(content), 2) if len(content) > 0 else 1
-                    }
-        except Exception as e:
-            logger.error(f"Audio upload error: {e}")
-            raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
-    
-    raise HTTPException(status_code=503, detail="CDN not configured for audio uploads")
+                    logger.info(f"Background encoding complete for {song_id}: {len(content)} -> {len(encoded_content)} bytes")
+                else:
+                    logger.error(f"Failed to upload encoded audio for {song_id}")
+                    await db.songs.update_one(
+                        {"song_id": song_id},
+                        {"$set": {"encoding_status": "failed"}}
+                    )
+        else:
+            logger.warning(f"FFmpeg encoding failed for {song_id}, keeping raw file")
+            await db.songs.update_one(
+                {"song_id": song_id},
+                {"$set": {"encoding_status": "failed"}}
+            )
+        
+        # Cleanup temp files
+        try:
+            os.unlink(tmp_in_path)
+            if os.path.exists(tmp_out_path):
+                os.unlink(tmp_out_path)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Background encoding error for {song_id}: {e}")
+        await db.songs.update_one(
+            {"song_id": song_id},
+            {"$set": {"encoding_status": "failed"}}
+        )
 
 
 # ============== THUMBNAILS API ==============
