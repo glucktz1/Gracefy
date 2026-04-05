@@ -5540,9 +5540,9 @@ export default function UserStreamingApp() {
                         />
                       )}
                       
-                      <section>
+                      <section className="px-4 mb-6">
                         <SectionHeader 
-                          title={section.title} 
+                          title={section.title || section.name || section.section_name || section.label || (section.items?.[0]?.category_name) || 'Sehemu'} 
                           subtitle={section.description}
                           onSeeMore={items.length > 5 ? () => {
                             window.location.href = `/app/see-all/${section.section_id}?title=${encodeURIComponent(section.title || section.name || '')}`;
