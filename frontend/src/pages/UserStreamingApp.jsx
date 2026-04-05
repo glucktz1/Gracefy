@@ -910,8 +910,30 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
   const [snippets, setSnippets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef(null);
+
+  // Only fetch when section becomes visible (lazy loading)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isVisible) {
+          setIsVisible(true);
+        }
+      },
+      { rootMargin: '200px' } // Start loading 200px before visible
+    );
+    
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, [isVisible]);
 
   useEffect(() => {
+    if (!isVisible) return; // Don't fetch until visible
+    
     const fetchSnippets = async () => {
       try {
         const res = await axios.get(`${API}/bible/featured-snippets?language=${language}&limit=10`);
@@ -923,7 +945,7 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
       }
     };
     fetchSnippets();
-  }, [language]);
+  }, [language, isVisible]);
 
   const handlePlay = async (snippet) => {
     if (playingId === snippet.snippet_id) {
@@ -935,10 +957,14 @@ const BibleDevotionalSection = ({ language, t, onPlaySnippet }) => {
     if (onPlaySnippet) onPlaySnippet(snippet);
   };
 
+  if (!isVisible) {
+    return <div ref={sectionRef} className="h-40" />; // Placeholder until visible
+  }
+
   if (loading || snippets.length === 0) return null;
 
   return (
-    <section className="relative" data-testid="bible-devotional-section">
+    <section ref={sectionRef} className="relative" data-testid="bible-devotional-section">
       {/* Section Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -1081,8 +1107,30 @@ const NenoLaLeoSection = ({ language, t, player }) => {
   const [nenoList, setNenoList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [readingModal, setReadingModal] = useState({ open: false, neno: null, verses: [], loading: false });
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef(null);
+
+  // Lazy load - only fetch when visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isVisible) {
+          setIsVisible(true);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, [isVisible]);
 
   useEffect(() => {
+    if (!isVisible) return;
+    
     const fetchNeno = async () => {
       try {
         const res = await axios.get(`${API}/neno-la-leo/active`);
@@ -1094,7 +1142,7 @@ const NenoLaLeoSection = ({ language, t, player }) => {
       }
     };
     fetchNeno();
-  }, []);
+  }, [isVisible]);
 
   const handlePlay = (neno) => {
     // Prioritize reading audio, fallback to reflection
@@ -1143,6 +1191,10 @@ const NenoLaLeoSection = ({ language, t, player }) => {
       setReadingModal(prev => ({ ...prev, verses: [{ verse_number: neno.verse_start, text: 'Imeshindwa kupakia maandiko. Tafadhali jaribu tena.' }], loading: false }));
     }
   };
+
+  if (!isVisible) {
+    return <div ref={sectionRef} className="h-48" />; // Placeholder
+  }
 
   if (loading || nenoList.length === 0) return null;
 
@@ -5123,45 +5175,9 @@ export default function UserStreamingApp() {
   const handleNextWithBilling = () => handleSkipWithBillingCheck(player.nextSong);
   const handlePrevWithBilling = () => handleSkipWithBillingCheck(player.prevSong);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative w-24 h-24">
-            {/* Sound Wave Rings */}
-            {[1, 2, 3, 4].map((ring) => (
-              <div
-                key={ring}
-                className="absolute rounded-full border-2 border-blue-500/60"
-                style={{
-                  animation: 'gracefyWave 2s ease-out infinite',
-                  animationDelay: `${(ring - 1) * 0.4}s`,
-                  width: '30%',
-                  height: '30%',
-                  left: '35%',
-                  top: '35%',
-                }}
-              />
-            ))}
-            {/* Cross at center */}
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="relative">
-                <div className="w-1 h-7 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
-                <div className="absolute w-5 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" style={{ top: '7px', left: '-8px' }} />
-              </div>
-            </div>
-          </div>
-          <p className="text-blue-400/80 text-sm font-medium animate-pulse">Loading...</p>
-        </div>
-        <style>{`
-          @keyframes gracefyWave {
-            0% { width: 30%; height: 30%; left: 35%; top: 35%; opacity: 0.8; }
-            100% { width: 100%; height: 100%; left: 0%; top: 0%; opacity: 0; }
-          }
-        `}</style>
-      </div>
-    );
-  }
+  // Don't block the entire page with loading spinner
+  // Instead, show skeleton UI in the content area while loading
+  // This makes the page feel instant even while data loads
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-900 to-black text-white" data-testid="user-streaming-app">
@@ -5344,10 +5360,31 @@ export default function UserStreamingApp() {
           {/* HOME VIEW */}
           {view === 'home' && (
             <div>
-              {/* Debug info - remove after fixing */}
+              {/* Skeleton loading - shows while data loads */}
               {!homeData && (
-                <div className="p-4 text-center text-zinc-500 text-sm">
-                  Loading content... (homeData: {homeData === null ? 'null' : 'empty'})
+                <div className="animate-pulse">
+                  {/* Hero skeleton */}
+                  <div className="w-full h-56 md:h-72 bg-gradient-to-r from-zinc-800 to-zinc-900" />
+                  
+                  {/* Quick access skeleton */}
+                  <div className="p-4 grid grid-cols-3 md:grid-cols-6 gap-3">
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} className="aspect-square bg-zinc-800 rounded-xl" />
+                    ))}
+                  </div>
+                  
+                  {/* Section skeleton */}
+                  <div className="px-4 mt-4">
+                    <div className="h-6 w-48 bg-zinc-800 rounded mb-4" />
+                    <div className="flex gap-4 overflow-hidden">
+                      {[1,2,3,4].map(i => (
+                        <div key={i} className="flex-shrink-0 w-36">
+                          <div className="aspect-square bg-zinc-800 rounded-lg mb-2" />
+                          <div className="h-4 w-full bg-zinc-800 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               
