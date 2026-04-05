@@ -14,7 +14,22 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: April 2, 2026 (Latest)
+### Session: April 5, 2026 (Latest)
+- ✅ **Admin Upload Performance Fix (P0)** - Audio uploads no longer block the event loop:
+  - **Problem**: FFmpeg encoding was using synchronous `subprocess.run()` which blocked the entire API for up to 5 minutes
+  - **Solution**: Moved encoding to background thread pool using `run_in_executor`
+  - Audio files now upload immediately to CDN, encoding happens asynchronously
+  - Added `encoding_status` field to track progress: `pending` → `complete` or `failed`
+  - Thumbnail uploads now do DB updates in background (fire-and-forget)
+  - **Files updated**: `/app/backend/routes/uploads.py`
+  - **New function**: `encode_audio_background()` - handles FFmpeg in ThreadPoolExecutor
+  - **Result**: Admin uploads return instantly, users experience no slowdown
+
+- ✅ **Android Build v1.0.197 Triggered** - Build ID: `bf45e645-93f5-47eb-b638-bb997d7be1ac`
+  - Expo account: `glucktz20`
+  - Build logs: https://expo.dev/accounts/glucktz20/projects/Gracefy-App/builds/bf45e645-93f5-47eb-b638-bb997d7be1ac
+
+### Session: April 2, 2026
 - ✅ **HLS Transcoding Status Display** - Fixed backend to return `hls_status` and `hls_url` in song listings:
   - Updated `SONG_LIST_PROJECTION` in `/app/backend/routes/music.py` to include `hls_status` and `hls_url` fields
   - GET /api/songs now returns: `hls_status: "completed"` and `hls_url: "https://gracefy-cdn.b-cdn.net/hls/..."`

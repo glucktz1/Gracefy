@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gracefy",
     "slug": "Gracefy-App",
-    "version": "1.0.196",
+    "version": "1.0.197",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -33,7 +33,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.spiritsongs.app",
-      "versionCode": 170,
+      "versionCode": 171,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
@@ -93,10 +93,10 @@
       ],
       "expo-task-manager"
     ],
-    "owner": "gracefy1",
+    "owner": "glucktz20",
     "extra": {
       "eas": {
-        "projectId": "20da2404-2e77-4e2e-ba29-084674148c2d"
+        "projectId": "dfed6cdf-2735-493a-9d00-5ae01d9d6612"
       },
       "backendUrl": "https://gracefy.net"
     }
