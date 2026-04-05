@@ -5542,10 +5542,10 @@ export default function UserStreamingApp() {
                       
                       <section className="px-4 mb-6">
                         <SectionHeader 
-                          title={section.title || section.name || section.section_name || section.label || (section.items?.[0]?.category_name) || 'Sehemu'} 
+                          title={section.display_name || section.title || section.name || section.section_name || section.label || 'Sehemu'} 
                           subtitle={section.description}
                           onSeeMore={items.length > 5 ? () => {
-                            window.location.href = `/app/see-all/${section.section_id}?title=${encodeURIComponent(section.title || section.name || '')}`;
+                            window.location.href = `/app/see-all/${section.section_id}?title=${encodeURIComponent(section.display_name || section.title || section.name || '')}`;
                           } : null}
                         />
 

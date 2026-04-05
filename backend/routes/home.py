@@ -92,11 +92,12 @@ async def fetch_section_content(db, section: dict) -> dict:
         "type": section["section_type"],
         "name": section_name,
         "title": section_name,
+        "display_name": section_name,  # Use resolved name, not raw display_name which might be None
         "description": section.get("description", ""),
         "section_type": section["section_type"],
-        "layout_style": section.get("layout_style", "horizontal_small"),  # Add layout_style for frontend rendering
-        "sort_order": section.get("sort_order", 99),  # Include sort_order for frontend ordering
-        "is_active": section.get("is_active", True),  # Include active status
+        "layout_style": section.get("layout_style", "horizontal_small"),
+        "sort_order": section.get("sort_order", 99),
+        "is_active": section.get("is_active", True),
     }
     
     content_count = section.get("content_count", 10)
@@ -676,10 +677,13 @@ async def get_geo_filtered_home(
     
     for section in sections:
         section_type = section.get("section_type", "")
+        section_title = section.get("display_name") or section.get("title") or section.get("name", "")
         section_data = {
             "section_id": section.get("section_id"),
             "section_type": section_type,
-            "title": section.get("title", ""),
+            "title": section_title,
+            "name": section_title,
+            "display_name": section_title,
             "show_see_all": section.get("show_see_all", True),
             "display_type": section.get("display_type", "horizontal_scroll")
         }
