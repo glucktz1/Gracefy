@@ -4826,7 +4826,7 @@ export default function UserStreamingApp() {
     }
   };
 
-  // Bible audio handler
+  // Bible audio handler - STOPS main music player before playing TTS
   const handlePlayBibleSnippet = async (snippet) => {
     if (bibleAudioPlaying === snippet.snippet_id) {
       // Stop playing
@@ -4839,6 +4839,12 @@ export default function UserStreamingApp() {
     }
     
     try {
+      // CRITICAL: Stop main music player before playing Bible TTS
+      if (player?.isPlaying) {
+        console.log('[Bible TTS] Pausing main music player');
+        player.togglePlay(); // This will pause the music
+      }
+      
       // First get the snippet details
       const res = await axios.get(`${API}/bible/snippets/${snippet.snippet_id}`);
       const snippetData = res.data;
