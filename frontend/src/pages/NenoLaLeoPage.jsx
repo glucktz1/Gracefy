@@ -517,7 +517,7 @@ export default function NenoLaLeoPage() {
                   <TableHead>Word Date</TableHead>
                   <TableHead>Publish Time</TableHead>
                   <TableHead>Audio</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Enabled</TableHead>
                   <TableHead>Plays</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -554,25 +554,23 @@ export default function NenoLaLeoPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {neno.is_active ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-400">Active</Badge>
-                      ) : (
-                        <Badge className="bg-amber-500/20 text-amber-400">Scheduled</Badge>
-                      )}
+                      <button 
+                        onClick={() => handleTogglePublish(neno.neno_id, neno.is_active)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          neno.is_active ? 'bg-emerald-500' : 'bg-zinc-700'
+                        }`}
+                        title={neno.is_active ? "Click to disable" : "Click to enable"}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            neno.is_active ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
                     </TableCell>
                     <TableCell>{neno.stats?.total_plays || 0}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {/* Publish/Unpublish toggle */}
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className={neno.is_active ? "text-amber-400 hover:text-amber-300" : "text-emerald-400 hover:text-emerald-300"}
-                          onClick={() => handleTogglePublish(neno.neno_id, neno.is_active)}
-                          title={neno.is_active ? "Unpublish" : "Publish Now"}
-                        >
-                          {neno.is_active ? <Clock size={14} /> : <CheckCircle size={14} />}
-                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => openEditNeno(neno)}>
                           <Edit2 size={14} />
                         </Button>
