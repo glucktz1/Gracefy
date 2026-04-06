@@ -408,6 +408,34 @@ async def subscription_expiry_check_task(interval_seconds: int = 3600):
             await asyncio.sleep(60)  # Wait before retrying
 
 
+# Neno la Leo scheduled content activation task
+neno_scheduler_task_ref = None
+
+async def neno_la_leo_scheduler_task(interval_seconds: int = 60):
+    """Background task to activate scheduled Neno la Leo content"""
+    logger.info(f"📅 Neno la Leo scheduler started (checking every {interval_seconds}s)")
+    
+    # Wait a bit on first startup to allow everything to initialize
+    await asyncio.sleep(10)
+    
+    while True:
+        try:
+            from routes.neno_la_leo import activate_scheduled_content
+            
+            activated = await activate_scheduled_content()
+            if activated > 0:
+                logger.info(f"📅 Neno la Leo: Auto-activated {activated} scheduled items")
+            
+            await asyncio.sleep(interval_seconds)
+            
+        except asyncio.CancelledError:
+            logger.info("Neno la Leo scheduler task cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Neno la Leo scheduler error: {e}")
+            await asyncio.sleep(60)  # Wait before retrying
+
+
 @app.on_event("startup")
 async def startup():
     """Initialize services on startup"""
@@ -477,6 +505,11 @@ async def startup():
     global subscription_check_task_ref
     subscription_check_task_ref = asyncio.create_task(subscription_expiry_check_task(3600))
     logger.info("📧 Subscription expiry checker started (every hour)")
+    
+    # Start Neno la Leo scheduled content activation task (check every minute)
+    global neno_scheduler_task_ref
+    neno_scheduler_task_ref = asyncio.create_task(neno_la_leo_scheduler_task(60))
+    logger.info("📅 Neno la Leo scheduler started (checks every minute)")
     
     # Run database migrations
     await run_migrations()

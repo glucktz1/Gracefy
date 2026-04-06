@@ -89,6 +89,7 @@ export default function NenoLaLeoPage() {
     word_date: new Date().toISOString().split("T")[0],
     publish_date: new Date().toISOString().split("T")[0],
     publish_time: "06:00",
+    publish_now: false, // New: Publish immediately option
     reading_audio_url: "",
     reflection_audio_url: "",
     notes: ""
@@ -96,13 +97,17 @@ export default function NenoLaLeoPage() {
   
   const [leaderForm, setLeaderForm] = useState({
     name: "",
-    title: "Pastor",
+    title: "",
+    customTitle: "", // For custom title input
     email: "",
     phone: "",
     bio: "",
     photo_url: "",
     church_or_organization: ""
   });
+  
+  // Leader title options (without Sheikh, with option for custom)
+  const leaderTitles = ["Fr.", "Pastor", "Rev.", "Bishop", "Dr.", "Mwl.", "Padri", "Askofu", "Kardinali"];
 
   useEffect(() => {
     fetchData();
@@ -131,12 +136,21 @@ export default function NenoLaLeoPage() {
   const handleSubmitNeno = async (e) => {
     e.preventDefault();
     try {
+      // If publish_now is true, set publish_date and time to now
+      const submitData = { ...nenoForm };
+      if (submitData.publish_now) {
+        const now = new Date();
+        submitData.publish_date = now.toISOString().split("T")[0];
+        submitData.publish_time = now.toTimeString().slice(0, 5);
+      }
+      delete submitData.publish_now; // Don't send this to backend
+      
       if (editingNeno) {
-        await axios.put(`${API}/neno-la-leo/admin/neno/${editingNeno.neno_id}`, nenoForm, { withCredentials: true });
+        await axios.put(`${API}/neno-la-leo/admin/neno/${editingNeno.neno_id}`, submitData);
         toast.success("Neno la Leo updated successfully");
       } else {
-        await axios.post(`${API}/neno-la-leo/admin/neno`, nenoForm, { withCredentials: true });
-        toast.success("Neno la Leo created successfully");
+        await axios.post(`${API}/neno-la-leo/admin/neno`, submitData);
+        toast.success(submitData.publish_now !== false ? "Neno la Leo created and published!" : "Neno la Leo created successfully");
       }
       setIsCreateModalOpen(false);
       resetNenoForm();
@@ -150,11 +164,18 @@ export default function NenoLaLeoPage() {
   const handleSubmitLeader = async (e) => {
     e.preventDefault();
     try {
+      // Handle custom title
+      const submitData = { ...leaderForm };
+      if (submitData.title === "custom") {
+        submitData.title = submitData.customTitle;
+      }
+      delete submitData.customTitle;
+      
       if (editingLeader) {
-        await axios.put(`${API}/neno-la-leo/admin/leaders/${editingLeader.leader_id}`, leaderForm, { withCredentials: true });
+        await axios.put(`${API}/neno-la-leo/admin/leaders/${editingLeader.leader_id}`, submitData);
         toast.success("Leader updated successfully");
       } else {
-        const response = await axios.post(`${API}/neno-la-leo/admin/leaders`, leaderForm, { withCredentials: true });
+        const response = await axios.post(`${API}/neno-la-leo/admin/leaders`, submitData);
         toast.success(`Leader created! Temporary password: ${response.data.temporary_password}`);
       }
       setIsLeaderModalOpen(false);
@@ -253,8 +274,8 @@ export default function NenoLaLeoPage() {
     formData.append('audio_type', type);
     
     try {
+      toast.info("Uploading audio...");
       const response = await axios.post(`${API}/neno-la-leo/upload-audio`, formData, {
-        withCredentials: true,
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -265,8 +286,11 @@ export default function NenoLaLeoPage() {
       }
       toast.success("Audio uploaded successfully");
     } catch (error) {
-      toast.error("Failed to upload audio");
+      console.error("Upload error:", error);
+      toast.error(error.response?.data?.detail || "Failed to upload audio");
     }
+    // Reset file input
+    e.target.value = '';
   };
 
   const resetNenoForm = () => {
@@ -279,6 +303,7 @@ export default function NenoLaLeoPage() {
       word_date: new Date().toISOString().split("T")[0],
       publish_date: new Date().toISOString().split("T")[0],
       publish_time: "06:00",
+      publish_now: false,
       reading_audio_url: "",
       reflection_audio_url: "",
       notes: ""
@@ -289,7 +314,8 @@ export default function NenoLaLeoPage() {
   const resetLeaderForm = () => {
     setLeaderForm({
       name: "",
-      title: "Pastor",
+      title: "",
+      customTitle: "",
       email: "",
       phone: "",
       bio: "",
@@ -310,6 +336,7 @@ export default function NenoLaLeoPage() {
       word_date: neno.word_date,
       publish_date: neno.publish_date,
       publish_time: neno.publish_time,
+      publish_now: false,
       reading_audio_url: neno.reading_audio_url || "",
       reflection_audio_url: neno.reflection_audio_url || "",
       notes: neno.notes || ""
@@ -319,9 +346,11 @@ export default function NenoLaLeoPage() {
 
   const openEditLeader = (leader) => {
     setEditingLeader(leader);
+    const isCustomTitle = !leaderTitles.includes(leader.title);
     setLeaderForm({
       name: leader.name,
-      title: leader.title,
+      title: isCustomTitle ? "custom" : leader.title,
+      customTitle: isCustomTitle ? leader.title : "",
       email: leader.email,
       phone: leader.phone || "",
       bio: leader.bio || "",
@@ -329,6 +358,22 @@ export default function NenoLaLeoPage() {
       church_or_organization: leader.church_or_organization || ""
     });
     setIsLeaderModalOpen(true);
+  };
+
+  // Toggle publish/unpublish
+  const handleTogglePublish = async (nenoId, isCurrentlyActive) => {
+    try {
+      if (isCurrentlyActive) {
+        await axios.post(`${API}/neno-la-leo/admin/neno/${nenoId}/unpublish`);
+        toast.success("Content unpublished");
+      } else {
+        await axios.post(`${API}/neno-la-leo/admin/neno/${nenoId}/publish`);
+        toast.success("Content published!");
+      }
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update status");
+    }
   };
 
   // Filter neno list
@@ -518,6 +563,16 @@ export default function NenoLaLeoPage() {
                     <TableCell>{neno.stats?.total_plays || 0}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {/* Publish/Unpublish toggle */}
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className={neno.is_active ? "text-amber-400 hover:text-amber-300" : "text-emerald-400 hover:text-emerald-300"}
+                          onClick={() => handleTogglePublish(neno.neno_id, neno.is_active)}
+                          title={neno.is_active ? "Unpublish" : "Publish Now"}
+                        >
+                          {neno.is_active ? <Clock size={14} /> : <CheckCircle size={14} />}
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => openEditNeno(neno)}>
                           <Edit2 size={14} />
                         </Button>
@@ -714,6 +769,7 @@ export default function NenoLaLeoPage() {
                   onChange={(e) => setNenoForm({ ...nenoForm, publish_date: e.target.value })}
                   className="bg-zinc-950 border-zinc-800"
                   required
+                  disabled={nenoForm.publish_now}
                 />
               </div>
               <div>
@@ -724,8 +780,24 @@ export default function NenoLaLeoPage() {
                   onChange={(e) => setNenoForm({ ...nenoForm, publish_time: e.target.value })}
                   className="bg-zinc-950 border-zinc-800"
                   required
+                  disabled={nenoForm.publish_now}
                 />
               </div>
+            </div>
+
+            {/* Publish Now Option */}
+            <div className="flex items-center gap-3 p-3 bg-emerald-950/30 border border-emerald-800/30 rounded-lg">
+              <input
+                type="checkbox"
+                id="publish_now"
+                checked={nenoForm.publish_now}
+                onChange={(e) => setNenoForm({ ...nenoForm, publish_now: e.target.checked })}
+                className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-emerald-500"
+              />
+              <label htmlFor="publish_now" className="text-sm cursor-pointer">
+                <span className="font-medium text-emerald-400">Chapisha Sasa (Publish Now)</span>
+                <span className="text-zinc-400 ml-2">- Make available to users immediately</span>
+              </label>
             </div>
 
             {/* Audio Section */}
@@ -828,24 +900,33 @@ export default function NenoLaLeoPage() {
           </DialogHeader>
           <form onSubmit={handleSubmitLeader} className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
-              <div>
+              <div className={leaderForm.title === "custom" ? "" : "col-span-1"}>
                 <label className="text-sm text-zinc-400 mb-1 block">Title *</label>
-                <Select value={leaderForm.title} onValueChange={(v) => setLeaderForm({ ...leaderForm, title: v })}>
+                <Select value={leaderForm.title} onValueChange={(v) => setLeaderForm({ ...leaderForm, title: v, customTitle: v === "custom" ? leaderForm.customTitle : "" })}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800">
-                    <SelectValue />
+                    <SelectValue placeholder="Select title" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    <SelectItem value="Fr.">Fr.</SelectItem>
-                    <SelectItem value="Pastor">Pastor</SelectItem>
-                    <SelectItem value="Rev.">Rev.</SelectItem>
-                    <SelectItem value="Bishop">Bishop</SelectItem>
-                    <SelectItem value="Sheikh">Sheikh</SelectItem>
-                    <SelectItem value="Dr.">Dr.</SelectItem>
-                    <SelectItem value="Mwl.">Mwl.</SelectItem>
+                    {leaderTitles.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">+ Custom Title</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
+              {leaderForm.title === "custom" && (
+                <div>
+                  <label className="text-sm text-zinc-400 mb-1 block">Custom Title *</label>
+                  <Input
+                    value={leaderForm.customTitle}
+                    onChange={(e) => setLeaderForm({ ...leaderForm, customTitle: e.target.value })}
+                    placeholder="e.g., Deacon"
+                    className="bg-zinc-950 border-zinc-800"
+                    required
+                  />
+                </div>
+              )}
+              <div className={leaderForm.title === "custom" ? "" : "col-span-2"}>
                 <label className="text-sm text-zinc-400 mb-1 block">Full Name *</label>
                 <Input
                   value={leaderForm.name}

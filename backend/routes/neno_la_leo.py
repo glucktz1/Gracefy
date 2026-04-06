@@ -100,6 +100,66 @@ def format_verse_reference(book: str, chapter: int, verse_start: int, verse_end:
         return f"{book} {chapter}:{verse_start}"
     return f"{book} {chapter}:{verse_start}-{verse_end}"
 
+async def activate_scheduled_content():
+    """Check and activate scheduled Neno la Leo content that should be published now"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    
+    # Find all inactive content where publish_datetime has passed
+    pipeline = [
+        {
+            "$match": {
+                "is_active": False,
+                "publish_datetime": {"$lte": now.isoformat()}
+            }
+        }
+    ]
+    
+    # Also check by publish_date + publish_time
+    today = now.strftime("%Y-%m-%d")
+    current_time = now.strftime("%H:%M")
+    
+    to_activate = await db.neno_la_leo.find({
+        "$or": [
+            # Check by ISO datetime
+            {
+                "is_active": False,
+                "publish_datetime": {"$lte": now.isoformat(), "$exists": True}
+            },
+            # Check by date + time fields
+            {
+                "is_active": False,
+                "$or": [
+                    {"publish_date": {"$lt": today}},
+                    {
+                        "publish_date": today,
+                        "publish_time": {"$lte": current_time}
+                    }
+                ]
+            }
+        ]
+    }).to_list(length=100)
+    
+    activated_count = 0
+    for neno in to_activate:
+        result = await db.neno_la_leo.update_one(
+            {"neno_id": neno["neno_id"], "is_active": False},
+            {
+                "$set": {
+                    "is_active": True,
+                    "activated_at": now.isoformat()
+                }
+            }
+        )
+        if result.modified_count > 0:
+            activated_count += 1
+            logger.info(f"Auto-activated Neno la Leo: {neno.get('verse_reference', neno['neno_id'])}")
+    
+    return activated_count
+
 def get_swahili_day_name(date_obj: datetime) -> str:
     """Get Swahili day name"""
     days = {
@@ -112,6 +172,72 @@ def get_swahili_day_name(date_obj: datetime) -> str:
         6: "Jumapili"
     }
     return days.get(date_obj.weekday(), "")
+
+# ==================== SCHEDULER ENDPOINTS ====================
+
+@router.post("/scheduler/activate")
+async def trigger_activation():
+    """
+    Manually trigger scheduled content activation.
+    This endpoint can also be called by a cron job or external scheduler.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        activated_count = await activate_scheduled_content()
+        logger.info(f"Scheduler activated {activated_count} content items")
+        return {
+            "message": f"Activated {activated_count} scheduled items",
+            "activated_count": activated_count,
+            "checked_at": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Scheduler activation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/scheduler/status")
+async def get_scheduler_status():
+    """Get current scheduler status and pending items"""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    current_time = now.strftime("%H:%M")
+    
+    # Count pending items
+    pending_count = await db.neno_la_leo.count_documents({
+        "is_active": False,
+        "$or": [
+            {"publish_date": {"$gt": today}},
+            {
+                "publish_date": today,
+                "publish_time": {"$gt": current_time}
+            }
+        ]
+    })
+    
+    # Count overdue items (should have been published)
+    overdue_count = await db.neno_la_leo.count_documents({
+        "is_active": False,
+        "$or": [
+            {"publish_date": {"$lt": today}},
+            {
+                "publish_date": today,
+                "publish_time": {"$lte": current_time}
+            }
+        ]
+    })
+    
+    # Count active items
+    active_count = await db.neno_la_leo.count_documents({"is_active": True})
+    
+    return {
+        "current_time": now.isoformat(),
+        "active_count": active_count,
+        "pending_count": pending_count,
+        "overdue_count": overdue_count,
+        "message": f"{overdue_count} items need activation" if overdue_count > 0 else "All scheduled items are up to date"
+    }
 
 # ==================== ADMIN ENDPOINTS ====================
 
@@ -365,6 +491,47 @@ async def delete_neno(neno_id: str):
     )
     
     return {"message": "Neno la Leo deleted successfully"}
+
+@router.post("/admin/neno/{neno_id}/publish")
+async def publish_neno_now(neno_id: str):
+    """Force publish a Neno la Leo entry immediately (Admin only)"""
+    db = get_db()
+    
+    result = await db.neno_la_leo.update_one(
+        {"neno_id": neno_id},
+        {
+            "$set": {
+                "is_active": True,
+                "publish_datetime": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Neno not found")
+    
+    return {"message": "Neno la Leo published successfully"}
+
+@router.post("/admin/neno/{neno_id}/unpublish")
+async def unpublish_neno(neno_id: str):
+    """Unpublish (deactivate) a Neno la Leo entry (Admin only)"""
+    db = get_db()
+    
+    result = await db.neno_la_leo.update_one(
+        {"neno_id": neno_id},
+        {
+            "$set": {
+                "is_active": False,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Neno not found")
+    
+    return {"message": "Neno la Leo unpublished successfully"}
 
 # ==================== LEADER PORTAL ENDPOINTS ====================
 
@@ -830,16 +997,29 @@ async def upload_neno_audio(
     audio_type: str = Form(...)  # "reading" or "reflection"
 ):
     """Upload audio file for Neno la Leo"""
+    import logging
+    logger = logging.getLogger(__name__)
     
     if audio_type not in ["reading", "reflection"]:
-        raise HTTPException(status_code=400, detail="Invalid audio type")
+        raise HTTPException(status_code=400, detail="Invalid audio type. Must be 'reading' or 'reflection'")
     
     # Validate file type
-    if not file.content_type.startswith("audio/"):
-        raise HTTPException(status_code=400, detail="File must be an audio file")
+    if not file.content_type or not file.content_type.startswith("audio/"):
+        # Also accept common audio file extensions
+        ext = file.filename.split(".")[-1].lower() if file.filename else ""
+        if ext not in ["mp3", "m4a", "wav", "ogg", "aac", "webm"]:
+            raise HTTPException(status_code=400, detail="File must be an audio file")
+    
+    logger.info(f"Uploading neno audio: type={audio_type}, filename={file.filename}, content_type={file.content_type}")
     
     # Read file content
     content = await file.read()
+    
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    
+    if len(content) > 50 * 1024 * 1024:  # 50MB limit
+        raise HTTPException(status_code=400, detail="File too large. Maximum 50MB allowed")
     
     # Upload to Bunny CDN
     bunny_api_key = os.environ.get("BUNNY_API_KEY")
@@ -850,24 +1030,32 @@ async def upload_neno_audio(
         raise HTTPException(status_code=500, detail="Storage not configured")
     
     # Generate unique filename
-    ext = file.filename.split(".")[-1] if "." in file.filename else "mp3"
+    ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "mp3"
     filename = f"neno/{audio_type}_{uuid.uuid4().hex}.{ext}"
     
     # Upload to Bunny
-    async with httpx.AsyncClient() as client:
-        response = await client.put(
-            f"https://storage.bunnycdn.com/{bunny_storage_zone}/{filename}",
-            content=content,
-            headers={
-                "AccessKey": bunny_api_key,
-                "Content-Type": file.content_type
-            }
-        )
-        
-        if response.status_code not in [200, 201]:
-            raise HTTPException(status_code=500, detail="Failed to upload audio")
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.put(
+                f"https://storage.bunnycdn.com/{bunny_storage_zone}/{filename}",
+                content=content,
+                headers={
+                    "AccessKey": bunny_api_key,
+                    "Content-Type": file.content_type or "audio/mpeg"
+                }
+            )
+            
+            if response.status_code not in [200, 201]:
+                logger.error(f"Bunny upload failed: {response.status_code} - {response.text}")
+                raise HTTPException(status_code=500, detail="Failed to upload audio to CDN")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Upload timed out. Please try again with a smaller file.")
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
     audio_url = f"{bunny_cdn_url}/{filename}"
+    logger.info(f"Audio uploaded successfully: {audio_url}")
     
     return {
         "message": "Audio uploaded successfully",
