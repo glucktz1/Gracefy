@@ -43,6 +43,7 @@ const useAudioPlayer = () => {
   const isFetchingRecommendationsRef = useRef(false); // Prevent duplicate fetches
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
+  const failedSongsRef = useRef(new Set()); // Track songs that failed to play
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
@@ -185,11 +186,14 @@ const useAudioPlayer = () => {
         const currentQueue = queueRef.current;
         const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
         
-        // Filter out songs already in queue
-        const newSongs = res.data.songs.filter(song => !currentSongIds.has(song.song_id));
+        // Filter out songs already in queue AND songs that previously failed
+        const newSongs = res.data.songs.filter(song => 
+          !currentSongIds.has(song.song_id) && 
+          !failedSongsRef.current.has(song.song_id)
+        );
         
         if (newSongs.length > 0) {
-          console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);
+          console.log(`[Player] Adding ${newSongs.length} recommended songs (filtered ${res.data.songs.length - newSongs.length} existing/failed)`);
           console.log('[Player] Criteria used:', res.data.criteria_used);
           
           // Format songs with album info for queue
@@ -210,7 +214,7 @@ const useAudioPlayer = () => {
           
           return true;
         } else {
-          console.log('[Player] All recommended songs already in queue');
+          console.log('[Player] All recommended songs already in queue or previously failed');
         }
       } else {
         console.log('[Player] No recommendations returned');
@@ -654,35 +658,52 @@ const useAudioPlayer = () => {
         }
       }
       
+      // Track failed song to avoid re-adding it to queue
+      const currentSong = currentSongRef.current;
+      if (currentSong?.song_id) {
+        failedSongsRef.current.add(currentSong.song_id);
+        console.error('[Player] Added to failed songs:', currentSong.song_id, 'Total failed:', failedSongsRef.current.size);
+      }
+      
       console.error('[Player] Audio error:', errorMessage, {
         src: audio.src,
         networkState: audio.networkState,
         readyState: audio.readyState,
-        error: error
+        error: error,
+        song: currentSong?.title
       });
       
       // Show toast notification for the error
-      const currentSong = currentSongRef.current;
       if (currentSong) {
-        toast.error(`Failed to play "${currentSong.title}": ${errorMessage}`);
+        toast.error(`"${currentSong.title}" skipped - ${errorMessage}`);
       }
       
       setIsLoading(false);
       
-      // Auto-skip to next song on error for continuous playback
-      // Small delay to prevent rapid skipping if multiple songs fail
+      // Remove failed song from queue and auto-skip
       setTimeout(() => {
         const currentQueue = queueRef.current;
         const currentQueueIndex = queueIndexRef.current;
-        const nextIndex = currentQueueIndex + 1;
         
-        if (nextIndex < currentQueue.length) {
-          console.log('[Player] Auto-skipping to next song after error');
-          playFromQueueInternalRef.current(nextIndex, currentQueue);
-        } else {
-          console.log('[Player] No more songs to skip to');
+        // Filter out the failed song from the queue
+        const newQueue = currentQueue.filter((_, idx) => idx !== currentQueueIndex);
+        if (newQueue.length !== currentQueue.length) {
+          setQueue(newQueue);
+          queueRef.current = newQueue;
         }
-      }, 500);
+        
+        // Play next song (now at same index since we removed current)
+        if (currentQueueIndex < newQueue.length) {
+          console.log('[Player] Playing next song after removing failed track');
+          playFromQueueInternalRef.current(currentQueueIndex, newQueue);
+        } else if (newQueue.length > 0) {
+          // Loop back to start if we were at the end
+          console.log('[Player] Looping back to start after removing failed track');
+          playFromQueueInternalRef.current(0, newQueue);
+        } else {
+          console.log('[Player] No more songs in queue');
+        }
+      }, 300);
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);

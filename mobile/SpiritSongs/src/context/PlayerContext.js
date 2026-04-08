@@ -125,6 +125,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const guestLimitReachedRef = useRef(false); // Block autoplay when guest limit reached
   const stallCountRef = useRef(0); // Track stall events for recovery
   const lastRecoveryAttemptRef = useRef(0); // Prevent recovery spam
+  const failedSongsRef = useRef(new Set()); // Track songs that failed to play
   
   // Analytics tracking
   const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
@@ -254,12 +255,14 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       const res = await playerAPI.getNextSongRecommendations(currentSongId, userId, 10);
       
       if (res?.data?.songs && res.data.songs.length > 0) {
+        // Filter out songs already in queue AND songs that previously failed
         const newSongs = res.data.songs.filter(
-          song => !queueRef.current.find(q => q.song_id === song.song_id)
+          song => !queueRef.current.find(q => q.song_id === song.song_id) &&
+                  !failedSongsRef.current.has(song.song_id)
         );
         
         if (newSongs.length > 0) {
-          console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);
+          console.log(`[Player] Adding ${newSongs.length} recommended songs to queue (filtered ${res.data.songs.length - newSongs.length} failed/duplicate songs)`);
           
           // Add songs to queue
           const updatedQueue = [...queueRef.current, ...newSongs];
@@ -269,6 +272,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
           // Add to TrackPlayer
           const tracksToAdd = newSongs.map(toTrackPlayerFormat);
           await TrackPlayer.add(tracksToAdd);
+        } else {
+          console.log('[Player] No new recommendations after filtering failed songs');
         }
       }
     } catch (e) {
@@ -481,18 +486,54 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     const errorSub = TrackPlayer.addEventListener(Event.PlaybackError, async (event) => {
       console.error('[Player] Playback error:', event.message || event.code);
       
-      // Attempt to recover by skipping to next track
+      // Attempt to recover by removing failed track and skipping
       try {
         const currentIndex = await TrackPlayer.getActiveTrackIndex();
         const trackQueue = await TrackPlayer.getQueue();
         
-        if (currentIndex !== null && currentIndex < trackQueue.length - 1) {
-          console.log('[Player] Skipping to next track after error');
-          await TrackPlayer.skipToNext();
-          await TrackPlayer.play();
-        } else {
-          console.log('[Player] No more tracks to skip to, pausing');
-          await TrackPlayer.pause();
+        if (currentIndex !== null && currentIndex >= 0) {
+          const failedTrack = queueRef.current[currentIndex];
+          console.error('[Player] Failed track:', failedTrack?.title, failedTrack?.song_id);
+          console.error('[Player] Failed track URL:', failedTrack?.audio_url || failedTrack?.hls_url);
+          
+          // Track failed song IDs to avoid re-adding them
+          if (!failedSongsRef.current) {
+            failedSongsRef.current = new Set();
+          }
+          if (failedTrack?.song_id) {
+            failedSongsRef.current.add(failedTrack.song_id);
+            console.log('[Player] Added to failed songs:', failedTrack.song_id, 'Total failed:', failedSongsRef.current.size);
+          }
+          
+          // Remove failed track from queue
+          if (trackQueue.length > 1) {
+            try {
+              await TrackPlayer.remove(currentIndex);
+              // Update our queue ref
+              queueRef.current = queueRef.current.filter((_, idx) => idx !== currentIndex);
+              setQueue([...queueRef.current]);
+              
+              // Play the track that's now at current position
+              if (currentIndex < trackQueue.length - 1) {
+                await TrackPlayer.play();
+              } else if (currentIndex > 0) {
+                // We were at the end, go back to start
+                await TrackPlayer.skip(0);
+                await TrackPlayer.play();
+              }
+              console.log('[Player] Removed failed track and continuing playback');
+            } catch (removeErr) {
+              console.error('[Player] Failed to remove track:', removeErr);
+              // Fallback to just skipping
+              if (currentIndex < trackQueue.length - 1) {
+                await TrackPlayer.skipToNext();
+                await TrackPlayer.play();
+              }
+            }
+          } else {
+            console.log('[Player] Only one track in queue, pausing');
+            await TrackPlayer.pause();
+          }
         }
       } catch (e) {
         console.error('[Player] Error recovery failed:', e);
@@ -901,10 +942,13 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       let validQueue = [];
 
       if (newQueue && Array.isArray(newQueue) && newQueue.length > 0) {
-        // Filter out tracks with missing audio URLs
-        validQueue = newQueue.filter(t => t.audio_url || t.hls_url || t.file_path);
+        // Filter out tracks with missing audio URLs AND previously failed tracks
+        validQueue = newQueue.filter(t => 
+          (t.audio_url || t.hls_url || t.file_path) && 
+          !failedSongsRef.current.has(t.song_id)
+        );
         if (validQueue.length === 0) {
-          console.warn('[Player] No valid tracks in queue - all missing audio');
+          console.warn('[Player] No valid tracks in queue - all missing audio or previously failed');
           setIsLoading(false);
           return;
         }
@@ -915,7 +959,10 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         tracksToPlay = validQueue.map(toTrackPlayerFormat);
       } else if (queue.length > 0) {
         // Filter existing queue
-        validQueue = queue.filter(t => t.audio_url || t.hls_url || t.file_path);
+        validQueue = queue.filter(t => 
+          (t.audio_url || t.hls_url || t.file_path) &&
+          !failedSongsRef.current.has(t.song_id)
+        );
         playIndex = validQueue.findIndex(t => t.song_id === track.song_id);
         if (playIndex < 0) playIndex = 0;
         tracksToPlay = validQueue.map(toTrackPlayerFormat);
