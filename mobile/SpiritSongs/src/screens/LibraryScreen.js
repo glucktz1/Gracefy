@@ -478,15 +478,23 @@ const LibraryScreen = ({ navigation, route }) => {
       }
       
       // Get all downloaded songs with local file paths
-      const offlinePlaylist = downloadedSongs.map(s => ({
-        ...s,
-        audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
-        is_offline: true
-      }));
+      // IMPORTANT: Set file_path (not just audio_url) for local playback
+      const offlinePlaylist = downloadedSongs.map(s => {
+        const localPath = getDownloadedFilePath(s.song_id);
+        return {
+          ...s,
+          file_path: localPath || null,  // Track player checks file_path first
+          audio_url: localPath || s.audio_url,  // Fallback for other uses
+          is_offline: true
+        };
+      });
       
       // Find the correct index
       const songIndex = offlinePlaylist.findIndex(s => s.song_id === song.song_id);
       const finalIndex = songIndex >= 0 ? songIndex : index;
+      
+      console.log('[Library] Playing downloaded song:', offlinePlaylist[finalIndex]?.title);
+      console.log('[Library] File path:', offlinePlaylist[finalIndex]?.file_path);
       
       // Play the song with the offline playlist
       playTrack(offlinePlaylist[finalIndex], offlinePlaylist, finalIndex);
@@ -505,11 +513,18 @@ const LibraryScreen = ({ navigation, route }) => {
       }
       
       // Create offline playlist with local file paths
-      const offlinePlaylist = downloadedSongs.map(s => ({
-        ...s,
-        audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
-        is_offline: true
-      }));
+      // IMPORTANT: Set file_path (not just audio_url) for local playback
+      const offlinePlaylist = downloadedSongs.map(s => {
+        const localPath = getDownloadedFilePath(s.song_id);
+        return {
+          ...s,
+          file_path: localPath || null,
+          audio_url: localPath || s.audio_url,
+          is_offline: true
+        };
+      });
+      
+      console.log('[Library] Playing all downloads:', offlinePlaylist.length, 'songs');
       
       // Play first song
       playTrack(offlinePlaylist[0], offlinePlaylist, 0);
@@ -519,11 +534,18 @@ const LibraryScreen = ({ navigation, route }) => {
       if (downloadedSongs.length === 0) return;
       
       // Create and shuffle offline playlist
-      const offlinePlaylist = downloadedSongs.map(s => ({
-        ...s,
-        audio_url: getDownloadedFilePath(s.song_id) || s.audio_url,
-        is_offline: true
-      })).sort(() => Math.random() - 0.5);
+      // IMPORTANT: Set file_path (not just audio_url) for local playback
+      const offlinePlaylist = downloadedSongs.map(s => {
+        const localPath = getDownloadedFilePath(s.song_id);
+        return {
+          ...s,
+          file_path: localPath || null,
+          audio_url: localPath || s.audio_url,
+          is_offline: true
+        };
+      }).sort(() => Math.random() - 0.5);
+      
+      console.log('[Library] Shuffling downloads:', offlinePlaylist.length, 'songs');
       
       // Play first shuffled song
       playTrack(offlinePlaylist[0], offlinePlaylist, 0);

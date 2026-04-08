@@ -847,14 +847,19 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const toTrackPlayerFormat = (track) => {
     let audioUrl;
     
-    // ALWAYS prefer MP3 for mobile - HLS support is inconsistent on Android
-    // MP3 works reliably on all devices
-    if (track.audio_url || track.file_path) {
-      audioUrl = getAudioUrl(track.audio_url || track.file_path);
-      console.log('[Player] Using MP3 for:', track.title);
-    } else if (track.hls_url) {
-      // Fallback to HLS only if no MP3 available (rare case)
-      // Note: HLS may not work on all Android devices
+    // PRIORITY 1: Local file (downloaded songs) - check file_path first!
+    // Local files work offline and are faster than network
+    if (track.file_path && track.file_path.startsWith('file://')) {
+      audioUrl = track.file_path;
+      console.log('[Player] Using LOCAL FILE for:', track.title);
+    }
+    // PRIORITY 2: Network MP3 (reliable across all devices)
+    else if (track.audio_url) {
+      audioUrl = getAudioUrl(track.audio_url);
+      console.log('[Player] Using network MP3 for:', track.title);
+    }
+    // PRIORITY 3: HLS as last resort (may not work on all Android devices)
+    else if (track.hls_url) {
       audioUrl = track.hls_url;
       console.log('[Player] Using HLS fallback for:', track.title);
     } else {
@@ -863,9 +868,9 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       audioUrl = ''; // Will fail gracefully
     }
     
-    // Validate URL format
-    if (audioUrl && !audioUrl.startsWith('http')) {
-      console.warn('[Player] Invalid audio URL format:', audioUrl);
+    // Log URL for debugging (only if non-http which is unusual)
+    if (audioUrl && !audioUrl.startsWith('http') && !audioUrl.startsWith('file://')) {
+      console.warn('[Player] Unusual audio URL format:', audioUrl);
     }
     
     return {
@@ -878,7 +883,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       artwork: getImageUrl(track.thumbnail || track.cover_url || track.album_thumbnail) || 'https://via.placeholder.com/300',
       duration: track.duration || 0,
       // Track type for analytics
-      isHLS: !!track.hls_url,
+      isHLS: !!track.hls_url && !track.file_path && !track.audio_url,
+      isOffline: !!track.file_path,
     };
   };
 
@@ -943,8 +949,9 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
       if (newQueue && Array.isArray(newQueue) && newQueue.length > 0) {
         // Filter out tracks with missing audio URLs AND previously failed tracks
+        // Include file_path for downloaded songs
         validQueue = newQueue.filter(t => 
-          (t.audio_url || t.hls_url || t.file_path) && 
+          (t.file_path || t.audio_url || t.hls_url) && 
           !failedSongsRef.current.has(t.song_id)
         );
         if (validQueue.length === 0) {
@@ -960,7 +967,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       } else if (queue.length > 0) {
         // Filter existing queue
         validQueue = queue.filter(t => 
-          (t.audio_url || t.hls_url || t.file_path) &&
+          (t.file_path || t.audio_url || t.hls_url) &&
           !failedSongsRef.current.has(t.song_id)
         );
         playIndex = validQueue.findIndex(t => t.song_id === track.song_id);
@@ -968,7 +975,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
         tracksToPlay = validQueue.map(toTrackPlayerFormat);
       } else {
         // Single track - check if it has audio
-        if (!track.audio_url && !track.hls_url && !track.file_path) {
+        if (!track.file_path && !track.audio_url && !track.hls_url) {
           console.warn('[Player] Track has no audio URL:', track.title);
           setIsLoading(false);
           return;
