@@ -658,10 +658,12 @@ const useAudioPlayer = () => {
             break;
           case MediaError.MEDIA_ERR_DECODE:
             errorMessage = 'Audio file is corrupted';
+            shouldRetry = true; // Try once more - might be a partial download
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            // More helpful message - check if it's really a 404 or just unsupported
-            errorMessage = 'Audio unavailable (may have been removed or moved)';
+            // Could be temporary CDN issue or actual format problem
+            errorMessage = 'Audio temporarily unavailable';
+            shouldRetry = true; // Try once - CDN might have hiccupped
             break;
         }
       }
