@@ -44,6 +44,7 @@ const useAudioPlayer = () => {
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   const failedSongsRef = useRef(new Set()); // Track songs that failed to play
+  const retryCountRef = useRef({}); // Track retry attempts for songs with network errors
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
@@ -637,8 +638,6 @@ const useAudioPlayer = () => {
       handleSongEnd();
     };
     
-    // Track retry attempts for current song
-    const retryCountRef = useRef({});
     const MAX_RETRIES = 2;
     
     const onError = (e) => {
