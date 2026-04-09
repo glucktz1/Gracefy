@@ -236,8 +236,21 @@ const LibraryScreen = ({ navigation, route }) => {
   const handlePlaySong = (song, playlist = null) => {
     console.log('[Library] Playing song:', song?.title);
     const tracklist = playlist || likedSongs;
-    const index = tracklist.findIndex(s => s?.song_id === song?.song_id);
-    playTrack(song, tracklist, index);
+    
+    // Enrich songs with local file paths if downloaded
+    const enrichedTracklist = tracklist.map(s => {
+      const localPath = getDownloadedFilePath(s.song_id);
+      if (localPath) {
+        return { ...s, file_path: localPath, audio_url: localPath };
+      }
+      return s;
+    });
+    
+    // Find index in enriched list
+    const index = enrichedTracklist.findIndex(s => s?.song_id === song?.song_id);
+    const enrichedSong = enrichedTracklist[index >= 0 ? index : 0];
+    
+    playTrack(enrichedSong, enrichedTracklist, index >= 0 ? index : 0);
   };
 
   const handleLikeSong = async () => {
@@ -276,7 +289,15 @@ const LibraryScreen = ({ navigation, route }) => {
 
   const handlePlayAll = (songs) => {
     if (songs.length > 0) {
-      playTrack(songs[0], songs, 0);
+      // Enrich songs with local file paths if downloaded
+      const enrichedSongs = songs.map(s => {
+        const localPath = getDownloadedFilePath(s.song_id);
+        if (localPath) {
+          return { ...s, file_path: localPath, audio_url: localPath };
+        }
+        return s;
+      });
+      playTrack(enrichedSongs[0], enrichedSongs, 0);
     }
   };
 

@@ -387,21 +387,28 @@ async def create_playlist(request: Request, data: dict):
     
     # Get auth header for debugging
     auth_header = request.headers.get("Authorization", "")
-    print(f"[Playlist] Auth header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}")
+    logger.info(f"[Playlist] Auth header present: {bool(auth_header)}")
     
     user = await get_user_from_token(request)
     
     if not user:
-        print(f"[Playlist] User not found from token")
+        logger.warning(f"[Playlist] User not found from token")
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    print(f"[Playlist] Creating playlist for user: {user.get('user_id')}")
+    logger.info(f"[Playlist] Creating playlist for user: {user.get('user_id')}")
     
     # Check billing status - if billing is enabled, check user's premium status
+    # Try multiple collections for billing settings
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
-    billing_enabled = settings.get("billing_enabled", False) if settings else False
+    if not settings:
+        settings = await db.subscription_settings.find_one({}, sort=[("updated_at", -1)])
     
-    print(f"[Playlist] Billing enabled: {billing_enabled}")
+    # Default to billing DISABLED if no settings found
+    billing_enabled = False
+    if settings:
+        billing_enabled = settings.get("billing_enabled", False)
+    
+    logger.info(f"[Playlist] Billing enabled: {billing_enabled}, Settings found: {settings is not None}")
     
     if billing_enabled:
         # Check if user is premium
@@ -410,11 +417,14 @@ async def create_playlist(request: Request, data: dict):
         
         # Check if subscription is active and not expired
         if subscription.get("status") == "active" and subscription.get("expires_at"):
-            expires_at = datetime.fromisoformat(subscription["expires_at"].replace("Z", "+00:00"))
-            is_premium = expires_at > datetime.now(timezone.utc)
+            try:
+                expires_at = datetime.fromisoformat(subscription["expires_at"].replace("Z", "+00:00"))
+                is_premium = expires_at > datetime.now(timezone.utc)
+            except:
+                pass
         
         if not is_premium:
-            print(f"[Playlist] User not premium, blocking")
+            logger.info(f"[Playlist] User not premium, blocking")
             raise HTTPException(
                 status_code=403, 
                 detail="Playlist creation requires a Premium subscription"
