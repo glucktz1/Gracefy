@@ -987,7 +987,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       }
 
       // Filter out any tracks with empty URLs (failsafe)
-      tracksToPlay = tracksToPlay.filter(t => t.url && t.url.startsWith('http'));
+      // Keep both HTTP URLs and local file:// paths
+      tracksToPlay = tracksToPlay.filter(t => t.url && (t.url.startsWith('http') || t.url.startsWith('file://')));
       
       if (tracksToPlay.length === 0) {
         console.warn('[Player] No playable tracks after filtering');
@@ -1001,10 +1002,17 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       }
 
       // Add tracks to player
+      console.log(`[Player] Adding ${tracksToPlay.length} tracks to TrackPlayer`);
+      console.log('[Player] Tracks:', tracksToPlay.map(t => ({ id: t.id, title: t.title, url: t.url?.substring(0, 50) })));
       await TrackPlayer.add(tracksToPlay);
+
+      // Verify tracks were added
+      const addedQueue = await TrackPlayer.getQueue();
+      console.log(`[Player] TrackPlayer queue size: ${addedQueue.length}`);
 
       // Skip to the correct track and play
       if (playIndex > 0) {
+        console.log(`[Player] Skipping to index ${playIndex}`);
         await TrackPlayer.skip(playIndex);
       }
       
