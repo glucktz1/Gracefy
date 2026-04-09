@@ -230,6 +230,261 @@ async def get_upload_status(song_id: str):
     }
 
 
+@router.post("/admin/songs/{song_id}/reencode")
+async def reencode_song(song_id: str, background_tasks: BackgroundTasks):
+    """
+    Re-encode a song to standard 128kbps MP3 format.
+    Downloads the current audio, converts to MP3, and re-uploads.
+    """
+    db = get_db()
+    
+    song = await db.songs.find_one({"song_id": song_id})
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    audio_url = song.get("audio_url")
+    if not audio_url:
+        raise HTTPException(status_code=400, detail="Song has no audio URL")
+    
+    # Mark as encoding in progress
+    await db.songs.update_one(
+        {"song_id": song_id},
+        {"$set": {"encoding_status": "processing", "encoded": False}}
+    )
+    
+    # Run encoding in background
+    background_tasks.add_task(
+        reencode_song_background,
+        song_id=song_id,
+        source_url=audio_url,
+        title=song.get("title", "Unknown")
+    )
+    
+    return {
+        "message": f"Re-encoding started for '{song.get('title')}'",
+        "song_id": song_id,
+        "status": "processing"
+    }
+
+
+@router.post("/admin/songs/reencode-batch")
+async def reencode_songs_batch(data: dict, background_tasks: BackgroundTasks):
+    """
+    Re-encode multiple songs to standard 128kbps MP3 format.
+    Accepts: {"song_ids": ["song_123", "song_456", ...]}
+    Or: {"filter": "unencoded"} to re-encode all unencoded songs
+    """
+    db = get_db()
+    
+    song_ids = data.get("song_ids", [])
+    filter_type = data.get("filter")
+    
+    if filter_type == "unencoded":
+        # Get all songs that are not properly encoded
+        songs = await db.songs.find(
+            {
+                "$or": [
+                    {"encoded": {"$ne": True}},
+                    {"encoded": {"$exists": False}},
+                    {"audio_url": {"$regex": "_raw\\."}}  # Raw uploads
+                ],
+                "audio_url": {"$exists": True, "$ne": None, "$ne": ""}
+            },
+            {"song_id": 1, "title": 1, "audio_url": 1}
+        ).to_list(length=100)  # Limit to 100 at a time
+        song_ids = [s["song_id"] for s in songs]
+    elif not song_ids:
+        raise HTTPException(status_code=400, detail="No song_ids provided")
+    
+    if not song_ids:
+        return {"message": "No songs need re-encoding", "count": 0}
+    
+    # Mark all as processing
+    await db.songs.update_many(
+        {"song_id": {"$in": song_ids}},
+        {"$set": {"encoding_status": "queued"}}
+    )
+    
+    # Queue background task
+    background_tasks.add_task(
+        reencode_songs_batch_background,
+        song_ids=song_ids
+    )
+    
+    return {
+        "message": f"Re-encoding queued for {len(song_ids)} songs",
+        "song_ids": song_ids,
+        "count": len(song_ids)
+    }
+
+
+async def reencode_song_background(song_id: str, source_url: str, title: str):
+    """Background task to re-encode a single song to 128kbps MP3"""
+    import tempfile
+    import subprocess
+    import httpx
+    from concurrent.futures import ThreadPoolExecutor
+    
+    db = get_db()
+    
+    def run_ffmpeg_encode(input_path: str, output_path: str) -> bool:
+        """Run FFmpeg encoding in thread pool"""
+        try:
+            process = subprocess.run([
+                "ffmpeg", "-y",
+                "-i", input_path,
+                "-codec:a", "libmp3lame",
+                "-b:a", "128k",
+                "-ar", "44100",
+                "-ac", "2",
+                output_path
+            ], capture_output=True, timeout=300)
+            return process.returncode == 0
+        except Exception as e:
+            logger.error(f"FFmpeg error for {song_id}: {e}")
+            return False
+    
+    try:
+        logger.info(f"[ReEncode] Starting re-encode for {song_id}: {title}")
+        
+        # Download current audio
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.get(source_url)
+            if response.status_code != 200:
+                logger.error(f"[ReEncode] Failed to download {song_id}: HTTP {response.status_code}")
+                await db.songs.update_one(
+                    {"song_id": song_id},
+                    {"$set": {"encoding_status": "failed", "encoding_error": "Download failed"}}
+                )
+                return
+            
+            content = response.content
+        
+        # Write to temp file
+        ext = source_url.split(".")[-1] if "." in source_url else "mp3"
+        with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp_in:
+            tmp_in.write(content)
+            tmp_in_path = tmp_in.name
+        
+        tmp_out_path = tmp_in_path + "_encoded.mp3"
+        
+        # Run FFmpeg in thread pool
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            success = await loop.run_in_executor(
+                executor,
+                run_ffmpeg_encode,
+                tmp_in_path,
+                tmp_out_path
+            )
+        
+        if success and os.path.exists(tmp_out_path):
+            # Read encoded file
+            with open(tmp_out_path, "rb") as f:
+                encoded_content = f.read()
+            
+            original_size = len(content)
+            encoded_size = len(encoded_content)
+            
+            # Upload to CDN
+            filename = f"{song_id}.mp3"
+            storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/audio/{filename}"
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.put(
+                    storage_url,
+                    content=encoded_content,
+                    headers={
+                        "AccessKey": BUNNY_API_KEY,
+                        "Content-Type": "audio/mpeg"
+                    }
+                )
+                
+                if response.status_code in [200, 201]:
+                    cdn_url = f"{BUNNY_CDN_URL}/audio/{filename}"
+                    
+                    # Update song
+                    await db.songs.update_one(
+                        {"song_id": song_id},
+                        {"$set": {
+                            "audio_url": cdn_url,
+                            "audio_size_bytes": encoded_size,
+                            "original_size_bytes": original_size,
+                            "encoded": True,
+                            "encoding_status": "complete",
+                            "compression_ratio": round(original_size / encoded_size, 2) if encoded_size > 0 else 1
+                        }}
+                    )
+                    
+                    logger.info(f"[ReEncode] Complete: {song_id} - {original_size} -> {encoded_size} bytes")
+                else:
+                    logger.error(f"[ReEncode] CDN upload failed for {song_id}: HTTP {response.status_code}")
+                    await db.songs.update_one(
+                        {"song_id": song_id},
+                        {"$set": {"encoding_status": "failed", "encoding_error": "CDN upload failed"}}
+                    )
+        else:
+            logger.error(f"[ReEncode] FFmpeg failed for {song_id}")
+            await db.songs.update_one(
+                {"song_id": song_id},
+                {"$set": {"encoding_status": "failed", "encoding_error": "FFmpeg encoding failed"}}
+            )
+        
+        # Cleanup
+        try:
+            os.unlink(tmp_in_path)
+            if os.path.exists(tmp_out_path):
+                os.unlink(tmp_out_path)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"[ReEncode] Error for {song_id}: {e}")
+        await db.songs.update_one(
+            {"song_id": song_id},
+            {"$set": {"encoding_status": "failed", "encoding_error": str(e)}}
+        )
+
+
+async def reencode_songs_batch_background(song_ids: list):
+    """Background task to re-encode multiple songs sequentially"""
+    db = get_db()
+    
+    logger.info(f"[ReEncode Batch] Starting batch re-encode for {len(song_ids)} songs")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for song_id in song_ids:
+        song = await db.songs.find_one({"song_id": song_id})
+        if not song or not song.get("audio_url"):
+            fail_count += 1
+            continue
+        
+        await db.songs.update_one(
+            {"song_id": song_id},
+            {"$set": {"encoding_status": "processing"}}
+        )
+        
+        await reencode_song_background(
+            song_id=song_id,
+            source_url=song["audio_url"],
+            title=song.get("title", "Unknown")
+        )
+        
+        # Check if successful
+        updated = await db.songs.find_one({"song_id": song_id}, {"encoding_status": 1})
+        if updated and updated.get("encoding_status") == "complete":
+            success_count += 1
+        else:
+            fail_count += 1
+        
+        # Small delay between songs to avoid overwhelming the system
+        await asyncio.sleep(1)
+    
+    logger.info(f"[ReEncode Batch] Complete: {success_count} success, {fail_count} failed")
+
+
 # ============== FILE UPLOAD ==============
 
 @router.post("/upload")
