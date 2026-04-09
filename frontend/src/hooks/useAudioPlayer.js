@@ -636,10 +636,17 @@ const useAudioPlayer = () => {
       console.log('[Player] Audio ended event fired!');
       handleSongEnd();
     };
+    
+    // Track retry attempts for current song
+    const retryCountRef = useRef({});
+    const MAX_RETRIES = 2;
+    
     const onError = (e) => {
       const audio = audioRef.current;
       const error = audio.error;
+      const currentSong = currentSongRef.current;
       let errorMessage = 'Unknown error';
+      let shouldRetry = false;
       
       if (error) {
         switch (error.code) {
@@ -647,35 +654,56 @@ const useAudioPlayer = () => {
             errorMessage = 'Playback aborted';
             break;
           case MediaError.MEDIA_ERR_NETWORK:
-            errorMessage = 'Network error - check your connection';
+            errorMessage = 'Network error - retrying...';
+            shouldRetry = true;
             break;
           case MediaError.MEDIA_ERR_DECODE:
-            errorMessage = 'Audio decoding error';
+            errorMessage = 'Audio file is corrupted';
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = 'Audio format not supported or source not found';
+            // More helpful message - check if it's really a 404 or just unsupported
+            errorMessage = 'Audio unavailable (may have been removed or moved)';
             break;
         }
       }
       
-      // Track failed song to avoid re-adding it to queue
-      const currentSong = currentSongRef.current;
-      if (currentSong?.song_id) {
-        failedSongsRef.current.add(currentSong.song_id);
-        console.error('[Player] Added to failed songs:', currentSong.song_id, 'Total failed:', failedSongsRef.current.size);
-      }
+      const songId = currentSong?.song_id;
+      const retryCount = songId ? (retryCountRef.current[songId] || 0) : MAX_RETRIES;
       
       console.error('[Player] Audio error:', errorMessage, {
-        src: audio.src,
+        src: audio.src?.substring(0, 100),
         networkState: audio.networkState,
         readyState: audio.readyState,
-        error: error,
-        song: currentSong?.title
+        errorCode: error?.code,
+        song: currentSong?.title,
+        retryCount
       });
+      
+      // Retry on network errors (up to MAX_RETRIES times)
+      if (shouldRetry && songId && retryCount < MAX_RETRIES) {
+        retryCountRef.current[songId] = retryCount + 1;
+        console.log(`[Player] Retrying song (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+        
+        // Small delay before retry
+        setTimeout(() => {
+          if (audio.src) {
+            audio.load();
+            audio.play().catch(e => console.error('[Player] Retry play failed:', e));
+          }
+        }, 1000);
+        return; // Don't skip yet, wait for retry
+      }
+      
+      // Track failed song to avoid re-adding it to queue
+      if (songId) {
+        failedSongsRef.current.add(songId);
+        delete retryCountRef.current[songId]; // Clean up retry count
+        console.error('[Player] Added to failed songs:', songId, 'Total failed:', failedSongsRef.current.size);
+      }
       
       // Show toast notification for the error
       if (currentSong) {
-        toast.error(`"${currentSong.title}" skipped - ${errorMessage}`);
+        toast.error(`"${currentSong.title}" - ${errorMessage}`, { duration: 3000 });
       }
       
       setIsLoading(false);
