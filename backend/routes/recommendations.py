@@ -372,12 +372,60 @@ async def get_next_song_recommendations(
             if new_songs:
                 criteria_used.append("new_release")
     
-    # Remove duplicates and sort by score
-    seen = set()
+    # 6. ADD DIVERSITY: If we have fewer than 20 recommendations,
+    # add popular songs from OTHER categories to prevent looping in small pools
+    current_recommendation_ids = [s["song_id"] for s in recommendations]
+    if len(set(current_recommendation_ids)) < 20:
+        # Get popular songs across all categories
+        diverse_songs = await db.songs.find(
+            {
+                "song_id": {"$nin": exclude_ids + current_recommendation_ids},
+                "status": "active",
+                "audio_url": {"$exists": True, "$ne": None, "$ne": ""}
+            },
+            {"_id": 0}
+        ).sort("plays", -1).limit(25).to_list(25)
+        
+        for song in diverse_songs:
+            song["_score"] = 15  # Lower score so they appear after category matches
+            song["_reason"] = "diverse_popular"
+        recommendations.extend(diverse_songs)
+        if diverse_songs:
+            criteria_used.append("diverse_popular")
+    
+    # 7. FALLBACK: If still not enough, add random songs to ensure variety
+    current_recommendation_ids = [s["song_id"] for s in recommendations]
+    if len(set(current_recommendation_ids)) < 15:
+        random_songs = await db.songs.aggregate([
+            {"$match": {
+                "song_id": {"$nin": exclude_ids + current_recommendation_ids},
+                "status": "active",
+                "audio_url": {"$exists": True, "$ne": None, "$ne": ""}
+            }},
+            {"$sample": {"size": 20}},
+            {"$project": {"_id": 0}}
+        ]).to_list(20)
+        
+        for song in random_songs:
+            song["_score"] = 10
+            song["_reason"] = "random"
+        recommendations.extend(random_songs)
+        if random_songs:
+            criteria_used.append("random")
+    
+    # Remove duplicates by song_id AND by title (to avoid playing same song twice)
+    seen_ids = set()
+    seen_titles = set()
     unique_recommendations = []
     for song in recommendations:
-        if song["song_id"] not in seen:
-            seen.add(song["song_id"])
+        song_id = song["song_id"]
+        # Normalize title for comparison (lowercase, strip whitespace)
+        title_key = (song.get("title") or "").strip().lower()
+        
+        if song_id not in seen_ids and title_key not in seen_titles:
+            seen_ids.add(song_id)
+            if title_key:
+                seen_titles.add(title_key)
             unique_recommendations.append(song)
     
     # Sort by score (highest first)
