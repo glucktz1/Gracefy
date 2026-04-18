@@ -264,9 +264,10 @@ DB_NAME = gracefy_db
 - Play Store AAB build (v1.0.201)
 - Web footer legal links: open in new tab to gracefy.net URLs
 - Web mini-player repositioned above bottom taskbar
-- Three-dots context menu (Like/Share/Add to Playlist) on web MiniPlayer and FullPlayer
-- Three-dots context menu on mobile NowPlayingScreen (wired to SongActionsSheet)
-- Three-dots context menu on mobile MiniPlayer (wired to SongActionsSheet)
+- Three-dots context menu (Like/Share/Add to Playlist) on each song row (web)
+- Album-level Download and Add to Playlist buttons (web)
+- Mobile AlbumScreen already had three-dots per song + Download/Add to Playlist at album level (no changes needed)
+- Removed horizontal three-dots from MiniPlayer and FullPlayer (web + mobile)
 
 ## Key Files
 - `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (6500+ lines - NEEDS REFACTORING)
