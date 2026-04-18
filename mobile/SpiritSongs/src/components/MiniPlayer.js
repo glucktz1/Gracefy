@@ -10,6 +10,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { getImageUrl } from '../services/api';
 import AnimatedEqualizer from './AnimatedEqualizer';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from './AddToPlaylistModal';
+import { SongActionsSheet } from './SongActionsSheet';
 
 const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 50;
@@ -26,6 +27,7 @@ const MiniPlayer = ({ onPress, navigation }) => {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
   
   // Prevent double-tap issues
   const isProcessingRef = useRef(false);
@@ -232,14 +234,17 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
               {/* Controls - fixed position, not swipeable */}
               <View style={styles.controls}>
-                {/* Add to playlist button */}
+                {/* Three-dots menu button */}
                 <TouchableOpacity 
                   style={styles.controlButton}
-                  onPress={handleAddToPlaylist}
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    setShowActionsSheet(true);
+                  }}
                 >
                   <Ionicons 
-                    name="add-circle-outline" 
-                    size={26} 
+                    name="ellipsis-vertical" 
+                    size={22} 
                     color={COLORS.text} 
                   />
               </TouchableOpacity>
@@ -305,6 +310,31 @@ const MiniPlayer = ({ onPress, navigation }) => {
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
         onSubscribe={handleSubscribe}
+      />
+
+      {/* Song Actions Sheet (three-dots menu) */}
+      <SongActionsSheet
+        visible={showActionsSheet}
+        onClose={() => setShowActionsSheet(false)}
+        song={currentTrack}
+        isLiked={false}
+        onLike={() => {}}
+        onAddToPlaylist={() => {
+          setShowActionsSheet(false);
+          setTimeout(() => handleAddToPlaylist(), 300);
+        }}
+        isAuthenticated={isAuthenticated}
+        onLoginRequired={() => {
+          setShowActionsSheet(false);
+          setShowLoginModal(true);
+        }}
+        onSubscriptionRequired={() => {
+          setShowActionsSheet(false);
+          setShowSubscriptionModal(true);
+        }}
+        billingEnabled={billingEnabled}
+        isPremium={isPremium}
+        navigation={navigation}
       />
     </>
   );

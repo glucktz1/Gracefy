@@ -12,6 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBranding, BrandLogo } from "@/context/BrandingContext";
 import { 
@@ -2375,7 +2381,7 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -2393,9 +2399,39 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
           <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Playing from Playlist</p>
           <p className="text-xs font-medium">{player.currentAlbum?.title || 'Unknown Album'}</p>
         </div>
-        <button className="p-2">
-          <MoreHorizontal size={24} />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-2" data-testid="full-player-more-menu">
+              <MoreHorizontal size={24} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-white min-w-[180px]">
+            <DropdownMenuItem 
+              onClick={onFavorite} 
+              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+              data-testid="full-player-menu-like"
+            >
+              <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-blue-400' : ''} />
+              {isFavorite ? 'Unlike' : 'Like'}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={onShare} 
+              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+              data-testid="full-player-menu-share"
+            >
+              <Share2 size={16} />
+              Share
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={onAddToPlaylist} 
+              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+              data-testid="full-player-menu-add-playlist"
+            >
+              <ListPlus size={16} />
+              Add to Playlist
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Album Art */}
@@ -2510,7 +2546,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
         <button className="text-zinc-400">
           <Radio size={20} />
         </button>
-        <button className="text-zinc-400">
+        <button onClick={onShare} className="text-zinc-400 hover:text-white" data-testid="full-player-share-btn">
           <Share2 size={20} />
         </button>
         <button className="text-zinc-400">
@@ -2522,7 +2558,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare }) => {
   // Show player if there's a song OR a radio station playing
   if (!player.currentSong && !player.currentRadioStation) return null;
   
@@ -2541,7 +2577,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
+    <div className="fixed bottom-14 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
       {/* Progress line - only for music, not radio (live streams) */}
       {!isRadio && (
         <div className="h-1 bg-zinc-800">
@@ -2581,7 +2617,47 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
           </div>
         </button>
 
-        {/* Quick Actions - Only for music, not radio */}
+        {/* Three-dots context menu - visible on all sizes for music */}
+        {!isRadio && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button 
+                className="text-zinc-400 hover:text-white p-1.5"
+                data-testid="mini-player-more-menu"
+              >
+                <MoreHorizontal size={20} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-white min-w-[180px]">
+              <DropdownMenuItem 
+                onClick={onFavorite} 
+                className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+                data-testid="mini-player-menu-like"
+              >
+                <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-blue-400' : ''} />
+                {isFavorite ? 'Unlike' : 'Like'}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onShare} 
+                className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+                data-testid="mini-player-menu-share"
+              >
+                <Share2 size={16} />
+                Share
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onAddToPlaylist} 
+                className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+                data-testid="mini-player-menu-add-playlist"
+              >
+                <ListPlus size={16} />
+                Add to Playlist
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Quick Actions - Only for music, not radio (desktop only) */}
         {!isRadio && (
           <div className="hidden sm:flex items-center gap-1">
             <button 
@@ -3857,7 +3933,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           
           {/* Privacy Policy */}
           <a
-            href="/privacy-policy"
+            href="https://www.gracefy.net/privacy_terms"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
@@ -3871,7 +3947,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           
           {/* Terms of Service */}
           <a
-            href="/terms-of-service"
+            href="https://www.gracefy.net/terms_of_service"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
@@ -5285,27 +5361,33 @@ export default function UserStreamingApp() {
         {/* Legal Links */}
         <div className="mt-4 pt-4 border-t border-zinc-800">
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
-            <button 
-              onClick={() => setView('legal-terms')}
+            <a 
+              href="https://www.gracefy.net/terms_of_service"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-white transition-colors"
               data-testid="footer-terms-link"
             >
               {language === 'sw' ? 'Masharti' : 'Terms'}
-            </button>
-            <button 
-              onClick={() => setView('legal-privacy')}
+            </a>
+            <a 
+              href="https://www.gracefy.net/privacy_terms"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-white transition-colors"
               data-testid="footer-privacy-link"
             >
               {language === 'sw' ? 'Faragha' : 'Privacy'}
-            </button>
-            <button 
-              onClick={() => setView('legal-contact')}
+            </a>
+            <a 
+              href="https://www.gracefy.net/contactUs"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-white transition-colors"
               data-testid="footer-contact-link"
             >
               {language === 'sw' ? 'Wasiliana' : 'Contact'}
-            </button>
+            </a>
           </div>
         </div>
 
@@ -6540,7 +6622,7 @@ export default function UserStreamingApp() {
       </main>
 
       {/* Mobile Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-800 z-50" style={{ bottom: player.currentSong ? '72px' : '0' }}>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-800 z-50">
         <div className="flex justify-around py-2">
           <button onClick={() => { setView('home'); setActiveCategory(null); }} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'home' ? 'text-white' : 'text-zinc-500'}`}>
             <Home size={20} />
@@ -6615,6 +6697,18 @@ export default function UserStreamingApp() {
           // Always show download app popup for web
           setShowDownloadPopup(true);
         }}
+        onShare={() => {
+          if (navigator.share && player.currentSong) {
+            navigator.share({
+              title: player.currentSong.title,
+              text: `Listen to "${player.currentSong.title}" on Gracefy!`,
+              url: 'https://www.gracefy.net',
+            }).catch(() => {});
+          } else {
+            navigator.clipboard?.writeText(`Listen to "${player.currentSong?.title}" on Gracefy! https://www.gracefy.net`);
+            toast.success('Link copied to clipboard!');
+          }
+        }}
       />
 
       {/* Full Screen Player */}
@@ -6633,6 +6727,18 @@ export default function UserStreamingApp() {
           onAddToPlaylist={() => {
             // Always show download app popup for web
             setShowDownloadPopup(true);
+          }}
+          onShare={() => {
+            if (navigator.share && player.currentSong) {
+              navigator.share({
+                title: player.currentSong.title,
+                text: `Listen to "${player.currentSong.title}" on Gracefy!`,
+                url: 'https://www.gracefy.net',
+              }).catch(() => {});
+            } else {
+              navigator.clipboard?.writeText(`Listen to "${player.currentSong?.title}" on Gracefy! https://www.gracefy.net`);
+              toast.success('Link copied to clipboard!');
+            }
           }}
         />
       )}

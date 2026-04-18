@@ -25,6 +25,7 @@ import { useBilling } from '../context/BillingContext';
 import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import { getImageUrl, getAudioUrl, contentAPI, libraryAPI } from '../services/api';
 import AddToPlaylistModal, { LoginRequiredModal, SubscriptionRequiredModal } from '../components/AddToPlaylistModal';
+import { SongActionsSheet } from '../components/SongActionsSheet';
 import { showToast } from '../components/Toast';
 
 const { width, height } = Dimensions.get('window');
@@ -66,6 +67,7 @@ const NowPlayingScreen = ({ navigation }) => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
   // Billing settings from context
@@ -313,7 +315,7 @@ const NowPlayingScreen = ({ navigation }) => {
                 {currentTrack.album_title || 'Maktaba Yako'}
               </Text>
             </View>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => setShowActionsSheet(true)}>
               <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.text} />
             </TouchableOpacity>
           </View>
@@ -544,6 +546,31 @@ const NowPlayingScreen = ({ navigation }) => {
           setShowSubscriptionModal(false);
           navigation.navigate('SubscriptionPlans');
         }}
+      />
+
+      {/* Song Actions Sheet (three-dots menu) */}
+      <SongActionsSheet
+        visible={showActionsSheet}
+        onClose={() => setShowActionsSheet(false)}
+        song={currentTrack}
+        isLiked={isLiked}
+        onLike={handleLike}
+        onAddToPlaylist={() => {
+          setShowActionsSheet(false);
+          setTimeout(() => setShowPlaylistModal(true), 300);
+        }}
+        isAuthenticated={isAuthenticated}
+        onLoginRequired={() => {
+          setShowActionsSheet(false);
+          setShowLoginModal(true);
+        }}
+        onSubscriptionRequired={() => {
+          setShowActionsSheet(false);
+          setShowSubscriptionModal(true);
+        }}
+        billingEnabled={billingEnabled}
+        isPremium={isPremium}
+        navigation={navigation}
       />
 
       {/* Queue Modal */}
