@@ -244,16 +244,29 @@ DB_NAME = gracefy_db
 - `GET /api/billing-status` - Check global billing settings
 
 ## Backlog / Future Tasks
-1. **URGENT: Refactor UserStreamingApp.jsx** - 6500+ lines, needs to be split into smaller components
-2. **P0: Fix Playlist Creation Bug** - Mobile app sends requests without Auth header
-3. Bible TTS voice selection from admin settings
-4. Admin language file upload feature
-5. Audio Ad integration
-6. SendGrid email campaigns
-7. Consolidate `users`/`app_users` collections
-8. Publish app to stores (generate AAB build for Google Play)
-9. Start HLS transcoding batch process
-10. Authorize `gracefy.net` in Firebase for production Google OAuth
+1. **URGENT: Refactor UserStreamingApp.jsx** - 6900+ lines, needs to be split into smaller components (MiniPlayer, FullPlayer, ProfileView, LegalPage, AlbumView)
+2. Bible TTS voice selection from admin settings
+3. Audio Ad integration
+4. SendGrid email campaigns
+5. Consolidate `users`/`app_users` collections
+6. Mobile Church Details Modal (port web modal with Matangazo/Ratiba tabs to ChurchesScreen.js)
+7. Start HLS transcoding batch process
+
+## Completed (April 2026)
+- Admin upload async processing (BackgroundTasks)
+- Bible TTS / music audio conflict fix
+- Neno la Leo scheduler & Publish Now toggle
+- Playback loop fix (failed song filtering)
+- Playlist creation fix (billing disabled in preview)
+- Mobile offline playback fix
+- Recommendation engine diversity fallback
+- Manual MP3 re-encoding (FFmpeg)
+- Play Store AAB build (v1.0.201)
+- Web footer legal links: open in new tab to gracefy.net URLs
+- Web mini-player repositioned above bottom taskbar
+- Three-dots context menu (Like/Share/Add to Playlist) on web MiniPlayer and FullPlayer
+- Three-dots context menu on mobile NowPlayingScreen (wired to SongActionsSheet)
+- Three-dots context menu on mobile MiniPlayer (wired to SongActionsSheet)
 
 ## Key Files
 - `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (6500+ lines - NEEDS REFACTORING)

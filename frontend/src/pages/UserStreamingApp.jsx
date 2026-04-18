@@ -2577,7 +2577,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className="fixed bottom-14 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
+    <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
       {/* Progress line - only for music, not radio (live streams) */}
       {!isRadio && (
         <div className="h-1 bg-zinc-800">
