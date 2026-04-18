@@ -178,7 +178,7 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
 };
 
 // Compact List Item
-const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPlaylist, onDownload, isLiked }) => {
+const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPlaylist, onDownload, isLiked, onShare }) => {
   const thumbUrl = getThumbnail(item) || getThumbnail(item.album);
   return (
     <div className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-zinc-800/60 transition-colors group">
@@ -201,36 +201,50 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
         </div>
       </button>
       
-      {/* Song actions */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {onLike && (
+      {/* Three-dots context menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button 
-            onClick={(e) => { e.stopPropagation(); onLike(item); }}
-            className="p-2 hover:bg-zinc-700 rounded-full"
-            title={isLiked ? "Remove from Liked Songs" : "Add to Liked Songs"}
+            className="p-2 text-zinc-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-zinc-700"
+            data-testid={`song-more-menu-${index}`}
+            onClick={(e) => e.stopPropagation()}
           >
-            <Heart size={18} className={isLiked ? "text-blue-400 fill-blue-400" : "text-zinc-400"} />
+            <MoreHorizontal size={18} />
           </button>
-        )}
-        {onAddToPlaylist && (
-          <button 
-            onClick={(e) => { e.stopPropagation(); onAddToPlaylist(item); }}
-            className="p-2 hover:bg-zinc-700 rounded-full"
-            title="Add to Playlist"
-          >
-            <Plus size={18} className="text-zinc-400" />
-          </button>
-        )}
-        {onDownload && (
-          <button 
-            onClick={(e) => { e.stopPropagation(); onDownload(item); }}
-            className="p-2 hover:bg-zinc-700 rounded-full"
-            title="Download"
-          >
-            <Download size={18} className="text-zinc-400" />
-          </button>
-        )}
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-white min-w-[180px]">
+          {onLike && (
+            <DropdownMenuItem 
+              onClick={(e) => { e.stopPropagation(); onLike(item); }}
+              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+              data-testid={`song-menu-like-${index}`}
+            >
+              <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} className={isLiked ? 'text-blue-400' : ''} />
+              {isLiked ? 'Unlike' : 'Like'}
+            </DropdownMenuItem>
+          )}
+          {onShare && (
+            <DropdownMenuItem 
+              onClick={(e) => { e.stopPropagation(); onShare(item); }}
+              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+              data-testid={`song-menu-share-${index}`}
+            >
+              <Share2 size={16} />
+              Share
+            </DropdownMenuItem>
+          )}
+          {onAddToPlaylist && (
+            <DropdownMenuItem 
+              onClick={(e) => { e.stopPropagation(); onAddToPlaylist(item); }}
+              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
+              data-testid={`song-menu-add-playlist-${index}`}
+            >
+              <ListPlus size={16} />
+              Add to Playlist
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
       
       {isActive && isPlaying && (
         <div className="flex items-end gap-0.5 h-4 mr-2">
@@ -2399,39 +2413,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
           <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Playing from Playlist</p>
           <p className="text-xs font-medium">{player.currentAlbum?.title || 'Unknown Album'}</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="p-2" data-testid="full-player-more-menu">
-              <MoreHorizontal size={24} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-white min-w-[180px]">
-            <DropdownMenuItem 
-              onClick={onFavorite} 
-              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
-              data-testid="full-player-menu-like"
-            >
-              <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-blue-400' : ''} />
-              {isFavorite ? 'Unlike' : 'Like'}
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={onShare} 
-              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
-              data-testid="full-player-menu-share"
-            >
-              <Share2 size={16} />
-              Share
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={onAddToPlaylist} 
-              className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
-              data-testid="full-player-menu-add-playlist"
-            >
-              <ListPlus size={16} />
-              Add to Playlist
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="w-12" />
       </div>
 
       {/* Album Art */}
@@ -2558,7 +2540,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
   // Show player if there's a song OR a radio station playing
   if (!player.currentSong && !player.currentRadioStation) return null;
   
@@ -2617,47 +2599,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
           </div>
         </button>
 
-        {/* Three-dots context menu - visible on all sizes for music */}
-        {!isRadio && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button 
-                className="text-zinc-400 hover:text-white p-1.5"
-                data-testid="mini-player-more-menu"
-              >
-                <MoreHorizontal size={20} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-white min-w-[180px]">
-              <DropdownMenuItem 
-                onClick={onFavorite} 
-                className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
-                data-testid="mini-player-menu-like"
-              >
-                <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-blue-400' : ''} />
-                {isFavorite ? 'Unlike' : 'Like'}
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={onShare} 
-                className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
-                data-testid="mini-player-menu-share"
-              >
-                <Share2 size={16} />
-                Share
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={onAddToPlaylist} 
-                className="gap-3 cursor-pointer focus:bg-zinc-800 focus:text-white"
-                data-testid="mini-player-menu-add-playlist"
-              >
-                <ListPlus size={16} />
-                Add to Playlist
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-
-        {/* Quick Actions - Only for music, not radio (desktop only) */}
+        {/* Quick Actions - Only for music, not radio */}
         {!isRadio && (
           <div className="hidden sm:flex items-center gap-1">
             <button 
@@ -6039,6 +5981,7 @@ export default function UserStreamingApp() {
                             onLike={handleLikeSong}
                             onAddToPlaylist={handleAddToPlaylist}
                             onDownload={handleDownloadSong}
+                            onShare={(s) => handleShareSong(s, { artist_name: song.artist_name })}
                             isLiked={isFavorite(song.song_id)}
                           />
                         ))}
@@ -6116,8 +6059,21 @@ export default function UserStreamingApp() {
                 <button onClick={() => toggleFavorite('album', selectedAlbum.album_id)} className={isFavorite(selectedAlbum.album_id) ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}>
                   <Heart size={28} fill={isFavorite(selectedAlbum.album_id) ? 'currentColor' : 'none'} />
                 </button>
-                <button className="text-zinc-400 hover:text-white">
-                  <MoreHorizontal size={28} />
+                <button 
+                  onClick={() => handleDownloadSong(selectedAlbumSongs[0])}
+                  className="text-zinc-400 hover:text-white"
+                  title="Download"
+                  data-testid="album-download-btn"
+                >
+                  <Download size={26} />
+                </button>
+                <button 
+                  onClick={() => handleAddToPlaylist(selectedAlbumSongs[0])}
+                  className="text-zinc-400 hover:text-white"
+                  title="Add to Playlist"
+                  data-testid="album-add-playlist-btn"
+                >
+                  <ListPlus size={26} />
                 </button>
               </div>
 
@@ -6133,6 +6089,7 @@ export default function UserStreamingApp() {
                     onLike={handleLikeSong}
                     onAddToPlaylist={handleAddToPlaylist}
                     onDownload={handleDownloadSong}
+                    onShare={(s) => handleShareSong(s, selectedAlbum)}
                     isLiked={isFavorite(song.song_id)}
                   />
                 ))}
@@ -6225,6 +6182,7 @@ export default function UserStreamingApp() {
                         onLike={handleLikeSong}
                         onAddToPlaylist={handleAddToPlaylist}
                         onDownload={handleDownloadSong}
+                        onShare={(s) => handleShareSong(s, fav.album)}
                         isLiked={true}
                       />
                     ))}
@@ -6330,6 +6288,7 @@ export default function UserStreamingApp() {
                         onLike={handleLikeSong}
                         onAddToPlaylist={handleAddToPlaylist}
                         onDownload={handleDownloadSong}
+                        onShare={(s) => handleShareSong(s, album)}
                         isLiked={isFavorite(song.song_id)}
                       />
                     ))}
@@ -6696,18 +6655,6 @@ export default function UserStreamingApp() {
         onAddToPlaylist={() => {
           // Always show download app popup for web
           setShowDownloadPopup(true);
-        }}
-        onShare={() => {
-          if (navigator.share && player.currentSong) {
-            navigator.share({
-              title: player.currentSong.title,
-              text: `Listen to "${player.currentSong.title}" on Gracefy!`,
-              url: 'https://www.gracefy.net',
-            }).catch(() => {});
-          } else {
-            navigator.clipboard?.writeText(`Listen to "${player.currentSong?.title}" on Gracefy! https://www.gracefy.net`);
-            toast.success('Link copied to clipboard!');
-          }
         }}
       />
 
