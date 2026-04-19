@@ -1771,9 +1771,8 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
   const [audioElement, setAudioElement] = useState(null);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   
-  // Voice settings
+  // Voice settings - uses admin-configured default
   const [selectedVoice, setSelectedVoice] = useState("sw-KE-Zuri-Female");
-  const [availableVoices, setAvailableVoices] = useState([]);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Speed control: 0.5x to 2x
   
   // Custom verse range reader
@@ -1798,10 +1797,6 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
         ]);
         setBooks(booksRes.data.books || []);
         setSnippets(snippetsRes.data.snippets || []);
-        
-        // Set voice options and default
-        const voices = voicesRes.data.voices || [];
-        setAvailableVoices(voices);
         
         // Use admin-configured default voice
         const defaultVoice = voicesRes.data.default_voice_female || voicesRes.data.default || "sw-KE-Zuri-Female";
@@ -2004,38 +1999,8 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
             {t('bible.title', 'Biblia na Vitabu vya Dini')}
           </h1>
           
-          {/* Voice and Speed Controls */}
+          {/* Speed Control */}
           <div className="flex flex-wrap items-center gap-3">
-            {/* Voice Selector */}
-            {availableVoices.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Volume2 size={16} className="text-zinc-400" />
-                <select
-                  value={selectedVoice}
-                  onChange={(e) => {
-                    const newVoice = e.target.value;
-                    setSelectedVoice(newVoice);
-                    const voiceName = availableVoices.find(v => v.id === newVoice)?.name || newVoice;
-                    toast.success(`Voice changed to ${voiceName}`);
-                  }}
-                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  data-testid="voice-selector"
-                >
-                  <optgroup label="Kike (Female)">
-                    {availableVoices.filter(v => v.gender === 'female').map(voice => (
-                      <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Kiume (Male)">
-                    {availableVoices.filter(v => v.gender === 'male').map(voice => (
-                      <option key={voice.id} value={voice.id}>{voice.name} - {voice.description}</option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-            )}
-            
-            {/* Speed Control */}
             <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5">
               <span className="text-xs text-zinc-400">Kasi:</span>
               <select

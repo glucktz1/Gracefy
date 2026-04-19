@@ -560,22 +560,6 @@ const BibleScreen = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* TTS Settings Info */}
-      <View style={styles.ttsInfoCard}>
-        <View style={styles.ttsInfoHeader}>
-          <Ionicons name="settings-outline" size={18} color={COLORS.textSecondary} />
-          <Text style={styles.ttsInfoTitle}>Mipangilio ya Sauti</Text>
-        </View>
-        <View style={styles.ttsInfoRow}>
-          <Text style={styles.ttsInfoLabel}>Sauti:</Text>
-          <Text style={styles.ttsInfoValue}>{ttsSettings.default_voice}</Text>
-        </View>
-        <View style={styles.ttsInfoRow}>
-          <Text style={styles.ttsInfoLabel}>Kasi:</Text>
-          <Text style={styles.ttsInfoValue}>{ttsSettings.default_speed}x</Text>
-        </View>
-      </View>
-
       <View style={{ height: 100 }} />
     </ScrollView>
   );
