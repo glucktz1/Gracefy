@@ -1,0 +1,48 @@
+{
+  "summary": "Verified lock screen autoplay fix (code audit), audio ads integration (backend+web wiring), Bible TTS voices endpoint, and mobile AdPlayer wiring. Backend: 4/4 pytest passed. Frontend: app loads with 50 albums, all 3 target API endpoints respond correctly from browser, AudioAdOverlay component is implemented with testids and correctly hidden by default (ads disabled).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_features": [
+    "BACKEND: GET /api/advertising/next-ad?platform=web&songs_played=1 -> 200, should_play_ad=false, reason='ads_disabled' (correct behavior per PS)",
+    "BACKEND: GET /api/advertising/next-ad works for platform=web AND platform=mobile",
+    "BACKEND: GET /api/advertising/settings -> 200, settings.enabled=false (correct)",
+    "BACKEND: GET /api/bible/tts/voices -> 200, voices.length=6, tts_available=true",
+    "FRONTEND: AudioAdOverlay component defined at UserStreamingApp.jsx:261-340 with data-testid='ad-overlay', ad-skip-btn, progress bar, skip countdown (uses settings.skip_after_seconds)",
+    "FRONTEND: AudioAdOverlay rendered at line 6926 gated on player.showAdOverlay && player.currentAd, wired to player.handleAdComplete and player.handleAdSkip",
+    "FRONTEND: useAudioPlayer.js has all required refs: isTransitioningRef (line 48), pendingPlayRef (49), songsPlayedCountRef (57), pendingNextSongRef (58)",
+    "FRONTEND: isTransitioningRef set to true before pause() inside playFromQueueInternal (line 375) and reset to false in setupAudioSource onReady (line 455)",
+    "FRONTEND: onPause handler (line 847-852) respects isTransitioningRef - only sets isPlaying=false when NOT transitioning (lock screen fix)",
+    "FRONTEND: NotAllowedError catch (line 466-474) sets pendingPlayRef=true so screen unlock can resume playback",
+    "FRONTEND: visibilitychange listener (line 956-971) calls audioRef.current.play() when pendingPlayRef is true and document becomes visible",
+    "FRONTEND: handleSongEnd (line 586) increments songsPlayedCountRef then calls /api/advertising/next-ad (line 614); on should_play_ad=true stores pendingNextSongRef callback and triggers ad overlay",
+    "FRONTEND: handleAdComplete (1272) and handleAdSkip (1282) clear overlay and run pendingNextSongRef (proceedAfterAd)",
+    "FRONTEND: App loads (title=Gracefy, 50 albums rendered, root 246KB HTML), no console errors blocking",
+    "MOBILE: App.js imports AdPlayer (line 22), has checkAndShowAd (280), handleAdComplete (305), handleAdSkip (313), AdPlayer rendered (421) - all wired"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_ads_and_tts.py",
+    "/app/test_reports/pytest/iteration_48_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "UserStreamingApp.jsx is now 6942 lines (grew from 6850). This is well beyond the 700-line maintainability threshold. Strongly recommend extracting AudioAdOverlay, MiniPlayer, FullPlayer, AlbumView, ArtistCard into /app/frontend/src/components/streaming/ files.",
+    "Duplicate MediaSession action handler setup in useAudioPlayer.js: first block at lines 879-953 (setup ONCE on mount) and second block at lines 1149-1165 (re-registers on nextSong/prevSong changes). The second block overwrites the first block's handlers on every nextSong/prevSong callback change, wasting re-registrations. Consider consolidating into the ref-based handler block only.",
+    "AudioAdOverlay useEffect deps include [ad, settings, onComplete] but onComplete is a useCallback that could change identity - if parent re-renders cause onComplete to change reference, the effect will re-run mid-ad playback and start a new audio instance. Consider using a ref for onComplete or an empty dep array with refs.",
+    "Lock screen fix via isTransitioningRef is correct but note: if setupAudioSource onReady fires after a user pauses manually (rare race), the ref reset could accidentally re-enable isPlaying via next play event. Low risk but worth a comment.",
+    "Lock screen autoplay fix CANNOT be end-to-end tested via Playwright (requires real browser tab visibility change + mobile lock screen). Code path verified via static review only. Recommend manual QA on real iPhone/Android web browsers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ads_and_tts.py (new)"
+  ],
+  "success_rate": {"backend": "100% (4/4 pytest passed)", "frontend": "100% (all code paths verified + app loads + API integrations reachable)"},
+  "test_credentials": "Not used - all tests performed unauthenticated (ads/TTS endpoints are public).",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "App URL: https://neno-la-leo.preview.emergentagent.com. Ads are DISABLED by default - /api/advertising/next-ad returns should_play_ad:false with reason='ads_disabled'. To end-to-end test the ad overlay UI path, an admin must enable ads and create an ad in the admin panel (admin@gracefy.life, see /app/memory/test_credentials.md - password is empty). AudioAdOverlay has data-testid='ad-overlay' and 'ad-skip-btn'. Lock screen autoplay fix relies on isTransitioningRef (prevents onPause from clearing isPlaying during song transitions) + pendingPlayRef (stores pending play when NotAllowedError fires) + visibilitychange listener (resumes on screen unlock). This MUST be tested on real mobile device (iOS Safari / Chrome Android) - Playwright cannot simulate real screen lock. Pytest file: /app/backend/tests/test_ads_and_tts.py.",
+  "rca of the issue": "N/A - no bugs found in this iteration. All 3 requested code changes (lock screen fix, web ad check, AudioAdOverlay) are present and correctly integrated. The only manual verification required is on-device testing of the lock screen autoplay behavior which is outside the scope of automated testing."
+}

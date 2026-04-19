@@ -45,6 +45,17 @@ const useAudioPlayer = () => {
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   const failedSongsRef = useRef(new Set()); // Track songs that failed to play
   const retryCountRef = useRef({}); // Track retry attempts for songs with network errors
+  const isTransitioningRef = useRef(false); // Flag to prevent pause event during song transitions
+  const pendingPlayRef = useRef(false); // Flag for pending play when screen is locked
+  
+  // Audio ads state
+  const [songsPlayedCount, setSongsPlayedCount] = useState(0);
+  const [showAdOverlay, setShowAdOverlay] = useState(false);
+  const [currentAd, setCurrentAd] = useState(null);
+  const [adSettings, setAdSettings] = useState(null);
+  const lastAdTimeRef = useRef(null);
+  const songsPlayedCountRef = useRef(0);
+  const pendingNextSongRef = useRef(null);
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
@@ -360,6 +371,8 @@ const useAudioPlayer = () => {
     
     // IMPORTANT: Stop and reset current audio before playing new one
     // This prevents two songs from playing simultaneously
+    // Use transition flag to prevent pause event from clearing isPlaying state
+    isTransitioningRef.current = true;
     try {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -439,20 +452,23 @@ const useAudioPlayer = () => {
     
     // Setup audio source (HLS with fallback to MP3)
     setupAudioSource(song, async () => {
+      isTransitioningRef.current = false;
       try {
         // Use play() with promise handling for better browser compatibility
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           playPromise.then(() => {
             console.log('[Player] Playback started successfully');
+            pendingPlayRef.current = false;
             // Preload next song after current starts playing
             preloadNextSong(index, q);
           }).catch(error => {
             console.log('[Player] Autoplay blocked:', error.name, error.message);
-            // If autoplay is blocked, show a play button or wait for user interaction
             if (error.name === 'NotAllowedError') {
-              // Browser blocked autoplay - this is normal on first interaction
-              // The user will need to click play
+              // Browser blocked autoplay - likely screen is locked
+              // Store pending play so visibilitychange can resume
+              pendingPlayRef.current = true;
+              console.log('[Player] Pending play set - will resume when page becomes visible');
               setIsLoading(false);
               return;
             }
@@ -465,6 +481,7 @@ const useAudioPlayer = () => {
         }
       } catch (e) {
         console.error('[Player] Play error:', e);
+        isTransitioningRef.current = false;
         setIsLoading(false);
       }
     });
@@ -505,6 +522,66 @@ const useAudioPlayer = () => {
   useEffect(() => {
     const audio = audioRef.current;
     
+    // Helper: continue playing next song after an ad finishes
+    const proceedAfterAd = async (currentQueue, currentQueueIndex, currentRepeat, currentShuffle, currentContinuousPlay) => {
+      // Check if auto-play is blocked
+      if (blockAutoPlayNextRef.current) {
+        blockAutoPlayNextRef.current = false;
+        setIsPlaying(false);
+        return;
+      }
+      if (guestLimitReachedRef.current) {
+        setIsPlaying(false);
+        return;
+      }
+      
+      // Repeat one
+      if (currentRepeat === 'one') {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('[Player] Autoplay blocked:', e));
+        return;
+      }
+
+      let nextIndex = currentQueueIndex + 1;
+      if (currentShuffle && currentQueue.length > 1) {
+        do { nextIndex = Math.floor(Math.random() * currentQueue.length); } while (nextIndex === currentQueueIndex && currentQueue.length > 1);
+      }
+
+      if (nextIndex < currentQueue.length) {
+        playFromQueueInternalRef.current(nextIndex, currentQueue);
+        return;
+      }
+      
+      if (currentRepeat === 'all' && currentQueue.length > 0) {
+        playFromQueueInternalRef.current(0, currentQueue);
+        return;
+      }
+      
+      if (currentContinuousPlay && currentQueue.length > 0) {
+        const lastItem = currentQueue[currentQueue.length - 1];
+        const lastSong = lastItem.song || lastItem;
+        if (lastSong?.song_id) {
+          const added = await fetchAndAddRecommendationsRef.current(lastSong.song_id);
+          if (added) {
+            const updatedQueue = queueRef.current;
+            if (currentQueue.length < updatedQueue.length) {
+              playFromQueueInternalRef.current(currentQueue.length, updatedQueue);
+              return;
+            }
+          }
+          playFromQueueInternalRef.current(0, currentQueue);
+          return;
+        }
+      }
+      
+      if (currentQueue.length > 0) {
+        playFromQueueInternalRef.current(0, currentQueue);
+        return;
+      }
+      
+      setIsPlaying(false);
+    };
+    
     // ============ HANDLE SONG END - MIRRORS NATIVE APP LOGIC ============
     const handleSongEnd = async () => {
       // Use refs to get latest values (avoids stale closures)
@@ -526,6 +603,38 @@ const useAudioPlayer = () => {
           session_id: sessionIdRef.current,
           duration_seconds: Math.floor(audio.duration || 0)
         }).catch(e => console.log("Failed to track play end"));
+      }
+      
+      // Increment songs played count for ad tracking
+      songsPlayedCountRef.current += 1;
+      
+      // Check if we should play an ad before the next song
+      try {
+        const userId = localStorage.getItem('user_id') || null;
+        const adRes = await axios.get(`${API}/advertising/next-ad`, {
+          params: {
+            user_id: userId,
+            platform: 'web',
+            songs_played: songsPlayedCountRef.current,
+            last_ad_time: lastAdTimeRef.current || ''
+          }
+        });
+        
+        if (adRes.data?.should_play_ad && adRes.data?.ad) {
+          console.log('[Player] Ad triggered:', adRes.data.ad.title);
+          // Store the callback to play next song after ad
+          pendingNextSongRef.current = () => {
+            // Continue with normal song end logic after ad
+            proceedAfterAd(currentQueue, currentQueueIndex, currentRepeat, currentShuffle, currentContinuousPlay);
+          };
+          setCurrentAd(adRes.data.ad);
+          setAdSettings(adRes.data.settings);
+          setShowAdOverlay(true);
+          lastAdTimeRef.current = new Date().toISOString();
+          return; // Don't proceed to next song yet - ad will handle it
+        }
+      } catch (e) {
+        console.log('[Player] Ad check failed (continuing normally):', e.message);
       }
       
       // Check if auto-play is blocked (screen lock payment feature or guest limit)
@@ -735,7 +844,12 @@ const useAudioPlayer = () => {
       }, 300);
     };
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => {
+      // Don't set isPlaying to false during song transitions (lock screen fix)
+      if (!isTransitioningRef.current) {
+        setIsPlaying(false);
+      }
+    };
     const onWaiting = () => setIsLoading(true);
     const onCanPlay = () => setIsLoading(false);
 
@@ -836,6 +950,24 @@ const useAudioPlayer = () => {
         navigator.mediaSession.setActionHandler('seekto', null);
       }
     };
+  }, []);
+  
+  // Visibility change listener - resume pending playback when screen is unlocked
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && pendingPlayRef.current) {
+        console.log('[Player] Page visible again - resuming pending playback');
+        pendingPlayRef.current = false;
+        audioRef.current.play().then(() => {
+          console.log('[Player] Resumed playback after visibility change');
+        }).catch(e => {
+          console.log('[Player] Resume failed:', e.name);
+        });
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
   
   // Update MediaSession playback state when playing/paused
@@ -1136,6 +1268,27 @@ const useAudioPlayer = () => {
     });
   }, [shuffle]);
   
+  // Ad complete/skip handler - resumes music playback
+  const handleAdComplete = useCallback(() => {
+    console.log('[Player] Ad complete - resuming music');
+    setShowAdOverlay(false);
+    setCurrentAd(null);
+    if (pendingNextSongRef.current) {
+      pendingNextSongRef.current();
+      pendingNextSongRef.current = null;
+    }
+  }, []);
+  
+  const handleAdSkip = useCallback(() => {
+    console.log('[Player] Ad skipped - resuming music');
+    setShowAdOverlay(false);
+    setCurrentAd(null);
+    if (pendingNextSongRef.current) {
+      pendingNextSongRef.current();
+      pendingNextSongRef.current = null;
+    }
+  }, []);
+  
   return {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
@@ -1146,7 +1299,9 @@ const useAudioPlayer = () => {
     // HLS Adaptive Streaming
     streamingQuality, setStreamingQuality,
     // Radio
-    isRadioMode, currentRadioStation, playRadio, stopRadio
+    isRadioMode, currentRadioStation, playRadio, stopRadio,
+    // Audio Ads
+    showAdOverlay, currentAd, adSettings, handleAdComplete, handleAdSkip
   };
 };
 

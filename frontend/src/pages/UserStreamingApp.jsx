@@ -257,6 +257,88 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
   );
 };
 
+// Audio Ad Overlay
+const AudioAdOverlay = ({ ad, settings, onComplete, onSkip }) => {
+  const [canSkip, setCanSkip] = useState(false);
+  const [skipCountdown, setSkipCountdown] = useState(settings?.skip_after_seconds || 5);
+  const [progress, setProgress] = useState(0);
+  const adAudioRef = useRef(null);
+
+  useEffect(() => {
+    // Play ad audio
+    if (ad?.audio_url) {
+      const audio = new Audio(ad.audio_url);
+      adAudioRef.current = audio;
+      audio.play().catch(e => {
+        console.log('[AdOverlay] Play failed:', e);
+        onComplete?.();
+      });
+      audio.ontimeupdate = () => {
+        if (audio.duration > 0) setProgress((audio.currentTime / audio.duration) * 100);
+      };
+      audio.onended = () => onComplete?.();
+      audio.onerror = () => onComplete?.();
+    } else {
+      onComplete?.();
+    }
+
+    // Skip countdown
+    const skipTime = settings?.skip_after_seconds || 5;
+    let countdown = skipTime;
+    const timer = setInterval(() => {
+      countdown--;
+      setSkipCountdown(countdown);
+      if (countdown <= 0) {
+        setCanSkip(true);
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+      if (adAudioRef.current) {
+        adAudioRef.current.pause();
+        adAudioRef.current = null;
+      }
+    };
+  }, [ad, settings, onComplete]);
+
+  const handleSkip = () => {
+    if (adAudioRef.current) {
+      adAudioRef.current.pause();
+      adAudioRef.current = null;
+    }
+    onSkip?.();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center" data-testid="ad-overlay">
+      <div className="bg-zinc-900 rounded-2xl p-6 max-w-sm w-full mx-4 text-center">
+        <div className="text-xs text-amber-400 font-bold uppercase tracking-widest mb-4">Advertisement</div>
+        <h3 className="text-lg font-bold text-white mb-1">{ad?.title}</h3>
+        {ad?.description && <p className="text-sm text-zinc-400 mb-4">{ad.description}</p>}
+        {ad?.advertiser_name && <p className="text-xs text-zinc-500 mb-4">by {ad.advertiser_name}</p>}
+        
+        <div className="w-full h-1.5 bg-zinc-800 rounded-full mb-4">
+          <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+        </div>
+        
+        {canSkip ? (
+          <button
+            onClick={handleSkip}
+            className="px-6 py-2 bg-white text-black font-semibold rounded-full hover:bg-zinc-200 transition"
+            data-testid="ad-skip-btn"
+          >
+            Skip Ad
+          </button>
+        ) : (
+          <p className="text-sm text-zinc-500">Skip in {skipCountdown}s</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Artist Card (Circular)
 const ArtistCard = ({ artist }) => (
   <div className="flex flex-col items-center gap-2 p-2 flex-shrink-0">
@@ -6839,6 +6921,16 @@ export default function UserStreamingApp() {
         onClose={() => setShowDownloadPopup(false)} 
         language={language}
       />
+
+      {/* Audio Ad Overlay */}
+      {player.showAdOverlay && player.currentAd && (
+        <AudioAdOverlay
+          ad={player.currentAd}
+          settings={player.adSettings}
+          onComplete={player.handleAdComplete}
+          onSkip={player.handleAdSkip}
+        />
+      )}
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
