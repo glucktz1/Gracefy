@@ -47,6 +47,7 @@ const useAudioPlayer = () => {
   const retryCountRef = useRef({}); // Track retry attempts for songs with network errors
   const isTransitioningRef = useRef(false); // Kept for future use
   const pendingPlayRef = useRef(false); // Flag for pending play when screen is locked
+  const earlyTransitionFiredRef = useRef(false); // Prevent double-fire of song end
   
   // Audio ads state
   const [songsPlayedCount, setSongsPlayedCount] = useState(0);
@@ -368,6 +369,9 @@ const useAudioPlayer = () => {
       return;
     }
     
+    // Reset early transition flag for the new song
+    earlyTransitionFiredRef.current = false;
+    
     // IMPORTANT: Stop current audio before playing new one
     // Just change source directly - no explicit pause needed
     // This avoids the browser revoking audio focus during transitions
@@ -668,12 +672,25 @@ const useAudioPlayer = () => {
       if (song && album && Math.floor(audio.currentTime) % 5 === 0) {
         savePlaybackStateRef.current(song, album, audio.currentTime);
       }
+      
+      // EARLY TRANSITION: When within 0.3s of the end, trigger next song
+      // while audio session is still "playing" - prevents lock screen blocking
+      if (audio.duration > 0 && audio.duration - audio.currentTime < 0.3 && audio.duration - audio.currentTime > 0 && !earlyTransitionFiredRef.current) {
+        earlyTransitionFiredRef.current = true;
+        console.log('[Player] Early transition triggered (0.3s before end)');
+        handleSongEnd();
+      }
     };
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
       setIsLoading(false);
     };
     const onEnded = () => {
+      // Skip if early transition already handled this
+      if (earlyTransitionFiredRef.current) {
+        console.log('[Player] Ended event - already handled by early transition');
+        return;
+      }
       console.log('[Player] Audio ended event fired!');
       handleSongEnd();
     };
@@ -940,6 +957,7 @@ const useAudioPlayer = () => {
 
   const playSong = useCallback(async (song, album, songQueue = [], index = 0) => {
     // IMPORTANT: Stop any currently playing audio first to prevent multiple songs playing
+    earlyTransitionFiredRef.current = false;
     try {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
