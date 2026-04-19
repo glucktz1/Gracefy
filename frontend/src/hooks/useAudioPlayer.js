@@ -605,6 +605,22 @@ const useAudioPlayer = () => {
         }).catch(e => console.log("Failed to track play end"));
       }
       
+      // Check if auto-play is blocked (screen lock payment feature)
+      // This MUST come before ad check - billing block takes priority
+      if (blockAutoPlayNextRef.current) {
+        console.log('[Player] Auto-play blocked (screen lock) - stopping');
+        blockAutoPlayNextRef.current = false;
+        setIsPlaying(false);
+        return;
+      }
+      
+      // CRITICAL: Check if guest limit reached - STOP playback until user signs in
+      if (guestLimitReachedRef.current) {
+        console.log('[Player] GUEST LIMIT REACHED - stopping playback, user must sign in');
+        setIsPlaying(false);
+        return;
+      }
+      
       // Increment songs played count for ad tracking
       songsPlayedCountRef.current += 1;
       
@@ -635,21 +651,6 @@ const useAudioPlayer = () => {
         }
       } catch (e) {
         console.log('[Player] Ad check failed (continuing normally):', e.message);
-      }
-      
-      // Check if auto-play is blocked (screen lock payment feature or guest limit)
-      if (blockAutoPlayNextRef.current) {
-        console.log('[Player] Auto-play blocked (screen lock) - stopping');
-        blockAutoPlayNextRef.current = false;
-        setIsPlaying(false);
-        return;
-      }
-      
-      // CRITICAL: Check if guest limit reached - STOP playback until user signs in
-      if (guestLimitReachedRef.current) {
-        console.log('[Player] GUEST LIMIT REACHED - stopping playback, user must sign in');
-        setIsPlaying(false);
-        return;
       }
       
       // REPEAT ONE - replay same song
@@ -953,9 +954,10 @@ const useAudioPlayer = () => {
   }, []);
   
   // Visibility change listener - resume pending playback when screen is unlocked
+  // Only resumes if there's a pending play AND billing lock is not active
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && pendingPlayRef.current) {
+      if (!document.hidden && pendingPlayRef.current && !blockAutoPlayNextRef.current) {
         console.log('[Player] Page visible again - resuming pending playback');
         pendingPlayRef.current = false;
         audioRef.current.play().then(() => {

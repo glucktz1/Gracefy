@@ -2978,8 +2978,8 @@ const ScreenLockPaymentModal = ({ show, onClose, onPay, language }) => {
           
           <p className="text-zinc-300 mb-2 leading-relaxed">
             {language === 'sw' 
-              ? 'Changia kidogo ili kuendelea kusikiliza muziki hata simu yako ikiwa imelock.'
-              : 'Contribute a little to continue listening to music even with your phone locked.'}
+              ? 'Kuendelea kufurahia huduma hii simu ikiwa imelock, changia kidogo.'
+              : 'To continue enjoying this service with your phone locked, contribute a little.'}
           </p>
           
           <p className="text-amber-400 text-sm mb-6 italic">
