@@ -45,7 +45,7 @@ const useAudioPlayer = () => {
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   const failedSongsRef = useRef(new Set()); // Track songs that failed to play
   const retryCountRef = useRef({}); // Track retry attempts for songs with network errors
-  const isTransitioningRef = useRef(false); // Flag to prevent pause event during song transitions
+  const isTransitioningRef = useRef(false); // Kept for future use
   const pendingPlayRef = useRef(false); // Flag for pending play when screen is locked
   
   // Audio ads state
@@ -55,7 +55,6 @@ const useAudioPlayer = () => {
   const [adSettings, setAdSettings] = useState(null);
   const lastAdTimeRef = useRef(null);
   const songsPlayedCountRef = useRef(0);
-  const pendingNextSongRef = useRef(null);
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
@@ -369,15 +368,13 @@ const useAudioPlayer = () => {
       return;
     }
     
-    // IMPORTANT: Stop and reset current audio before playing new one
-    // This prevents two songs from playing simultaneously
-    // Use transition flag to prevent pause event from clearing isPlaying state
-    isTransitioningRef.current = true;
+    // IMPORTANT: Stop current audio before playing new one
+    // Just change source directly - no explicit pause needed
+    // This avoids the browser revoking audio focus during transitions
     try {
-      audioRef.current.pause();
       audioRef.current.currentTime = 0;
     } catch (e) {
-      console.log('[Player] Error stopping current audio:', e);
+      console.log('[Player] Error resetting current audio:', e);
     }
     
     const item = q[index];
@@ -452,7 +449,6 @@ const useAudioPlayer = () => {
     
     // Setup audio source (HLS with fallback to MP3)
     setupAudioSource(song, async () => {
-      isTransitioningRef.current = false;
       try {
         // Use play() with promise handling for better browser compatibility
         const playPromise = audioRef.current.play();
@@ -522,66 +518,6 @@ const useAudioPlayer = () => {
   useEffect(() => {
     const audio = audioRef.current;
     
-    // Helper: continue playing next song after an ad finishes
-    const proceedAfterAd = async (currentQueue, currentQueueIndex, currentRepeat, currentShuffle, currentContinuousPlay) => {
-      // Check if auto-play is blocked
-      if (blockAutoPlayNextRef.current) {
-        blockAutoPlayNextRef.current = false;
-        setIsPlaying(false);
-        return;
-      }
-      if (guestLimitReachedRef.current) {
-        setIsPlaying(false);
-        return;
-      }
-      
-      // Repeat one
-      if (currentRepeat === 'one') {
-        audio.currentTime = 0;
-        audio.play().catch(e => console.log('[Player] Autoplay blocked:', e));
-        return;
-      }
-
-      let nextIndex = currentQueueIndex + 1;
-      if (currentShuffle && currentQueue.length > 1) {
-        do { nextIndex = Math.floor(Math.random() * currentQueue.length); } while (nextIndex === currentQueueIndex && currentQueue.length > 1);
-      }
-
-      if (nextIndex < currentQueue.length) {
-        playFromQueueInternalRef.current(nextIndex, currentQueue);
-        return;
-      }
-      
-      if (currentRepeat === 'all' && currentQueue.length > 0) {
-        playFromQueueInternalRef.current(0, currentQueue);
-        return;
-      }
-      
-      if (currentContinuousPlay && currentQueue.length > 0) {
-        const lastItem = currentQueue[currentQueue.length - 1];
-        const lastSong = lastItem.song || lastItem;
-        if (lastSong?.song_id) {
-          const added = await fetchAndAddRecommendationsRef.current(lastSong.song_id);
-          if (added) {
-            const updatedQueue = queueRef.current;
-            if (currentQueue.length < updatedQueue.length) {
-              playFromQueueInternalRef.current(currentQueue.length, updatedQueue);
-              return;
-            }
-          }
-          playFromQueueInternalRef.current(0, currentQueue);
-          return;
-        }
-      }
-      
-      if (currentQueue.length > 0) {
-        playFromQueueInternalRef.current(0, currentQueue);
-        return;
-      }
-      
-      setIsPlaying(false);
-    };
-    
     // ============ HANDLE SONG END - MIRRORS NATIVE APP LOGIC ============
     const handleSongEnd = async () => {
       // Use refs to get latest values (avoids stale closures)
@@ -624,34 +560,28 @@ const useAudioPlayer = () => {
       // Increment songs played count for ad tracking
       songsPlayedCountRef.current += 1;
       
-      // Check if we should play an ad before the next song
-      try {
-        const userId = localStorage.getItem('user_id') || null;
-        const adRes = await axios.get(`${API}/advertising/next-ad`, {
-          params: {
-            user_id: userId,
-            platform: 'web',
-            songs_played: songsPlayedCountRef.current,
-            last_ad_time: lastAdTimeRef.current || ''
-          }
-        });
-        
+      // Check if we should play an ad before the next song (non-blocking)
+      // Fire and forget - don't block song transitions
+      const adSongsPlayed = songsPlayedCountRef.current;
+      axios.get(`${API}/advertising/next-ad`, {
+        params: {
+          user_id: localStorage.getItem('user_id') || '',
+          platform: 'web',
+          songs_played: adSongsPlayed,
+          last_ad_time: lastAdTimeRef.current || ''
+        },
+        timeout: 2000 // 2 second timeout - don't block playback
+      }).then(adRes => {
         if (adRes.data?.should_play_ad && adRes.data?.ad) {
           console.log('[Player] Ad triggered:', adRes.data.ad.title);
-          // Store the callback to play next song after ad
-          pendingNextSongRef.current = () => {
-            // Continue with normal song end logic after ad
-            proceedAfterAd(currentQueue, currentQueueIndex, currentRepeat, currentShuffle, currentContinuousPlay);
-          };
+          // Pause current playback for ad
+          audioRef.current.pause();
           setCurrentAd(adRes.data.ad);
           setAdSettings(adRes.data.settings);
           setShowAdOverlay(true);
           lastAdTimeRef.current = new Date().toISOString();
-          return; // Don't proceed to next song yet - ad will handle it
         }
-      } catch (e) {
-        console.log('[Player] Ad check failed (continuing normally):', e.message);
-      }
+      }).catch(() => {}); // Silently ignore ad check failures
       
       // REPEAT ONE - replay same song
       if (currentRepeat === 'one') {
@@ -845,12 +775,7 @@ const useAudioPlayer = () => {
       }, 300);
     };
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => {
-      // Don't set isPlaying to false during song transitions (lock screen fix)
-      if (!isTransitioningRef.current) {
-        setIsPlaying(false);
-      }
-    };
+    const onPause = () => setIsPlaying(false);
     const onWaiting = () => setIsLoading(true);
     const onCanPlay = () => setIsLoading(false);
 
@@ -1275,20 +1200,16 @@ const useAudioPlayer = () => {
     console.log('[Player] Ad complete - resuming music');
     setShowAdOverlay(false);
     setCurrentAd(null);
-    if (pendingNextSongRef.current) {
-      pendingNextSongRef.current();
-      pendingNextSongRef.current = null;
-    }
+    // Resume the song that was playing when ad interrupted
+    audioRef.current.play().catch(e => console.log('[Player] Resume after ad failed:', e));
   }, []);
   
   const handleAdSkip = useCallback(() => {
     console.log('[Player] Ad skipped - resuming music');
     setShowAdOverlay(false);
     setCurrentAd(null);
-    if (pendingNextSongRef.current) {
-      pendingNextSongRef.current();
-      pendingNextSongRef.current = null;
-    }
+    // Resume the song that was playing when ad interrupted
+    audioRef.current.play().catch(e => console.log('[Player] Resume after ad skip failed:', e));
   }, []);
   
   return {
