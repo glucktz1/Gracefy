@@ -3922,7 +3922,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           
           {/* Privacy Policy */}
           <a
-            href="https://www.gracefy.net/privacy_terms"
+            href="https://www.gracefy.net/faragha"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
@@ -3936,7 +3936,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           
           {/* Terms of Service */}
           <a
-            href="https://www.gracefy.net/terms_of_service"
+            href="https://www.gracefy.net/masharti"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
@@ -5311,7 +5311,7 @@ export default function UserStreamingApp() {
         <div className="mt-4 pt-4 border-t border-zinc-800">
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
             <a 
-              href="https://www.gracefy.net/terms_of_service"
+              href="https://www.gracefy.net/masharti"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-white transition-colors"
@@ -5320,7 +5320,7 @@ export default function UserStreamingApp() {
               {language === 'sw' ? 'Masharti' : 'Terms'}
             </a>
             <a 
-              href="https://www.gracefy.net/privacy_terms"
+              href="https://www.gracefy.net/faragha"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-white transition-colors"
@@ -6384,6 +6384,71 @@ export default function UserStreamingApp() {
             />
           )}
 
+          {/* GUEST PROFILE VIEW - mobile only, shows legal links + sign in */}
+          {view === 'profile' && !user && (
+            <div className="pb-32" data-testid="guest-profile-view">
+              <div className="flex items-center gap-4 mb-6">
+                <button 
+                  onClick={() => setView('home')}
+                  className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <h1 className="text-xl font-bold">{language === 'sw' ? 'Wasifu' : 'Profile'}</h1>
+              </div>
+
+              <div className="bg-zinc-900/50 rounded-xl p-6 mb-6 text-center">
+                <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User size={32} className="text-blue-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  {language === 'sw' ? 'Karibu Gracefy' : 'Welcome to Gracefy'}
+                </h3>
+                <p className="text-zinc-400 text-sm mb-4">
+                  {language === 'sw' ? 'Ingia ili kufurahia vipengele vyote' : 'Sign in to enjoy all features'}
+                </p>
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
+                  data-testid="guest-profile-sign-in"
+                >
+                  {language === 'sw' ? 'Ingia / Jisajili' : 'Sign In / Register'}
+                </button>
+              </div>
+
+              <div className="bg-zinc-900/50 rounded-xl overflow-hidden mb-6">
+                <div className="p-4">
+                  <a
+                    href="https://www.gracefy.net/faragha"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
+                    data-testid="guest-privacy-link"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Shield size={20} className="text-emerald-400" />
+                      <span className="text-white">{language === 'sw' ? 'Sera ya Faragha' : 'Privacy Policy'}</span>
+                    </div>
+                    <ChevronRight size={18} className="text-zinc-500" />
+                  </a>
+                  <a
+                    href="https://www.gracefy.net/masharti"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
+                    data-testid="guest-terms-link"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText size={20} className="text-purple-400" />
+                      <span className="text-white">{language === 'sw' ? 'Masharti ya Huduma' : 'Terms of Service'}</span>
+                    </div>
+                    <ChevronRight size={18} className="text-zinc-500" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TEACHING DETAIL VIEW */}
           {view === 'teaching' && selectedTeaching && (
             <div className="pb-32">
@@ -6606,7 +6671,7 @@ export default function UserStreamingApp() {
             <Library size={20} />
             <span className="text-[10px]">{t('nav.library', 'Library')}</span>
           </button>
-          <button onClick={() => user ? setView('profile') : setShowAuth(true)} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'profile' ? 'text-blue-500' : 'text-zinc-500'}`} data-testid="mobile-profile-nav">
+          <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'profile' ? 'text-blue-500' : 'text-zinc-500'}`} data-testid="mobile-profile-nav">
             <User size={20} />
             <span className="text-[10px]">{t('nav.profile', 'Profile')}</span>
           </button>
