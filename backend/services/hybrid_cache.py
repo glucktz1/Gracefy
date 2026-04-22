@@ -321,8 +321,8 @@ async def get_cached_home_data(platform: str = "app") -> Optional[dict]:
 async def set_cached_home_data(platform: str, data: dict) -> None:
     """Cache home page data with hybrid cache"""
     key = f"{HOME_CACHE_PREFIX}:{platform}:v2"
-    # L1: 2 minutes, L2: 5 minutes
-    await home_cache.set(key, data, l1_ttl=120, l2_ttl=300)
+    # L1: 5 minutes, L2: 10 minutes (increased for faster page loads)
+    await home_cache.set(key, data, l1_ttl=300, l2_ttl=600)
 
 
 async def invalidate_home_cache(platform: str = None) -> None:

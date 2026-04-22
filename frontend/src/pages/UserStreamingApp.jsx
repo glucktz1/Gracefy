@@ -4206,7 +4206,6 @@ export default function UserStreamingApp() {
           setQuickAccessItems(preloaded.categories?.categories?.slice(0, 6) || []);
           setLoading(false);
           
-          // Apply preloaded billing status
           if (preloaded.billing) {
             const finalBillingStatus = preloaded.billing.billing_enabled && preloaded.billing.web_billing_enabled !== false;
             setBillingEnabled(finalBillingStatus);
@@ -4216,12 +4215,11 @@ export default function UserStreamingApp() {
             }
           }
           
-          // Clear preloaded data after use
           window.__preloadedData = null;
-          return; // Skip fresh fetch since we have preloaded data
+          return;
         }
         
-        // Check for cached data (fallback)
+        // Check for cached data — show immediately while fetching fresh
         const cachedHome = cache.get('home_data');
         const cachedCategories = cache.get('categories');
         const cachedBilling = cache.get('billing_status');
@@ -4231,9 +4229,8 @@ export default function UserStreamingApp() {
           setHomeData(cachedHome);
           setCategories(cachedCategories.categories || []);
           setQuickAccessItems(cachedCategories.categories?.slice(0, 6) || []);
-          setLoading(false); // Show cached content immediately
+          setLoading(false);
           
-          // Apply cached billing status
           if (cachedBilling) {
             const finalBillingStatus = cachedBilling.billing_enabled && cachedBilling.web_billing_enabled !== false;
             setBillingEnabled(finalBillingStatus);
@@ -4244,110 +4241,73 @@ export default function UserStreamingApp() {
           }
         }
         
-        // First, fetch billing status and detect user country
-        const [billingRes, geoRes, appSettingsRes] = await Promise.all([
+        // SINGLE parallel fetch — all APIs at once (no sequential rounds)
+        const [billingRes, geoRes, appSettingsRes, homeRes, catRes, tagsRes, radioRes] = await Promise.all([
           axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } })),
           axios.get(`${API}/geo/detect-country`).catch(() => ({ data: { country_code: 'GLOBAL' } })),
-          axios.get(`${API}/app-settings`).catch(() => ({ data: {} }))
+          axios.get(`${API}/app-settings`).catch(() => ({ data: {} })),
+          axios.get(`${API}/user/home?platform=web`).catch(() => ({ data: { sections: [], hero: null, burners: [] } })),
+          axios.get(`${API}/user/browse/categories`).catch(() => ({ data: { categories: [] } })),
+          axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
+          axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } }))
         ]);
         
-        // Cache billing status
+        // Apply billing
         cache.set('billing_status', billingRes.data);
-        
-        // Set billing state - match native app logic exactly
         const billingData = billingRes.data || {};
         const masterBillingEnabled = billingData.billing_enabled === true;
         const webBillingEnabled = billingData.web_billing_enabled !== false;
         const finalBillingStatus = masterBillingEnabled && webBillingEnabled;
         
-        console.log('[Billing] Master billing check:', {
-          billing_enabled: masterBillingEnabled,
-          web_billing_enabled: webBillingEnabled,
-          final_status: finalBillingStatus,
-          user_logged_in: !!token
-        });
-        
         setBillingEnabled(finalBillingStatus);
         setBillingStatusChecked(true);
         
         if (!finalBillingStatus) {
-          // BILLING IS OFF - Everyone gets premium access, no restrictions
-          console.log('[Billing] BILLING OFF - All users are premium, no restrictions');
           setIsPremium(true);
+        } else if (token && user?.user_id) {
+          // Will be checked in auth effect
         } else {
-          // BILLING IS ON - Check user subscription status
-          console.log('[Billing] BILLING ON - Checking user subscription status');
-          if (token && user?.user_id) {
-            // Will be checked in auth effect
-          } else {
-            // Not logged in and billing is ON - NOT premium
-            console.log('[Billing] User NOT logged in, billing ON - NOT premium');
-            setIsPremium(false);
-          }
+          setIsPremium(false);
         }
         
-        // Set geo state
+        // Apply geo
         const detectedCountry = geoRes.data?.country_code || 'GLOBAL';
         setUserCountry(detectedCountry);
         
-        // Use geo-filtered home endpoint if geo content exists
+        // If geo filtering is needed and we got a country, fetch geo-filtered home in background
         const useGeoFiltering = geoEnabled && detectedCountry && detectedCountry !== 'GLOBAL';
-        const homeEndpoint = useGeoFiltering 
-          ? `${API}/user/home/geo?country=${detectedCountry}&platform=web` 
-          : `${API}/user/home?platform=web`;
-        
-        const [homeRes, catRes, sectionsRes, tagsRes, radioRes] = await Promise.all([
-          axios.get(homeEndpoint).catch((err) => {
-            console.error('[Home] Failed to fetch home data:', err.message);
-            // Fallback to non-geo endpoint if geo fails
-            if (useGeoFiltering) {
-              return axios.get(`${API}/user/home?platform=web`).catch(() => ({ data: { sections: [], hero: null, burners: [] } }));
+        let finalHomeRes = homeRes;
+        if (useGeoFiltering) {
+          // Try geo-filtered endpoint but don't block — show default home first
+          axios.get(`${API}/user/home/geo?country=${detectedCountry}&platform=web`).then(geoHomeRes => {
+            if (geoHomeRes.data?.sections?.length > 0) {
+              setHomeData(geoHomeRes.data);
+              cache.set('home_data', geoHomeRes.data);
             }
-            return { data: { sections: [], hero: null, burners: [] } };
-          }),
-          axios.get(`${API}/user/browse/categories`).catch(() => ({ data: { categories: [] } })),
-          axios.get(`${API}/layout/sections?active_only=true`).catch(() => ({ data: { sections: [] } })),
-          axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
-          axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } }))
-        ]);
+          }).catch(() => {});
+        }
         
-        // Cache the responses for faster next load
-        console.log('[Home] API response received:', {
-          sections: homeRes.data?.sections?.length || 0,
-          hero: !!homeRes.data?.hero,
-          burners: homeRes.data?.burners?.length || 0,
-          categories: catRes.data?.categories?.length || 0
-        });
-        
-        if (homeRes.data?.sections?.length > 0) {
-          cache.set('home_data', homeRes.data);
+        // Apply home data
+        if (finalHomeRes.data?.sections?.length > 0) {
+          cache.set('home_data', finalHomeRes.data);
         }
         cache.set('categories', catRes.data);
         
-        setHomeData(homeRes.data);
-        console.log('[Home] homeData state set');
+        setHomeData(finalHomeRes.data);
         setCategories(catRes.data.categories || []);
         setAvailableTags(tagsRes.data?.tags || []);
         setHomeRadioStations(radioRes.data.stations?.slice(0, 6) || []);
         
-        // Get quick access section items from homeRes (NOT sectionsRes)
-        const quickSection = homeRes.data.sections?.find(s => s.section_type === 'quick_access' || s.type === 'quick_access');
-        console.log('[QuickAccess] Section found:', quickSection?.name, 'Items:', quickSection?.items?.length);
-        
+        // Quick access items
+        const quickSection = finalHomeRes.data.sections?.find(s => s.section_type === 'quick_access' || s.type === 'quick_access');
         if (quickSection?.items?.length > 0) {
-          // Use items directly from the section
-          console.log('[QuickAccess] Using section items:', quickSection.items.map(i => i.name || i.title));
           setQuickAccessItems(quickSection.items);
         } else if (quickSection?.content_ids?.length > 0) {
-          // Fetch the specific items by content_ids
           const items = quickSection.content_type === 'categories' 
             ? catRes.data.categories?.filter(c => quickSection.content_ids.includes(c.category_id))
             : [];
-          console.log('[QuickAccess] Using content_ids items:', items.length);
           setQuickAccessItems(items);
         } else {
-          // Default to first 4 categories (to combine with 4 user items = 8 total)
-          console.log('[QuickAccess] Using default categories');
           setQuickAccessItems(catRes.data.categories?.slice(0, 4) || []);
         }
       } catch (e) {

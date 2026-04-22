@@ -342,21 +342,25 @@ const useAudioPlayer = () => {
   }, [isPlaying]);
 
   // Play a song from the queue by index
-  // Simple preloading for faster next-song transitions
+  // Aggressive preloading for faster next-song transitions
+  const preloadedAudioRef = useRef(null);
+  const preloadedSongIdRef = useRef(null);
+  
   const preloadNextSong = useCallback((currentIndex, currentQueue) => {
     const nextIndex = currentIndex + 1;
     if (nextIndex < currentQueue.length) {
       const nextItem = currentQueue[nextIndex];
       const nextSong = nextItem.song || nextItem;
-      
-      // Preload MP3 URL (more reliable than HLS)
       const preloadUrl = nextSong?.audio_url ? getAudioUrl(nextSong.audio_url) : null;
       
-      if (preloadUrl) {
+      if (preloadUrl && preloadedSongIdRef.current !== nextSong.song_id) {
+        // Fully preload the next song audio (not just metadata)
         const preloadAudio = new Audio();
-        preloadAudio.preload = 'metadata';
+        preloadAudio.preload = 'auto';
         preloadAudio.src = preloadUrl;
-        console.log('[Player] Preloading next song:', nextSong.title);
+        preloadedAudioRef.current = preloadAudio;
+        preloadedSongIdRef.current = nextSong.song_id;
+        console.log('[Player] Preloading next song (full):', nextSong.title);
       }
     }
   }, []);
@@ -371,6 +375,7 @@ const useAudioPlayer = () => {
     
     // Reset early transition flag for the new song
     earlyTransitionFiredRef.current = false;
+    preloadedSongIdRef.current = null;
     
     // IMPORTANT: Stop current audio before playing new one
     // Just change source directly - no explicit pause needed
@@ -671,6 +676,13 @@ const useAudioPlayer = () => {
       const album = currentAlbumRef.current;
       if (song && album && Math.floor(audio.currentTime) % 5 === 0) {
         savePlaybackStateRef.current(song, album, audio.currentTime);
+      }
+      
+      // EARLY PRELOAD: Start preloading next song at 50% progress
+      if (audio.duration > 0 && audio.currentTime > audio.duration * 0.5 && !preloadedSongIdRef.current) {
+        const currentQueue = queueRef.current;
+        const currentIdx = queueIndexRef.current;
+        preloadNextSong(currentIdx, currentQueue);
       }
       
       // EARLY TRANSITION: When within 0.3s of the end, trigger next song
