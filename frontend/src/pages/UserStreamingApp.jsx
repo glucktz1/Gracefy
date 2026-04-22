@@ -6650,6 +6650,21 @@ export default function UserStreamingApp() {
             </div>
           )}
         </div>
+
+        {/* Mobile Footer - Legal Links (visible on mobile only, at bottom of content) */}
+        <div className="lg:hidden px-4 py-6 mt-8 border-t border-zinc-800/50">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-zinc-500">
+            <a href="https://www.gracefy.net/masharti" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-terms">
+              {language === 'sw' ? 'Masharti' : 'Terms'}
+            </a>
+            <a href="https://www.gracefy.net/faragha" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-privacy">
+              {language === 'sw' ? 'Faragha' : 'Privacy'}
+            </a>
+            <a href="https://www.gracefy.net/contactUs" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-contact">
+              {language === 'sw' ? 'Wasiliana' : 'Contact'}
+            </a>
+          </div>
+        </div>
       </main>
 
       {/* Mobile Navigation */}
