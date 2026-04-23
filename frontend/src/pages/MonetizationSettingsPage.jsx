@@ -288,10 +288,10 @@ export default function MonetizationSettingsPage() {
       };
       
       if (editingPlan) {
-        await axios.put(`${API}/monetization/plans/${editingPlan.plan_id}`, planData, { withCredentials: true });
+        await axios.put(`${API}/subscription-plans/${editingPlan.plan_id}`, planData, { withCredentials: true });
         toast.success("Plan updated");
       } else {
-        await axios.post(`${API}/monetization/plans`, planData, { withCredentials: true });
+        await axios.post(`${API}/subscription-plans`, planData, { withCredentials: true });
         toast.success("Plan created");
       }
       
@@ -307,7 +307,7 @@ export default function MonetizationSettingsPage() {
   const handleDeletePlan = async (planId) => {
     if (!window.confirm("Are you sure you want to delete this plan?")) return;
     try {
-      await axios.delete(`${API}/monetization/plans/${planId}`, { withCredentials: true });
+      await axios.delete(`${API}/subscription-plans/${planId}`, { withCredentials: true });
       toast.success("Plan deleted");
       fetchData();
     } catch (error) {
