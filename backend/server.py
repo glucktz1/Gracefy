@@ -111,7 +111,30 @@ def create_app() -> FastAPI:
     )
     
     # GZip compression
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+    
+    # Cache-Control headers for cacheable API responses
+    @app.middleware("http")
+    async def add_cache_headers(request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        
+        # Cacheable GET endpoints — browser + CDN caching
+        if request.method == "GET":
+            # Long cache: categories, tags, voices (change rarely)
+            if any(p in path for p in ["/api/user/browse/categories", "/api/admin/tags", "/api/bible/tts/voices", "/api/billing-status", "/api/app-settings"]):
+                response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+            # Medium cache: home page data
+            elif "/api/user/home" in path:
+                response.headers["Cache-Control"] = "public, max-age=120, stale-while-revalidate=300"
+            # Short cache: radio stations
+            elif "/api/radio/stations" in path:
+                response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=120"
+            # File streaming - long cache (files don't change)
+            elif "/api/files/" in path:
+                response.headers["Cache-Control"] = "public, max-age=86400, immutable"
+        
+        return response
     
     # Rate limiting (add before traffic tracking)
     app.add_middleware(RateLimitMiddleware)

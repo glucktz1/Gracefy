@@ -268,8 +268,9 @@ DB_NAME = gracefy_db
 - Album-level Download and Add to Playlist buttons (web)
 - Mobile AlbumScreen already had three-dots per song + Download/Add to Playlist at album level (no changes needed)
 - Removed horizontal three-dots from MiniPlayer and FullPlayer (web + mobile)
-- Lock screen autoplay fix: transition flag prevents pause state during song changes, visibilitychange listener resumes pending playback
-- Audio ads integration wired into web player (checks /api/advertising/next-ad after each song, shows AudioAdOverlay)
+- Lock screen autoplay fix: early transition 0.3s before song end
+- Audio ads integration wired into web player (non-blocking)
+- Performance optimization: lazy-loaded UserStreamingApp + Dashboard + LoginPage, lazy-loaded HLS.js, lazy images, BunnyCDN image optimization, Cache-Control headers, preconnect hints, single-round API fetch, GZip 500B threshold
 - Audio ads already wired in mobile App.js (AdPlayer component, checkAndShowAd flow)
 - Bible TTS voice selection already in admin panel (6 voices, preview, save defaults)
 

@@ -9,10 +9,10 @@ import AdminNotifications from "@/components/AdminNotifications";
 // Loading component for lazy-loaded pages
 import { PageLoader } from "@/components/GracefyLoader";
 
-// Critical pages - loaded immediately
-import Dashboard from "@/pages/Dashboard";
-import LoginPage from "@/pages/LoginPage";
-import UserStreamingApp from "@/pages/UserStreamingApp";
+// Lazy load ALL page components - UserStreamingApp is 300KB, must be code-split
+const UserStreamingApp = lazy(() => import("@/pages/UserStreamingApp"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const LoginPage = lazy(() => import("@/pages/LoginPage"));
 import { LanguageProvider } from "@/context/LanguageContext";
 
 // Preload critical data immediately when script loads (before React mounts)

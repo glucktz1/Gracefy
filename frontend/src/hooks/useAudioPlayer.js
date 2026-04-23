@@ -12,7 +12,15 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
-import Hls from 'hls.js';
+// Lazy-load HLS.js only when needed (saves ~200KB from initial bundle)
+let Hls = null;
+const getHls = async () => {
+  if (!Hls) {
+    const module = await import('hls.js');
+    Hls = module.default;
+  }
+  return Hls;
+};
 import { toast } from 'sonner';
 import { API, getAudioUrl, getImageUrl, SAMPLE_AUDIO_URL } from '@/utils/streamingHelpers';
 
@@ -110,45 +118,51 @@ const useAudioPlayer = () => {
       return { hlsUrl, mp3Url };
     }
     
-    // Fallback to HLS if no MP3 available
-    if (hlsUrl && Hls.isSupported()) {
-      console.log('[Player] Using HLS (no MP3 available):', hlsUrl);
-      
-      const hls = new Hls({
-        autoStartLoad: true,
-        startLevel: -1,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        fragLoadingMaxRetry: 2,
-        manifestLoadingMaxRetry: 2,
-      });
-      
-      hlsRef.current = hls;
-      
-      hls.loadSource(hlsUrl);
-      hls.attachMedia(audio);
-      
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('[Player] HLS manifest loaded');
+    // Fallback to HLS if no MP3 available — lazy load HLS.js
+    if (hlsUrl) {
+      // Check native HLS support first (Safari - no library needed)
+      if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+        console.log('[Player] Using native HLS (Safari):', hlsUrl);
+        audio.src = hlsUrl;
         if (onReady) onReady();
-      });
-      
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('[Player] HLS error:', data.type, data.details);
-        if (data.fatal) {
-          console.log('[Player] HLS fatal error, no fallback available');
-          cleanupHls();
-          // Trigger error so it auto-skips to next
-          const errorEvent = new Event('error');
-          audio.dispatchEvent(errorEvent);
-        }
-      });
-      
-    } else if (hlsUrl && audio.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support (Safari)
-      console.log('[Player] Using native HLS (Safari):', hlsUrl);
-      audio.src = hlsUrl;
-      if (onReady) onReady();
+      } else {
+        // Lazy load HLS.js only when needed
+        getHls().then(HlsLib => {
+          if (!HlsLib || !HlsLib.isSupported()) {
+            console.log('[Player] HLS not supported, no fallback');
+            return;
+          }
+          console.log('[Player] Using HLS.js (lazy loaded):', hlsUrl);
+          const hls = new HlsLib({
+            autoStartLoad: true,
+            startLevel: -1,
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
+            fragLoadingMaxRetry: 2,
+            manifestLoadingMaxRetry: 2,
+          });
+          
+          hlsRef.current = hls;
+          hls.loadSource(hlsUrl);
+          hls.attachMedia(audio);
+          
+          hls.on(HlsLib.Events.MANIFEST_PARSED, () => {
+            console.log('[Player] HLS manifest loaded');
+            if (onReady) onReady();
+          });
+          
+          hls.on(HlsLib.Events.ERROR, (event, data) => {
+            console.error('[Player] HLS error:', data.type, data.details);
+            if (data.fatal) {
+              cleanupHls();
+              const errorEvent = new Event('error');
+              audio.dispatchEvent(errorEvent);
+            }
+          });
+        }).catch(e => {
+          console.error('[Player] Failed to load HLS.js:', e);
+        });
+      }
       
     } else {
       // No valid audio source

@@ -107,11 +107,19 @@ export const getAudioUrl = (audioUrl) => {
 };
 
 // Helper function to get proper image/thumbnail URL - handles CDN URLs
-export const getImageUrl = (imageUrl) => {
+export const getImageUrl = (imageUrl, { width, quality } = {}) => {
   if (!imageUrl) return null;
   
-  // If it's already a full URL (https://), return as is
+  // If it's already a full URL (https://), optimize if it's a CDN URL
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    // BunnyCDN optimization: append resize/format params
+    if (imageUrl.includes('b-cdn.net') || imageUrl.includes('bunnycdn')) {
+      const sep = imageUrl.includes('?') ? '&' : '?';
+      const params = [];
+      if (width) params.push(`width=${width}`);
+      if (quality) params.push(`quality=${quality}`);
+      if (params.length > 0) return `${imageUrl}${sep}${params.join('&')}`;
+    }
     return imageUrl;
   }
   
@@ -155,9 +163,10 @@ export const formatTime = (seconds) => {
 };
 
 // Get thumbnail URL helper - handles both thumbnail and thumbnail_url fields
-export const getThumbnail = (item) => {
+// Uses CDN optimization for smaller/faster images
+export const getThumbnail = (item, size = 'medium') => {
   if (!item) return null;
-  // Prefer direct thumbnail URL, then thumbnail_url field, then thumbnail field
   const url = item.thumbnail_url || item.thumbnail;
-  return getImageUrl(url);
+  const sizes = { small: 100, medium: 300, large: 600 };
+  return getImageUrl(url, { width: sizes[size] || 300, quality: 75 });
 };

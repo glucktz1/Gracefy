@@ -79,7 +79,7 @@ const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
     >
       <div className={`w-14 h-14 bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
         {thumbUrl ? (
-          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+          <img loading="lazy" src={thumbUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <IconComponent size={22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
@@ -106,7 +106,7 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md', availableTags = [] }) =
     >
       <div className="aspect-square rounded-md bg-zinc-800 mb-3 overflow-hidden relative shadow-lg">
         {thumbUrl ? (
-          <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover" />
+          <img loading="lazy" src={thumbUrl} alt={album.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-800 to-blue-700">
             <Music2 size={size === 'lg' ? 48 : 36} className="text-white/40" />
@@ -148,7 +148,7 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
       data-testid={`wide-${album.album_id}`}
     >
       {thumbUrl ? (
-        <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img loading="lazy" src={thumbUrl} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
           <Music2 size={56} className="text-white/30" />
@@ -188,7 +188,7 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
       >
         <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 relative">
           {thumbUrl ? (
-            <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={thumbUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
               <Music2 size={16} className="text-zinc-500" />
@@ -344,7 +344,7 @@ const ArtistCard = ({ artist }) => (
   <div className="flex flex-col items-center gap-2 p-2 flex-shrink-0">
     <div className="w-32 h-32 rounded-full bg-zinc-800 overflow-hidden shadow-lg">
       {artist.photo ? (
-        <img src={artist.photo} alt={artist.name} className="w-full h-full object-cover" />
+        <img loading="lazy" src={artist.photo} alt={artist.name} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-700 to-zinc-900">
           <Mic2 size={40} className="text-zinc-500" />
@@ -365,7 +365,7 @@ const ChurchCard = ({ church, onClick }) => (
   >
     <div className="aspect-square rounded-lg bg-gradient-to-br from-blue-800 to-teal-900 mb-3 overflow-hidden relative shadow-lg flex items-center justify-center">
       {church.thumbnail ? (
-        <img src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
+        <img loading="lazy" src={church.thumbnail} alt={church.name} className="w-full h-full object-cover" />
       ) : (
         <Church size={48} className="text-blue-400/60" />
       )}
@@ -608,7 +608,7 @@ const ChurchDetailModal = ({ church, onClose, choirs = [], onChoirClick, user, A
                         </div>
                         <p className="text-zinc-300 text-sm leading-relaxed">{ann.message || ann.content}</p>
                         {ann.image_url && (
-                          <img src={ann.image_url} alt="" className="mt-3 rounded-lg w-full max-h-48 object-cover" />
+                          <img loading="lazy" src={ann.image_url} alt="" className="mt-3 rounded-lg w-full max-h-48 object-cover" />
                         )}
                       </div>
                     ))
@@ -864,7 +864,7 @@ const ChoirCard = ({ choir, onClick }) => (
   >
     <div className="aspect-square rounded-full bg-gradient-to-br from-violet-800 to-purple-900 mb-3 overflow-hidden relative shadow-lg mx-auto">
       {choir.profile_image ? (
-        <img src={choir.profile_image} alt={choir.name} className="w-full h-full object-cover" />
+        <img loading="lazy" src={choir.profile_image} alt={choir.name} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <Users size={40} className="text-violet-400/60" />
@@ -927,7 +927,7 @@ const DynamicHeroSection = ({ hero, onAlbumClick, getThumbnail }) => {
             className="w-40 h-40 md:w-52 md:h-52 rounded-lg overflow-hidden shadow-2xl flex-shrink-0 hover:scale-105 transition-transform duration-300"
           >
             {thumbUrl ? (
-              <img src={thumbUrl} alt={currentItem.title} className="w-full h-full object-cover" />
+              <img loading="lazy" src={thumbUrl} alt={currentItem.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
                 <Music2 size={64} className="text-white/40" />
@@ -1715,7 +1715,7 @@ const StationCard = ({ station, isActive, onPlay }) => {
       {/* Round Logo */}
       <div className={`w-14 h-14 rounded-full overflow-hidden flex-shrink-0 relative border-2 ${isActive ? 'border-violet-500' : 'border-violet-500/30'}`}>
         {station.favicon ? (
-          <img src={station.favicon} alt={station.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
+          <img loading="lazy" src={station.favicon} alt={station.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
             <Radio className="w-6 h-6 text-white" />
@@ -2467,7 +2467,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
       <div className="flex-1 flex items-center justify-center px-8 py-4">
         <div className="w-full max-w-sm aspect-square rounded-lg overflow-hidden shadow-2xl">
           {getThumbnail(player.currentAlbum) ? (
-            <img src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={getThumbnail(player.currentAlbum)} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
               <Music2 size={100} className="text-white/30" />
@@ -2626,7 +2626,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
         <button onClick={isRadio ? undefined : onExpand} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full overflow-hidden flex-shrink-0 relative">
             {displayImage ? (
-              <img src={displayImage} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" src={displayImage} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className={`w-full h-full flex items-center justify-center ${isRadio ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-zinc-700'}`}>
                 {isRadio ? <Radio size={20} className="text-white" /> : <Music2 size={20} className="text-zinc-500" />}
@@ -3551,7 +3551,7 @@ const AuthModal = ({ showAuth, setShowAuth, authMode, setAuthMode, authForm, set
                 }}
                 data-testid="google-login-btn"
               >
-                <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4 mr-2" />
+                <img loading="lazy" src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4 mr-2" />
                 Continue with Google
               </Button>
             </>
@@ -5439,7 +5439,7 @@ export default function UserStreamingApp() {
                   data-testid="hero-section"
                 >
                   {homeData.burners[0].image_url && (
-                    <img src={homeData.burners[0].image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    <img loading="lazy" src={homeData.burners[0].image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
@@ -6037,7 +6037,7 @@ export default function UserStreamingApp() {
               <div className="flex flex-col md:flex-row gap-6 mb-8">
                 <div className="w-48 h-48 md:w-52 md:h-52 flex-shrink-0 mx-auto md:mx-0">
                   {getThumbnail(selectedAlbum) ? (
-                    <img src={getThumbnail(selectedAlbum)} alt={selectedAlbum.title} className="w-full h-full object-cover rounded-lg shadow-2xl" />
+                    <img loading="lazy" src={getThumbnail(selectedAlbum)} alt={selectedAlbum.title} className="w-full h-full object-cover rounded-lg shadow-2xl" />
                   ) : (
                     <div className="w-full h-full rounded-lg bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center shadow-2xl">
                       <Music2 size={64} className="text-white/40" />
