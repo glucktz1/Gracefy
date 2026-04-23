@@ -9,11 +9,11 @@ import {
   Dimensions,
   ActivityIndicator,
   TouchableOpacity,
-  Image,
   ImageBackground,
   Linking,
   Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -418,7 +418,7 @@ const HomeScreen = ({ navigation }) => {
     >
       <View style={styles.albumImageContainer}>
         <Image
-          source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url) || 'https://via.placeholder.com/120' }}
+          source={{ uri: getImageUrl(album.thumbnail || album.thumbnail_url, { width: 240, quality: 75 }) || 'https://via.placeholder.com/120' }}
           style={styles.smallSquareImage}
         />
         {renderAlbumTags(album)}
@@ -576,7 +576,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => handleItemPress(item)}
             >
               <Image
-                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/280x150' }}
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 300, quality: 75 }) || 'https://via.placeholder.com/280x150' }}
                 style={styles.largeMixImage}
               />
               <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.largeMixGradient}>
@@ -605,7 +605,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => handleItemPress(item)}
             >
               <Image
-                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 300, quality: 75 }) || 'https://via.placeholder.com/120' }}
                 style={styles.smallSquareImage}
               />
               <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
@@ -628,7 +628,7 @@ const HomeScreen = ({ navigation }) => {
             >
               <Text style={styles.songIndex}>{index + 1}</Text>
               <Image
-                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/48' }}
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 300, quality: 75 }) || 'https://via.placeholder.com/48' }}
                 style={styles.songImage}
               />
               <View style={styles.songInfo}>
@@ -655,7 +655,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => handleItemPress(item)}
             >
               <Image
-                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/150' }}
+                source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 300, quality: 75 }) || 'https://via.placeholder.com/150' }}
                 style={styles.gridImage}
               />
               <Text style={styles.gridTitle} numberOfLines={1}>{item.title || item.name}</Text>
@@ -676,7 +676,7 @@ const HomeScreen = ({ navigation }) => {
             onPress={() => handleItemPress(item)}
           >
             <Image
-              source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/120' }}
+              source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 300, quality: 75 }) || 'https://via.placeholder.com/120' }}
               style={styles.smallSquareImage}
             />
             <Text style={styles.smallSquareTitle} numberOfLines={1}>{item.title || item.name}</Text>
@@ -954,7 +954,7 @@ const HomeScreen = ({ navigation }) => {
               >
                 {hasImage ? (
                   <ImageBackground
-                    source={{ uri: getImageUrl(thumbnailUrl) }}
+                    source={{ uri: getImageUrl(thumbnailUrl, { width: 300, quality: 75 }) }}
                     style={styles.heroImage}
                     imageStyle={styles.heroImageStyle}
                   >

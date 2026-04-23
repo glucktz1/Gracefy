@@ -21,7 +21,7 @@ export const API_BASE_URL = `${getBackendUrl()}/api`;
 
 // Simple in-memory cache for frequently accessed data
 const cache = new Map();
-const CACHE_DURATION = 60000; // 1 minute cache
+const CACHE_DURATION = 300000; // 5 minute cache for faster loads on slow networks
 
 const getCached = (key) => {
   const cached = cache.get(key);
@@ -150,12 +150,22 @@ export const getAudioUrl = (path) => {
 };
 
 // Helper to get full image URL
-export const getImageUrl = (path) => {
+export const getImageUrl = (path, { width, quality } = {}) => {
   if (!path) return null;
   // Handle data URLs (base64)
   if (path.startsWith('data:')) return path;
-  // Handle full URLs
-  if (path.startsWith('http')) return path;
+  // Handle full URLs - optimize CDN images
+  if (path.startsWith('http')) {
+    // BunnyCDN optimization: append resize/quality params for smaller downloads
+    if (path.includes('b-cdn.net') || path.includes('bunnycdn')) {
+      const sep = path.includes('?') ? '&' : '?';
+      const params = [];
+      if (width) params.push(`width=${width}`);
+      if (quality) params.push(`quality=${quality}`);
+      if (params.length > 0) return `${path}${sep}${params.join('&')}`;
+    }
+    return path;
+  }
   // Handle relative paths
   return `${API_BASE_URL.replace('/api', '')}${path}`;
 };

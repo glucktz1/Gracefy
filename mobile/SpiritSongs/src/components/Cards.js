@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZES } from '../config/theme';
@@ -9,16 +10,20 @@ import AnimatedEqualizer from './AnimatedEqualizer';
 
 const { width } = Dimensions.get('window');
 
+// Shared image props for performance (expo-image built-in caching + WebP)
+const imgProps = { contentFit: 'cover', transition: 200, cachePolicy: 'memory-disk' };
+
 // Large Card - Featured/Hero style
-export const LargeCard = ({ item, onPress, style }) => (
+export const LargeCard = React.memo(({ item, onPress, style }) => (
   <TouchableOpacity 
     style={[styles.largeCard, style]} 
     onPress={onPress}
     activeOpacity={0.8}
   >
     <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/300' }}
+      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 600, quality: 75 }) || 'https://via.placeholder.com/300' }}
       style={styles.largeCardImage}
+      {...imgProps}
     />
     <LinearGradient
       colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -30,42 +35,44 @@ export const LargeCard = ({ item, onPress, style }) => (
       </Text>
     </LinearGradient>
   </TouchableOpacity>
-);
+));
 
 // Medium Card - Album/Playlist style
-export const MediumCard = ({ item, onPress, style }) => (
+export const MediumCard = React.memo(({ item, onPress, style }) => (
   <TouchableOpacity 
     style={[styles.mediumCard, style]} 
     onPress={onPress}
     activeOpacity={0.8}
   >
     <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/150' }}
+      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 300, quality: 75 }) || 'https://via.placeholder.com/150' }}
       style={styles.mediumCardImage}
+      {...imgProps}
     />
     <Text style={styles.mediumCardTitle} numberOfLines={2}>{item.title || item.name}</Text>
     <Text style={styles.mediumCardSubtitle} numberOfLines={1}>
       {item.artist_name || item.type || 'Album'}
     </Text>
   </TouchableOpacity>
-);
+));
 
 // Small Card - Compact grid style
-export const SmallCard = ({ item, onPress, style }) => (
+export const SmallCard = React.memo(({ item, onPress, style }) => (
   <TouchableOpacity 
     style={[styles.smallCard, style]} 
     onPress={onPress}
     activeOpacity={0.8}
   >
     <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/80' }}
+      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 160, quality: 70 }) || 'https://via.placeholder.com/80' }}
       style={styles.smallCardImage}
+      {...imgProps}
     />
     <View style={styles.smallCardInfo}>
       <Text style={styles.smallCardTitle} numberOfLines={1}>{item.title || item.name}</Text>
     </View>
   </TouchableOpacity>
-);
+));
 
 // Mini Progress Ring for download indication
 const MiniProgressRing = ({ progress }) => (
@@ -132,8 +139,9 @@ export const SongListItem = ({
       {/* Thumbnail */}
       <View style={styles.songImageContainer}>
         <Image
-          source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail) || 'https://via.placeholder.com/50' }}
+          source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url || albumThumbnail, { width: 100, quality: 70 }) || 'https://via.placeholder.com/50' }}
           style={styles.songListImage}
+          {...imgProps}
         />
       </View>
       
@@ -194,34 +202,36 @@ export const SongListItem = ({
 };
 
 // Quick Access Grid Item
-export const QuickAccessItem = ({ item, onPress }) => (
+export const QuickAccessItem = React.memo(({ item, onPress }) => (
   <TouchableOpacity 
     style={styles.quickAccessItem} 
     onPress={onPress}
     activeOpacity={0.8}
   >
     <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.icon_url) || 'https://via.placeholder.com/60' }}
+      source={{ uri: getImageUrl(item.thumbnail || item.icon_url, { width: 120, quality: 70 }) || 'https://via.placeholder.com/60' }}
       style={styles.quickAccessImage}
+      {...imgProps}
     />
     <Text style={styles.quickAccessTitle} numberOfLines={1}>{item.title || item.name}</Text>
   </TouchableOpacity>
-);
+));
 
 // Wide Card - Spotify style recent/quick picks
-export const WideCard = ({ item, onPress, style }) => (
+export const WideCard = React.memo(({ item, onPress, style }) => (
   <TouchableOpacity 
     style={[styles.wideCard, style]} 
     onPress={onPress}
     activeOpacity={0.8}
   >
     <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/60' }}
+      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url, { width: 120, quality: 70 }) || 'https://via.placeholder.com/60' }}
       style={styles.wideCardImage}
+      {...imgProps}
     />
     <Text style={styles.wideCardTitle} numberOfLines={2}>{item.title || item.name}</Text>
   </TouchableOpacity>
-);
+));
 
 // Category Chip
 export const CategoryChip = ({ label, isActive, onPress }) => (

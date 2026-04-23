@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Animated, PanResponder } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated, PanResponder } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -201,8 +202,10 @@ const MiniPlayer = ({ onPress, navigation }) => {
                 {/* Album art with equalizer overlay */}
                 <View style={styles.albumArtContainer}>
                   <Image
-                    source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url || currentTrack.album_thumbnail) || 'https://via.placeholder.com/48' }}
+                    source={{ uri: getImageUrl(currentTrack.thumbnail || currentTrack.thumbnail_url || currentTrack.album_thumbnail, { width: 96, quality: 70 }) || 'https://via.placeholder.com/48' }}
                     style={styles.albumArt}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
                   />
                   {/* Show equalizer on album art when playing */}
                   {isPlaying && (
