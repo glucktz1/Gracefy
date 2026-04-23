@@ -691,6 +691,9 @@ function AppRouter() {
         {/* Public Legal Pages */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+        <Route path="/faragha" element={<PrivacyPolicyPage />} />
+        <Route path="/masharti" element={<TermsOfServicePage />} />
+        <Route path="/contactUs" element={<PrivacyPolicyPage />} />
         
         {/* Catch-all - redirect to user app */}
         <Route path="*" element={<UserStreamingApp />} />

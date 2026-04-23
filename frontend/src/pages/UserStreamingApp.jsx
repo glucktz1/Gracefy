@@ -3922,7 +3922,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           
           {/* Privacy Policy */}
           <a
-            href="https://www.gracefy.net/faragha"
+            href="/faragha"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
@@ -3936,7 +3936,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           
           {/* Terms of Service */}
           <a
-            href="https://www.gracefy.net/masharti"
+            href="/masharti"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
@@ -5311,7 +5311,7 @@ export default function UserStreamingApp() {
         <div className="mt-4 pt-4 border-t border-zinc-800">
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
             <a 
-              href="https://www.gracefy.net/masharti"
+              href="/masharti"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-white transition-colors"
@@ -5320,7 +5320,7 @@ export default function UserStreamingApp() {
               {language === 'sw' ? 'Masharti' : 'Terms'}
             </a>
             <a 
-              href="https://www.gracefy.net/faragha"
+              href="/faragha"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-white transition-colors"
@@ -5329,7 +5329,7 @@ export default function UserStreamingApp() {
               {language === 'sw' ? 'Faragha' : 'Privacy'}
             </a>
             <a 
-              href="https://www.gracefy.net/contactUs"
+              href="/contactUs"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-white transition-colors"
@@ -6419,7 +6419,7 @@ export default function UserStreamingApp() {
               <div className="bg-zinc-900/50 rounded-xl overflow-hidden mb-6">
                 <div className="p-4">
                   <a
-                    href="https://www.gracefy.net/faragha"
+                    href="/faragha"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mb-3"
@@ -6432,7 +6432,7 @@ export default function UserStreamingApp() {
                     <ChevronRight size={18} className="text-zinc-500" />
                   </a>
                   <a
-                    href="https://www.gracefy.net/masharti"
+                    href="/masharti"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
@@ -6654,13 +6654,13 @@ export default function UserStreamingApp() {
         {/* Mobile Footer - Legal Links (visible on mobile only, at bottom of content) */}
         <div className="lg:hidden px-4 py-6 mt-8 border-t border-zinc-800/50">
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-zinc-500">
-            <a href="https://www.gracefy.net/masharti" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-terms">
+            <a href="/masharti" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-terms">
               {language === 'sw' ? 'Masharti' : 'Terms'}
             </a>
-            <a href="https://www.gracefy.net/faragha" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-privacy">
+            <a href="/faragha" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-privacy">
               {language === 'sw' ? 'Faragha' : 'Privacy'}
             </a>
-            <a href="https://www.gracefy.net/contactUs" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-contact">
+            <a href="/contactUs" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="mobile-footer-contact">
               {language === 'sw' ? 'Wasiliana' : 'Contact'}
             </a>
           </div>

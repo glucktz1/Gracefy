@@ -25,17 +25,18 @@ router = APIRouter(prefix="/api", tags=["monetization"])
 
 @router.get("/subscription-plans")
 async def get_subscription_plans(
-    active_only: bool = Query(True)
+    active_only: bool = Query(True),
+    admin: bool = Query(False)
 ):
-    """Get all subscription plans (returns empty if billing is disabled)"""
+    """Get all subscription plans (returns empty if billing is disabled, unless admin=true)"""
     db = get_db()
     
     # Check if billing is enabled
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)])
     billing_enabled = settings.get("billing_enabled", True) if settings else True
     
-    # If billing is disabled, return empty plans
-    if not billing_enabled:
+    # If billing is disabled and not admin view, return empty plans
+    if not billing_enabled and not admin:
         return {
             "plans": [],
             "billing_enabled": False,

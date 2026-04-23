@@ -133,7 +133,7 @@ export default function MonetizationSettingsPage() {
     try {
       const [settingsRes, plansRes, historyRes, featuresRes, trialRes, trialStatsRes, revenueRes] = await Promise.all([
         axios.get(`${API}/monetization/settings`, { withCredentials: true }),
-        axios.get(`${API}/monetization/plans`, { withCredentials: true }),
+        axios.get(`${API}/subscription-plans?active_only=false&admin=true`, { withCredentials: true }),
         axios.get(`${API}/monetization/rate-history`, { withCredentials: true }),
         axios.get(`${API}/monetization/feature-controls`, { withCredentials: true }),
         axios.get(`${API}/monetization/trial-settings`, { withCredentials: true }),
