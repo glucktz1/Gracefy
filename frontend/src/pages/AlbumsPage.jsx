@@ -305,53 +305,71 @@ export default function AlbumsPage() {
     }
   }, [selectedAlbum, fetchAlbumSongs]);
 
-  // Optimized file upload with progress tracking
+  // Optimized file upload with progress tracking + retry
   const handleFileUpload = async (file, onProgress = null) => {
     const formData = new FormData();
     formData.append("file", file);
-    try {
-      const response = await axios.post(`${API}/upload/fast`, formData, {
-        withCredentials: true,
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-          if (onProgress && progressEvent.total) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            onProgress(percentCompleted);
-          }
-        },
-        timeout: 300000 // 5 min timeout for large files
-      });
-      return response.data.url;
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload file");
-      return null;
+    
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await axios.post(`${API}/upload/fast`, formData, {
+          withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              onProgress(percentCompleted);
+            }
+          },
+          timeout: 300000
+        });
+        return response.data.url;
+      } catch (error) {
+        console.error(`Upload attempt ${attempt + 1} failed:`, error.message);
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 2000 + attempt * 2000));
+        } else {
+          toast.error("Failed to upload file");
+          return null;
+        }
+      }
     }
+    return null;
   };
 
-  // Optimized audio upload with background HLS transcoding
-  const handleAudioUpload = async (file, songId, onProgress = null) => {
+  // Optimized audio upload with background HLS transcoding + retry
+  const handleAudioUpload = async (file, songId, onProgress = null, retries = 2) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("song_id", songId);
-    try {
-      const response = await axios.post(`${API}/upload/audio/fast`, formData, {
-        withCredentials: true,
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-          if (onProgress && progressEvent.total) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            onProgress(percentCompleted);
-          }
-        },
-        timeout: 600000 // 10 min timeout for large audio files
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Audio upload error:", error);
-      toast.error("Failed to upload audio");
-      return null;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await axios.post(`${API}/upload/audio/fast`, formData, {
+          withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              onProgress(percentCompleted);
+            }
+          },
+          timeout: 600000 // 10 min timeout for large audio files
+        });
+        return response.data;
+      } catch (error) {
+        console.error(`Audio upload attempt ${attempt + 1} failed:`, error.message);
+        if (attempt < retries) {
+          // Wait before retry (2s, 5s)
+          await new Promise(r => setTimeout(r, 2000 + attempt * 3000));
+          toast.info(`Retrying upload for "${file.name}"...`);
+        } else {
+          toast.error(`Failed to upload: ${file.name}`);
+          return null;
+        }
+      }
     }
+    return null;
   };
 
   const handleAlbumSubmit = async (e) => {
@@ -537,26 +555,25 @@ export default function AlbumsPage() {
       
       setUploadProgress(20); // Song records created
       
-      // Now upload audio files in parallel with progress tracking
-      const uploadResults = await Promise.all(
-        songRecords.map(async (record) => {
-          if (record.file) {
-            const result = await handleAudioUpload(
-              record.file, 
-              record.song_id,
-              (percent) => {
-                // Update progress: 20% for song creation, 80% for uploads
-                const uploadProgress = 20 + Math.round((completedUploads + percent / 100) / totalSongs * 80);
-                setUploadProgress(uploadProgress);
-              }
-            );
-            completedUploads++;
-            return result;
-          }
-          completedUploads++;
-          return null;
-        })
-      );
+      // Upload audio files SEQUENTIALLY to avoid overwhelming CDN/server
+      const uploadResults = [];
+      for (let i = 0; i < songRecords.length; i++) {
+        const record = songRecords[i];
+        if (record.file) {
+          const result = await handleAudioUpload(
+            record.file, 
+            record.song_id,
+            (percent) => {
+              // Progress: 20% for creation, 80% split across songs
+              const songProgress = (i + percent / 100) / totalSongs;
+              setUploadProgress(Math.round(20 + songProgress * 80));
+            }
+          );
+          uploadResults.push(result);
+        } else {
+          uploadResults.push(null);
+        }
+      }
       
       setUploadProgress(100);
       

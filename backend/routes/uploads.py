@@ -35,47 +35,68 @@ def is_cdn_enabled():
     return bool(BUNNY_STORAGE_ZONE and BUNNY_API_KEY and BUNNY_CDN_URL)
 
 
-async def stream_upload_to_cdn(file: UploadFile, folder: str, filename: str, content_type: str) -> tuple[str, int]:
+async def stream_upload_to_cdn(file_or_content, folder: str, filename: str, content_type: str) -> tuple:
     """
-    Stream upload to CDN without loading entire file into memory.
+    Upload to CDN with retry logic and proper timeout handling.
+    Accepts either UploadFile or bytes content.
     Returns (cdn_url, file_size).
     """
     import httpx
     
     storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
     
-    # Read file in chunks and calculate size
-    chunks = []
-    total_size = 0
+    # Read content if it's an UploadFile
+    if hasattr(file_or_content, 'read'):
+        chunks = []
+        total_size = 0
+        while True:
+            chunk = await file_or_content.read(UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total_size += len(chunk)
+        content = b''.join(chunks)
+    else:
+        content = file_or_content
+        total_size = len(content)
     
-    while True:
-        chunk = await file.read(UPLOAD_CHUNK_SIZE)
-        if not chunk:
-            break
-        chunks.append(chunk)
-        total_size += len(chunk)
+    # Dynamic timeout: 30s base + 1s per MB, max 10 min
+    timeout_seconds = max(30, min(600, 30 + (total_size // (1024 * 1024))))
     
-    content = b''.join(chunks)
-    
-    # Calculate dynamic timeout based on file size (1 min per 20MB, min 30s, max 10 min)
-    timeout_seconds = max(30, min(600, (total_size // (20 * 1024 * 1024)) * 60 + 30))
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.put(
-            storage_url,
-            content=content,
-            headers={
-                "AccessKey": BUNNY_API_KEY,
-                "Content-Type": content_type
-            },
-            timeout=float(timeout_seconds)
-        )
+    # Retry up to 3 times with exponential backoff
+    last_error = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    storage_url,
+                    content=content,
+                    headers={
+                        "AccessKey": BUNNY_API_KEY,
+                        "Content-Type": content_type
+                    },
+                    timeout=float(timeout_seconds)
+                )
+                
+                if response.status_code in [200, 201]:
+                    cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
+                    return cdn_url, total_size
+                
+                last_error = f"CDN returned status {response.status_code}"
+                logger.warning(f"CDN upload attempt {attempt+1} failed: {last_error}")
+                
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as e:
+            last_error = str(e)
+            logger.warning(f"CDN upload attempt {attempt+1} timeout/error: {last_error}")
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"CDN upload attempt {attempt+1} error: {last_error}")
         
-        if response.status_code not in [200, 201]:
-            raise HTTPException(status_code=500, detail=f"CDN upload failed: {response.status_code}")
+        # Wait before retry (1s, 3s, 7s)
+        if attempt < 2:
+            await asyncio.sleep(1 + attempt * 2)
     
-    cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
-    return cdn_url, total_size
+    raise HTTPException(status_code=500, detail=f"CDN upload failed after 3 attempts: {last_error}")
 
 
 # ============== OPTIMIZED FILE UPLOAD ==============
@@ -581,41 +602,22 @@ async def upload_to_cdn(
     file: UploadFile = File(...),
     folder: str = Form("media")
 ):
-    """Upload directly to CDN"""
+    """Upload directly to CDN with retry logic"""
     if not is_cdn_enabled():
         raise HTTPException(status_code=503, detail="CDN not configured")
     
     ext = os.path.splitext(file.filename)[1].lower()
     file_id = f"{uuid.uuid4().hex[:12]}"
     filename = f"{file_id}{ext}"
+    content_type = file.content_type or "application/octet-stream"
     
-    content = await file.read()
-    
-    import httpx
-    # Use main storage URL (region prefix may not resolve in all environments)
-    storage_url = f"https://storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}/{folder}/{filename}"
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.put(
-            storage_url,
-            content=content,
-            headers={
-                "AccessKey": BUNNY_API_KEY,
-                "Content-Type": file.content_type or "application/octet-stream"
-            },
-            timeout=120.0
-        )
-        
-        if response.status_code not in [200, 201]:
-            raise HTTPException(status_code=500, detail=f"CDN upload failed: {response.status_code}")
-    
-    cdn_url = f"{BUNNY_CDN_URL}/{folder}/{filename}"
+    cdn_url, file_size = await stream_upload_to_cdn(file, folder, filename, content_type)
     
     return {
         "url": cdn_url,
         "filename": filename,
         "folder": folder,
-        "size_bytes": len(content)
+        "size_bytes": file_size
     }
 
 
