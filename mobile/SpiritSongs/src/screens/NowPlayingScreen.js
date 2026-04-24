@@ -459,6 +459,32 @@ const NowPlayingScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          {/* Subtle contribution message when skip is disabled */}
+          {skipDisabled && (
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('SubscriptionPlans')}
+              style={{
+                marginHorizontal: 24,
+                marginBottom: 8,
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(96, 165, 250, 0.25)',
+                backgroundColor: 'rgba(30, 58, 138, 0.15)',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ 
+                fontSize: 12, 
+                color: 'rgba(147, 197, 253, 0.7)', 
+                textAlign: 'center' 
+              }}>
+                Changia kidogo kufurahia kwa uhuru
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Bottom Actions Row */}
           <View style={styles.bottomActionsRow}>
             {/* Continuous Play / Auto-Recommend Toggle */}

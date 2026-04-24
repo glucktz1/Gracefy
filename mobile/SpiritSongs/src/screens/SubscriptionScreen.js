@@ -268,7 +268,7 @@ const SubscriptionScreen = ({ navigation }) => {
             </View>
             <Text style={styles.noSubTitle}>Bado Hujachangia</Text>
             <Text style={styles.noSubText}>
-              Changia kidogo kuwezesha teknolojia hii
+              Maudhui haya ni bure lakini teknolojia hii inagharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.
             </Text>
           </View>
         )}

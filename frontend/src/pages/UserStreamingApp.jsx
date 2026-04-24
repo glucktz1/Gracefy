@@ -2442,7 +2442,7 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare, previewMode, skipDisabled }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare, previewMode, skipDisabled, onSubscribe }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -2524,42 +2524,49 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
       </div>
 
       {/* Main Controls */}
-      <div className="flex items-center justify-between px-8 mb-8">
-        <button 
-          onClick={() => player.setShuffle(!player.shuffle)} 
-          className={`relative ${player.shuffle ? 'text-blue-400' : 'text-zinc-400'}`}
-          title={player.shuffle ? 'Shuffle on' : 'Shuffle off'}
-        >
-          <Shuffle size={22} />
-          {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
-        </button>
-        <button onClick={skipDisabled ? undefined : handlePrev} className={`text-white ${skipDisabled ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={skipDisabled}>
-          <SkipBack size={32} fill="white" />
-        </button>
-        <button 
-          onClick={player.togglePlay}
-          className="w-16 h-16 bg-white rounded-full flex items-center justify-center"
-          disabled={player.isLoading}
-        >
-          {player.isLoading ? (
-            <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
-          ) : player.isPlaying ? (
-            <Pause size={28} className="text-black" />
-          ) : (
-            <Play size={28} fill="black" className="text-black ml-1" />
-          )}
-        </button>
-        <button onClick={skipDisabled ? undefined : handleNext} className={`text-white ${skipDisabled ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={skipDisabled}>
-          <SkipForward size={32} fill="white" />
-        </button>
-        <button 
-          onClick={player.cycleRepeat} 
-          className={`relative ${player.repeat !== 'off' ? 'text-blue-400' : 'text-zinc-400'}`}
-          title={player.repeat === 'off' ? 'Repeat off' : player.repeat === 'all' ? 'Repeat all' : 'Repeat one'}
-        >
-          {player.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
-          {player.repeat !== 'off' && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
-        </button>
+      <div className={`mx-6 mb-4 px-4 py-4 rounded-2xl ${skipDisabled ? 'ring-1 ring-blue-500/30 bg-blue-950/10' : ''}`}>
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => player.setShuffle(!player.shuffle)} 
+            className={`relative ${player.shuffle ? 'text-blue-400' : 'text-zinc-400'}`}
+            title={player.shuffle ? 'Shuffle on' : 'Shuffle off'}
+          >
+            <Shuffle size={22} />
+            {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
+          </button>
+          <button onClick={skipDisabled ? undefined : handlePrev} className={`text-white ${skipDisabled ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={skipDisabled}>
+            <SkipBack size={32} fill="white" />
+          </button>
+          <button 
+            onClick={player.togglePlay}
+            className="w-16 h-16 bg-white rounded-full flex items-center justify-center"
+            disabled={player.isLoading}
+          >
+            {player.isLoading ? (
+              <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            ) : player.isPlaying ? (
+              <Pause size={28} className="text-black" />
+            ) : (
+              <Play size={28} fill="black" className="text-black ml-1" />
+            )}
+          </button>
+          <button onClick={skipDisabled ? undefined : handleNext} className={`text-white ${skipDisabled ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={skipDisabled}>
+            <SkipForward size={32} fill="white" />
+          </button>
+          <button 
+            onClick={player.cycleRepeat} 
+            className={`relative ${player.repeat !== 'off' ? 'text-blue-400' : 'text-zinc-400'}`}
+            title={player.repeat === 'off' ? 'Repeat off' : player.repeat === 'all' ? 'Repeat all' : 'Repeat one'}
+          >
+            {player.repeat === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
+            {player.repeat !== 'off' && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
+          </button>
+        </div>
+        {skipDisabled && (
+          <button onClick={onSubscribe} className="mt-3 w-full text-center">
+            <p className="text-xs text-blue-300/70">Changia kidogo kufurahia kwa uhuru</p>
+          </button>
+        )}
       </div>
 
       {/* Repeat Mode Indicator */}
@@ -2588,7 +2595,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, skipDisabled, onContribute }) => {
   // Show player if there's a song OR a radio station playing
   if (!player.currentSong && !player.currentRadioStation) return null;
   
@@ -2607,7 +2614,14 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
+    <div className={`fixed bottom-16 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t ${skipDisabled ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-zinc-800'}`}>
+      {/* Subtle contribution banner when skip disabled */}
+      {skipDisabled && (
+        <button onClick={onContribute} className="w-full bg-gradient-to-r from-blue-900/40 via-blue-800/30 to-blue-900/40 px-3 py-1.5 flex items-center justify-center gap-2 hover:from-blue-900/60 hover:via-blue-800/50 hover:to-blue-900/60 transition-all">
+          <span className="text-[11px] text-blue-300/80">Changia kidogo kufurahia kwa uhuru</span>
+          <ChevronRight size={12} className="text-blue-400/60" />
+        </button>
+      )}
       {/* Progress line - only for music, not radio (live streams) */}
       {!isRadio && (
         <div className="h-1 bg-zinc-800">
@@ -2750,8 +2764,8 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
           </h3>
           <p className="text-zinc-400 mb-6">
             {language === 'sw' 
-              ? 'Changia kidogo kuwezesha teknolojia hii. Pata vipengele vyote kama vile kupakua, orodha za nyimbo, na kusikiliza bila kikomo.'
-              : 'Contribute a little to power this technology. Get all features including downloads, playlists, and unlimited listening.'}
+              ? 'Maudhui haya ni bure lakini teknolojia hii inagharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.'
+              : 'This content is free but the technology costs. Contribute a little to help it reach more people.'}
           </p>
           <div className="space-y-3">
             <button
@@ -3776,8 +3790,8 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
               </h3>
               <p className="text-zinc-400 text-sm">
                 {language === 'sw' 
-                  ? 'Changia kidogo kuwezesha teknolojia hii' 
-                  : 'Contribute a little to power this technology'}
+                  ? 'Maudhui haya ni bure lakini teknolojia hii inagharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.' 
+                  : 'This content is free but the technology costs. Contribute a little to help it reach more people.'}
               </p>
             </div>
           </div>
@@ -6816,14 +6830,10 @@ export default function UserStreamingApp() {
         isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
         onNext={handleNextWithBilling}
         onPrev={handlePrevWithBilling}
-        onDownload={() => {
-          // Always show download app popup for web
-          setShowDownloadPopup(true);
-        }}
-        onAddToPlaylist={() => {
-          // Always show download app popup for web
-          setShowDownloadPopup(true);
-        }}
+        onDownload={() => setShowDownloadPopup(true)}
+        onAddToPlaylist={() => setShowDownloadPopup(true)}
+        skipDisabled={billingEnabled && !isPremium && skipTier >= 3}
+        onContribute={() => setShowSubscriptionModal(true)}
       />
 
       {/* Full Screen Player */}
@@ -6857,6 +6867,7 @@ export default function UserStreamingApp() {
           }}
           previewMode={previewMode}
           skipDisabled={skipTier >= 3}
+          onSubscribe={() => setShowSubscriptionModal(true)}
         />
       )}
 
