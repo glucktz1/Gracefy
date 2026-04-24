@@ -2733,7 +2733,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
 };
 
 // Guest Play Limit Modal
-// Subscription Required Modal - for logged-in non-premium users (matches native app)
+// Subscription Required Modal - for logged-in non-premium users
 const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => {
   if (!show) return null;
   
@@ -2745,19 +2745,19 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
             <Star className="w-8 h-8 text-blue-400" />
           </div>
           <h3 className="text-xl font-bold text-white mb-2">
-            {language === 'sw' ? 'Wezesha Premium' : 'Enable Premium'}
+            {language === 'sw' ? 'Changia' : 'Contribute'}
           </h3>
           <p className="text-zinc-400 mb-6">
             {language === 'sw' 
-              ? 'Lipia ili kufungua vipengele vyote vya premium kama vile kupakuliwa, orodha za nyimbo, na kusikiliza bila kikomo.'
-              : 'Subscribe to unlock all premium features including downloads, playlists, unlimited skips, and background play.'}
+              ? 'Changia kidogo kuwezesha teknolojia hii. Pata vipengele vyote kama vile kupakua, orodha za nyimbo, na kusikiliza bila kikomo.'
+              : 'Contribute a little to power this technology. Get all features including downloads, playlists, and unlimited listening.'}
           </p>
           <div className="space-y-3">
             <button
               onClick={onSubscribe}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
             >
-              {language === 'sw' ? 'Angalia Vifurushi' : 'View Packages'}
+              {language === 'sw' ? 'Chagua unavyotaka kuchangia' : 'Choose how to contribute'}
             </button>
             <button
               onClick={onClose}
@@ -2768,8 +2768,8 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
           </div>
           <p className="text-xs text-zinc-500 mt-4">
             {language === 'sw' 
-              ? '✨ Premium inakuwezesha kusikiliza wakati wowote, popote'
-              : '✨ Premium lets you listen anytime, anywhere'}
+              ? 'Mchango wako unawezesha muziki wa Kikristo kuendelea'
+              : 'Your contribution keeps Christian music going'}
           </p>
         </div>
       </div>
@@ -2843,7 +2843,7 @@ const CheckoutModal = ({ show, onClose, plan, language, user, onPaymentSuccess }
             <Star className="w-8 h-8 text-blue-400" />
           </div>
           <h3 className="text-xl font-bold text-white mb-1">
-            {language === 'sw' ? 'Lipia Kifurushi' : 'Pay for Package'}
+            {language === 'sw' ? 'Changia' : 'Contribute'}
           </h3>
           <p className="text-zinc-400 text-sm">
             {plan.display_name || plan.name}
@@ -2853,7 +2853,7 @@ const CheckoutModal = ({ show, onClose, plan, language, user, onPaymentSuccess }
         {/* Plan Summary */}
         <div className="bg-zinc-800/50 rounded-xl p-4 mb-6">
           <div className="flex justify-between items-center mb-3">
-            <span className="text-zinc-400">{language === 'sw' ? 'Kifurushi' : 'Package'}</span>
+            <span className="text-zinc-400">{language === 'sw' ? 'Mchango' : 'Contribution'}</span>
             <span className="text-white font-medium">{plan.display_name || plan.name}</span>
           </div>
           <div className="flex justify-between items-center mb-3">
@@ -2909,7 +2909,7 @@ const CheckoutModal = ({ show, onClose, plan, language, user, onPaymentSuccess }
           ) : paymentStatus === 'pending' ? (
             language === 'sw' ? 'Angalia Simu Yako' : 'Check Your Phone'
           ) : (
-            language === 'sw' ? 'Lipia Sasa' : 'Pay Now'
+            language === 'sw' ? 'Changia Sasa' : 'Contribute Now'
           )}
         </button>
         
@@ -3757,8 +3757,8 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
           {!isPremium && billingEnabled && (
             <p className="text-xs text-amber-400 mt-2">
               {language === 'sw' 
-                ? 'Pata Premium kupata vipengele vyote!' 
-                : 'Get Premium to unlock all features!'}
+                ? 'Changia kidogo kuwezesha teknolojia hii' 
+                : 'Contribute to power this technology'}
             </p>
           )}
         </div>
@@ -3771,12 +3771,12 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
             <Star className="text-amber-400" size={24} />
             <div>
               <h3 className="font-bold text-white text-lg">
-                {language === 'sw' ? 'Chagua Kifurushi Chako' : 'Choose Your Package'}
+                {language === 'sw' ? 'Chagua unavyotaka kuchangia' : 'Choose how to contribute'}
               </h3>
               <p className="text-zinc-400 text-sm">
                 {language === 'sw' 
-                  ? 'Ufurahie maudhui yote kwa uhuru' 
-                  : 'Enjoy all content freely'}
+                  ? 'Changia kidogo kuwezesha teknolojia hii' 
+                  : 'Contribute a little to power this technology'}
               </p>
             </div>
           </div>
@@ -3827,7 +3827,7 @@ const ProfileView = ({ user, language, onLogout, onBack, isPremium, billingEnabl
                   className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
                   data-testid="subscribe-btn"
                 >
-                  {language === 'sw' ? 'Lipia Sasa' : 'Pay Now'}
+                  {language === 'sw' ? 'Changia Sasa' : 'Contribute Now'}
                 </button>
               )}
             </div>
@@ -3995,6 +3995,15 @@ export default function UserStreamingApp() {
   // Guest play limit state - 5 plays or 5 skips before forcing login
   const GUEST_PLAY_LIMIT = 5;
   const GUEST_SKIP_LIMIT = 5;
+  
+  // Monetization enforcement tiers for logged-in non-premium users
+  // Tier 1: First 6 skips free
+  // Tier 2: Prompt shown, 3 more skips allowed
+  // Tier 3: Prompt shown again, 3 more skips allowed
+  // Tier 4: Skipping disabled, preview mode (15s per song, 1 full, 15s, 15s...)
+  const SKIP_TIER_1 = 6;   // Free skips
+  const SKIP_TIER_2 = 9;   // After first prompt (+3)
+  const SKIP_TIER_3 = 12;  // After second prompt (+3) → disable skipping
   const MAX_PROMPT_ATTEMPTS = 3;
   
   const [guestPlayCount, setGuestPlayCount] = useState(0);
@@ -4010,6 +4019,9 @@ export default function UserStreamingApp() {
   
   // Skip count for logged-in non-premium users (billing trigger)
   const [skipCount, setSkipCount] = useState(0);
+  const [skipTier, setSkipTier] = useState(0); // 0=free, 1=first prompt shown, 2=second prompt shown, 3=disabled
+  const [previewMode, setPreviewMode] = useState(false); // 15-second preview mode
+  const [previewSongCount, setPreviewSongCount] = useState(0); // Track songs in preview mode
   const PREMIUM_SKIP_LIMIT = 3; // After 3 skips, prompt subscription
   
   // Load guest stats from localStorage on mount
@@ -5153,52 +5165,80 @@ export default function UserStreamingApp() {
     }
   };
 
-  // BILLING TRIGGER: Skip wrapper with subscription check (matches native app)
-  // After PREMIUM_SKIP_LIMIT skips, logged-in non-premium users are prompted
-  // After GUEST_SKIP_LIMIT skips, guests are prompted to login
-  // When limit is reached: BLOCK further skips, playback stops when current song ends
-  // Guest limits are ALWAYS enforced (independent of billing)
+  // BILLING TRIGGER: Skip wrapper with subscription check
+  // Tier system for logged-in non-premium users:
+  // Tier 0: First 6 skips free
+  // Tier 1: Prompt shown → 3 more skips allowed  
+  // Tier 2: Prompt shown again → 3 more skips allowed
+  // Tier 3: Skipping DISABLED + preview mode (15s per song)
   const handleSkipWithBillingCheck = (skipFunction) => {
     // Guest user skip limit check - ALWAYS ENFORCED
     if (!user) {
-      // Check if limit already reached - BLOCK skip
       if (guestSkipCount >= GUEST_SKIP_LIMIT || guestPlayCount >= GUEST_PLAY_LIMIT) {
         console.log('[Guest] Limit already reached - BLOCKING skip');
         setShowGuestLimitModal(true);
-        // Set flag to stop playback when song ends
         if (player?.setGuestLimitReached) {
           player.setGuestLimitReached(true);
         }
-        return; // DO NOT allow skip
+        return;
       }
       
-      // Increment guest skip count and check limit
       if (incrementGuestSkipCount()) {
-        // Skip limit reached - show modal and BLOCK further actions
         console.log('[Guest] Skip limit reached - BLOCKING skip');
-        return; // DO NOT allow skip
+        return;
       }
       
-      // Allow the skip for guests under limit
       skipFunction();
       return;
     }
     
-    // Logged in user - If billing ON + not premium, enforce skip limit
+    // Logged in user - If billing ON + not premium, enforce tiered skip limits
     if (billingEnabled && !isPremium) {
       const newSkipCount = skipCount + 1;
       setSkipCount(newSkipCount);
-      console.log(`[Billing] Logged-in skip count: ${newSkipCount}/${PREMIUM_SKIP_LIMIT}`);
+      console.log(`[Billing] Skip count: ${newSkipCount}, tier: ${skipTier}`);
       
-      if (newSkipCount >= PREMIUM_SKIP_LIMIT) {
-        console.log('[Billing] Skip limit reached - showing subscription prompt');
+      // Tier 3: Skipping completely disabled
+      if (skipTier >= 3) {
+        console.log('[Billing] Tier 3 - skipping DISABLED');
+        toast.error(language === 'sw' 
+          ? 'Kuruka kumezimwa. Changia kuendelea kusikiliza.' 
+          : 'Skipping disabled. Subscribe to continue.');
         setShowSubscriptionModal(true);
-        setSkipCount(0); // Reset for next session
-        // Allow skip but show prompt
+        return; // BLOCK skip
+      }
+      
+      // Tier 0 → 1: After first 6 skips, show first prompt
+      if (newSkipCount >= SKIP_TIER_1 && skipTier === 0) {
+        console.log('[Billing] Tier 1 - first prompt');
+        setSkipTier(1);
+        setShowSubscriptionModal(true);
+        skipFunction(); // Allow this skip
+        return;
+      }
+      
+      // Tier 1 → 2: After 3 more skips (total 9), show second prompt
+      if (newSkipCount >= SKIP_TIER_2 && skipTier === 1) {
+        console.log('[Billing] Tier 2 - second prompt');
+        setSkipTier(2);
+        setShowSubscriptionModal(true);
+        skipFunction(); // Allow this skip
+        return;
+      }
+      
+      // Tier 2 → 3: After 3 more skips (total 12), disable skipping + enable preview mode
+      if (newSkipCount >= SKIP_TIER_3 && skipTier === 2) {
+        console.log('[Billing] Tier 3 - DISABLING skips, enabling preview mode');
+        setSkipTier(3);
+        setPreviewMode(true);
+        setPreviewSongCount(0);
+        player.setPreviewMode(true); // Tell the audio player
+        setShowSubscriptionModal(true);
+        return; // BLOCK this skip
       }
     }
     
-    // Always allow the skip for logged-in users
+    // Allow the skip
     skipFunction();
   };
 
@@ -6821,7 +6861,12 @@ export default function UserStreamingApp() {
               .then(res => {
                 setIsPremium(res.data?.is_premium === true);
                 if (res.data?.is_premium) {
-                  toast.success(language === 'sw' ? 'Hongera! Sasa wewe ni Premium!' : 'Congratulations! You are now Premium!');
+                  // Disable all monetization restrictions
+                  setPreviewMode(false);
+                  setSkipTier(0);
+                  setSkipCount(0);
+                  player.setPreviewMode(false);
+                  toast.success(language === 'sw' ? 'Hongera! Asante kwa mchango wako!' : 'Congratulations! Thank you for your contribution!');
                 }
               });
           }

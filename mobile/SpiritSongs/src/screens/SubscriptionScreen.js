@@ -266,16 +266,16 @@ const SubscriptionScreen = ({ navigation }) => {
             <View style={styles.noSubIcon}>
               <Ionicons name="gift-outline" size={48} color={COLORS.textMuted} />
             </View>
-            <Text style={styles.noSubTitle}>Bado Hujasajiliwa</Text>
+            <Text style={styles.noSubTitle}>Bado Hujachangia</Text>
             <Text style={styles.noSubText}>
-              Sajili Premium ili kufungua huduma zote
+              Changia kidogo kuwezesha teknolojia hii
             </Text>
           </View>
         )}
 
         {/* Premium Features */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Huduma za Premium</Text>
+          <Text style={styles.sectionTitle}>Huduma Utakazopata</Text>
           <View style={styles.featuresGrid}>
             {[
               { icon: 'download-outline', text: 'Pakua nyimbo' },
@@ -296,7 +296,7 @@ const SubscriptionScreen = ({ navigation }) => {
 
         {/* Available Plans */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Chagua Mpango</Text>
+          <Text style={styles.sectionTitle}>Chagua unavyotaka kuchangia</Text>
           {plans.length === 0 ? (
             <View style={styles.noPlans}>
               <Text style={styles.noPlansText}>Hakuna mipango inapopatikana kwa sasa</Text>
@@ -400,7 +400,7 @@ const SubscriptionScreen = ({ navigation }) => {
               ) : (
                 <>
                   <Ionicons name="card-outline" size={20} color={COLORS.text} />
-                  <Text style={styles.payButtonText}>Lipa Sasa</Text>
+                  <Text style={styles.payButtonText}>Changia Sasa</Text>
                 </>
               )}
             </TouchableOpacity>

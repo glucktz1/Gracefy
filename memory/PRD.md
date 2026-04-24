@@ -244,13 +244,36 @@ DB_NAME = gracefy_db
 - `GET /api/billing-status` - Check global billing settings
 
 ## Backlog / Future Tasks
-1. **URGENT: Refactor UserStreamingApp.jsx** - 6900+ lines, needs to be split into smaller components (MiniPlayer, FullPlayer, ProfileView, LegalPage, AlbumView)
-2. Bible TTS voice selection from admin settings
-3. Audio Ad integration
+1. **URGENT: Refactor UserStreamingApp.jsx** - 7000+ lines, needs to be split into smaller components
+2. PayPal payment gateway integration
+3. Bible TTS voice selection from admin settings
 4. SendGrid email campaigns
 5. Consolidate `users`/`app_users` collections
-6. Mobile Church Details Modal (port web modal with Matangazo/Ratiba tabs to ChurchesScreen.js)
-7. Start HLS transcoding batch process
+6. Mobile Church Details Modal (port web Matangazo/Ratiba tabs to ChurchesScreen.js)
+7. EAS build with correct Expo account
+
+## Completed (April 2026)
+- Admin upload async processing (BackgroundTasks)
+- Bible TTS / music audio conflict fix
+- Neno la Leo scheduler & Publish Now toggle
+- Playback loop fix (failed song filtering)
+- Playlist creation fix (billing disabled in preview)
+- Mobile offline playback fix
+- Recommendation engine diversity fallback
+- Manual MP3 re-encoding (FFmpeg)
+- Play Store AAB build (v1.0.201)
+- Web footer legal links: open in new tab to gracefy.net URLs
+- Web mini-player repositioned above bottom taskbar
+- Three-dots context menu (Like/Share/Add to Playlist) on each song row (web)
+- Album-level Download and Add to Playlist buttons (web)
+- Lock screen autoplay fix: early transition 0.3s before song end
+- Audio ads integration wired into web player (non-blocking)
+- Performance optimization: lazy-loaded components, lazy HLS.js, lazy images, CDN image resize, Cache-Control headers
+- Upload reliability: 3x retry with exponential backoff, sequential bulk uploads
+- Monetization enforcement: tiered skip limits (6 free → prompt → 3 more → prompt → 3 more → disable + 15s preview mode)
+- Swahili text: "Subscription" → "Changia", "Pay" → "Changia Sasa", plans → "Chagua unavyotaka kuchangia"
+- Legal pages: /masharti and /faragha routes with admin-managed markdown content
+- Admin plan creation bug fixed (endpoint mismatch)
 
 ## Completed (April 2026)
 - Admin upload async processing (BackgroundTasks)

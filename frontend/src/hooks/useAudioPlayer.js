@@ -51,6 +51,8 @@ const useAudioPlayer = () => {
   const isFetchingRecommendationsRef = useRef(false); // Prevent duplicate fetches
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
+  const previewModeRef = useRef(false); // 15-second preview mode for non-premium users
+  const previewSongCountRef = useRef(0); // Track songs played in preview mode
   const failedSongsRef = useRef(new Set()); // Track songs that failed to play
   const retryCountRef = useRef({}); // Track retry attempts for songs with network errors
   const isTransitioningRef = useRef(false); // Kept for future use
@@ -391,6 +393,12 @@ const useAudioPlayer = () => {
     earlyTransitionFiredRef.current = false;
     preloadedSongIdRef.current = null;
     
+    // Track preview mode song count
+    if (previewModeRef.current) {
+      previewSongCountRef.current += 1;
+      console.log(`[Player] Preview mode song #${previewSongCountRef.current}`);
+    }
+    
     // IMPORTANT: Stop current audio before playing new one
     // Just change source directly - no explicit pause needed
     // This avoids the browser revoking audio focus during transitions
@@ -692,6 +700,22 @@ const useAudioPlayer = () => {
         savePlaybackStateRef.current(song, album, audio.currentTime);
       }
       
+      // PREVIEW MODE: Stop song at 15 seconds for non-premium users
+      if (previewModeRef.current && audio.currentTime >= 15) {
+        const songCount = previewSongCountRef.current;
+        // Pattern: 15s, 15s, 15s, FULL, 15s, 15s, 15s, FULL...
+        const isFullSong = (songCount > 0) && (songCount % 4 === 0);
+        if (!isFullSong) {
+          console.log(`[Player] Preview mode: cutting song at 15s (song #${songCount})`);
+          // Trigger end to move to next song
+          if (!earlyTransitionFiredRef.current) {
+            earlyTransitionFiredRef.current = true;
+            handleSongEnd();
+          }
+          return;
+        }
+      }
+      
       // EARLY PRELOAD: Start preloading next song at 50% progress
       if (audio.duration > 0 && audio.currentTime > audio.duration * 0.5 && !preloadedSongIdRef.current) {
         const currentQueue = queueRef.current;
@@ -700,7 +724,6 @@ const useAudioPlayer = () => {
       }
       
       // EARLY TRANSITION: When within 0.3s of the end, trigger next song
-      // while audio session is still "playing" - prevents lock screen blocking
       if (audio.duration > 0 && audio.duration - audio.currentTime < 0.3 && audio.duration - audio.currentTime > 0 && !earlyTransitionFiredRef.current) {
         earlyTransitionFiredRef.current = true;
         console.log('[Player] Early transition triggered (0.3s before end)');
@@ -1154,6 +1177,15 @@ const useAudioPlayer = () => {
     guestLimitReachedRef.current = reached;
   };
   
+  // Method to enable/disable preview mode (15-second song previews)
+  const setPreviewMode = (enabled) => {
+    previewModeRef.current = enabled;
+    if (enabled) {
+      previewSongCountRef.current = 0;
+    }
+    console.log(`[Player] Preview mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  };
+  
   // Play radio station
   const playRadio = async (station) => {
     if (!station?.url_resolved) {
@@ -1260,7 +1292,7 @@ const useAudioPlayer = () => {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
-    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached,
+    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached, setPreviewMode,
     // Continuous play (auto-recommendations) - mirrors native app
     continuousPlay, toggleContinuousPlay,
     // HLS Adaptive Streaming

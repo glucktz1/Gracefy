@@ -58,6 +58,17 @@ export const AuthProvider = ({ children }) => {
   const [shouldPromptLogin, setShouldPromptLogin] = useState(false);
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [loginPromptMessage, setLoginPromptMessage] = useState('');
+  
+  // Premium user monetization enforcement (tiered skip system)
+  const [premiumSkipCount, setPremiumSkipCount] = useState(0);
+  const [premiumSkipTier, setPremiumSkipTier] = useState(0); // 0=free, 1=first prompt, 2=second, 3=disabled
+  const [previewMode, setPreviewMode] = useState(false);
+  const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
+  
+  // Skip tier constants
+  const SKIP_TIER_1 = 6;   // Free skips
+  const SKIP_TIER_2 = 9;   // After first prompt (+3)
+  const SKIP_TIER_3 = 12;  // After second prompt → disable skipping
 
   // Timer for tracking listen time
   const listenStartTimeRef = useRef(null);
@@ -367,6 +378,11 @@ export const AuthProvider = ({ children }) => {
     setGuestListenMinutes(0);
     setPromptAttempts(0);
     setShouldPromptLogin(false);
+    // Also reset premium skip tracking
+    setPremiumSkipCount(0);
+    setPremiumSkipTier(0);
+    setPreviewMode(false);
+    setShowSubscriptionPrompt(false);
     setIsAppLocked(false);
     listenStartTimeRef.current = Date.now();
     
@@ -432,7 +448,19 @@ export const AuthProvider = ({ children }) => {
     resetGuestStats,
     dismissLoginPrompt,
     checkGuestLimits,
-    checkGuestLimit, // Quick check if limit reached (returns boolean)
+    checkGuestLimit,
+    // Premium user monetization
+    premiumSkipCount,
+    premiumSkipTier,
+    previewMode,
+    showSubscriptionPrompt,
+    setPremiumSkipCount,
+    setPremiumSkipTier,
+    setPreviewMode,
+    setShowSubscriptionPrompt,
+    SKIP_TIER_1,
+    SKIP_TIER_2,
+    SKIP_TIER_3,
   };
 
   return (

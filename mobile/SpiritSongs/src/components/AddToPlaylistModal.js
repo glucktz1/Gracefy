@@ -54,7 +54,7 @@ export const SubscriptionRequiredModal = ({ visible, onClose, onSubscribe }) => 
           Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.
         </Text>
         <TouchableOpacity style={styles.loginButton} onPress={onSubscribe}>
-          <Text style={styles.loginButtonText}>Ona Vifurushi</Text>
+          <Text style={styles.loginButtonText}>Chagua unavyotaka kuchangia</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelLink} onPress={onClose}>
           <Text style={styles.cancelLinkText}>Baadaye</Text>
