@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, View, StatusBar, Platform, Linking, Alert } from 'react-native';
+import { StyleSheet, View, StatusBar, Platform, Linking, Alert, Modal, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -144,7 +144,9 @@ const AppContent = () => {
     isAuthenticated, 
     isAppLocked,
     user,
-    login: authLogin
+    login: authLogin,
+    showSubscriptionPrompt,
+    setShowSubscriptionPrompt,
   } = useAuth();
   const billingContext = useBilling();
   const navigationRef = React.useRef();
@@ -416,6 +418,44 @@ const AppContent = () => {
             navigationRef.current?.navigate('SubscriptionPlans');
           }}
         />
+
+        {/* Monetization: Subscription Prompt Modal (triggered by skip/play limits) */}
+        <Modal
+          visible={showSubscriptionPrompt}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSubscriptionPrompt(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <View style={{ backgroundColor: '#18181b', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(96,165,250,0.3)' }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(59,130,246,0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                <Ionicons name="heart" size={28} color="#60a5fa" />
+              </View>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 8, textAlign: 'center' }}>Changia</Text>
+              <Text style={{ fontSize: 14, color: '#a1a1aa', textAlign: 'center', marginBottom: 20, lineHeight: 20 }}>
+                Maudhui haya ni bure lakini teknolojia hii inagharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSubscriptionPrompt(false);
+                  navigationRef.current?.navigate('SubscriptionPlans');
+                }}
+                style={{ width: '100%', paddingVertical: 14, backgroundColor: '#2563eb', borderRadius: 25, alignItems: 'center', marginBottom: 10 }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Chagua unavyotaka kuchangia</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowSubscriptionPrompt(false)}
+                style={{ width: '100%', paddingVertical: 14, backgroundColor: '#27272a', borderRadius: 25, alignItems: 'center' }}
+              >
+                <Text style={{ color: '#a1a1aa', fontWeight: '500', fontSize: 15 }}>Baadaye</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 11, color: '#52525b', marginTop: 14, textAlign: 'center' }}>
+                Mchango wako unawezesha muziki wa Kikristo kuendelea
+              </Text>
+            </View>
+          </View>
+        </Modal>
 
         {/* Ad Player Modal */}
         <AdPlayer

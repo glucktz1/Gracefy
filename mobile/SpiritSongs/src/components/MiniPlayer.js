@@ -16,7 +16,7 @@ const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 50;
 
 const MiniPlayer = ({ onPress, navigation }) => {
-  const { currentTrack, isPlaying, isLoading, togglePlay, skipNext, skipPrevious, position, duration, queue, queueIndex } = usePlayer();
+  const { currentTrack, isPlaying, isLoading, togglePlay, skipNext, skipPrevious, position, duration, queue, queueIndex, skipDisabled, previewMode } = usePlayer();
   const { isAuthenticated } = useAuth();
   const billingContext = useBilling();
   
@@ -178,7 +178,45 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
   return (
     <>
-      <View style={styles.container}>
+      {/* Subtle contribution banner above mini player when skip is disabled */}
+      {skipDisabled && (
+        <View style={{
+          position: 'absolute',
+          bottom: 68,
+          left: 0,
+          right: 0,
+          zIndex: 999,
+        }}>
+          <TouchableOpacity 
+            onPress={() => navigation?.navigate('SubscriptionPlans')}
+            style={{
+              marginHorizontal: 8,
+              paddingVertical: 6,
+              paddingHorizontal: 16,
+              backgroundColor: 'rgba(30, 58, 138, 0.3)',
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{
+              fontSize: 11,
+              color: 'rgba(191, 219, 254, 0.85)',
+              fontStyle: 'italic',
+              fontWeight: '500',
+            }}>
+              Changia kidogo kufurahia kwa uhuru
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <View style={[
+        styles.container,
+        skipDisabled && {
+          borderTopWidth: 2,
+          borderTopColor: 'rgba(96, 165, 250, 0.4)',
+        }
+      ]}>
         <TouchableOpacity 
           style={styles.innerContainer} 
           onPress={onPress}
@@ -266,8 +304,9 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
               {/* Skip next button */}
               <TouchableOpacity 
-                style={styles.controlButton}
-                onPress={(e) => {
+                style={[styles.controlButton, skipDisabled && { opacity: 0.3 }]}
+                disabled={skipDisabled}
+                onPress={skipDisabled ? undefined : (e) => {
                   e.stopPropagation();
                   skipNext();
                 }}

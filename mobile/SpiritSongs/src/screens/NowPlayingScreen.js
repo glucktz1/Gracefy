@@ -71,30 +71,14 @@ const NowPlayingScreen = ({ navigation }) => {
   const [isLiked, setIsLiked] = useState(false);
 
   // Billing settings from context
-  const { billingEnabled, isPremium, canSkip, recordSkip, getRemainingSkips, promptSubscription } = useBilling();
+  const { billingEnabled, isPremium } = useBilling();
 
-  // Handle skip with billing check
+  // Handle skip - PlayerContext.skipNext already enforces tiered limits
   const handleSkipNext = () => {
-    if (!canSkip()) {
-      const result = promptSubscription('skip');
-      if (result === 'show_plans') {
-        Alert.alert(
-          'Umepitisha Kikomo',
-          'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
-          [
-            { text: 'Baadaye', style: 'cancel' },
-            { text: 'Ona Vifurushi', onPress: () => navigation.navigate('Subscription') }
-          ]
-        );
-      }
-      return;
-    }
-    recordSkip();
     skipNext();
   };
 
   const handleSkipPrevious = () => {
-    // Previous doesn't count towards skip limit
     skipPrevious();
   };
 
