@@ -53,6 +53,7 @@ const useAudioPlayer = () => {
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   const previewModeRef = useRef(false); // 15-second preview mode for non-premium users
   const previewSongCountRef = useRef(0); // Track songs played in preview mode
+  const onSongChangeCallbackRef = useRef(null); // Callback for billing enforcement on song change
   const failedSongsRef = useRef(new Set()); // Track songs that failed to play
   const retryCountRef = useRef({}); // Track retry attempts for songs with network errors
   const isTransitioningRef = useRef(false); // Kept for future use
@@ -397,6 +398,20 @@ const useAudioPlayer = () => {
     if (previewModeRef.current) {
       previewSongCountRef.current += 1;
       console.log(`[Player] Preview mode song #${previewSongCountRef.current}`);
+    }
+    
+    // Notify billing enforcement of song change
+    if (onSongChangeCallbackRef.current) {
+      try {
+        const shouldBlock = onSongChangeCallbackRef.current();
+        if (shouldBlock) {
+          console.log('[Player] Song change BLOCKED by billing enforcement');
+          setIsLoading(false);
+          return; // Don't play next song
+        }
+      } catch (e) {
+        console.log('[Player] Song change callback error:', e);
+      }
     }
     
     // IMPORTANT: Stop current audio before playing new one
@@ -1186,6 +1201,11 @@ const useAudioPlayer = () => {
     console.log(`[Player] Preview mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
   };
   
+  // Register callback for song change events (used by billing enforcement)
+  const setOnSongChangeCallback = (callback) => {
+    onSongChangeCallbackRef.current = callback;
+  };
+  
   // Play radio station
   const playRadio = async (station) => {
     if (!station?.url_resolved) {
@@ -1292,7 +1312,7 @@ const useAudioPlayer = () => {
     currentSong, currentAlbum, queue, queueIndex, isPlaying, currentTime, duration, 
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
-    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached, setPreviewMode,
+    restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached, setPreviewMode, setOnSongChangeCallback,
     // Continuous play (auto-recommendations) - mirrors native app
     continuousPlay, toggleContinuousPlay,
     // HLS Adaptive Streaming

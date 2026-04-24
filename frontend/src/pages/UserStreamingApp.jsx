@@ -4020,9 +4020,11 @@ export default function UserStreamingApp() {
   // Skip count for logged-in non-premium users (billing trigger)
   const [skipCount, setSkipCount] = useState(0);
   const [skipTier, setSkipTier] = useState(0); // 0=free, 1=first prompt shown, 2=second prompt shown, 3=disabled
-  const [previewMode, setPreviewMode] = useState(false); // 15-second preview mode
-  const [previewSongCount, setPreviewSongCount] = useState(0); // Track songs in preview mode
-  const PREMIUM_SKIP_LIMIT = 3; // After 3 skips, prompt subscription
+  const [previewMode, setPreviewModeState] = useState(false); // 15-second preview mode
+  const [songsPlayedCount, setSongsPlayedCount] = useState(0); // Total songs played (for auto-advance enforcement)
+  const PREMIUM_SKIP_LIMIT = 3;
+  const FREE_SONGS_LIMIT = 8; // After 8 songs played (including auto-advance), prompt
+  const FREE_SONGS_LIMIT_2 = 14; // After 14 total songs, enable preview mode
   
   // Load guest stats from localStorage on mount
   useEffect(() => {
@@ -4122,6 +4124,50 @@ export default function UserStreamingApp() {
     }
   }, [user, player?.setGuestLimitReached]);
   
+  // Register song change callback for billing enforcement on auto-advance
+  useEffect(() => {
+    if (player?.setOnSongChangeCallback) {
+      player.setOnSongChangeCallback(() => {
+        // Track total songs played
+        const newCount = songsPlayedCount + 1;
+        setSongsPlayedCount(newCount);
+        console.log(`[Billing] Song auto-advance #${newCount}, billing=${billingEnabled}, premium=${isPremium}, tier=${skipTier}`);
+        
+        // Only enforce for logged-in non-premium users when billing is ON
+        if (!billingEnabled || isPremium || !user) return false;
+        
+        // Preview mode already active - let player handle 15s limit
+        if (skipTier >= 3) return false;
+        
+        // After FREE_SONGS_LIMIT songs: show first prompt
+        if (newCount >= FREE_SONGS_LIMIT && skipTier < 1) {
+          console.log('[Billing] Song limit reached - showing first prompt');
+          setSkipTier(1);
+          setShowSubscriptionModal(true);
+          return false; // Allow this song but show prompt
+        }
+        
+        // After FREE_SONGS_LIMIT_2 songs: enable preview mode
+        if (newCount >= FREE_SONGS_LIMIT_2 && skipTier < 3) {
+          console.log('[Billing] Extended limit - enabling preview mode');
+          setSkipTier(3);
+          setPreviewModeState(true);
+          player.setPreviewMode(true);
+          setShowSubscriptionModal(true);
+          return false; // Allow but in preview mode now
+        }
+        
+        return false; // Don't block
+      });
+    }
+    
+    return () => {
+      if (player?.setOnSongChangeCallback) {
+        player.setOnSongChangeCallback(null);
+      }
+    };
+  }, [player?.setOnSongChangeCallback, billingEnabled, isPremium, user, songsPlayedCount, skipTier]);
+  
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
     // Only apply screen lock payment if billing is ON and user is NOT premium
@@ -4219,7 +4265,7 @@ export default function UserStreamingApp() {
           setLoading(false);
           
           if (preloaded.billing) {
-            const finalBillingStatus = preloaded.billing.billing_enabled && preloaded.billing.web_billing_enabled !== false;
+            const finalBillingStatus = preloaded.billing.billing_enabled === true;
             setBillingEnabled(finalBillingStatus);
             setBillingStatusChecked(true);
             if (!finalBillingStatus) {
@@ -4244,7 +4290,7 @@ export default function UserStreamingApp() {
           setLoading(false);
           
           if (cachedBilling) {
-            const finalBillingStatus = cachedBilling.billing_enabled && cachedBilling.web_billing_enabled !== false;
+            const finalBillingStatus = cachedBilling.billing_enabled === true;
             setBillingEnabled(finalBillingStatus);
             setBillingStatusChecked(true);
             if (!finalBillingStatus) {
@@ -4267,9 +4313,7 @@ export default function UserStreamingApp() {
         // Apply billing
         cache.set('billing_status', billingRes.data);
         const billingData = billingRes.data || {};
-        const masterBillingEnabled = billingData.billing_enabled === true;
-        const webBillingEnabled = billingData.web_billing_enabled !== false;
-        const finalBillingStatus = masterBillingEnabled && webBillingEnabled;
+        const finalBillingStatus = billingData.billing_enabled === true;
         
         setBillingEnabled(finalBillingStatus);
         setBillingStatusChecked(true);
@@ -4338,14 +4382,10 @@ export default function UserStreamingApp() {
         console.log('[Billing] Periodic refresh started');
         const billingRes = await axios.get(`${API}/billing-status`).catch(() => ({ data: { billing_enabled: false } }));
         const billingData = billingRes.data || {};
-        const masterBillingEnabled = billingData.billing_enabled === true;
-        const webBillingEnabled = billingData.web_billing_enabled !== false;
-        const finalBillingStatus = masterBillingEnabled && webBillingEnabled;
+        const finalBillingStatus = billingData.billing_enabled === true;
         
         console.log('[Billing] Periodic refresh result:', {
-          billing_enabled: masterBillingEnabled,
-          web_billing_enabled: webBillingEnabled,
-          final_status: finalBillingStatus
+          billing_enabled: finalBillingStatus
         });
         
         setBillingEnabled(finalBillingStatus);
@@ -5196,7 +5236,8 @@ export default function UserStreamingApp() {
     if (billingEnabled && !isPremium) {
       const newSkipCount = skipCount + 1;
       setSkipCount(newSkipCount);
-      console.log(`[Billing] Skip count: ${newSkipCount}, tier: ${skipTier}`);
+      setSongsPlayedCount(prev => prev + 1); // Skips also count as songs played
+      console.log(`[Billing] Skip count: ${newSkipCount}, tier: ${skipTier}, totalPlayed: ${songsPlayedCount + 1}`);
       
       // Tier 3: Skipping completely disabled
       if (skipTier >= 3) {
@@ -5230,9 +5271,8 @@ export default function UserStreamingApp() {
       if (newSkipCount >= SKIP_TIER_3 && skipTier === 2) {
         console.log('[Billing] Tier 3 - DISABLING skips, enabling preview mode');
         setSkipTier(3);
-        setPreviewMode(true);
-        setPreviewSongCount(0);
-        player.setPreviewMode(true); // Tell the audio player
+        setPreviewModeState(true);
+        player.setPreviewMode(true);
         setShowSubscriptionModal(true);
         return; // BLOCK this skip
       }
@@ -6862,9 +6902,10 @@ export default function UserStreamingApp() {
                 setIsPremium(res.data?.is_premium === true);
                 if (res.data?.is_premium) {
                   // Disable all monetization restrictions
-                  setPreviewMode(false);
+                  setPreviewModeState(false);
                   setSkipTier(0);
                   setSkipCount(0);
+                  setSongsPlayedCount(0);
                   player.setPreviewMode(false);
                   toast.success(language === 'sw' ? 'Hongera! Asante kwa mchango wako!' : 'Congratulations! Thank you for your contribution!');
                 }
