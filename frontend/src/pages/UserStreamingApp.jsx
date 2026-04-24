@@ -2524,7 +2524,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
       </div>
 
       {/* Main Controls */}
-      <div className={`mx-6 mb-4 px-4 py-4 rounded-2xl ${skipDisabled ? 'ring-1 ring-blue-500/30 bg-blue-950/10' : ''}`}>
+      <div className={`mx-6 mb-4 px-4 py-4 rounded-2xl ${skipDisabled ? 'border-2 border-blue-400/40 bg-blue-950/10 shadow-[0_0_15px_rgba(96,165,250,0.08)]' : ''}`}>
         <div className="flex items-center justify-between">
           <button 
             onClick={() => player.setShuffle(!player.shuffle)} 
@@ -2563,8 +2563,10 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
           </button>
         </div>
         {skipDisabled && (
-          <button onClick={onSubscribe} className="mt-3 w-full text-center">
-            <p className="text-xs text-blue-300/70">Changia kidogo kufurahia kwa uhuru</p>
+          <button onClick={onSubscribe} className="mt-3 w-full flex justify-center">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-500/20 via-cyan-400/15 to-blue-500/20 border border-blue-400/30 text-[13px] text-blue-200 font-medium italic tracking-wide">
+              Changia kidogo kufurahia kwa uhuru
+            </span>
           </button>
         )}
       </div>
@@ -2614,12 +2616,12 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className={`fixed bottom-16 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t ${skipDisabled ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-zinc-800'}`}>
+    <div className={`fixed bottom-16 lg:bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl ${skipDisabled ? 'border-t-2 border-blue-400/40 shadow-[0_-2px_15px_rgba(96,165,250,0.08)]' : 'border-t border-zinc-800'}`}>
       {/* Subtle contribution banner when skip disabled */}
       {skipDisabled && (
-        <button onClick={onContribute} className="w-full bg-gradient-to-r from-blue-900/40 via-blue-800/30 to-blue-900/40 px-3 py-1.5 flex items-center justify-center gap-2 hover:from-blue-900/60 hover:via-blue-800/50 hover:to-blue-900/60 transition-all">
-          <span className="text-[11px] text-blue-300/80">Changia kidogo kufurahia kwa uhuru</span>
-          <ChevronRight size={12} className="text-blue-400/60" />
+        <button onClick={onContribute} className="w-full bg-gradient-to-r from-blue-900/30 via-blue-800/20 to-blue-900/30 px-3 py-1.5 flex items-center justify-center gap-2 hover:from-blue-900/50 hover:via-blue-800/40 hover:to-blue-900/50 transition-all">
+          <span className="text-[11px] text-blue-200/90 font-medium italic">Changia kidogo kufurahia kwa uhuru</span>
+          <ChevronRight size={12} className="text-blue-300/60" />
         </button>
       )}
       {/* Progress line - only for music, not radio (live streams) */}

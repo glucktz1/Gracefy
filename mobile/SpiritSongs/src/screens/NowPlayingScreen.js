@@ -403,7 +403,17 @@ const NowPlayingScreen = ({ navigation }) => {
           </View>
 
           {/* Main Controls */}
-          <View style={styles.controls}>
+          <View style={[
+            styles.controls, 
+            skipDisabled && { 
+              borderWidth: 2, 
+              borderColor: 'rgba(96, 165, 250, 0.35)', 
+              borderRadius: 20, 
+              paddingVertical: 16,
+              paddingHorizontal: 12,
+              backgroundColor: 'rgba(30, 58, 138, 0.08)',
+            }
+          ]}>
             <TouchableOpacity 
               style={styles.secondaryControl}
               onPress={toggleShuffle}
@@ -466,19 +476,22 @@ const NowPlayingScreen = ({ navigation }) => {
               style={{
                 marginHorizontal: 24,
                 marginBottom: 8,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: 'rgba(96, 165, 250, 0.25)',
-                backgroundColor: 'rgba(30, 58, 138, 0.15)',
+                paddingVertical: 10,
+                paddingHorizontal: 20,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: 'rgba(96, 165, 250, 0.35)',
+                backgroundColor: 'rgba(30, 58, 138, 0.12)',
                 alignItems: 'center',
               }}
             >
               <Text style={{ 
-                fontSize: 12, 
-                color: 'rgba(147, 197, 253, 0.7)', 
-                textAlign: 'center' 
+                fontSize: 13, 
+                color: 'rgba(191, 219, 254, 0.85)', 
+                textAlign: 'center',
+                fontStyle: 'italic',
+                fontWeight: '500',
+                letterSpacing: 0.3,
               }}>
                 Changia kidogo kufurahia kwa uhuru
               </Text>
