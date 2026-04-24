@@ -1174,6 +1174,8 @@ const useAudioPlayer = () => {
   }, [nextSong, prevSong]);
 
   const seekTo = useCallback((value) => {
+    // Block seeking in preview mode
+    if (previewModeRef.current) return;
     audioRef.current.currentTime = value;
     setCurrentTime(value);
   }, []);

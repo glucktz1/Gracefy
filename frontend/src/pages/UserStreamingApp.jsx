@@ -2442,7 +2442,7 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, onShare, previewMode, skipDisabled }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -2513,12 +2513,13 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
           value={[player.currentTime]}
           max={player.duration || 100}
           step={0.1}
-          onValueChange={([v]) => player.seekTo(v)}
-          className="w-full"
+          onValueChange={skipDisabled ? undefined : ([v]) => player.seekTo(v)}
+          disabled={skipDisabled || previewMode}
+          className={`w-full ${skipDisabled ? 'opacity-40 pointer-events-none' : ''}`}
         />
         <div className="flex justify-between text-xs text-zinc-400 mt-1">
           <span>{formatTime(player.currentTime)}</span>
-          <span>{formatTime(player.duration)}</span>
+          <span className={previewMode ? 'text-blue-400' : ''}>{previewMode ? '0:15' : formatTime(player.duration)}</span>
         </div>
       </div>
 
@@ -2532,7 +2533,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
           <Shuffle size={22} />
           {player.shuffle && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
         </button>
-        <button onClick={handlePrev} className="text-white">
+        <button onClick={skipDisabled ? undefined : handlePrev} className={`text-white ${skipDisabled ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={skipDisabled}>
           <SkipBack size={32} fill="white" />
         </button>
         <button 
@@ -2548,7 +2549,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
             <Play size={28} fill="black" className="text-black ml-1" />
           )}
         </button>
-        <button onClick={handleNext} className="text-white">
+        <button onClick={skipDisabled ? undefined : handleNext} className={`text-white ${skipDisabled ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={skipDisabled}>
           <SkipForward size={32} fill="white" />
         </button>
         <button 
@@ -6854,6 +6855,8 @@ export default function UserStreamingApp() {
               toast.success('Link copied to clipboard!');
             }
           }}
+          previewMode={previewMode}
+          skipDisabled={skipTier >= 3}
         />
       )}
 

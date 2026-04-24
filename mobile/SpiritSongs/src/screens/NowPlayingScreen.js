@@ -48,6 +48,8 @@ const NowPlayingScreen = ({ navigation }) => {
     cycleRepeat,
     toggleContinuousPlay,
     playTrack,
+    previewMode,
+    skipDisabled,
   } = usePlayer();
 
   const { isAuthenticated, user } = useAuth();
@@ -386,14 +388,17 @@ const NowPlayingScreen = ({ navigation }) => {
               minimumValue={0}
               maximumValue={duration || 1}
               value={position}
-              onSlidingComplete={seekTo}
-              minimumTrackTintColor={COLORS.text}
+              onSlidingComplete={skipDisabled ? undefined : seekTo}
+              disabled={skipDisabled || previewMode}
+              minimumTrackTintColor={skipDisabled ? COLORS.textSecondary : COLORS.text}
               maximumTrackTintColor={COLORS.progressBar}
-              thumbTintColor={COLORS.text}
+              thumbTintColor={skipDisabled ? 'transparent' : COLORS.text}
             />
             <View style={styles.timeContainer}>
               <Text style={styles.timeText}>{formatTime(position)}</Text>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
+              <Text style={[styles.timeText, previewMode && { color: COLORS.primary }]}>
+                {previewMode ? '0:15' : formatTime(duration)}
+              </Text>
             </View>
           </View>
 
@@ -411,8 +416,9 @@ const NowPlayingScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.controlButton}
-              onPress={handleSkipPrevious}
+              style={[styles.controlButton, skipDisabled && { opacity: 0.3 }]}
+              onPress={skipDisabled ? undefined : handleSkipPrevious}
+              disabled={skipDisabled}
             >
               <Ionicons name="play-skip-back" size={36} color={COLORS.text} />
             </TouchableOpacity>
@@ -429,8 +435,9 @@ const NowPlayingScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.controlButton}
-              onPress={handleSkipNext}
+              style={[styles.controlButton, skipDisabled && { opacity: 0.3 }]}
+              onPress={skipDisabled ? undefined : handleSkipNext}
+              disabled={skipDisabled}
             >
               <Ionicons name="play-skip-forward" size={36} color={COLORS.text} />
             </TouchableOpacity>

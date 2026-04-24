@@ -93,8 +93,10 @@ export const usePlayer = () => {
  */
 export const PlayerProvider = ({ children, billingEnabled = false, isPremium = false, isAuthenticated = false }) => {
   // ============ AUTH CONTEXT ============
-  // NOTE: isAuthenticated is passed as a prop from App.js to avoid duplicate variable
-  const { incrementGuestPlayCount, incrementGuestSkipCount, checkGuestLimit, user } = useAuth();
+  const { incrementGuestPlayCount, incrementGuestSkipCount, checkGuestLimit, user,
+          premiumSkipCount, setPremiumSkipCount, premiumSkipTier, setPremiumSkipTier,
+          previewMode, setPreviewMode, showSubscriptionPrompt, setShowSubscriptionPrompt,
+          SKIP_TIER_1, SKIP_TIER_2, SKIP_TIER_3 } = useAuth();
 
   // ============ STATE ============
   const [currentTrack, setCurrentTrack] = useState(null);
@@ -107,6 +109,15 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const [isLiked, setIsLiked] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [continuousPlay, setContinuousPlay] = useState(true); // Auto-recommendation on by default
+  
+  // Monetization enforcement
+  const [songsPlayedCount, setSongsPlayedCount] = useState(0);
+  const songsPlayedCountRef = useRef(0);
+  const previewModeRef = useRef(false);
+  const previewSongCountRef = useRef(0);
+  const skipDisabledRef = useRef(false);
+  const FREE_SONGS_LIMIT = 8;
+  const FREE_SONGS_LIMIT_2 = 14;
 
   // ============ HOOKS FROM TRACK PLAYER ============
   const playbackState = usePlaybackState();
@@ -126,6 +137,12 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   const stallCountRef = useRef(0); // Track stall events for recovery
   const lastRecoveryAttemptRef = useRef(0); // Prevent recovery spam
   const failedSongsRef = useRef(new Set()); // Track songs that failed to play
+  
+  // Sync monetization refs
+  useEffect(() => {
+    previewModeRef.current = previewMode;
+    skipDisabledRef.current = premiumSkipTier >= 3;
+  }, [previewMode, premiumSkipTier]);
   
   // Analytics tracking
   const deviceIdRef = useRef(`${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
@@ -451,7 +468,7 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       }
     });
 
-    // Listen for track change to pre-fetch recommendations
+    // Listen for track change to pre-fetch recommendations AND enforce billing
     const trackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
       if (!event?.track) return;
       
@@ -465,6 +482,34 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
           thumbnail: trackFromQueue.thumbnail || trackFromQueue.album_thumbnail || trackFromQueue.cover_url || event.track?.artwork,
           album_thumbnail: trackFromQueue.album_thumbnail || trackFromQueue.thumbnail || event.track?.artwork,
         });
+      }
+      
+      // ============ MONETIZATION: Track songs played ============
+      if (isAuthenticatedRef.current && billingEnabledRef.current && !isPremiumRef.current) {
+        songsPlayedCountRef.current += 1;
+        setSongsPlayedCount(songsPlayedCountRef.current);
+        const count = songsPlayedCountRef.current;
+        console.log(`[Billing] Song #${count} played, tier: ${premiumSkipTier}`);
+        
+        // Preview mode: enforce 15-second limit
+        if (previewModeRef.current) {
+          previewSongCountRef.current += 1;
+        }
+        
+        // After FREE_SONGS_LIMIT: show first prompt
+        if (count >= FREE_SONGS_LIMIT && premiumSkipTier < 1) {
+          console.log('[Billing] Song limit reached - showing subscription prompt');
+          setPremiumSkipTier(1);
+          setShowSubscriptionPrompt(true);
+        }
+        
+        // After FREE_SONGS_LIMIT_2: enable preview mode
+        if (count >= FREE_SONGS_LIMIT_2 && premiumSkipTier < 3) {
+          console.log('[Billing] Extended limit - enabling preview mode');
+          setPremiumSkipTier(3);
+          setPreviewMode(true);
+          setShowSubscriptionPrompt(true);
+        }
       }
       
       // When we're near the end of the queue, pre-fetch more recommendations
@@ -549,6 +594,28 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
       if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
     };
   }, [setupPlayer, user]);
+
+  // ============ PREVIEW MODE: 15-second limit enforcement ============
+  useEffect(() => {
+    if (!previewModeRef.current) return;
+    if (!progress.position || progress.position < 15) return;
+    
+    // Pattern: 15s, 15s, 15s, FULL, 15s, 15s, 15s, FULL...
+    const songNum = previewSongCountRef.current;
+    const isFullSong = (songNum > 0) && (songNum % 4 === 0);
+    
+    if (!isFullSong && progress.position >= 15) {
+      console.log(`[Billing] Preview mode: cutting song at 15s (song #${songNum})`);
+      TrackPlayer.skipToNext().catch(async () => {
+        // If can't skip (last song), restart queue
+        try {
+          await TrackPlayer.skip(0);
+          await TrackPlayer.play();
+        } catch (e) {}
+      });
+    }
+  }, [progress.position]);
+
 
   // ============ SYNC ACTIVE TRACK ============
   useEffect(() => {
@@ -1135,42 +1202,59 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   /**
    * Skip to next track - optimized for speed
    * GUEST LIMIT: Block skips when limit is reached
-   * BILLING LOGIC:
-   * - Guest users: Allow up to GUEST_SKIP_LIMIT skips, then BLOCK
-   * - Logged in + billing OFF: Allow skip
-   * - Logged in + billing ON + not paid + in background: Block skip
+   * BILLING LOGIC: Tiered skip enforcement
    */
   const skipNext = async () => {
     if (!setupCompleteRef.current) return;
 
     try {
-      // Use refs to get CURRENT billing values
       const currentBillingEnabled = billingEnabledRef.current;
       const currentIsPremium = isPremiumRef.current;
       const currentIsAuthenticated = isAuthenticatedRef.current;
       
       // ============ GUEST SKIP LIMIT CHECK ============
-      // Check if guest user has reached their skip limit
       if (!currentIsAuthenticated) {
         const limitReached = await incrementGuestSkipCount();
         if (limitReached) {
           console.log('[Player] Guest skip limit reached - BLOCKING skip');
-          // Set flag to block autoplay when current song ends
           guestLimitReachedRef.current = true;
-          // Show login prompt
-          if (showLoginPromptCallback) {
-            showLoginPromptCallback();
-          }
-          // DO NOT allow skip - user must login
+          if (showLoginPromptCallback) showLoginPromptCallback();
           return;
         }
       }
       
-      // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
-      if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
-        console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
-        pendingPaymentPromptRef.current = true;
-        return;
+      // ============ PREMIUM USER TIERED SKIP ENFORCEMENT ============
+      if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium) {
+        if (skipDisabledRef.current) {
+          console.log('[Player] Skipping DISABLED (tier 3)');
+          setShowSubscriptionPrompt(true);
+          return;
+        }
+        
+        const newSkipCount = premiumSkipCount + 1;
+        setPremiumSkipCount(newSkipCount);
+        songsPlayedCountRef.current += 1;
+        setSongsPlayedCount(songsPlayedCountRef.current);
+        
+        if (newSkipCount >= SKIP_TIER_1 && premiumSkipTier === 0) {
+          setPremiumSkipTier(1);
+          setShowSubscriptionPrompt(true);
+        }
+        if (newSkipCount >= SKIP_TIER_2 && premiumSkipTier === 1) {
+          setPremiumSkipTier(2);
+          setShowSubscriptionPrompt(true);
+        }
+        if (newSkipCount >= SKIP_TIER_3 && premiumSkipTier === 2) {
+          setPremiumSkipTier(3);
+          setPreviewMode(true);
+          setShowSubscriptionPrompt(true);
+          return; // BLOCK
+        }
+        
+        if (isInBackgroundRef.current) {
+          pendingPaymentPromptRef.current = true;
+          return;
+        }
       }
       
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
@@ -1207,43 +1291,57 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
 
   /**
    * Skip to previous track
-   * GUEST LIMIT: Block skips when limit is reached
-   * BILLING LOGIC:
-   * - Guest users: Allow up to GUEST_SKIP_LIMIT skips, then BLOCK
-   * - Logged in + billing OFF: Allow skip
-   * - Logged in + billing ON + not paid + in background: Block skip
+   * Same tiered enforcement as skipNext
    */
   const skipPrevious = async () => {
     if (!setupCompleteRef.current) return;
 
     try {
-      // Use refs to get CURRENT billing values
       const currentBillingEnabled = billingEnabledRef.current;
       const currentIsPremium = isPremiumRef.current;
       const currentIsAuthenticated = isAuthenticatedRef.current;
       
       // ============ GUEST SKIP LIMIT CHECK ============
-      // Check if guest user has reached their skip limit
       if (!currentIsAuthenticated) {
         const limitReached = await incrementGuestSkipCount();
         if (limitReached) {
           console.log('[Player] Guest skip limit reached - BLOCKING skip');
-          // Set flag to block autoplay when current song ends
           guestLimitReachedRef.current = true;
-          // Show login prompt
-          if (showLoginPromptCallback) {
-            showLoginPromptCallback();
-          }
-          // DO NOT allow skip - user must login
+          if (showLoginPromptCallback) showLoginPromptCallback();
           return;
         }
       }
       
-      // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
-      if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
-        console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
-        pendingPaymentPromptRef.current = true;
-        return;
+      // ============ PREMIUM USER TIERED SKIP ENFORCEMENT ============
+      if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium) {
+        if (skipDisabledRef.current) {
+          console.log('[Player] Skipping DISABLED (tier 3)');
+          setShowSubscriptionPrompt(true);
+          return;
+        }
+        
+        const newSkipCount = premiumSkipCount + 1;
+        setPremiumSkipCount(newSkipCount);
+        
+        if (newSkipCount >= SKIP_TIER_1 && premiumSkipTier === 0) {
+          setPremiumSkipTier(1);
+          setShowSubscriptionPrompt(true);
+        }
+        if (newSkipCount >= SKIP_TIER_2 && premiumSkipTier === 1) {
+          setPremiumSkipTier(2);
+          setShowSubscriptionPrompt(true);
+        }
+        if (newSkipCount >= SKIP_TIER_3 && premiumSkipTier === 2) {
+          setPremiumSkipTier(3);
+          setPreviewMode(true);
+          setShowSubscriptionPrompt(true);
+          return;
+        }
+        
+        if (isInBackgroundRef.current) {
+          pendingPaymentPromptRef.current = true;
+          return;
+        }
       }
       
       // If more than 3 seconds in, restart current track
@@ -1269,6 +1367,11 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
    */
   const seekTo = async (ms) => {
     if (!setupCompleteRef.current) return;
+    // Block seeking in preview mode or when skipping is disabled
+    if (previewModeRef.current || skipDisabledRef.current) {
+      console.log('[Player] Seeking blocked (preview/disabled mode)');
+      return;
+    }
 
     try {
       await TrackPlayer.seekTo(ms / 1000); // Convert to seconds
@@ -1583,6 +1686,12 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     resumePlayback,
     playRadio,
     stopRadio,
+    
+    // Monetization enforcement state
+    previewMode,
+    skipDisabled: premiumSkipTier >= 3,
+    songsPlayedCount,
+    premiumSkipTier,
   };
 
   return (
