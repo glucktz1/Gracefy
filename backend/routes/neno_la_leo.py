@@ -13,12 +13,9 @@ import hashlib
 import os
 import httpx
 
-router = APIRouter(prefix="/neno-la-leo", tags=["Neno la Leo"])
+router = APIRouter(prefix="/api/neno-la-leo", tags=["Neno la Leo"])
 
-# Get database
-def get_db():
-    from db import get_db as db_getter
-    return db_getter()
+from core.database import get_db
 
 # ==================== MODELS ====================
 
@@ -78,7 +75,7 @@ def generate_neno_id() -> str:
     return f"neno_{uuid.uuid4().hex[:12]}"
 
 async def get_leader_from_token(request: Request):
-    """Get religious leader from auth token"""
+    """Get religious leader from auth token (uses existing leaders.py auth)"""
     db = get_db()
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -89,10 +86,25 @@ async def get_leader_from_token(request: Request):
     if not token_doc:
         return None
     
-    return await db.religious_leaders.find_one(
-        {"leader_id": token_doc["leader_id"], "is_active": True},
+    leader = await db.religious_leaders.find_one(
+        {"leader_id": token_doc["leader_id"]},
         {"_id": 0, "password_hash": 0}
     )
+    return leader
+
+
+async def get_admin_from_token(request: Request):
+    """Get admin user from auth token"""
+    db = get_db()
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    # Check admin sessions
+    session = await db.admin_sessions.find_one({"token": token})
+    if not session:
+        return None
+    return session
 
 def format_verse_reference(book: str, chapter: int, verse_start: int, verse_end: int) -> str:
     """Format verse reference like 'Luka 2:15-19'"""
@@ -367,113 +379,8 @@ async def delete_neno(neno_id: str):
     return {"message": "Neno la Leo deleted successfully"}
 
 # ==================== LEADER PORTAL ENDPOINTS ====================
-
-@router.post("/leader/register")
-async def leader_register(data: ReligiousLeaderCreate, password: str = Form(...)):
-    """Self-registration for religious leaders (requires admin approval)"""
-    db = get_db()
-    
-    # Check if email already exists
-    existing = await db.religious_leaders.find_one({"email": data.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    leader = {
-        "leader_id": generate_leader_id(),
-        "name": data.name,
-        "title": data.title,
-        "email": data.email,
-        "phone": data.phone,
-        "bio": data.bio,
-        "photo_url": data.photo_url,
-        "church_or_organization": data.church_or_organization,
-        "password_hash": hash_password(password),
-        "is_active": True,
-        "is_approved": False,  # Requires admin approval
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-        "stats": {
-            "total_neno": 0,
-            "total_plays": 0,
-            "total_reading_plays": 0,
-            "total_reflection_plays": 0
-        }
-    }
-    
-    await db.religious_leaders.insert_one(leader)
-    leader.pop("_id", None)
-    leader.pop("password_hash", None)
-    
-    return {
-        "message": "Registration successful. Please wait for admin approval.",
-        "leader": leader
-    }
-
-@router.post("/leader/login")
-async def leader_login(email: str = Form(...), password: str = Form(...)):
-    """Login for religious leaders"""
-    db = get_db()
-    
-    leader = await db.religious_leaders.find_one({"email": email})
-    if not leader:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    if leader.get("password_hash") != hash_password(password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    if not leader.get("is_approved"):
-        raise HTTPException(status_code=403, detail="Account pending approval")
-    
-    if not leader.get("is_active"):
-        raise HTTPException(status_code=403, detail="Account is deactivated")
-    
-    # Generate token
-    token = uuid.uuid4().hex + uuid.uuid4().hex
-    
-    await db.leader_tokens.insert_one({
-        "token": token,
-        "leader_id": leader["leader_id"],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
-    })
-    
-    leader.pop("_id", None)
-    leader.pop("password_hash", None)
-    
-    return {
-        "message": "Login successful",
-        "token": token,
-        "leader": leader
-    }
-
-@router.get("/leader/me")
-async def get_leader_profile(request: Request):
-    """Get current leader's profile"""
-    leader = await get_leader_from_token(request)
-    if not leader:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return leader
-
-@router.put("/leader/me")
-async def update_leader_profile(request: Request, data: ReligiousLeaderUpdate):
-    """Update current leader's profile"""
-    leader = await get_leader_from_token(request)
-    if not leader:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    db = get_db()
-    update_data = {k: v for k, v in data.dict().items() if v is not None}
-    # Leaders can't change their own active/approved status
-    update_data.pop("is_active", None)
-    update_data.pop("is_approved", None)
-    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    
-    await db.religious_leaders.update_one(
-        {"leader_id": leader["leader_id"]},
-        {"$set": update_data}
-    )
-    
-    return {"message": "Profile updated successfully"}
+# Note: Authentication is handled by routes/leaders.py
+# This module uses the existing leader_tokens to scope Neno la Leo actions.
 
 @router.get("/leader/my-neno")
 async def get_leader_neno(request: Request):

@@ -3311,6 +3311,7 @@ export default function UserStreamingApp() {
   const [token, setToken] = useState(localStorage.getItem('user_token'));
   const [view, setView] = useState('home');
   const [homeData, setHomeData] = useState(null);
+  const [nenoLaLeoList, setNenoLaLeoList] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -3615,7 +3616,7 @@ export default function UserStreamingApp() {
           ? `${API}/user/home/geo?country=${detectedCountry}&platform=web` 
           : `${API}/user/home?platform=web`;
         
-        const [homeRes, catRes, sectionsRes, tagsRes, radioRes] = await Promise.all([
+        const [homeRes, catRes, sectionsRes, tagsRes, radioRes, nenoRes] = await Promise.all([
           axios.get(homeEndpoint).catch((err) => {
             console.error('[Home] Failed to fetch home data:', err.message);
             // Fallback to non-geo endpoint if geo fails
@@ -3627,8 +3628,10 @@ export default function UserStreamingApp() {
           axios.get(`${API}/user/browse/categories`).catch(() => ({ data: { categories: [] } })),
           axios.get(`${API}/layout/sections?active_only=true`).catch(() => ({ data: { sections: [] } })),
           axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
-          axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } }))
+          axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } })),
+          axios.get(`${API}/neno-la-leo/active`).catch(() => ({ data: { neno_list: [] } })),
         ]);
+        setNenoLaLeoList(nenoRes.data?.neno_list || []);
         
         // Cache the responses for faster next load
         console.log('[Home] API response received:', {
@@ -4824,7 +4827,64 @@ export default function UserStreamingApp() {
                   </div>
                 </section>
 
-                {/* Category Filter Pills */}
+                {/* Neno la Leo - Horizontal scrolling tiles */}
+                {nenoLaLeoList.length > 0 && (
+                  <section data-testid="neno-la-leo-section">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Neno la Leo</h2>
+                        <p className="text-xs text-zinc-500">Tafakari za kila siku kutoka kwa viongozi wa dini</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                      {nenoLaLeoList.map(neno => (
+                        <div
+                          key={neno.neno_id}
+                          className="flex-shrink-0 w-64 bg-gradient-to-br from-violet-900/40 via-zinc-900 to-violet-950/40 rounded-2xl border border-violet-800/40 p-4 hover:border-violet-600 transition-all cursor-pointer"
+                          data-testid={`neno-tile-${neno.neno_id}`}
+                          onClick={() => {
+                            // Play reading audio first if available, else reflection
+                            const url = neno.reading_audio_url || neno.reflection_audio_url;
+                            if (!url) {
+                              toast?.error?.("Hakuna sauti");
+                              return;
+                            }
+                            const audioType = neno.reading_audio_url ? "reading" : "reflection";
+                            const audio = new Audio(url);
+                            audio.play().catch(() => {});
+                            // Track play
+                            axios.post(`${API}/neno-la-leo/${neno.neno_id}/play?audio_type=${audioType}`).catch(() => {});
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-medium text-violet-300 bg-violet-900/40 px-2 py-1 rounded-full">
+                              {neno.word_day_name}
+                            </span>
+                            <Play size={20} className="text-violet-400 fill-violet-400" />
+                          </div>
+                          <h3 className="text-lg font-bold text-white mb-1 truncate">{neno.verse_reference}</h3>
+                          <p className="text-xs text-zinc-400 mb-3">{neno.word_date}</p>
+                          <div className="flex items-center gap-2 pt-3 border-t border-violet-800/30">
+                            {neno.leader?.photo_url ? (
+                              <img src={neno.leader.photo_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-violet-700/40 flex items-center justify-center">
+                                <span className="text-xs text-violet-200">{(neno.leader?.name || '?').charAt(0)}</span>
+                              </div>
+                            )}
+                            <span className="text-xs text-zinc-300 truncate">
+                              {neno.leader_display || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2 text-[10px] text-zinc-500">
+                            {neno.reading_audio_url && <span className="text-emerald-400">● Usomaji</span>}
+                            {neno.reflection_audio_url && <span className="text-violet-400">● Tafakari</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
                 {!activeCategory && (
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     <button className="px-4 py-2 rounded-full bg-white text-black text-sm font-medium whitespace-nowrap">

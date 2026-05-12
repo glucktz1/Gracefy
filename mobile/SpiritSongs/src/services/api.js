@@ -247,6 +247,13 @@ export const leaderContentAPI = {
   getMafundishoDetail: (containerId) => api.get(`/mafundisho/${containerId}`),
 };
 
+// ============ NENO LA LEO API ============
+export const nenoLaLeoAPI = {
+  getActive: () => api.get('/neno-la-leo/active'),
+  getById: (id) => api.get(`/neno-la-leo/${id}`),
+  trackPlay: (id, audioType = 'reading') => api.post(`/neno-la-leo/${id}/play?audio_type=${audioType}`),
+};
+
 // ============ CONTENT API ============
 export const contentAPI = {
   getAlbums: () => api.get('/albums'),

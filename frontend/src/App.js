@@ -66,6 +66,7 @@ const GeoContentPage = lazy(() => import("@/pages/GeoContentPage"));
 const ReligiousLeadersPage = lazy(() => import("@/pages/ReligiousLeadersPage"));
 const LeaderLoginPage = lazy(() => import("@/pages/LeaderLoginPage"));
 const LeaderDashboardPage = lazy(() => import("@/pages/LeaderDashboardPage"));
+const NenoLaLeoAdminPage = lazy(() => import("@/pages/NenoLaLeoAdminPage"));
 const SeeAllPage = lazy(() => import("@/pages/SeeAllPage"));
 const HLSTranscodingPage = lazy(() => import("@/pages/HLSTranscodingPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
@@ -194,6 +195,7 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
       children: [
         { path: "/admin/religious-leaders", icon: Users, label: "Leader Management", permissions: ["user_management"] },
         { path: "/admin/teachings", icon: BookMarked, label: "Teachings (Mafundisho)", permissions: ["content_management"] },
+        { path: "/admin/neno-la-leo", icon: BookMarked, label: "Neno la Leo", permissions: ["content_management"] },
       ]
     },
     // Standalone items
@@ -571,6 +573,7 @@ function AppRouter() {
         <Route path="/admin/choirs/:choirId" element={<ProtectedRoute><ChoirDetailsPage /></ProtectedRoute>} />
         <Route path="/admin/leaders" element={<ProtectedRoute><ReligiousLeadersPage /></ProtectedRoute>} />
         <Route path="/admin/religious-leaders" element={<ProtectedRoute><ReligiousLeadersPage /></ProtectedRoute>} />
+        <Route path="/admin/neno-la-leo" element={<ProtectedRoute><NenoLaLeoAdminPage /></ProtectedRoute>} />
         <Route path="/admin/choir-accounts" element={<ProtectedRoute><ChoirAccountsPage /></ProtectedRoute>} />
         <Route path="/admin/withdrawals" element={<ProtectedRoute><WithdrawalsPage /></ProtectedRoute>} />
         <Route path="/admin/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />

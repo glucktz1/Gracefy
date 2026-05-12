@@ -1,0 +1,41 @@
+{
+  "summary": "Comprehensive backend testing of Neno la Leo module (/api/neno-la-leo/*). All 30 tests passed covering admin leaders CRUD, pending-leaders/approve, admin neno CRUD with status filters, verse_reference formatting (range + single verse + recomputation on update), Swahili day name, expires_at=word_date+30d, is_active logic for scheduled vs immediate publish, /active enrichment with leader info+display_date+leader_display, single neno GET, play tracking incrementing both neno + leader stats (reading/reflection), delete decrementing leader.stats.total_neno, and verification that _id is never leaked.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/neno-la-leo/admin/neno", "issue": "publish_datetime is constructed from naive ISO string and compared by replacing tzinfo with UTC. If publish_time is meant as local/Tanzania time, the is_active gating could be off by the local offset. Consider explicit timezone in payload or server-side."},
+      {"endpoint": "PUT /api/neno-la-leo/admin/neno/{id}", "issue": "When publish_date/time updated, publish_datetime is stored as raw 'YYYY-MM-DDTHH:MM:00' (no timezone) whereas create uses .isoformat() — inconsistent format vs create path."},
+      {"endpoint": "GET /api/neno-la-leo/admin/neno?status=scheduled", "issue": "Uses publish_datetime>{now.isoformat()} but stored value is naive ISO; works only because comparisons are lexical on strings. Fragile if format changes."},
+      {"endpoint": "All admin endpoints", "issue": "No auth check — anyone can hit /admin/leaders, /admin/neno create/update/delete. get_admin_from_token helper is defined but never used. HIGH severity if exposed publicly."},
+      {"endpoint": "POST /api/neno-la-leo/{neno_id}/play", "issue": "audio_type silently coerced to 'reading' for invalid values instead of returning 400 — masks client bugs."},
+      {"endpoint": "DELETE /api/neno-la-leo/admin/neno/{id}", "issue": "Decrements leader stats.total_neno without floor — could go negative if data inconsistent."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_neno_la_leo.py",
+    "/app/test_reports/pytest/neno_la_leo_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Add admin authentication enforcement on all /admin/* endpoints (currently public). The helper get_admin_from_token exists but is not invoked.",
+    "Normalize publish_datetime format in update path to use .isoformat() (matches create path).",
+    "Consider returning 400 on invalid audio_type for /play instead of defaulting to 'reading'.",
+    "Optional: prevent leader stats.total_neno from going below 0 in delete."
+  ],
+  "critical_code_review_comments": [
+    "Admin endpoints under /api/neno-la-leo/admin/* are NOT protected — they accept any unauthenticated request. This is a HIGH severity security gap.",
+    "Inconsistent publish_datetime serialization between create (.isoformat()) and update (raw string).",
+    "format_verse_reference + get_swahili_day_name working correctly and well-isolated.",
+    "_id is consistently excluded across all queries — good.",
+    "datetime.fromisoformat with date-only string works in Python 3.11 but is implicit; consider date.fromisoformat for clarity.",
+    "File length 672 lines — approaching the 700-line guideline; could be split into leaders.py / neno.py / upload.py submodules."
+  ],
+  "updated_files": ["/app/backend/tests/test_neno_la_leo.py"],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "n/a"},
+  "test_credentials": "Used existing leader leader_c6f3f6973c2c. Created and cleaned up test leaders/neno entries.",
+  "seed_data_creation": "Created transient TEST_ leaders/neno entries during the run; all cleaned up at the end via the test_cleanup_* tests. No residual test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 30 tests are in /app/backend/tests/test_neno_la_leo.py and use REACT_APP_BACKEND_URL. Cleanup is built-in. Existing seed (neno_9aaffe3ec7ed by leader_c6f3f6973c2c) is left untouched. Admin endpoints are unauthenticated — main agent should add auth before production.",
+  "rca of the issue": "n/a — feature implementation is functionally correct; only auth + minor consistency issues noted."
+}

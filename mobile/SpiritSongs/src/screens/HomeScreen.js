@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
-import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl, radioAPI, geoAPI } from '../services/api';
+import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl, radioAPI, geoAPI, nenoLaLeoAPI } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useGeo } from '../context/GeoContext';
@@ -52,6 +52,7 @@ const HomeScreen = ({ navigation }) => {
   const [bibleSnippets, setBibleSnippets] = useState([]);
   const [churches, setChurches] = useState([]);
   const [mafundishoContent, setMafundishoContent] = useState([]);
+  const [nenoLaLeo, setNenoLaLeo] = useState([]);
   
   // Additional sections from Layout Manager
   const [lentSongs, setLentSongs] = useState([]);
@@ -142,6 +143,7 @@ const HomeScreen = ({ navigation }) => {
         tagsRes,
         radioRes,
         geoAlbumsRes,
+        nenoRes,
       ] = await Promise.all([
         // Get home data with sections, hero, and burners in correct layout order
         homeAPI.getAppHome().catch(() => ({ data: { sections: [], hero: { items: [] }, burners: [] } })),
@@ -154,7 +156,10 @@ const HomeScreen = ({ navigation }) => {
         useGeoFiltering 
           ? geoAPI.getLocalizedFeed(userCountry, 'albums').catch(() => ({ data: { albums: [] } }))
           : Promise.resolve({ data: { albums: [] } }),
+        nenoLaLeoAPI.getActive().catch(() => ({ data: { neno_list: [] } })),
       ]);
+
+      setNenoLaLeo(nenoRes.data?.neno_list || []);
 
       // Album Tags
       const tags = tagsRes.data?.tags || [];
@@ -722,6 +727,11 @@ const HomeScreen = ({ navigation }) => {
     // Quick Access
     sections.push({ type: 'quickAccess', key: 'quickAccess' });
     
+    // Neno la Leo - Today's Word from religious leaders
+    if (nenoLaLeo.length > 0) {
+      sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
+    }
+    
     // Category Filters
     if (categories.length > 0) {
       sections.push({ type: 'categoryFilters', key: 'categoryFilters', data: categories });
@@ -827,7 +837,7 @@ const HomeScreen = ({ navigation }) => {
     
     return sections;
   }, [heroContent, categories, mafundishoContent, layoutSections, specialMixes, radioStations, 
-      mostListenedAlbums, hotNewReleases, bibleSnippets, churches, allSongs, recentAlbums]);
+      mostListenedAlbums, hotNewReleases, bibleSnippets, churches, allSongs, recentAlbums, nenoLaLeo]);
 
   // Render item for FlatList
   const renderFlatListItem = useCallback(({ item }) => {
@@ -858,6 +868,9 @@ const HomeScreen = ({ navigation }) => {
       
       case 'mafundisho':
         return renderMafundishoSection(item.data);
+      
+      case 'nenoLaLeo':
+        return renderNenoLaLeoSection(item.data);
       
       case 'dynamicSection':
         return renderDynamicSection(item.data);
@@ -1113,6 +1126,77 @@ const HomeScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderNenoLaLeoSection = (data) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Neno la Leo</Text>
+      </View>
+      <Text style={{ color: COLORS.textSecondary, fontSize: FONT_SIZES.xs, paddingHorizontal: SPACING.md, marginTop: -SPACING.sm, marginBottom: SPACING.sm }}>
+        Tafakari za kila siku kutoka kwa viongozi wa dini
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+        {data.map((neno) => (
+          <TouchableOpacity
+            key={neno.neno_id}
+            style={styles.nenoCard}
+            activeOpacity={0.85}
+            onPress={async () => {
+              const url = neno.reading_audio_url || neno.reflection_audio_url;
+              if (!url) return;
+              const audioType = neno.reading_audio_url ? 'reading' : 'reflection';
+              try {
+                await nenoLaLeoAPI.trackPlay(neno.neno_id, audioType);
+              } catch {}
+              // Use the player to play the audio as a song-like object
+              if (playTrack) {
+                playTrack({
+                  song_id: neno.neno_id,
+                  title: neno.verse_reference,
+                  artist: `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Neno la Leo',
+                  thumbnail: neno.leader?.photo_url || null,
+                  audio_url: url,
+                  duration: 0,
+                  is_neno_la_leo: true,
+                });
+              }
+            }}
+          >
+            <LinearGradient colors={['rgba(139,92,246,0.25)', 'rgba(0,0,0,0.6)']} style={styles.nenoCardGradient}>
+              <View style={styles.nenoCardHeader}>
+                <View style={styles.nenoDayBadge}>
+                  <Text style={styles.nenoDayBadgeText}>{neno.word_day_name}</Text>
+                </View>
+                <Ionicons name="play-circle" size={26} color="#a78bfa" />
+              </View>
+              <Text style={styles.nenoVerseRef} numberOfLines={2}>{neno.verse_reference}</Text>
+              <Text style={styles.nenoDate}>{neno.word_date}</Text>
+              <View style={styles.nenoLeaderRow}>
+                {neno.leader?.photo_url ? (
+                  <Image source={{ uri: neno.leader.photo_url }} style={styles.nenoLeaderAvatar} />
+                ) : (
+                  <View style={styles.nenoLeaderAvatarPlaceholder}>
+                    <Text style={styles.nenoLeaderAvatarText}>{(neno.leader?.name || '?').charAt(0)}</Text>
+                  </View>
+                )}
+                <Text style={styles.nenoLeaderName} numberOfLines={1}>
+                  {neno.leader_display || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim()}
+                </Text>
+              </View>
+              <View style={styles.nenoAudioBadges}>
+                {neno.reading_audio_url && (
+                  <Text style={[styles.nenoAudioBadge, { color: '#34d399' }]}>● Usomaji</Text>
+                )}
+                {neno.reflection_audio_url && (
+                  <Text style={[styles.nenoAudioBadge, { color: '#a78bfa' }]}>● Tafakari</Text>
+                )}
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -2177,6 +2261,89 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
     marginLeft: SPACING.sm,
+  },
+  // Neno la Leo styles
+  nenoCard: {
+    width: 230,
+    marginRight: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.35)',
+  },
+  nenoCardGradient: {
+    padding: SPACING.md,
+    minHeight: 180,
+  },
+  nenoCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  nenoDayBadge: {
+    backgroundColor: 'rgba(139,92,246,0.25)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  nenoDayBadgeText: {
+    color: '#c4b5fd',
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+  },
+  nenoVerseRef: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  nenoDate: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.xs,
+    marginBottom: SPACING.sm,
+  },
+  nenoLeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139,92,246,0.2)',
+  },
+  nenoLeaderAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: SPACING.xs,
+  },
+  nenoLeaderAvatarPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: SPACING.xs,
+    backgroundColor: 'rgba(139,92,246,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nenoLeaderAvatarText: {
+    color: '#ddd6fe',
+    fontSize: FONT_SIZES.xs,
+    fontWeight: 'bold',
+  },
+  nenoLeaderName: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.xs,
+    flex: 1,
+  },
+  nenoAudioBadges: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  nenoAudioBadge: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 });
 

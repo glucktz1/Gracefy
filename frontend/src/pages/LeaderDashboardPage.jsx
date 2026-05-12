@@ -3,7 +3,8 @@ import axios from "axios";
 import { 
   BookOpen, Plus, Edit2, Eye, BarChart3, DollarSign, 
   LogOut, Home, Settings, Menu, X, Clock, CheckCircle,
-  XCircle, Upload, CreditCard, TrendingUp, Users, Play
+  XCircle, Upload, CreditCard, TrendingUp, Users, Play,
+  Mic, Square, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { BIBLE_BOOKS } from "@/utils/bibleBooks";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -60,6 +62,27 @@ export default function LeaderDashboardPage() {
     monetization_type: "free"
   });
 
+  // Neno la Leo state
+  const [nenoList, setNenoList] = useState([]);
+  const [isNenoModalOpen, setIsNenoModalOpen] = useState(false);
+  const [editingNeno, setEditingNeno] = useState(null);
+  const [nenoForm, setNenoForm] = useState({
+    book: "Luka",
+    chapter: 1,
+    verse_start: 1,
+    verse_end: 1,
+    word_date: new Date().toISOString().slice(0, 10),
+    publish_date: new Date().toISOString().slice(0, 10),
+    publish_time: "06:00",
+    reading_audio_url: "",
+    reflection_audio_url: "",
+    notes: "",
+  });
+  const [nenoUploading, setNenoUploading] = useState({ reading: false, reflection: false });
+  const [nenoRecording, setNenoRecording] = useState({ reading: false, reflection: false });
+  const nenoRecRef = useState(() => ({ reading: null, reflection: null }))[0];
+  const nenoChunksRef = useState(() => ({ reading: [], reflection: [] }))[0];
+
   // Check auth on mount
   useEffect(() => {
     const token = localStorage.getItem("leader_token");
@@ -87,18 +110,111 @@ export default function LeaderDashboardPage() {
   // Fetch all data
   const fetchData = async () => {
     try {
-      const [teachingsRes, analyticsRes, revenueRes] = await Promise.all([
+      const [teachingsRes, analyticsRes, revenueRes, nenoRes] = await Promise.all([
         axios.get(`${API}/leader/teachings`, { headers: getAuthHeaders() }),
         axios.get(`${API}/leader/analytics?period=30d`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/leader/revenue`, { headers: getAuthHeaders() })
+        axios.get(`${API}/leader/revenue`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/neno-la-leo/leader/my-neno`, { headers: getAuthHeaders() }).catch(() => ({ data: { neno_list: [] } })),
       ]);
       setTeachings(teachingsRes.data.teachings || []);
       setAnalytics(analyticsRes.data);
       setRevenue(revenueRes.data);
+      setNenoList(nenoRes.data.neno_list || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ============ NENO LA LEO HANDLERS ============
+  const openNenoCreate = () => {
+    setEditingNeno(null);
+    setNenoForm({
+      book: "Luka", chapter: 1, verse_start: 1, verse_end: 1,
+      word_date: new Date().toISOString().slice(0, 10),
+      publish_date: new Date().toISOString().slice(0, 10),
+      publish_time: "06:00",
+      reading_audio_url: "", reflection_audio_url: "", notes: "",
+    });
+    setIsNenoModalOpen(true);
+  };
+
+  const openNenoEdit = (n) => {
+    setEditingNeno(n);
+    setNenoForm({
+      book: n.book, chapter: n.chapter, verse_start: n.verse_start, verse_end: n.verse_end,
+      word_date: n.word_date, publish_date: n.publish_date, publish_time: n.publish_time,
+      reading_audio_url: n.reading_audio_url || "", reflection_audio_url: n.reflection_audio_url || "",
+      notes: n.notes || "",
+    });
+    setIsNenoModalOpen(true);
+  };
+
+  const uploadNenoAudio = async (file, audioType) => {
+    setNenoUploading(prev => ({ ...prev, [audioType]: true }));
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("audio_type", audioType);
+      const res = await axios.post(`${API}/neno-la-leo/upload-audio`, fd, {
+        headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" },
+      });
+      setNenoForm(prev => ({ ...prev, [`${audioType}_audio_url`]: res.data.audio_url }));
+      toast.success(`Sauti ya ${audioType === "reading" ? "Usomaji" : "Tafakari"} imepakiwa`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Imeshindwa kupakia");
+    } finally {
+      setNenoUploading(prev => ({ ...prev, [audioType]: false }));
+    }
+  };
+
+  const startNenoRecording = async (audioType) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      nenoChunksRef[audioType] = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) nenoChunksRef[audioType].push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(nenoChunksRef[audioType], { type: "audio/webm" });
+        const file = new File([blob], `${audioType}_${Date.now()}.webm`, { type: "audio/webm" });
+        uploadNenoAudio(file, audioType);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      nenoRecRef[audioType] = rec;
+      rec.start();
+      setNenoRecording(prev => ({ ...prev, [audioType]: true }));
+    } catch {
+      toast.error("Hairuhusiwi kutumia kipaza sauti");
+    }
+  };
+
+  const stopNenoRecording = (audioType) => {
+    nenoRecRef[audioType]?.stop();
+    setNenoRecording(prev => ({ ...prev, [audioType]: false }));
+  };
+
+  const handleSubmitNeno = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...nenoForm,
+        leader_id: leader?.leader_id || "",
+        chapter: parseInt(nenoForm.chapter, 10),
+        verse_start: parseInt(nenoForm.verse_start, 10),
+        verse_end: parseInt(nenoForm.verse_end, 10),
+      };
+      if (editingNeno) {
+        await axios.put(`${API}/neno-la-leo/leader/neno/${editingNeno.neno_id}`, payload, { headers: getAuthHeaders() });
+        toast.success("Limesasishwa");
+      } else {
+        await axios.post(`${API}/neno-la-leo/leader/neno`, payload, { headers: getAuthHeaders() });
+        toast.success("Neno la Leo limeundwa");
+      }
+      setIsNenoModalOpen(false);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Imeshindwa");
     }
   };
 
@@ -214,6 +330,7 @@ export default function LeaderDashboardPage() {
             {[
               { id: "dashboard", icon: Home, label: "Dashibodi" },
               { id: "teachings", icon: BookOpen, label: "Mafundisho" },
+              { id: "neno", icon: Calendar, label: "Neno la Leo" },
               { id: "analytics", icon: BarChart3, label: "Takwimu" },
               { id: "revenue", icon: DollarSign, label: "Mapato" },
             ].map(item => (
@@ -473,6 +590,59 @@ export default function LeaderDashboardPage() {
             </div>
           )}
 
+          {/* Neno la Leo Tab */}
+          {activeTab === "neno" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Neno la Leo</h2>
+                <Button onClick={openNenoCreate} className="bg-violet-600 hover:bg-violet-700" data-testid="leader-create-neno-btn">
+                  <Plus size={18} className="mr-2" /> Ongeza Neno
+                </Button>
+              </div>
+
+              {nenoList.length === 0 ? (
+                <Card className="bg-zinc-900 border-zinc-800">
+                  <CardContent className="p-10 text-center">
+                    <Calendar className="w-12 h-12 mx-auto text-zinc-700 mb-3" />
+                    <p className="text-zinc-400">Hujaongeza Neno la Leo bado</p>
+                    <Button onClick={openNenoCreate} className="mt-4 bg-violet-600 hover:bg-violet-700">
+                      <Plus size={16} className="mr-2" /> Anza Sasa
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {nenoList.map(n => (
+                    <Card key={n.neno_id} className="bg-zinc-900 border-zinc-800">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-bold text-lg">{n.verse_reference}</h3>
+                          {n.is_active ? (
+                            <Badge className="bg-emerald-500/20 text-emerald-400"><CheckCircle size={12} className="mr-1" />Hai</Badge>
+                          ) : (
+                            <Badge className="bg-zinc-500/20 text-zinc-400"><Clock size={12} className="mr-1" />Ratibu</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-zinc-400 mb-2">{n.word_day_name} • {n.word_date}</p>
+                        <p className="text-xs text-zinc-500 mb-3">Chapisha: {n.publish_date} {n.publish_time}</p>
+                        <div className="flex items-center gap-2 mb-3 text-xs">
+                          {n.reading_audio_url && <Badge variant="outline" className="border-emerald-700 text-emerald-400">Usomaji ✓</Badge>}
+                          {n.reflection_audio_url && <Badge variant="outline" className="border-violet-700 text-violet-400">Tafakari ✓</Badge>}
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+                          <span className="text-xs text-zinc-500">{n.stats?.total_plays || 0} kusikilizwa</span>
+                          <Button size="sm" variant="ghost" onClick={() => openNenoEdit(n)}>
+                            <Edit2 size={14} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Revenue Tab */}
           {activeTab === "revenue" && (
             <div className="space-y-6">
@@ -615,6 +785,121 @@ export default function LeaderDashboardPage() {
               </Button>
               <Button type="submit" className="bg-violet-600 hover:bg-violet-700">
                 Wasilisha
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Neno la Leo Modal */}
+      <Dialog open={isNenoModalOpen} onOpenChange={setIsNenoModalOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingNeno ? "Hariri Neno la Leo" : "Ongeza Neno Jipya"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitNeno} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Kitabu</label>
+                <Select value={nenoForm.book} onValueChange={(v) => setNenoForm({ ...nenoForm, book: v })}>
+                  <SelectTrigger className="bg-zinc-950 border-zinc-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 max-h-72">
+                    {BIBLE_BOOKS.map(b => (
+                      <SelectItem key={b.name} value={b.name}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Sura</label>
+                <Input type="number" min="1" value={nenoForm.chapter}
+                  onChange={(e) => setNenoForm({ ...nenoForm, chapter: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800" required />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Mstari kuanzia</label>
+                <Input type="number" min="1" value={nenoForm.verse_start}
+                  onChange={(e) => setNenoForm({ ...nenoForm, verse_start: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800" required />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Mstari hadi</label>
+                <Input type="number" min="1" value={nenoForm.verse_end}
+                  onChange={(e) => setNenoForm({ ...nenoForm, verse_end: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800" required />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Tarehe ya Neno</label>
+                <Input type="date" value={nenoForm.word_date}
+                  onChange={(e) => setNenoForm({ ...nenoForm, word_date: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800" required />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Chapisha tarehe</label>
+                <Input type="date" value={nenoForm.publish_date}
+                  onChange={(e) => setNenoForm({ ...nenoForm, publish_date: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800" required />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 mb-1 block">Saa</label>
+                <Input type="time" value={nenoForm.publish_time}
+                  onChange={(e) => setNenoForm({ ...nenoForm, publish_time: e.target.value })}
+                  className="bg-zinc-950 border-zinc-800" required />
+              </div>
+            </div>
+
+            {["reading", "reflection"].map(type => (
+              <div key={type} className="p-3 bg-zinc-950 rounded-lg border border-zinc-800">
+                <label className="text-sm font-medium text-white mb-2 block">
+                  Sauti ya {type === "reading" ? "Usomaji wa Andiko" : "Tafakari"}
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input type="file" accept="audio/*" className="hidden" id={`leader-file-${type}`}
+                    onChange={(e) => e.target.files?.[0] && uploadNenoAudio(e.target.files[0], type)} />
+                  <Button type="button" size="sm" variant="outline"
+                    onClick={() => document.getElementById(`leader-file-${type}`).click()}
+                    disabled={nenoUploading[type] || nenoRecording[type]}
+                    className="border-zinc-700">
+                    <Upload size={14} className="mr-1" />
+                    {nenoUploading[type] ? "Inapakia..." : "Pakia"}
+                  </Button>
+                  {!nenoRecording[type] ? (
+                    <Button type="button" size="sm" variant="outline"
+                      onClick={() => startNenoRecording(type)} disabled={nenoUploading[type]}
+                      className="border-rose-700 text-rose-400">
+                      <Mic size={14} className="mr-1" /> Rekodi
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" onClick={() => stopNenoRecording(type)} className="bg-rose-600 hover:bg-rose-700">
+                      <Square size={14} className="mr-1" /> Acha
+                    </Button>
+                  )}
+                  {nenoForm[`${type}_audio_url`] && (
+                    <audio src={nenoForm[`${type}_audio_url`]} controls className="h-8" />
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <div>
+              <label className="text-sm text-zinc-400 mb-1 block">Maelezo</label>
+              <Textarea value={nenoForm.notes} rows={2}
+                onChange={(e) => setNenoForm({ ...nenoForm, notes: e.target.value })}
+                className="bg-zinc-950 border-zinc-800" />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsNenoModalOpen(false)} className="border-zinc-700">
+                Ghairi
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-700" data-testid="leader-save-neno-btn">
+                {editingNeno ? "Sasisha" : "Hifadhi"}
               </Button>
             </DialogFooter>
           </form>
