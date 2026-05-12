@@ -32,7 +32,9 @@ import {
   getImageUrl, 
   categoryIcons, 
   formatTime, 
-  getThumbnail 
+  getThumbnail,
+  shuffleHomeSections,
+  shuffleArray,
 } from "@/utils/streamingHelpers";
 import useAudioPlayer from "@/hooks/useAudioPlayer";
 
@@ -3548,7 +3550,11 @@ export default function UserStreamingApp() {
         
         if (cachedHome && cachedCategories) {
           console.log('[Cache] Loading from cache for instant display');
-          setHomeData(cachedHome);
+          // Re-shuffle cached sections so each app open shows variety even from cache
+          const reshuffled = cachedHome.sections
+            ? { ...cachedHome, sections: shuffleHomeSections(cachedHome.sections) }
+            : cachedHome;
+          setHomeData(reshuffled);
           setCategories(cachedCategories.categories || []);
           setQuickAccessItems(cachedCategories.categories?.slice(0, 6) || []);
           setLoading(false); // Show cached content immediately
@@ -3642,6 +3648,8 @@ export default function UserStreamingApp() {
         });
         
         if (homeRes.data?.sections?.length > 0) {
+          // Shuffle items in non-curated sections before caching/setting so user sees variety each open
+          homeRes.data = { ...homeRes.data, sections: shuffleHomeSections(homeRes.data.sections) };
           cache.set('home_data', homeRes.data);
         }
         cache.set('categories', catRes.data);

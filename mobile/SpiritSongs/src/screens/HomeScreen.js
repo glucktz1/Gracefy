@@ -29,6 +29,17 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - SPACING.md * 3) / 2;
 const HERO_WIDTH = width - SPACING.md * 2;
 
+// Fisher–Yates shuffle: returns a new shuffled array so users see variety each open
+const shuffleArray = (arr) => {
+  if (!Array.isArray(arr) || arr.length <= 1) return arr ?? [];
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +183,18 @@ const HomeScreen = ({ navigation }) => {
       const burnersData = homeData.burners || [];
       
       // Filter active sections (they should already be filtered by backend, but double-check)
-      const activeSections = rawSections.filter(s => s.is_active !== false);
+      // Shuffle items inside non-curated sections (skip hero/quick_access/categories/neno/bible/radio etc.)
+      const SHUFFLE_SKIP = new Set(['hero', 'quick_access', 'categories', 'category', 'neno_la_leo', 'radio', 'bible']);
+      const activeSections = rawSections
+        .filter(s => s.is_active !== false)
+        .map(s => {
+          const t = (s.section_type || s.type || '').toString();
+          if (SHUFFLE_SKIP.has(t)) return s;
+          const titleLc = (s.title || '').toLowerCase();
+          if (titleLc.includes('hivi karibuni') || titleLc.includes('most listened') || titleLc.includes('hot')) return s;
+          if (!Array.isArray(s.items) || s.items.length <= 1) return s;
+          return { ...s, items: shuffleArray(s.items) };
+        });
       setLayoutSections(activeSections);
       
       // Set hero content from unified endpoint
@@ -249,9 +271,9 @@ const HomeScreen = ({ navigation }) => {
       // Use geo-filtered albums if available, otherwise use section albums
       const finalAlbums = (useGeoFiltering && geoAlbums.length > 0) ? geoAlbums : albums;
 
-      // Set content from unified response
-      setSpecialMixes(mixes);
-      setRecentAlbums(finalAlbums);
+      // Set content from unified response - shuffle each time so users see variety
+      setSpecialMixes(shuffleArray(mixes));
+      setRecentAlbums(shuffleArray(finalAlbums));
 
       // Process songs with thumbnails
       const songsWithThumbnails = songs.map(song => {
@@ -263,7 +285,7 @@ const HomeScreen = ({ navigation }) => {
         }
         return song;
       });
-      setAllSongs(songsWithThumbnails);
+      setAllSongs(shuffleArray(songsWithThumbnails));
 
       // User playlists
       const playlists = playlistsRes.data || [];
@@ -273,10 +295,10 @@ const HomeScreen = ({ navigation }) => {
       const likes = likesRes.data?.songs || likesRes.data || [];
       setLikedSongsCount(Array.isArray(likes) ? likes.length : 0);
 
-      // Set content from unified response
+      // Set content from unified response (Bible/Churches/Mafundisho also shuffled for variety)
       setBibleSnippets(Array.isArray(snippets) ? snippets : []);
-      setChurches(Array.isArray(churches) ? churches : []);
-      setMafundishoContent(Array.isArray(mafundisho) ? mafundisho : []);
+      setChurches(Array.isArray(churches) ? shuffleArray(churches) : []);
+      setMafundishoContent(Array.isArray(mafundisho) ? shuffleArray(mafundisho) : []);
 
       // Radio Stations
       const stations = radioRes.data?.stations || [];

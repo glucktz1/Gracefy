@@ -159,3 +159,45 @@ export const getThumbnail = (item) => {
   const url = item.thumbnail_url || item.thumbnail;
   return getImageUrl(url);
 };
+
+
+// Fisher–Yates shuffle (returns new array, never mutates input)
+export const shuffleArray = (arr) => {
+  if (!Array.isArray(arr) || arr.length <= 1) return arr ?? [];
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// Shuffle items inside the home sections we want randomised on each open.
+// Curated sections (hero, quick_access, neno_la_leo, bible, categories, radio,
+// hot_new_releases [chronological], most_listened [ranked]) keep their order.
+const SHUFFLE_SKIP_TYPES = new Set([
+  "hero",
+  "quick_access",
+  "neno_la_leo",
+  "bible",
+  "categories",
+  "category",
+  "radio",
+  "hot_new_releases",
+  "hot_releases",
+  "most_listened",
+  "mostListened",
+]);
+
+export const shuffleHomeSections = (sections) => {
+  if (!Array.isArray(sections)) return sections;
+  return sections.map((section) => {
+    const sectionType = (section.section_type || section.type || "").toString();
+    const title = (section.title || "").toLowerCase();
+    // Skip curated/ranked sections
+    if (SHUFFLE_SKIP_TYPES.has(sectionType)) return section;
+    if (title.includes("hivi karibuni") || title.includes("hot") || title.includes("most listened")) return section;
+    if (!Array.isArray(section.items) || section.items.length <= 1) return section;
+    return { ...section, items: shuffleArray(section.items) };
+  });
+};
