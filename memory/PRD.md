@@ -14,8 +14,22 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: March 21, 2026 (Latest)
-- ✅ **Guest Limit Enforcement (5 songs/skips) - INDEPENDENT OF BILLING** - Updated on BOTH web and mobile:
+### Session: May 12, 2026 (Latest) — "Neno la Leo" Feature
+- ✅ **Backend (`/app/backend/routes/neno_la_leo.py`)** — fully functional module mounted at `/api/neno-la-leo/*`:
+  - **Admin endpoints** (admin auth via `session_token` cookie/Bearer): CRUD on religious leaders, approval flow, full CRUD on neno entries with status filter (active/scheduled/inactive)
+  - **Leader portal endpoints** (uses existing `leader_tokens` collection from `routes/leaders.py`): create/update own neno, list my-neno, analytics
+  - **Public endpoints**: `/active` (auto-activates scheduled neno + auto-deactivates 30-day expired entries, enriches with leader info), `/{id}` (single neno), `/{id}/play?audio_type=reading|reflection` (tracks both neno stats and leader stats)
+  - **Audio upload** to Bunny CDN via `/upload-audio` (multipart)
+  - Verse reference formatting (e.g., "Luka 2:15-19" or "Luka 2:15"), Swahili day name, expires_at = word_date+30d
+- ✅ **Admin UI**: `/admin/neno-la-leo` route (`NenoLaLeoAdminPage.jsx`) — sidebar item under Religious Leaders. Card list with filter, modal for create/edit with Swahili Bible book picker, date/time scheduler, audio upload (file) + browser MediaRecorder for in-portal recording, audio preview
+- ✅ **Leader Portal**: New "Neno la Leo" tab in `LeaderDashboardPage.jsx` — leaders see their own entries and can create/edit with the same audio upload + record flow
+- ✅ **User Web (`UserStreamingApp.jsx`)**: New horizontal scrolling "Neno la Leo" section between Quick Access and Categories, shows day badge, verse reference, date, leader info, audio-type badges. Tap to play (tracks play count)
+- ✅ **User Mobile (`HomeScreen.js`)**: Matching horizontal section after Quick Access using gradient cards
+- ✅ **Bible books utility** (`/app/frontend/src/utils/bibleBooks.js`) — full Swahili book list shared by admin and leader portals
+- ✅ **Backend tested**: 30/30 tests pass (`/app/backend/tests/test_neno_la_leo.py`). Test report: `iteration_44.json`. All HIGH severity issues fixed (admin auth, datetime consistency, audio_type validation, stat floor)
+
+### Session: March 21, 2026
+- ✅ Guest Limit Enforcement (5 songs/skips) — INDEPENDENT OF BILLING - Updated on BOTH web and mobile:
   - Changed `GUEST_PLAY_LIMIT` from 3 to 5
   - Changed `GUEST_SKIP_LIMIT` from 3 to 5
   - **CRITICAL**: Guest limits now work INDEPENDENTLY of billing settings

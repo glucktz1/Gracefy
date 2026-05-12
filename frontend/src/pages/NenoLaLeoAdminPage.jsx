@@ -59,8 +59,8 @@ export default function NenoLaLeoAdminPage() {
     try {
       const params = filter === "all" ? "" : `?status=${filter}`;
       const [nenoRes, leadersRes] = await Promise.all([
-        axios.get(`${API}/neno-la-leo/admin/neno${params}`),
-        axios.get(`${API}/neno-la-leo/admin/leaders`),
+        axios.get(`${API}/neno-la-leo/admin/neno${params}`, { withCredentials: true }),
+        axios.get(`${API}/neno-la-leo/admin/leaders`, { withCredentials: true }),
       ]);
       setNenoList(nenoRes.data.neno_list || []);
       setLeaders((leadersRes.data.leaders || []).filter(l => l.name && (l.is_active !== false)));
@@ -106,6 +106,7 @@ export default function NenoLaLeoAdminPage() {
       fd.append("audio_type", audioType);
       const res = await axios.post(`${API}/neno-la-leo/upload-audio`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true,
       });
       const url = res.data.audio_url;
       setForm(prev => ({ ...prev, [`${audioType}_audio_url`]: url }));
@@ -163,10 +164,10 @@ export default function NenoLaLeoAdminPage() {
         verse_end: parseInt(form.verse_end, 10),
       };
       if (editing) {
-        await axios.put(`${API}/neno-la-leo/admin/neno/${editing.neno_id}`, payload);
+        await axios.put(`${API}/neno-la-leo/admin/neno/${editing.neno_id}`, payload, { withCredentials: true });
         toast.success("Neno la Leo limesasishwa");
       } else {
-        await axios.post(`${API}/neno-la-leo/admin/neno`, payload);
+        await axios.post(`${API}/neno-la-leo/admin/neno`, payload, { withCredentials: true });
         toast.success("Neno la Leo limeundwa");
       }
       setIsModalOpen(false);
@@ -180,7 +181,7 @@ export default function NenoLaLeoAdminPage() {
   const deleteNeno = async (neno) => {
     if (!window.confirm(`Una uhakika kufuta Neno la ${neno.verse_reference}?`)) return;
     try {
-      await axios.delete(`${API}/neno-la-leo/admin/neno/${neno.neno_id}`);
+      await axios.delete(`${API}/neno-la-leo/admin/neno/${neno.neno_id}`, { withCredentials: true });
       toast.success("Limefutwa");
       fetchData();
     } catch (e) {

@@ -93,18 +93,27 @@ async def get_leader_from_token(request: Request):
     return leader
 
 
-async def get_admin_from_token(request: Request):
-    """Get admin user from auth token"""
+async def require_admin(request: Request):
+    """Ensure caller is an authenticated admin (cookie or Bearer)."""
     db = get_db()
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-    token = auth_header[7:]
-    # Check admin sessions
-    session = await db.admin_sessions.find_one({"token": token})
-    if not session:
-        return None
-    return session
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    if not session_token or not session_token.startswith("admin_"):
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+    admin_session = await db.admin_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not admin_session:
+        raise HTTPException(status_code=401, detail="Invalid admin session")
+    expires_at = admin_session.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at and expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Admin session expired")
+    return admin_session
 
 def format_verse_reference(book: str, chapter: int, verse_start: int, verse_end: int) -> str:
     """Format verse reference like 'Luka 2:15-19'"""
@@ -128,7 +137,7 @@ def get_swahili_day_name(date_obj: datetime) -> str:
 # ==================== ADMIN ENDPOINTS ====================
 
 @router.get("/admin/leaders")
-async def get_all_leaders(request: Request):
+async def get_all_leaders(request: Request, _admin=Depends(require_admin)):
     """Get all religious leaders (Admin only)"""
     db = get_db()
     leaders = await db.religious_leaders.find(
@@ -138,7 +147,7 @@ async def get_all_leaders(request: Request):
     return {"leaders": leaders, "total": len(leaders)}
 
 @router.post("/admin/leaders")
-async def create_leader(request: Request, data: ReligiousLeaderCreate):
+async def create_leader(request: Request, data: ReligiousLeaderCreate, _admin=Depends(require_admin)):
     """Create a new religious leader (Admin only)"""
     db = get_db()
     
@@ -183,7 +192,7 @@ async def create_leader(request: Request, data: ReligiousLeaderCreate):
     }
 
 @router.put("/admin/leaders/{leader_id}")
-async def update_leader(leader_id: str, data: ReligiousLeaderUpdate):
+async def update_leader(leader_id: str, data: ReligiousLeaderUpdate, _admin=Depends(require_admin)):
     """Update a religious leader (Admin only)"""
     db = get_db()
     
@@ -201,7 +210,7 @@ async def update_leader(leader_id: str, data: ReligiousLeaderUpdate):
     return {"message": "Leader updated successfully"}
 
 @router.delete("/admin/leaders/{leader_id}")
-async def delete_leader(leader_id: str):
+async def delete_leader(leader_id: str, _admin=Depends(require_admin)):
     """Delete a religious leader (Admin only)"""
     db = get_db()
     result = await db.religious_leaders.delete_one({"leader_id": leader_id})
@@ -212,7 +221,7 @@ async def delete_leader(leader_id: str):
     return {"message": "Leader deleted successfully"}
 
 @router.get("/admin/pending-leaders")
-async def get_pending_leaders():
+async def get_pending_leaders(_admin=Depends(require_admin)):
     """Get leaders pending approval (Admin only)"""
     db = get_db()
     leaders = await db.religious_leaders.find(
@@ -222,7 +231,7 @@ async def get_pending_leaders():
     return {"leaders": leaders, "total": len(leaders)}
 
 @router.post("/admin/leaders/{leader_id}/approve")
-async def approve_leader(leader_id: str):
+async def approve_leader(leader_id: str, _admin=Depends(require_admin)):
     """Approve a pending leader (Admin only)"""
     db = get_db()
     result = await db.religious_leaders.update_one(
@@ -238,7 +247,7 @@ async def approve_leader(leader_id: str):
 # ==================== ADMIN NENO LA LEO MANAGEMENT ====================
 
 @router.get("/admin/neno")
-async def get_all_neno(request: Request, status: Optional[str] = None):
+async def get_all_neno(request: Request, status: Optional[str] = None, _admin=Depends(require_admin)):
     """Get all Neno la Leo entries (Admin only)"""
     db = get_db()
     
@@ -267,7 +276,7 @@ async def get_all_neno(request: Request, status: Optional[str] = None):
     return {"neno_list": neno_list, "total": len(neno_list)}
 
 @router.post("/admin/neno")
-async def create_neno(data: NenoLaLeoCreate):
+async def create_neno(data: NenoLaLeoCreate, _admin=Depends(require_admin)):
     """Create a new Neno la Leo entry (Admin only)"""
     db = get_db()
     
@@ -323,7 +332,7 @@ async def create_neno(data: NenoLaLeoCreate):
     return {"message": "Neno la Leo created successfully", "neno": neno}
 
 @router.put("/admin/neno/{neno_id}")
-async def update_neno(neno_id: str, data: NenoLaLeoUpdate):
+async def update_neno(neno_id: str, data: NenoLaLeoUpdate, _admin=Depends(require_admin)):
     """Update a Neno la Leo entry (Admin only)"""
     db = get_db()
     
@@ -345,7 +354,7 @@ async def update_neno(neno_id: str, data: NenoLaLeoUpdate):
         if neno:
             pub_date = update_data.get("publish_date", neno["publish_date"])
             pub_time = update_data.get("publish_time", neno["publish_time"])
-            update_data["publish_datetime"] = f"{pub_date}T{pub_time}:00"
+            update_data["publish_datetime"] = datetime.fromisoformat(f"{pub_date}T{pub_time}:00").isoformat()
     
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
@@ -360,7 +369,7 @@ async def update_neno(neno_id: str, data: NenoLaLeoUpdate):
     return {"message": "Neno la Leo updated successfully"}
 
 @router.delete("/admin/neno/{neno_id}")
-async def delete_neno(neno_id: str):
+async def delete_neno(neno_id: str, _admin=Depends(require_admin)):
     """Delete a Neno la Leo entry (Admin only)"""
     db = get_db()
     
@@ -370,11 +379,14 @@ async def delete_neno(neno_id: str):
     
     await db.neno_la_leo.delete_one({"neno_id": neno_id})
     
-    # Update leader stats
-    await db.religious_leaders.update_one(
-        {"leader_id": neno["leader_id"]},
-        {"$inc": {"stats.total_neno": -1}}
-    )
+    # Update leader stats (floor at 0)
+    leader = await db.religious_leaders.find_one({"leader_id": neno["leader_id"]}, {"stats.total_neno": 1})
+    current_count = (leader or {}).get("stats", {}).get("total_neno", 0)
+    if current_count > 0:
+        await db.religious_leaders.update_one(
+            {"leader_id": neno["leader_id"]},
+            {"$inc": {"stats.total_neno": -1}}
+        )
     
     return {"message": "Neno la Leo deleted successfully"}
 
@@ -588,7 +600,7 @@ async def track_neno_play(neno_id: str, audio_type: str = "reading"):
     db = get_db()
     
     if audio_type not in ["reading", "reflection"]:
-        audio_type = "reading"
+        raise HTTPException(status_code=400, detail="audio_type must be 'reading' or 'reflection'")
     
     update_field = f"stats.{audio_type}_plays"
     
