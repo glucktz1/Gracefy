@@ -43,6 +43,7 @@ const useAudioPlayer = () => {
   const isFetchingRecommendationsRef = useRef(false); // Prevent duplicate fetches
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
+  const consecutiveErrorsRef = useRef(0); // Safeguard against infinite skip loop on errors
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
@@ -78,17 +79,22 @@ const useAudioPlayer = () => {
   /**
    * Setup HLS playback for a song with adaptive streaming
    * Falls back to direct MP3 if HLS is not available or fails
+   * 
+   * Performance: We cache whether HLS works in sessionStorage so subsequent
+   * songs go straight to MP3 when HLS is known to fail (e.g., missing CORS
+   * headers on the CDN). This eliminates the 3-5s manifest retry delay.
    */
   const setupAudioSource = useCallback((song, onReady) => {
     const audio = audioRef.current;
     const hlsUrl = song.hls_url;
     const mp3Url = getAudioUrl(song.audio_url);
+    const hlsKnownBroken = typeof window !== 'undefined' && sessionStorage.getItem('hls_broken') === '1';
     
     // Cleanup any existing HLS instance
     cleanupHls();
     
-    // Check if song has HLS and browser supports it
-    if (hlsUrl && Hls.isSupported()) {
+    // Check if song has HLS and browser supports it (skip if we already know HLS fails this session)
+    if (hlsUrl && Hls.isSupported() && !hlsKnownBroken) {
       console.log('[Player] Using HLS adaptive streaming:', hlsUrl);
       
       const hls = new Hls({
@@ -98,6 +104,13 @@ const useAudioPlayer = () => {
         capLevelToPlayerSize: false,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
+        // Fail fast on CORS / network errors so we fall back to MP3 quickly
+        manifestLoadingMaxRetry: 1,
+        manifestLoadingRetryDelay: 500,
+        manifestLoadingTimeOut: 3000,
+        levelLoadingMaxRetry: 1,
+        levelLoadingTimeOut: 3000,
+        fragLoadingMaxRetry: 2,
       });
       
       hlsRef.current = hls;
@@ -119,6 +132,9 @@ const useAudioPlayer = () => {
         console.error('[Player] HLS error:', data.type, data.details);
         
         if (data.fatal) {
+          // Remember HLS is broken so we skip it for next songs this session
+          try { sessionStorage.setItem('hls_broken', '1'); } catch (e) {}
+          
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.log('[Player] HLS network error, falling back to MP3');
@@ -141,15 +157,19 @@ const useAudioPlayer = () => {
         }
       });
       
-    } else if (hlsUrl && audio.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (hlsUrl && audio.canPlayType('application/vnd.apple.mpegurl') && !hlsKnownBroken) {
       // Native HLS support (Safari)
       console.log('[Player] Using native HLS (Safari):', hlsUrl);
       audio.src = hlsUrl;
       if (onReady) onReady();
       
     } else {
-      // No HLS available, use direct MP3
-      console.log('[Player] Using direct MP3:', mp3Url);
+      // No HLS available (or known broken this session), use direct MP3
+      if (hlsKnownBroken) {
+        console.log('[Player] HLS known broken this session, using MP3:', mp3Url);
+      } else {
+        console.log('[Player] Using direct MP3:', mp3Url);
+      }
       audio.src = mp3Url;
       if (onReady) onReady();
     }
@@ -605,13 +625,26 @@ const useAudioPlayer = () => {
       }
       
       setIsLoading(false);
-      // Auto-skip to next on error (but don't keep skipping if all songs fail)
-      // handleSongEnd();
+
+      // Auto-skip to next on error (with safeguard against infinite skip loop)
+      // If 3+ consecutive songs fail, stop trying so we don't hammer the user with toasts.
+      consecutiveErrorsRef.current += 1;
+      if (consecutiveErrorsRef.current <= 3 && !guestLimitReachedRef.current && !blockAutoPlayNextRef.current) {
+        console.log(`[Player] Auto-skipping after error (attempt ${consecutiveErrorsRef.current}/3)`);
+        // Defer to avoid same-tick recursion
+        setTimeout(() => handleSongEnd(), 250);
+      } else if (consecutiveErrorsRef.current > 3) {
+        console.warn('[Player] Too many consecutive errors — stopping playback');
+        setIsPlaying(false);
+      }
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onWaiting = () => setIsLoading(true);
-    const onCanPlay = () => setIsLoading(false);
+    const onCanPlay = () => {
+      setIsLoading(false);
+      consecutiveErrorsRef.current = 0; // Reset error counter on successful playback
+    };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -784,24 +817,42 @@ const useAudioPlayer = () => {
     // Update MediaSession for lock screen controls
     updateMediaSession(song, album);
 
-    // Use helper to get proper audio URL (handles CDN, relative, and file IDs)
+    // Validate audio URL before attempting to play
     const audioUrl = getAudioUrl(song.audio_url);
-    
-    audioRef.current.src = audioUrl;
-    
-    try {
-      await audioRef.current.play();
-      const res = await axios.post(`${API}/listening/start`, { 
-        song_id: song.song_id,
-        album_id: album?.album_id,
-        user_id: localStorage.getItem('user_id') || 'anonymous'
-      });
-      sessionIdRef.current = res.data.session_id;
-    } catch (e) {
-      console.error("Playback failed:", e);
-      setIsLoading(false);
+    if (!audioUrl || audioUrl === SAMPLE_AUDIO_URL) {
+      // Even without MP3, HLS may still play
+      if (!song.hls_url) {
+        console.error('[Player] Invalid or missing audio URL for song:', song.title);
+        setIsLoading(false);
+        return;
+      }
     }
-  }, [updateMediaSession]);
+
+    // Faster initial start: tell the browser to begin buffering aggressively
+    audioRef.current.preload = 'auto';
+
+    // Setup audio source (HLS with fallback to MP3) — same fast path as queue playback
+    setupAudioSource(song, async () => {
+      try {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log('[Player] Autoplay/Play error:', error.name, error.message);
+            setIsLoading(false);
+          });
+        }
+        const res = await axios.post(`${API}/listening/start`, {
+          song_id: song.song_id,
+          album_id: album?.album_id,
+          user_id: localStorage.getItem('user_id') || 'anonymous'
+        });
+        sessionIdRef.current = res.data.session_id;
+      } catch (e) {
+        console.error("Playback failed:", e);
+        setIsLoading(false);
+      }
+    });
+  }, [updateMediaSession, setupAudioSource]);
 
   const togglePlay = useCallback(() => {
     if (isPlaying) {

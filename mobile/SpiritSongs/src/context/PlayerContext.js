@@ -296,6 +296,35 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     
     initializePlayer();
 
+    // Auto-skip on playback error so a single bad URL doesn't stop the queue
+    // (counter prevents infinite loop if all songs fail).
+    let consecutivePlaybackErrors = 0;
+    const playbackErrorSub = TrackPlayer.addEventListener(Event.PlaybackError, async (error) => {
+      console.warn('[Player] PlaybackError event:', error?.code, error?.message);
+      if (guestLimitReachedRef.current) return;
+      consecutivePlaybackErrors += 1;
+      if (consecutivePlaybackErrors > 3) {
+        console.warn('[Player] Too many consecutive playback errors — stopping');
+        try { await TrackPlayer.pause(); } catch (e) {}
+        return;
+      }
+      try {
+        const tpQueue = await TrackPlayer.getQueue();
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+        if (currentIndex !== null && currentIndex < tpQueue.length - 1) {
+          await TrackPlayer.skipToNext();
+          await TrackPlayer.play();
+        }
+      } catch (e) {
+        console.error('[Player] Auto-skip after error failed:', e);
+      }
+    });
+
+    // Reset error counter on successful track change (a song actually started)
+    const trackChangedResetSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () => {
+      consecutivePlaybackErrors = 0;
+    });
+
     // Listen for queue end to handle repeat or continuous play
     const queueEndedSub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
       console.log('[Player] Queue ended');
@@ -421,6 +450,8 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
     return () => {
       queueEndedSub.remove();
       trackChangedSub.remove();
+      playbackErrorSub.remove();
+      trackChangedResetSub.remove();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
     };
