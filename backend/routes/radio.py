@@ -64,6 +64,18 @@ DEFAULT_CHRISTIAN_STATIONS = [
         "order": 2
     },
     {
+        "station_id": "radio_upendo_tz",
+        "name": "Radio Upendo",
+        "country": "Tanzania",
+        "country_code": "TZ",
+        "language": "Swahili",
+        "tags": ["christian", "catholic", "swahili"],
+        "url_resolved": "http://stream.zeno.fm/g3ttkgqq8tzuv",
+        "favicon": "",
+        "is_featured": True,
+        "order": 3
+    },
+    {
         "station_id": "radio_uhai",
         "name": "Radio Uhai",
         "country": "Tanzania",

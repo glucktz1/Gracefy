@@ -1,33 +1,37 @@
 # Test Credentials
 
-## Admin (Gracefy) — FRESH DB
+## Admin (Gracefy)
 - URL: `/admin/login`
 - Email: `admin@gracefy.life`
-- Password: (empty - leave blank, allow_empty_password=true)
-- **CHANGE THIS IMMEDIATELY AFTER FIRST LOGIN**
+- Password: (empty - leave blank)
+- **CHANGE IMMEDIATELY AFTER FIRST LOGIN**
+
+## App User (Web/Mobile registration & login)
+- Endpoint: `POST /api/user/register`, `POST /api/user/login`
+- Fresh registration works: confirmed
+- Just-registered user can immediately log in: confirmed
+- 48 user accounts restored from March 5 backup (their original passwords work)
+
+## Test user (created in this session)
+- Email: `mobile_test_<timestamp>@example.com`
+- Password: `Test1234`
 
 ## MongoDB
 - New cluster: `mongodb+srv://infogracefy_db_user:****@gracefy.epl9vya.mongodb.net/gracefy_db`
-- DB Name: `gracefy_db`
-- ⚠️ Network Access in Atlas: must include `0.0.0.0/0` (or Railway's egress IPs) for production
-- Bootstrap script: `/app/backend/scripts/bootstrap_fresh_db.py`
-- Catalog rebuild script: `/app/backend/scripts/rebuild_catalog_from_cdn.py`
 
-## Recovered from CDN (no user data, audio still playable)
-- 119 songs in album "Recovered Catalog" — all retitled as "Recovered #XXXXXX" — needs manual relabeling
-- 18 teachings — unassigned to any leader
-- 12 Neno la Leo entries — inactive, unassigned leader
-
-## Bunny CDN (unchanged)
+## Bunny CDN
 - Zone: `gracefy-media`
 - URL: `https://gracefy-cdn.b-cdn.net`
-- 119 HLS streams, 56 audio MP3s, 185 general/* files all intact
+
+## Radio stations (10 active)
+- Radio Maria Tanzania, Radio Tumaini, Radio Upendo (NEW), Radio Uhai,
+  Jesus Is Lord, Heaven FM, Favour FM, Voice of Heaven, Prayer Tower, Gospel Kingz
+- Proxy: `GET /api/radio/stream/{station_id}` (HTTP-only stations are proxied through HTTPS backend)
+
+## Backup
+- Source: `/app/backups/backup_20260305_100650/` (179 MB, March 5 2026)
+- Restored to fresh cluster via mongorestore
 
 ## Expo
 - Token: `Qyveswj9plZU7ZQYzf_qFJJyUpD60aDposMWOKeL`
-- Last build: v1.0.178 (versionCode 169)
-
-## Test User
-- Email: `glucktz1904@gmail.com`
-- Password: `G73ce7y@2026`
-- Note: This account no longer exists in the fresh DB — user must re-register
+- Last APK: v1.0.178 (versionCode 169)

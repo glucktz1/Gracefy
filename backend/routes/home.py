@@ -267,7 +267,7 @@ async def fetch_section_content(db, section: dict) -> dict:
         
     elif section_type == "churches":
         items = await db.churches.find(
-            {"status": "approved"},
+            {"$or": [{"status": "approved"}, {"status": "active"}, {"status": {"$exists": False}}, {"is_active": True}]},
             CHURCH_LIST_PROJECTION
         ).sort("followers_count", -1).limit(content_count).to_list(content_count)
         for item in items:
@@ -295,11 +295,18 @@ async def fetch_section_content(db, section: dict) -> dict:
         if custom_content_type == "radio":
             # Fetch radio stations (status field may not exist)
             items = await db.radio_stations.find(
-                {"$or": [{"status": "active"}, {"status": None}, {"status": {"$exists": False}}]},
-                {"_id": 0, "station_id": 1, "name": 1, "thumbnail": 1, "stream_url": 1, "description": 1}
-            ).sort("listeners_count", -1).limit(content_count).to_list(content_count)
+                {"$or": [{"status": "active"}, {"status": None}, {"status": {"$exists": False}}, {"is_active": True}]},
+                {"_id": 0, "station_id": 1, "name": 1, "thumbnail": 1,
+                 "stream_url": 1, "url_resolved": 1, "country": 1, "country_code": 1,
+                 "language": 1, "tags": 1, "favicon": 1, "is_featured": 1, "order": 1}
+            ).sort([("is_featured", -1), ("order", 1)]).limit(content_count).to_list(content_count)
             for item in items:
                 item["entity_type"] = "radio"
+                # Normalize url field
+                if not item.get("stream_url"):
+                    item["stream_url"] = item.get("url_resolved") or ""
+                if not item.get("thumbnail"):
+                    item["thumbnail"] = item.get("favicon") or ""
             section_data["items"] = optimize_thumbnails(items)
             section_data["content_type"] = "radio"
             
