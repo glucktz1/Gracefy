@@ -189,8 +189,8 @@ async def upload_to_bunny_cdn(local_path: str, remote_path: str) -> bool:
         return False
 
 
-async def upload_hls_files(output_dir: str, song_id: str) -> Dict:
-    """Upload all HLS files to Bunny CDN"""
+async def upload_hls_files(output_dir: str, song_id: str, concurrency: int = 8) -> Dict:
+    """Upload all HLS files to Bunny CDN in parallel (bounded concurrency)."""
     result = {
         'success': False,
         'master_url': None,
@@ -206,22 +206,32 @@ async def upload_hls_files(output_dir: str, song_id: str) -> Dict:
         for root, dirs, files in os.walk(output_dir):
             for filename in files:
                 local_path = os.path.join(root, filename)
-                
-                # Calculate relative path from output_dir
                 rel_path = os.path.relpath(local_path, output_dir)
                 remote_path = f"{base_path}/{rel_path}"
-                
                 upload_tasks.append((local_path, remote_path))
         
-        # Upload files (could be parallelized but Bunny has rate limits)
-        for local_path, remote_path in upload_tasks:
-            success = await upload_to_bunny_cdn(local_path, remote_path)
-            if success:
-                result['uploaded_files'] += 1
-            else:
-                result['error'] = f"Failed to upload {remote_path}"
-                return result
+        # Parallel uploads with a semaphore to bound concurrency
+        sem = asyncio.Semaphore(concurrency)
+        success_count = 0
+        first_error = None
         
+        async def _bounded_upload(local_path: str, remote_path: str):
+            nonlocal success_count, first_error
+            async with sem:
+                ok = await upload_to_bunny_cdn(local_path, remote_path)
+                if ok:
+                    success_count += 1
+                elif first_error is None:
+                    first_error = f"Failed to upload {remote_path}"
+        
+        await asyncio.gather(*[_bounded_upload(lp, rp) for lp, rp in upload_tasks])
+        
+        if first_error:
+            result['error'] = first_error
+            result['uploaded_files'] = success_count
+            return result
+        
+        result['uploaded_files'] = success_count
         result['master_url'] = f"{BUNNY_CDN_URL}/{base_path}/master.m3u8"
         result['success'] = True
         logger.info(f"Uploaded {result['uploaded_files']} HLS files for {song_id}")
