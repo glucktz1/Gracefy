@@ -14,6 +14,21 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 2026 — HLS Verification + Neno Player + Home Sections
+- ✅ **HLS Pipeline Verified end-to-end** (after parallel multi-tier ffmpeg refactor)
+  - Parallelized Bunny CDN uploads (8 concurrent) — single-song time **55s → 33s**
+  - `services/hls_transcoding_service.py::upload_hls_files` now uses asyncio.gather with semaphore
+  - Confirmed master + variant playlists + segments live on Bunny CDN (HTTP 200)
+- ✅ **Neno la Leo plays in main mini player** — `UserStreamingApp.jsx` neno tile now calls `player.playSong(virtualSong, virtualAlbum, queue, 0)` instead of `new Audio()`, so it stops other songs/radio and shows in the persistent mini player
+  - Active tile is highlighted (bright violet border + animated bars equalizer)
+  - Clicking active tile toggles play/pause
+  - Uses `song_id = neno_${neno_id}` for active-state matching
+- ✅ **Home rows: Pasaka + Kwaresma activated** — Set `link_category_id` on `layout_sections`:
+  - `section_kwaresma` → `songcat_f13791e16795` (8 albums)
+  - `section_pasaka` → `songcat_7096028c59ba` (1 album)
+- ✅ **Kwaya section removed from home** — `section_choirs` deactivated (still available via dedicated Choir profiles)
+
+
 ### Session: May 12, 2026 (Latest) — "Neno la Leo" Feature
 - ✅ **Backend (`/app/backend/routes/neno_la_leo.py`)** — fully functional module mounted at `/api/neno-la-leo/*`:
   - **Admin endpoints** (admin auth via `session_token` cookie/Bearer): CRUD on religious leaders, approval flow, full CRUD on neno entries with status filter (active/scheduled/inactive)

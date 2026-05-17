@@ -4863,12 +4863,24 @@ export default function UserStreamingApp() {
                       </div>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                      {nenoLaLeoList.map(neno => (
+                      {nenoLaLeoList.map(neno => {
+                        const nenoSongId = `neno_${neno.neno_id}`;
+                        const isActive = player.currentSong?.song_id === nenoSongId;
+                        return (
                         <div
                           key={neno.neno_id}
-                          className="flex-shrink-0 w-64 bg-gradient-to-br from-violet-900/40 via-zinc-900 to-violet-950/40 rounded-2xl border border-violet-800/40 p-4 hover:border-violet-600 transition-all cursor-pointer"
+                          className={`flex-shrink-0 w-64 rounded-2xl p-4 transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-gradient-to-br from-violet-700/60 via-violet-900/60 to-fuchsia-900/40 border-2 border-violet-400 shadow-lg shadow-violet-500/30'
+                              : 'bg-gradient-to-br from-violet-900/40 via-zinc-900 to-violet-950/40 border border-violet-800/40 hover:border-violet-600'
+                          }`}
                           data-testid={`neno-tile-${neno.neno_id}`}
                           onClick={() => {
+                            // If this neno is already active, just toggle play/pause via main player
+                            if (isActive) {
+                              player.togglePlay();
+                              return;
+                            }
                             // Play reading audio first if available, else reflection
                             const url = neno.reading_audio_url || neno.reflection_audio_url;
                             if (!url) {
@@ -4876,9 +4888,29 @@ export default function UserStreamingApp() {
                               return;
                             }
                             const audioType = neno.reading_audio_url ? "reading" : "reflection";
-                            const audio = new Audio(url);
-                            audio.play().catch(() => {});
-                            // Track play
+                            const leaderName = neno.leader_display
+                              || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim()
+                              || 'Neno la Leo';
+                            const virtualSong = {
+                              song_id: nenoSongId,
+                              title: `${neno.verse_reference} — ${neno.word_day_name}`,
+                              audio_url: url,
+                              thumbnail: neno.leader?.photo_url || null,
+                              artist_name: leaderName,
+                              duration: 0,
+                              is_neno_la_leo: true,
+                            };
+                            const virtualAlbum = {
+                              album_id: `neno_album_${neno.neno_id}`,
+                              title: 'Neno la Leo',
+                              artist_name: leaderName,
+                              thumbnail: neno.leader?.photo_url || null,
+                            };
+                            // Route through the main player so the mini player shows it
+                            // and any other audio (songs/radio) is stopped first.
+                            try { player.stopRadio && player.stopRadio(); } catch (e) {}
+                            player.playSong(virtualSong, virtualAlbum, [{ song: virtualSong, album: virtualAlbum }], 0);
+                            // Track play (analytics) — non-blocking
                             axios.post(`${API}/neno-la-leo/${neno.neno_id}/play?audio_type=${audioType}`).catch(() => {});
                           }}
                         >
@@ -4886,7 +4918,18 @@ export default function UserStreamingApp() {
                             <span className="text-xs font-medium text-violet-300 bg-violet-900/40 px-2 py-1 rounded-full">
                               {neno.word_day_name}
                             </span>
-                            <Play size={20} className="text-violet-400 fill-violet-400" />
+                            {isActive && player.isPlaying ? (
+                              <div className="flex items-end gap-0.5 h-5" data-testid={`neno-playing-${neno.neno_id}`}>
+                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '40%', animationDelay: '0ms' }} />
+                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '100%', animationDelay: '120ms' }} />
+                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '60%', animationDelay: '240ms' }} />
+                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '80%', animationDelay: '360ms' }} />
+                              </div>
+                            ) : isActive ? (
+                              <Pause size={20} className="text-violet-300 fill-violet-300" />
+                            ) : (
+                              <Play size={20} className="text-violet-400 fill-violet-400" />
+                            )}
                           </div>
                           <h3 className="text-lg font-bold text-white mb-1 truncate">{neno.verse_reference}</h3>
                           <p className="text-xs text-zinc-400 mb-3">{neno.word_date}</p>
@@ -4907,7 +4950,8 @@ export default function UserStreamingApp() {
                             {neno.reflection_audio_url && <span className="text-violet-400">● Tafakari</span>}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </section>
                 )}
