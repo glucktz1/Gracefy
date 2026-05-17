@@ -1800,25 +1800,6 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
   
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-zinc-800 to-black z-[70] flex flex-col" data-testid="full-player">
-      {/* Contribution banner — also shown at top of full player */}
-      {showContributeBanner && (
-        <button
-          type="button"
-          onClick={onContribute}
-          data-testid="full-player-contribute-banner"
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-blue-500 hover:bg-blue-400 transition-colors text-white"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <Star size={16} className="flex-shrink-0 fill-white text-white" />
-            <span className="text-sm font-semibold truncate">
-              {contributeMessage || 'Changia kidogo kusikiliza kwa uhuru'}
-            </span>
-          </div>
-          <span className="text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full flex-shrink-0">
-            Changia
-          </span>
-        </button>
-      )}
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <button onClick={onClose} className="p-2">
@@ -1846,8 +1827,27 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
         </div>
       </div>
 
-      {/* Song Info & Actions — wrapped in monetization gold glow when unpaid hits threshold */}
+      {/* Song Info & Actions — wrapped in monetization gold glow when unpaid hits threshold.
+          Contribution banner sits at the top of this wrap (inside the gold border). */}
       <div className={`px-8 mb-4 mx-3 pt-3 pb-2 ${showContributeBanner ? 'monetization-glow' : ''}`} data-testid="full-player-controls">
+        {showContributeBanner && (
+          <button
+            type="button"
+            onClick={onContribute}
+            data-testid="full-player-contribute-banner"
+            className="w-full flex items-center justify-between gap-3 px-3 py-2 mb-3 bg-blue-500 hover:bg-blue-400 transition-colors text-white rounded-lg"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Star size={15} className="flex-shrink-0 fill-white text-white" />
+              <span className="text-sm font-semibold truncate">
+                {contributeMessage || 'Changia kidogo kusikiliza kwa uhuru'}
+              </span>
+            </div>
+            <span className="text-xs font-bold bg-white/22 hover:bg-white/35 px-3 py-1 rounded-full flex-shrink-0">
+              Changia
+            </span>
+          </button>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold truncate">{player.currentSong.title}</h2>
@@ -3402,11 +3402,28 @@ export default function UserStreamingApp() {
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [guestStatsLoaded, setGuestStatsLoaded] = useState(false);
   
-  // Skip count for logged-in non-premium users (billing trigger)
-  const [skipCount, setSkipCount] = useState(0);
-  // Tiered Spotify-style enforcement for unpaid users (admin-configurable):
-  // - softSkipLimit  → show contribution prompt (dismissible)
-  // - hardSkipLimit  → enforce previewDurationSeconds-long preview on every song until user pays
+  // ==================== MONETIZATION STATE (persisted per day) ====================
+  // Counts both PLAYS and SKIPS toward the same daily quota for unpaid users.
+  // Persisted in localStorage so refresh / nav doesn't reset progress.
+  const loadMonetizationState = () => {
+    try {
+      const raw = localStorage.getItem('gracefy_monetization');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Reset if it's a new day
+      if (parsed.date !== new Date().toDateString()) return null;
+      return parsed;
+    } catch { return null; }
+  };
+  const _persisted = loadMonetizationState();
+  
+  const [skipCount, setSkipCount] = useState(_persisted?.skipCount || 0);
+  const [previewModeActive, setPreviewModeActive] = useState(_persisted?.previewModeActive || false);
+  const [previewClipCount, setPreviewClipCount] = useState(_persisted?.previewClipCount || 0);
+  const [allowFullPlay, setAllowFullPlay] = useState(false);
+  const [showDailyLimitPopup, setShowDailyLimitPopup] = useState(false);
+  const previewTimerRef = useRef(null);
+  
   const [monetizationSettings, setMonetizationSettings] = useState({
     daily_play_limit: 9,
     soft_skip_limit: 6,
@@ -3416,10 +3433,18 @@ export default function UserStreamingApp() {
     prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
   });
-  const [previewModeActive, setPreviewModeActive] = useState(false);
-  const [previewClipCount, setPreviewClipCount] = useState(0); // tracks N preview clips for "1 full every N" logic
-  const [allowFullPlay, setAllowFullPlay] = useState(false);   // flips true for one song every N previews
-  const previewTimerRef = useRef(null);
+  
+  // Persist counters on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('gracefy_monetization', JSON.stringify({
+        date: new Date().toDateString(),
+        skipCount,
+        previewModeActive,
+        previewClipCount,
+      }));
+    } catch { /* ignore quota */ }
+  }, [skipCount, previewModeActive, previewClipCount]);
   
   // Load guest stats from localStorage on mount
   useEffect(() => {
@@ -4622,15 +4647,13 @@ export default function UserStreamingApp() {
     }
   };
 
-  // BILLING TRIGGER: Skip wrapper with Spotify-style tiered enforcement.
-  //
-  //   1. Skip 1–5                     → free
-  //   2. Skip 6 (soft)                → show contribute prompt + gold glow on
-  //   3. Skip 7–8                     → free (3 more skips after soft)
-  //   4. Skip 9 (hard)                → enable 45s preview mode
-  //   5. Skip ≥ 9                     → BLOCK (no more skips allowed)
-  //   Preview mode behavior: each non-user-selected song plays for preview_duration_seconds
-  //   then auto-advances. Every Nth song plays in full (no skip available).
+  // ============ MONETIZATION SKIP HANDLER (Spotify-style, day-persistent) ============
+  //   1. Skip 1-5                → free
+  //   2. Skip 6                  → contribute banner + gold glow appear (persistent)
+  //   3. Skip 7-8                → free
+  //   4. Skip 9 (hard)           → preview mode ON, show daily-limit popup
+  //   5. Skip > 9                → BLOCKED + popup re-shown
+  // Counters reset only on day change. Premium users bypass.
   const handleSkipWithBillingCheck = (skipFunction) => {
     if (isPremium) {
       skipFunction();
@@ -4640,43 +4663,22 @@ export default function UserStreamingApp() {
     const soft = monetizationSettings.soft_skip_limit || 6;
     const hard = monetizationSettings.hard_skip_limit || 9;
     
-    if (!user) {
-      const next = guestSkipCount + 1;
-      setGuestSkipCount(next);
-      if (next === soft) setShowSubscriptionModal(true);
-      if (next >= hard) {
-        setPreviewModeActive(true);
-        setShowSubscriptionModal(true);
-        if (next > hard) {
-          console.log('[Guest] Hard skip cap exceeded - BLOCKING skip');
-          return;
-        }
-      }
-      skipFunction();
-      return;
-    }
+    const newCount = skipCount + 1;
+    setSkipCount(newCount);
     
-    // Logged-in non-premium with billing on
-    if (!billingEnabled) {
-      skipFunction();
-      return;
+    if (newCount === soft) {
+      console.log(`[Monetization] Soft limit (${soft}) reached — banner ON`);
+      // banner shows via condition; no modal needed yet
     }
-    
-    const newSkipCount = skipCount + 1;
-    setSkipCount(newSkipCount);
-    console.log(`[Billing] Skip count: ${newSkipCount} (soft=${soft}, hard=${hard})`);
-    
-    if (newSkipCount === soft) {
-      setShowSubscriptionModal(true);
-    }
-    if (newSkipCount >= hard) {
+    if (newCount === hard) {
+      console.log(`[Monetization] Hard limit (${hard}) reached — preview mode ON + popup`);
       setPreviewModeActive(true);
-      setShowSubscriptionModal(true);
-      // BLOCK any skip past the hard cap
-      if (newSkipCount > hard) {
-        console.log('[Billing] Hard skip cap exceeded - BLOCKING skip');
-        return;
-      }
+      setShowDailyLimitPopup(true);
+    }
+    if (newCount > hard) {
+      console.log('[Monetization] Past hard cap — BLOCKING skip, re-show popup');
+      setShowDailyLimitPopup(true);
+      return; // BLOCK the skip
     }
     
     skipFunction();
@@ -6221,14 +6223,8 @@ export default function UserStreamingApp() {
           setShowDownloadPopup(true);
         }}
         showContributeBanner={
-          // Show whenever the contribution prompt is meaningful for this listener:
-          //   - Preview mode is active (hard threshold crossed), OR
-          //   - Unpaid soft threshold has been crossed and they're not premium
-          !isPremium && (
-            previewModeActive ||
-            (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 6)) ||
-            (!user && guestSkipCount >= (monetizationSettings.soft_skip_limit || 6))
-          )
+          // Persistent banner for any unpaid listener once soft threshold or preview-mode is reached
+          !isPremium && (previewModeActive || skipCount >= (monetizationSettings.soft_skip_limit || 6))
         }
         contributeMessage={
           language === 'sw'
@@ -6252,11 +6248,8 @@ export default function UserStreamingApp() {
           onPrev={handlePrevWithBilling}
           lockProgress={previewModeActive && !isPremium && !allowFullPlay}
           showContributeBanner={
-            !isPremium && (
-              previewModeActive ||
-              (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 6)) ||
-              (!user && guestSkipCount >= (monetizationSettings.soft_skip_limit || 6))
-            )
+            // Persistent: any unpaid listener once soft threshold or preview-mode is reached
+            !isPremium && (previewModeActive || skipCount >= (monetizationSettings.soft_skip_limit || 6))
           }
           contributeMessage={
             language === 'sw'
@@ -6310,6 +6303,48 @@ export default function UserStreamingApp() {
             : monetizationSettings.prompt_message_en
         }
       />
+      
+      {/* Daily Limit Popup — shown at hard skip cap and on each blocked further skip */}
+      {showDailyLimitPopup && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[110] p-4" data-testid="daily-limit-popup">
+          <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border-2 border-amber-400 animate-in fade-in zoom-in duration-300">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Star className="w-8 h-8 text-amber-400 fill-amber-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                {language === 'sw' ? 'Umefikia kikomo' : 'Daily limit reached'}
+              </h3>
+              <p className="text-zinc-300 mb-6 leading-relaxed">
+                {language === 'sw'
+                  ? 'Umefikia kikomo cha kusikiliza bure leo. Changia kidogo kufurahia kwa uhuru.'
+                  : 'You\'ve reached the daily free listen limit. Contribute a little to enjoy freely.'}
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => { setShowDailyLimitPopup(false); setView('profile'); }}
+                  data-testid="daily-limit-contribute-btn"
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold rounded-full transition-colors"
+                >
+                  {language === 'sw' ? 'Changia Sasa' : 'Contribute Now'}
+                </button>
+                <button
+                  onClick={() => setShowDailyLimitPopup(false)}
+                  data-testid="daily-limit-close-btn"
+                  className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
+                >
+                  {language === 'sw' ? 'Endelea kusikiliza previews' : 'Continue with previews'}
+                </button>
+              </div>
+              <p className="text-xs text-zinc-500 mt-4">
+                {language === 'sw'
+                  ? 'Nyimbo zitaendelea kucheza kwa preview ya sekunde 45. Kila ya 4 itacheza kamili.'
+                  : 'Songs will continue as 45-second previews. Every 4th song plays in full.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Checkout Modal for Subscription Payment */}
       <CheckoutModal
