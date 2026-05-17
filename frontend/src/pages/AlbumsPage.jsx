@@ -4,7 +4,7 @@ import {
   Music2, Plus, Edit2, Trash2, MoreVertical, Upload, Play, Disc, 
   Check, X, ToggleLeft, ToggleRight, CheckSquare, Square, FileAudio,
   DollarSign, Crown, Gift, Calendar, Clock, Tag, Globe, Pause, 
-  Loader2, CheckCircle2, AlertCircle, Radio, RefreshCw
+  Loader2, CheckCircle2, AlertCircle, Radio, RefreshCw, FolderOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import CdnPicker from "@/components/CdnPicker";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -70,6 +71,11 @@ export default function AlbumsPage() {
   const [selectedSongIds, setSelectedSongIds] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // CDN Picker state
+  const [cdnPickerOpen, setCdnPickerOpen] = useState(false);
+  const [cdnPickerKind, setCdnPickerKind] = useState("image");
+  const [cdnPickerTarget, setCdnPickerTarget] = useState(null); // "album_thumbnail" | "song_audio"
   
   // Audio preview state
   const [playingSongId, setPlayingSongId] = useState(null);
@@ -1345,6 +1351,15 @@ export default function AlbumsPage() {
                       onChange={(e) => setThumbnailFile(e.target.files[0])}
                     />
                   </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setCdnPickerKind("image"); setCdnPickerTarget("album_thumbnail"); setCdnPickerOpen(true); }}
+                    className="border-violet-700 text-violet-300 hover:bg-violet-900/30"
+                    data-testid="album-pick-cdn-image"
+                  >
+                    <FolderOpen size={16} className="mr-2" /> Pick from CDN
+                  </Button>
                 </div>
               </div>
 
@@ -1520,21 +1535,32 @@ export default function AlbumsPage() {
               
               <div className="form-group">
                 <label className="form-label">Audio File</label>
-                <label className="block">
-                  <div className="border-2 border-dashed border-zinc-700 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500 transition-colors">
-                    <FileAudio size={24} className="mx-auto text-zinc-500 mb-2" />
-                    <p className="text-sm text-zinc-400">
-                      {audioFiles.length > 0 ? audioFiles[0].name : "Click to upload audio file"}
-                    </p>
-                    <p className="text-xs text-zinc-600 mt-1">MP3, WAV, M4A</p>
-                  </div>
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    className="hidden"
-                    onChange={(e) => setAudioFiles(Array.from(e.target.files))}
-                  />
-                </label>
+                <div className="flex items-stretch gap-2">
+                  <label className="block flex-1">
+                    <div className="border-2 border-dashed border-zinc-700 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500 transition-colors">
+                      <FileAudio size={24} className="mx-auto text-zinc-500 mb-2" />
+                      <p className="text-sm text-zinc-400">
+                        {audioFiles.length > 0 ? audioFiles[0].name : (songFormData.audio_url ? songFormData.audio_url.split('/').pop() : "Click to upload audio file")}
+                      </p>
+                      <p className="text-xs text-zinc-600 mt-1">MP3, WAV, M4A</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) => setAudioFiles(Array.from(e.target.files))}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setCdnPickerKind("audio"); setCdnPickerTarget("song_audio"); setCdnPickerOpen(true); }}
+                    className="border-violet-700 text-violet-300 hover:bg-violet-900/30"
+                    data-testid="song-pick-cdn-audio"
+                  >
+                    <FolderOpen size={16} className="mr-2" /> Pick from CDN
+                  </Button>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -1842,6 +1868,23 @@ export default function AlbumsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* CDN File Picker */}
+      <CdnPicker
+        open={cdnPickerOpen}
+        onClose={() => setCdnPickerOpen(false)}
+        kind={cdnPickerKind}
+        onPick={(file) => {
+          if (cdnPickerTarget === "album_thumbnail") {
+            setAlbumFormData((prev) => ({ ...prev, thumbnail: file.url }));
+            setThumbnailFile(null); // clear any local file selection
+          } else if (cdnPickerTarget === "song_audio") {
+            setSongFormData((prev) => ({ ...prev, audio_url: file.url }));
+            setAudioFiles([]); // clear local audio selection
+          }
+          toast.success(`Selected: ${file.name}`);
+        }}
+      />
     </div>
   );
 }
