@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Linking, Alert, AppState } from 'react-native';
-import { billingAPI } from '../services/api';
+import axios from 'axios';
+import { billingAPI, API_BASE_URL } from '../services/api';
 import { useAuth } from './AuthContext';
 
 const BillingContext = createContext(null);
@@ -39,6 +40,18 @@ export const BillingProvider = ({ children }) => {
   const [lastRefresh, setLastRefresh] = useState(null);
   const refreshIntervalRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
+  
+  // Spotify-style tiered monetization config (fetched from /api/app-settings)
+  // soft_skip_limit  -> show contribution prompt
+  // hard_skip_limit  -> enforce preview-mode (each song plays only preview_duration_seconds)
+  const [monetization, setMonetization] = useState({
+    soft_skip_limit: 5,
+    hard_skip_limit: 8,
+    preview_duration_seconds: 30,
+    prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
+    prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
+  });
+  const [previewModeActive, setPreviewModeActive] = useState(false);
 
   /**
    * MASTER BILLING CHECK
@@ -73,6 +86,17 @@ export const BillingProvider = ({ children }) => {
         offline_mode: true,
         high_quality: true
       });
+      
+      // Step 2b: Fetch monetization config (admin-configurable Spotify-style enforcement)
+      try {
+        const settingsRes = await axios.get(`${API_BASE_URL}/app-settings`, { timeout: 10000 });
+        if (settingsRes?.data?.monetization) {
+          setMonetization(prev => ({ ...prev, ...settingsRes.data.monetization }));
+          console.log('[BillingContext] Monetization config loaded:', settingsRes.data.monetization);
+        }
+      } catch (e) {
+        console.log('[BillingContext] Failed to fetch monetization config (using defaults)');
+      }
       
       // Step 3: Determine premium status based on billing
       if (!masterBillingEnabled) {
@@ -181,11 +205,20 @@ export const BillingProvider = ({ children }) => {
       const lastReset = global.lastSkipReset || '';
       if (lastReset !== today) {
         setSkipCount(0);
+        setPreviewModeActive(false);
         global.lastSkipReset = today;
       }
     };
     resetSkipCount();
   }, []);
+  
+  // When user becomes premium, clear enforcement
+  useEffect(() => {
+    if (isPremium) {
+      setPreviewModeActive(false);
+      setSkipCount(0);
+    }
+  }, [isPremium]);
 
   /**
    * Check if a feature is available
@@ -210,33 +243,51 @@ export const BillingProvider = ({ children }) => {
   }, [billingStatusChecked, billingEnabled, isPremium]);
 
   /**
-   * Check if user can skip (with limit enforcement)
+   * Check if user can skip (with limit enforcement).
+   * Tiered: free until hard_skip_limit, then preview-mode enforces 30s caps but skips still allowed.
    */
   const canSkip = useCallback(() => {
     if (!billingStatusChecked || !billingEnabled || isPremium) return true;
-    return skipCount < (premiumFeatures.skip_limit || 3);
-  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, premiumFeatures.skip_limit]);
+    // Allow skipping until soft prompt (we only show contribution prompt at soft, never block skip itself)
+    return skipCount < (monetization.hard_skip_limit || 8);
+  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, monetization.hard_skip_limit]);
 
   /**
-   * Record a skip attempt
+   * Record a skip attempt. Returns:
+   *   { allowed: true, promptSoft: bool, promptHard: bool }
+   * The caller decides whether to show the contribution modal based on the flags.
    */
   const recordSkip = useCallback(() => {
-    if (!billingStatusChecked || !billingEnabled || isPremium) return true;
-    
-    if (skipCount >= (premiumFeatures.skip_limit || 3)) {
-      return false;
+    if (!billingStatusChecked || !billingEnabled || isPremium) {
+      return { allowed: true, promptSoft: false, promptHard: false };
     }
-    setSkipCount(prev => prev + 1);
-    return true;
-  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, premiumFeatures.skip_limit]);
+    
+    const next = skipCount + 1;
+    setSkipCount(next);
+    const soft = monetization.soft_skip_limit || 5;
+    const hard = monetization.hard_skip_limit || 8;
+    
+    let promptSoft = false;
+    let promptHard = false;
+    
+    if (next === soft) {
+      promptSoft = true;
+    }
+    if (next >= hard) {
+      promptHard = true;
+      setPreviewModeActive(true);
+    }
+    
+    return { allowed: true, promptSoft, promptHard };
+  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, monetization.soft_skip_limit, monetization.hard_skip_limit]);
 
   /**
-   * Get remaining skips
+   * Get remaining skips before hard preview-mode kicks in
    */
   const getRemainingSkips = useCallback(() => {
     if (!billingStatusChecked || !billingEnabled || isPremium) return Infinity;
-    return Math.max(0, (premiumFeatures.skip_limit || 3) - skipCount);
-  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, premiumFeatures.skip_limit]);
+    return Math.max(0, (monetization.hard_skip_limit || 8) - skipCount);
+  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, monetization.hard_skip_limit]);
 
   /**
    * Prompt user to subscribe
@@ -317,6 +368,11 @@ export const BillingProvider = ({ children }) => {
     // Skip tracking
     skipCount,
     lastRefresh,
+    
+    // Spotify-style tiered monetization
+    monetization,
+    previewModeActive,
+    setPreviewModeActive,
     
     // Methods
     canAccessFeature,

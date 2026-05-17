@@ -443,8 +443,26 @@ const PlayerProviderWithBilling = ({ children }) => {
   const billingEnabled = billingStatusChecked ? (billingContext?.billingEnabled ?? false) : false;
   const isPremium = billingStatusChecked ? (billingContext?.isPremium ?? true) : true;
   
+  // Spotify-style tiered monetization config (from BillingContext)
+  const previewModeActive = billingContext?.previewModeActive ?? false;
+  const monetization = billingContext?.monetization || {};
+  const previewDurationSeconds = monetization.preview_duration_seconds || 30;
+  const promptSubscription = billingContext?.promptSubscription;
+  const onPreviewEnded = React.useCallback(() => {
+    if (typeof promptSubscription === 'function') {
+      try { promptSubscription('skip'); } catch (e) { /* noop */ }
+    }
+  }, [promptSubscription]);
+  
   return (
-    <PlayerProvider billingEnabled={billingEnabled} isPremium={isPremium} isAuthenticated={isAuthenticated}>
+    <PlayerProvider
+      billingEnabled={billingEnabled}
+      isPremium={isPremium}
+      isAuthenticated={isAuthenticated}
+      previewModeActive={previewModeActive}
+      previewDurationSeconds={previewDurationSeconds}
+      onPreviewEnded={onPreviewEnded}
+    >
       {children}
     </PlayerProvider>
   );

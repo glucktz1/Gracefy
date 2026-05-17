@@ -91,7 +91,15 @@ export const usePlayer = () => {
 /**
  * Player Provider Component
  */
-export const PlayerProvider = ({ children, billingEnabled = false, isPremium = false, isAuthenticated = false }) => {
+export const PlayerProvider = ({
+  children,
+  billingEnabled = false,
+  isPremium = false,
+  isAuthenticated = false,
+  previewModeActive = false,
+  previewDurationSeconds = 30,
+  onPreviewEnded = null,
+}) => {
   // ============ AUTH CONTEXT ============
   // NOTE: isAuthenticated is passed as a prop from App.js to avoid duplicate variable
   const { incrementGuestPlayCount, incrementGuestSkipCount, checkGuestLimit, user } = useAuth();
@@ -502,6 +510,39 @@ export const PlayerProvider = ({ children, billingEnabled = false, isPremium = f
   useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
   useEffect(() => { isAuthenticatedRef.current = isAuthenticated; }, [isAuthenticated]);
   
+  // ============ PREVIEW MODE ENFORCEMENT (Spotify-style) ============
+  // When a non-premium logged-in user has crossed the hard skip threshold, every song
+  // is allowed to play for `previewDurationSeconds`. After that we pause the player
+  // and invoke `onPreviewEnded` so the app can show the contribution prompt.
+  const previewFiredRef = useRef(false);
+  
+  // Reset the "fired" flag whenever the track changes
+  useEffect(() => {
+    previewFiredRef.current = false;
+  }, [activeTrack?.id]);
+  
+  // Tap into `progress.position` (updates every 500ms) to enforce the cap
+  useEffect(() => {
+    if (!previewModeActive) return;
+    if (!isAuthenticated || !billingEnabled || isPremium) return;
+    if (previewFiredRef.current) return;
+    if (!isPlaying) return;
+    if ((progress.position || 0) < (previewDurationSeconds || 30)) return;
+    
+    previewFiredRef.current = true;
+    console.log(`[Player] Preview window elapsed (${previewDurationSeconds}s) — pausing playback`);
+    (async () => {
+      try {
+        await TrackPlayer.pause();
+      } catch (e) {
+        console.log('[Player] Preview pause error', e);
+      }
+      if (typeof onPreviewEnded === 'function') {
+        try { onPreviewEnded(); } catch (e) { /* noop */ }
+      }
+    })();
+  }, [progress.position, previewModeActive, isAuthenticated, billingEnabled, isPremium, isPlaying, previewDurationSeconds, onPreviewEnded]);
+
   // Reset guest limit when user logs in
   useEffect(() => {
     if (isAuthenticated) {
