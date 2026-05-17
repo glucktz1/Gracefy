@@ -1791,7 +1791,7 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute, lockProgress = false }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -1799,7 +1799,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
   const handlePrev = onPrev || player.prevSong;
   
   return (
-    <div className={`fixed inset-0 bg-gradient-to-b from-zinc-800 to-black z-[70] flex flex-col ${showContributeBanner ? 'monetization-glow-fullplayer' : ''}`} data-testid="full-player">
+    <div className="fixed inset-0 bg-gradient-to-b from-zinc-800 to-black z-[70] flex flex-col" data-testid="full-player">
       {/* Contribution banner — also shown at top of full player */}
       {showContributeBanner && (
         <button
@@ -1846,8 +1846,8 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
         </div>
       </div>
 
-      {/* Song Info & Actions */}
-      <div className="px-8 mb-4">
+      {/* Song Info & Actions — wrapped in monetization gold glow when unpaid hits threshold */}
+      <div className={`px-8 mb-4 mx-3 pt-3 pb-2 ${showContributeBanner ? 'monetization-glow' : ''}`} data-testid="full-player-controls">
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold truncate">{player.currentSong.title}</h2>
@@ -1877,14 +1877,16 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar — locked in monetization preview mode (unpaid users can't scrub) */}
       <div className="px-8 mb-4">
         <Slider
           value={[player.currentTime]}
           max={player.duration || 100}
           step={0.1}
-          onValueChange={([v]) => player.seekTo(v)}
-          className="w-full"
+          disabled={lockProgress}
+          onValueChange={([v]) => { if (!lockProgress) player.seekTo(v); }}
+          className={`w-full ${lockProgress ? 'opacity-60 pointer-events-none' : ''}`}
+          data-testid="full-player-progress"
         />
         <div className="flex justify-between text-xs text-zinc-400 mt-1">
           <span>{formatTime(player.currentTime)}</span>
@@ -1976,7 +1978,10 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800 ${showContributeBanner ? 'monetization-glow' : ''}`} data-testid="mini-player">
+    <div
+      className={`fixed left-0 right-0 lg:left-64 lg:bottom-0 bottom-14 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800 ${showContributeBanner ? 'monetization-glow' : ''}`}
+      data-testid="mini-player"
+    >
       {/* Contribution banner — Spotify-style "Listening to a preview" strip in logo blue */}
       {showContributeBanner && !isRadio && (
         <button
@@ -3403,13 +3408,17 @@ export default function UserStreamingApp() {
   // - softSkipLimit  → show contribution prompt (dismissible)
   // - hardSkipLimit  → enforce previewDurationSeconds-long preview on every song until user pays
   const [monetizationSettings, setMonetizationSettings] = useState({
-    soft_skip_limit: 5,
-    hard_skip_limit: 8,
-    preview_duration_seconds: 30,
+    daily_play_limit: 9,
+    soft_skip_limit: 6,
+    hard_skip_limit: 9,
+    preview_duration_seconds: 45,
+    full_play_every_n_previews: 4,
     prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
   });
   const [previewModeActive, setPreviewModeActive] = useState(false);
+  const [previewClipCount, setPreviewClipCount] = useState(0); // tracks N preview clips for "1 full every N" logic
+  const [allowFullPlay, setAllowFullPlay] = useState(false);   // flips true for one song every N previews
   const previewTimerRef = useRef(null);
   
   // Load guest stats from localStorage on mount
@@ -3539,31 +3548,38 @@ export default function UserStreamingApp() {
   }, [billingEnabled, isPremium, player?.isPlaying, user, player?.setBlockAutoPlayNext]);
   
   // PREVIEW MODE ENFORCEMENT (Spotify-style):
-  // When previewModeActive is true (after the hard skip/play threshold), each new song
-  // is allowed to play for only `preview_duration_seconds`, then we auto-skip to the
-  // next song so the listener keeps getting fresh 30s previews. Premium users are exempt.
+  // When previewModeActive is true (after the hard skip threshold or daily play cap):
+  //   - Every Nth song (full_play_every_n_previews) plays IN FULL (no skip, no preview cap)
+  //   - All other songs play for `preview_duration_seconds` then auto-advance to the next
+  // Premium users are exempt.
   useEffect(() => {
-    // Clear any previous timer first
     if (previewTimerRef.current) {
       clearTimeout(previewTimerRef.current);
       previewTimerRef.current = null;
     }
     
     if (!previewModeActive) return;
-    if (isPremium) return; // Premium users skip enforcement entirely
+    if (isPremium) return;
     if (!player?.currentSong || !player?.isPlaying) return;
     
-    const previewMs = (monetizationSettings.preview_duration_seconds || 30) * 1000;
-    console.log(`[Billing] Preview mode active - song will auto-advance in ${previewMs}ms`);
+    // Every Nth song is a full play — skip the preview cap
+    const everyN = monetizationSettings.full_play_every_n_previews || 4;
+    const isFullPlayTurn = previewClipCount > 0 && previewClipCount % everyN === 0;
+    setAllowFullPlay(isFullPlayTurn);
+    if (isFullPlayTurn) {
+      console.log('[Billing] Full-play turn (no preview cap)');
+      return;
+    }
+    
+    const previewMs = (monetizationSettings.preview_duration_seconds || 45) * 1000;
+    console.log(`[Billing] Preview mode - song will auto-advance in ${previewMs}ms`);
     
     previewTimerRef.current = setTimeout(() => {
-      console.log('[Billing] Preview window elapsed - auto-skipping to next preview');
+      console.log('[Billing] Preview window elapsed - advancing');
+      setPreviewClipCount(c => c + 1);
       try {
-        // Auto-advance to keep music flowing in 30s clips
         if (player?.nextSong) {
           player.nextSong();
-        } else if (player?.togglePlay && player?.isPlaying) {
-          player.togglePlay();
         }
       } catch (e) {
         console.log('Preview advance error', e);
@@ -3577,7 +3593,7 @@ export default function UserStreamingApp() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds]);
+  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds, monetizationSettings.full_play_every_n_previews, previewClipCount]);
   
   // When user becomes premium (e.g. after successful payment), reset preview enforcement
   useEffect(() => {
@@ -4608,40 +4624,59 @@ export default function UserStreamingApp() {
 
   // BILLING TRIGGER: Skip wrapper with Spotify-style tiered enforcement.
   //
-  // Both guest and logged-in-non-premium users follow the same flow:
-  //   1. First N skips           → unrestricted (N = soft_skip_limit, default 5)
-  //   2. At soft_skip_limit      → show contribution prompt (dismissible)
-  //   3. At hard_skip_limit      → enable 30s preview mode (audio caps at preview_duration_seconds)
-  //   Skip itself is NEVER blocked — degradation is via the audio preview cap only.
+  //   1. Skip 1–5                     → free
+  //   2. Skip 6 (soft)                → show contribute prompt + gold glow on
+  //   3. Skip 7–8                     → free (3 more skips after soft)
+  //   4. Skip 9 (hard)                → enable 45s preview mode
+  //   5. Skip ≥ 9                     → BLOCK (no more skips allowed)
+  //   Preview mode behavior: each non-user-selected song plays for preview_duration_seconds
+  //   then auto-advances. Every Nth song plays in full (no skip available).
   const handleSkipWithBillingCheck = (skipFunction) => {
+    if (isPremium) {
+      skipFunction();
+      return;
+    }
+    
+    const soft = monetizationSettings.soft_skip_limit || 6;
+    const hard = monetizationSettings.hard_skip_limit || 9;
+    
     if (!user) {
-      // Guest: count the skip + (maybe) enable preview mode, but ALWAYS allow the skip
-      incrementGuestSkipCount();
+      const next = guestSkipCount + 1;
+      setGuestSkipCount(next);
+      if (next === soft) setShowSubscriptionModal(true);
+      if (next >= hard) {
+        setPreviewModeActive(true);
+        setShowSubscriptionModal(true);
+        if (next > hard) {
+          console.log('[Guest] Hard skip cap exceeded - BLOCKING skip');
+          return;
+        }
+      }
       skipFunction();
       return;
     }
     
-    // Logged in user — billing OFF or premium: free skip
-    if (!billingEnabled || isPremium) {
+    // Logged-in non-premium with billing on
+    if (!billingEnabled) {
       skipFunction();
       return;
     }
     
-    // Logged in non-premium with billing ON — tiered enforcement
     const newSkipCount = skipCount + 1;
     setSkipCount(newSkipCount);
-    const soft = monetizationSettings.soft_skip_limit || 5;
-    const hard = monetizationSettings.hard_skip_limit || 8;
-    console.log(`[Billing] Logged-in skip count: ${newSkipCount} (soft=${soft}, hard=${hard})`);
+    console.log(`[Billing] Skip count: ${newSkipCount} (soft=${soft}, hard=${hard})`);
     
     if (newSkipCount === soft) {
-      console.log('[Billing] Soft skip limit — showing contribution prompt');
       setShowSubscriptionModal(true);
     }
-    if (newSkipCount >= hard && !previewModeActive) {
-      console.log('[Billing] Hard skip limit — enabling 30s preview mode');
+    if (newSkipCount >= hard) {
       setPreviewModeActive(true);
       setShowSubscriptionModal(true);
+      // BLOCK any skip past the hard cap
+      if (newSkipCount > hard) {
+        console.log('[Billing] Hard skip cap exceeded - BLOCKING skip');
+        return;
+      }
     }
     
     skipFunction();
@@ -6109,8 +6144,8 @@ export default function UserStreamingApp() {
         </div>
       </main>
 
-      {/* Mobile Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-800 z-50" style={{ bottom: player.currentSong ? '72px' : '0' }}>
+      {/* Mobile Navigation — stays at the very bottom; mini player floats above it */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-800 z-40" data-testid="mobile-bottom-nav">
         <div className="flex justify-around py-2">
           <button onClick={() => { setView('home'); setActiveCategory(null); }} className={`flex flex-col items-center gap-0.5 py-1 px-3 ${view === 'home' ? 'text-white' : 'text-zinc-500'}`}>
             <Home size={20} />
@@ -6191,8 +6226,8 @@ export default function UserStreamingApp() {
           //   - Unpaid soft threshold has been crossed and they're not premium
           !isPremium && (
             previewModeActive ||
-            (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 5)) ||
-            (!user && guestPlayCount >= (monetizationSettings.soft_skip_limit || 5))
+            (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 6)) ||
+            (!user && guestSkipCount >= (monetizationSettings.soft_skip_limit || 6))
           )
         }
         contributeMessage={
@@ -6201,8 +6236,8 @@ export default function UserStreamingApp() {
             : 'Contribute a little to listen freely'
         }
         onContribute={() => {
-          // Open the contribution modal; user can choose to go to plans or dismiss
-          setShowSubscriptionModal(true);
+          // Redirect to the payment/subscription page directly
+          setView('profile');
         }}
       />
 
@@ -6215,11 +6250,12 @@ export default function UserStreamingApp() {
           isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
           onNext={handleNextWithBilling}
           onPrev={handlePrevWithBilling}
+          lockProgress={previewModeActive && !isPremium && !allowFullPlay}
           showContributeBanner={
             !isPremium && (
               previewModeActive ||
-              (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 5)) ||
-              (!user && guestPlayCount >= (monetizationSettings.soft_skip_limit || 5))
+              (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 6)) ||
+              (!user && guestSkipCount >= (monetizationSettings.soft_skip_limit || 6))
             )
           }
           contributeMessage={
@@ -6227,7 +6263,11 @@ export default function UserStreamingApp() {
               ? 'Changia kidogo kusikiliza kwa uhuru'
               : 'Contribute a little to listen freely'
           }
-          onContribute={() => setShowSubscriptionModal(true)}
+          onContribute={() => {
+            // Redirect straight to payment page (Profile -> Subscription)
+            player.setShowFullPlayer(false);
+            setView('profile');
+          }}
           onDownload={() => {
             // Always show download app popup for web
             setShowDownloadPopup(true);

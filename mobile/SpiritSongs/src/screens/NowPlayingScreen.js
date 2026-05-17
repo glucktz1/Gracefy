@@ -297,7 +297,7 @@ const NowPlayingScreen = ({ navigation }) => {
   return (
     <LinearGradient
       colors={['#2a3a2a', '#1a2a1a', COLORS.background]}
-      style={[styles.container, showContributeGlow && styles.monetizationGlowFullPlayer]}
+      style={styles.container}
     >
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {showContributeGlow && (
@@ -349,6 +349,8 @@ const NowPlayingScreen = ({ navigation }) => {
             />
           </View>
 
+          {/* Track Info + Progress + Main Controls — wrapped in gold glow when monetization triggers */}
+          <View style={showContributeGlow ? localStyles.glowControlsWrap : null}>
           {/* Track Info with Actions */}
           <View style={styles.trackInfo}>
             <View style={styles.trackTitleRow}>
@@ -402,14 +404,15 @@ const NowPlayingScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Progress Bar */}
+          {/* Progress Bar — locked when monetization preview mode is active */}
           <View style={styles.progressContainer}>
             <Slider
               style={styles.slider}
               minimumValue={0}
               maximumValue={duration || 1}
               value={position}
-              onSlidingComplete={seekTo}
+              disabled={previewModeActive && !isPremium}
+              onSlidingComplete={(v) => { if (!(previewModeActive && !isPremium)) seekTo(v); }}
               minimumTrackTintColor={COLORS.text}
               maximumTrackTintColor={COLORS.progressBar}
               thumbTintColor={COLORS.text}
@@ -474,6 +477,7 @@ const NowPlayingScreen = ({ navigation }) => {
               </View>
             </TouchableOpacity>
           </View>
+          </View>{/* End gold-glow wrap */}
 
           {/* Bottom Actions Row */}
           <View style={styles.bottomActionsRow}>
@@ -915,6 +919,21 @@ const styles = StyleSheet.create({
 });
 
 const localStyles = StyleSheet.create({
+  // Gold double-border glow that wraps only the controls section (track info + progress + buttons)
+  glowControlsWrap: {
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    marginTop: 8,
+    shadowColor: '#fbbf24',
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 14,
+  },
   contributeBanner: {
     flexDirection: 'row',
     alignItems: 'center',

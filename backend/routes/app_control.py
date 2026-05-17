@@ -139,9 +139,11 @@ async def get_public_app_settings():
     
     # Monetization defaults — Spotify-style tiered enforcement for unpaid logged-in users
     monetization_defaults = {
-        "soft_skip_limit": 5,        # After this many skips, show soft prompt
-        "hard_skip_limit": 8,        # After this many skips total, enforce preview mode
-        "preview_duration_seconds": 30,  # How long unpaid users can hear each song in preview mode
+        "daily_play_limit": 9,
+        "soft_skip_limit": 6,
+        "hard_skip_limit": 9,
+        "preview_duration_seconds": 45,
+        "full_play_every_n_previews": 4,
         "prompt_message_sw": "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.",
         "prompt_message_en": "This content is free but the technology has costs. Contribute a little to help reach more people."
     }
