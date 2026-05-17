@@ -1,25 +1,33 @@
 # Test Credentials
 
-## Admin (Gracefy)
-- Email: `admin@gracefy.life`
-- Password: (empty - leave blank)
+## Admin (Gracefy) — FRESH DB
 - URL: `/admin/login`
+- Email: `admin@gracefy.life`
+- Password: (empty - leave blank, allow_empty_password=true)
+- **CHANGE THIS IMMEDIATELY AFTER FIRST LOGIN**
 
-## Religious Leader (existing)
-- The Leader Portal at `/leader/login` uses the existing `/api/leader/login` endpoint
-- Leader accounts are stored in `db.leader_accounts` (with credentials)
-- Religious leaders metadata in `db.religious_leaders`
-- Test leader IDs for Neno la Leo:
-  - `leader_c6f3f6973c2c` (Fr. John Haule)
-  - `leader_f8043daeed3a` (Rev. Frateri Adesius Flavian Kuchare)
-  - `leader_2bd74b1c6b90` (Pastor John Mkali)
+## MongoDB
+- New cluster: `mongodb+srv://infogracefy_db_user:****@gracefy.epl9vya.mongodb.net/gracefy_db`
+- DB Name: `gracefy_db`
+- ⚠️ Network Access in Atlas: must include `0.0.0.0/0` (or Railway's egress IPs) for production
+- Bootstrap script: `/app/backend/scripts/bootstrap_fresh_db.py`
+- Catalog rebuild script: `/app/backend/scripts/rebuild_catalog_from_cdn.py`
+
+## Recovered from CDN (no user data, audio still playable)
+- 119 songs in album "Recovered Catalog" — all retitled as "Recovered #XXXXXX" — needs manual relabeling
+- 18 teachings — unassigned to any leader
+- 12 Neno la Leo entries — inactive, unassigned leader
+
+## Bunny CDN (unchanged)
+- Zone: `gracefy-media`
+- URL: `https://gracefy-cdn.b-cdn.net`
+- 119 HLS streams, 56 audio MP3s, 185 general/* files all intact
+
+## Expo
+- Token: `Qyveswj9plZU7ZQYzf_qFJJyUpD60aDposMWOKeL`
+- Last build: v1.0.178 (versionCode 169)
 
 ## Test User
 - Email: `glucktz1904@gmail.com`
 - Password: `G73ce7y@2026`
-
-## Expo
-- Token: `UZJmgfqPYVW2XJssC0C7D7XVwBiXyB6wpi1Io_bx`
-
-## Neno la Leo Test Data
-- One test Neno created: `neno_9aaffe3ec7ed` (Luka 2:15-19) by Fr. John Haule, active starting 2026-05-12
+- Note: This account no longer exists in the fresh DB — user must re-register
