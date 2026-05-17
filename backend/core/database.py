@@ -24,36 +24,69 @@ _db = None
 
 
 async def connect_db():
-    """Initialize database connection with connection pooling."""
+    """Initialize database connection with connection pooling and retry on transient failures.
+    
+    Retries the initial ping up to 5 times with exponential backoff. This makes pod startup
+    resilient to:
+      - Atlas serverless cold starts (can take 10-15s on first ping)
+      - Brief DNS / SRV record propagation lag after env-var rotation
+      - Transient network blips during rolling deployments
+    """
     global _client, _db
     
     if _client is not None:
         return _db
     
-    try:
-        _client = AsyncIOMotorClient(
-            MONGO_URL,
-            maxPoolSize=POOL_SIZE,
-            minPoolSize=10,
-            maxIdleTimeMS=MAX_IDLE_TIME_MS,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
-            socketTimeoutMS=30000,
-            retryWrites=True,
-            retryReads=True,
-        )
-        
-        # Test connection
-        await _client.admin.command('ping')
-        
-        _db = _client[DB_NAME]
-        logger.info(f"Connected to MongoDB: {DB_NAME} (Pool: {POOL_SIZE})")
-        
-        return _db
-        
-    except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
-        raise
+    last_error: Optional[Exception] = None
+    max_attempts = 5
+    
+    for attempt in range(1, max_attempts + 1):
+        try:
+            _client = AsyncIOMotorClient(
+                MONGO_URL,
+                maxPoolSize=POOL_SIZE,
+                minPoolSize=10,
+                maxIdleTimeMS=MAX_IDLE_TIME_MS,
+                serverSelectionTimeoutMS=20000,
+                connectTimeoutMS=20000,
+                socketTimeoutMS=30000,
+                retryWrites=True,
+                retryReads=True,
+            )
+            
+            # Test connection
+            await _client.admin.command('ping')
+            
+            _db = _client[DB_NAME]
+            logger.info(f"Connected to MongoDB: {DB_NAME} (Pool: {POOL_SIZE}) on attempt {attempt}")
+            
+            return _db
+            
+        except Exception as e:
+            last_error = e
+            # Close half-built client so the next attempt starts fresh
+            if _client is not None:
+                try:
+                    _client.close()
+                except Exception:
+                    pass
+                _client = None
+            
+            if attempt < max_attempts:
+                backoff = min(2 ** attempt, 15)  # 2, 4, 8, 15, 15
+                logger.warning(
+                    f"MongoDB connection attempt {attempt}/{max_attempts} failed: "
+                    f"{type(e).__name__}. Retrying in {backoff}s..."
+                )
+                import asyncio
+                await asyncio.sleep(backoff)
+            else:
+                logger.error(
+                    f"Failed to connect to MongoDB after {max_attempts} attempts: {e}"
+                )
+    
+    # All attempts exhausted
+    raise last_error if last_error else RuntimeError("MongoDB connection failed")
 
 
 async def disconnect_db():
