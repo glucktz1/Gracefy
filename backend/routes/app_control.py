@@ -122,6 +122,12 @@ async def get_public_app_settings():
         {"_id": 0}
     )
     
+    # Get monetization config (skip thresholds, preview duration, prompt message)
+    monetization = await db.app_settings.find_one(
+        {"setting_type": "monetization"},
+        {"_id": 0}
+    )
+    
     defaults = {
         "max_plays": 3,
         "max_skips": 3,
@@ -131,6 +137,18 @@ async def get_public_app_settings():
     config = guest_limits.get("config", defaults) if guest_limits else defaults
     app_settings = app_config.get("config", {}) if app_config else {}
     
+    # Monetization defaults — Spotify-style tiered enforcement for unpaid logged-in users
+    monetization_defaults = {
+        "soft_skip_limit": 5,        # After this many skips, show soft prompt
+        "hard_skip_limit": 8,        # After this many skips total, enforce preview mode
+        "preview_duration_seconds": 30,  # How long unpaid users can hear each song in preview mode
+        "prompt_message_sw": "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.",
+        "prompt_message_en": "This content is free but the technology has costs. Contribute a little to help reach more people."
+    }
+    mon_config = (monetization or {}).get("config", monetization_defaults)
+    # Merge defaults with admin overrides (admin may save partial config)
+    monetization_out = {**monetization_defaults, **mon_config}
+    
     return {
         "guest_play_limit": config.get("max_plays", 3),
         "guest_skip_limit": config.get("max_skips", 3),
@@ -138,7 +156,8 @@ async def get_public_app_settings():
         "billing_enabled": billing.get("enabled", False) if billing else False,
         "playstore_url": app_settings.get("playstore_url", "https://play.google.com/store/apps/details?id=com.gracefy.app"),
         "appstore_url": app_settings.get("appstore_url", ""),
-        "app_download_message": app_settings.get("app_download_message", "")
+        "app_download_message": app_settings.get("app_download_message", ""),
+        "monetization": monetization_out,
     }
 
 
@@ -159,6 +178,12 @@ async def get_app_settings():
         {"_id": 0}
     )
     
+    # Get monetization settings
+    monetization = await db.app_settings.find_one(
+        {"setting_type": "monetization"},
+        {"_id": 0}
+    )
+    
     return {
         "guest_limits": guest_limits.get("config") if guest_limits else {
             "max_plays": 3,
@@ -174,6 +199,13 @@ async def get_app_settings():
             "playstore_url": "",
             "appstore_url": "",
             "app_download_message": ""
+        },
+        "monetization": monetization.get("config") if monetization else {
+            "soft_skip_limit": 5,
+            "hard_skip_limit": 8,
+            "preview_duration_seconds": 30,
+            "prompt_message_sw": "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.",
+            "prompt_message_en": "This content is free but the technology has costs. Contribute a little to help reach more people."
         }
     }
 
@@ -218,6 +250,43 @@ async def save_app_settings(data: dict):
                 "playstore_url": data.get("playstore_url", ""),
                 "appstore_url": data.get("appstore_url", ""),
                 "app_download_message": data.get("app_download_message", "")
+            },
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {"success": True}
+
+
+@router.post("/admin/app-settings/monetization")
+async def save_monetization_settings(data: dict):
+    """Save monetization thresholds and prompt message (Spotify-style tiered enforcement).
+    
+    Fields:
+      - soft_skip_limit:        skips before first contribution prompt (default 5)
+      - hard_skip_limit:        skips before enforcing 30s preview mode (default 8)
+      - preview_duration_seconds: seconds of preview audio in preview mode (default 30)
+      - prompt_message_sw / prompt_message_en: text shown in the monetization modal
+    """
+    db = get_db()
+    
+    await db.app_settings.update_one(
+        {"setting_type": "monetization"},
+        {"$set": {
+            "setting_type": "monetization",
+            "config": {
+                "soft_skip_limit": int(data.get("soft_skip_limit", 5)),
+                "hard_skip_limit": int(data.get("hard_skip_limit", 8)),
+                "preview_duration_seconds": int(data.get("preview_duration_seconds", 30)),
+                "prompt_message_sw": data.get(
+                    "prompt_message_sw",
+                    "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi."
+                ),
+                "prompt_message_en": data.get(
+                    "prompt_message_en",
+                    "This content is free but the technology has costs. Contribute a little to help reach more people."
+                ),
             },
             "updated_at": datetime.now(timezone.utc).isoformat()
         }},

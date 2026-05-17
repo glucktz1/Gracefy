@@ -2085,33 +2085,37 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
 
 // Guest Play Limit Modal
 // Subscription Required Modal - for logged-in non-premium users (matches native app)
-const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => {
+const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language, customMessage }) => {
   if (!show) return null;
   
+  const defaultMessage = language === 'sw'
+    ? 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.'
+    : 'This content is free but the technology has costs. Contribute a little to help reach more people.';
+  
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4" data-testid="subscription-required-modal">
       <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="text-center">
-          <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Star className="w-8 h-8 text-blue-400" />
+          <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Star className="w-8 h-8 text-amber-400" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">
-            {language === 'sw' ? 'Wezesha Premium' : 'Enable Premium'}
+          <h3 className="text-xl font-bold text-white mb-3">
+            {language === 'sw' ? 'Changia Gracefy' : 'Support Gracefy'}
           </h3>
-          <p className="text-zinc-400 mb-6">
-            {language === 'sw' 
-              ? 'Lipia ili kufungua vipengele vyote vya premium kama vile kupakuliwa, orodha za nyimbo, na kusikiliza bila kikomo.'
-              : 'Subscribe to unlock all premium features including downloads, playlists, unlimited skips, and background play.'}
+          <p className="text-zinc-300 mb-6 leading-relaxed">
+            {customMessage || defaultMessage}
           </p>
           <div className="space-y-3">
             <button
               onClick={onSubscribe}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
+              data-testid="contribute-now-btn"
+              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold rounded-full transition-colors"
             >
-              {language === 'sw' ? 'Angalia Vifurushi' : 'View Packages'}
+              {language === 'sw' ? 'Changia Sasa' : 'Contribute Now'}
             </button>
             <button
               onClick={onClose}
+              data-testid="contribute-later-btn"
               className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
             >
               {language === 'sw' ? 'Baadaye' : 'Later'}
@@ -2119,8 +2123,8 @@ const SubscriptionRequiredModal = ({ show, onClose, onSubscribe, language }) => 
           </div>
           <p className="text-xs text-zinc-500 mt-4">
             {language === 'sw' 
-              ? '✨ Premium inakuwezesha kusikiliza wakati wowote, popote'
-              : '✨ Premium lets you listen anytime, anywhere'}
+              ? '✨ Mchango wako unasaidia maudhui haya kuwafikia watu wengi zaidi'
+              : '✨ Your contribution helps this content reach more people'}
           </p>
         </div>
       </div>
@@ -2294,14 +2298,14 @@ const ScreenLockPaymentModal = ({ show, onClose, onPay, language }) => {
           
           <p className="text-zinc-300 mb-2 leading-relaxed">
             {language === 'sw' 
-              ? 'Changia kidogo ili kuendelea kusikiliza muziki hata simu yako ikiwa imelock.'
-              : 'Contribute a little to continue listening to music even with your phone locked.'}
+              ? 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.'
+              : 'This content is free but the technology has costs. Contribute a little to help reach more people.'}
           </p>
           
           <p className="text-amber-400 text-sm mb-6 italic">
             {language === 'sw' 
-              ? 'NB: Maudhui haya ni bure lakini teknolojia hii ina gharama.'
-              : 'NB: This content is free but this technology has costs.'}
+              ? 'Mchango wako utawezesha hata kusikiliza wakati simu imelock.'
+              : 'Your contribution will also enable listening with screen locked.'}
           </p>
           
           <div className="space-y-3">
@@ -3356,7 +3360,18 @@ export default function UserStreamingApp() {
   
   // Skip count for logged-in non-premium users (billing trigger)
   const [skipCount, setSkipCount] = useState(0);
-  const PREMIUM_SKIP_LIMIT = 3; // After 3 skips, prompt subscription
+  // Tiered Spotify-style enforcement for unpaid users (admin-configurable):
+  // - softSkipLimit  → show contribution prompt (dismissible)
+  // - hardSkipLimit  → enforce previewDurationSeconds-long preview on every song until user pays
+  const [monetizationSettings, setMonetizationSettings] = useState({
+    soft_skip_limit: 5,
+    hard_skip_limit: 8,
+    preview_duration_seconds: 30,
+    prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
+    prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
+  });
+  const [previewModeActive, setPreviewModeActive] = useState(false);
+  const previewTimerRef = useRef(null);
   
   // Load guest stats from localStorage on mount
   useEffect(() => {
@@ -3484,6 +3499,58 @@ export default function UserStreamingApp() {
     };
   }, [billingEnabled, isPremium, player?.isPlaying, user, player?.setBlockAutoPlayNext]);
   
+  // PREVIEW MODE ENFORCEMENT (Spotify-style):
+  // Once a logged-in non-premium user has crossed the hard skip limit, each new song
+  // is allowed to play for only `preview_duration_seconds`, then pauses + shows the
+  // contribution prompt. Premium / billing-off / guest users are unaffected.
+  useEffect(() => {
+    // Clear any previous timer first
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    
+    if (!previewModeActive) return;
+    if (!user || !billingEnabled || isPremium) return;
+    if (!player?.currentSong || !player?.isPlaying) return;
+    
+    const previewMs = (monetizationSettings.preview_duration_seconds || 30) * 1000;
+    console.log(`[Billing] Preview mode active - song will pause in ${previewMs}ms`);
+    
+    previewTimerRef.current = setTimeout(() => {
+      console.log('[Billing] Preview window elapsed - pausing playback + showing prompt');
+      try {
+        if (player?.isPlaying && player?.togglePlay) {
+          player.togglePlay();
+        }
+      } catch (e) {
+        console.log('Pause error', e);
+      }
+      setShowSubscriptionModal(true);
+    }, previewMs);
+    
+    return () => {
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, user, billingEnabled, isPremium, monetizationSettings.preview_duration_seconds]);
+  
+  // When user becomes premium (e.g. after successful payment), reset preview enforcement
+  useEffect(() => {
+    if (isPremium) {
+      setPreviewModeActive(false);
+      setSkipCount(0);
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+    }
+  }, [isPremium]);
+
+  
   // i18n - Translation hook
   const { t, language, changeLanguage, availableLanguages, getGreeting } = useLanguage();
 
@@ -3595,6 +3662,11 @@ export default function UserStreamingApp() {
         
         setBillingEnabled(finalBillingStatus);
         setBillingStatusChecked(true);
+        
+        // Pull monetization config (admin-configurable Spotify-style enforcement)
+        if (appSettingsRes.data?.monetization) {
+          setMonetizationSettings(prev => ({ ...prev, ...appSettingsRes.data.monetization }));
+        }
         
         if (!finalBillingStatus) {
           // BILLING IS OFF - Everyone gets premium access, no restrictions
@@ -4490,11 +4562,14 @@ export default function UserStreamingApp() {
     }
   };
 
-  // BILLING TRIGGER: Skip wrapper with subscription check (matches native app)
-  // After PREMIUM_SKIP_LIMIT skips, logged-in non-premium users are prompted
-  // After GUEST_SKIP_LIMIT skips, guests are prompted to login
-  // When limit is reached: BLOCK further skips, playback stops when current song ends
-  // Guest limits are ALWAYS enforced (independent of billing)
+  // BILLING TRIGGER: Skip wrapper with Spotify-style tiered enforcement for unpaid users.
+  //
+  // Logged-in non-premium flow (admin-configurable via /admin/app-settings/monetization):
+  //   1. First N skips           → unrestricted (default N = soft_skip_limit = 5)
+  //   2. At soft_skip_limit      → show contribution prompt (dismissible), allow more skips
+  //   3. At hard_skip_limit      → enable preview-mode: every subsequent song plays only
+  //                                 preview_duration_seconds before pausing + showing prompt
+  //   Guest skips are still enforced separately by GUEST_SKIP_LIMIT.
   const handleSkipWithBillingCheck = (skipFunction) => {
     // Guest user skip limit check - ALWAYS ENFORCED
     if (!user) {
@@ -4521,21 +4596,31 @@ export default function UserStreamingApp() {
       return;
     }
     
-    // Logged in user - If billing ON + not premium, enforce skip limit
+    // Logged in user - If billing ON + not premium, enforce tiered limit
     if (billingEnabled && !isPremium) {
       const newSkipCount = skipCount + 1;
       setSkipCount(newSkipCount);
-      console.log(`[Billing] Logged-in skip count: ${newSkipCount}/${PREMIUM_SKIP_LIMIT}`);
+      const soft = monetizationSettings.soft_skip_limit || 5;
+      const hard = monetizationSettings.hard_skip_limit || 8;
+      console.log(`[Billing] Logged-in skip count: ${newSkipCount} (soft=${soft}, hard=${hard})`);
       
-      if (newSkipCount >= PREMIUM_SKIP_LIMIT) {
-        console.log('[Billing] Skip limit reached - showing subscription prompt');
+      // Stage 1: at soft limit, show contribution prompt (one-shot per cycle)
+      if (newSkipCount === soft) {
+        console.log('[Billing] Soft skip limit reached - showing contribution prompt');
         setShowSubscriptionModal(true);
-        setSkipCount(0); // Reset for next session
-        // Allow skip but show prompt
+      }
+      
+      // Stage 2: at hard limit, enforce preview mode going forward
+      if (newSkipCount >= hard) {
+        console.log('[Billing] Hard skip limit reached - enabling 30s preview mode');
+        setPreviewModeActive(true);
+        setShowSubscriptionModal(true);
+        // Stop the player so the next song starts under preview-mode enforcement
       }
     }
     
-    // Always allow the skip for logged-in users
+    // Always allow the skip for logged-in users (the preview-mode timer below
+    // will cap their listen on the *next* song instead of blocking the action)
     skipFunction();
   };
 
@@ -6124,6 +6209,11 @@ export default function UserStreamingApp() {
           setView('profile');
         }}
         language={language}
+        customMessage={
+          language === 'sw'
+            ? monetizationSettings.prompt_message_sw
+            : monetizationSettings.prompt_message_en
+        }
       />
       
       {/* Checkout Modal for Subscription Payment */}

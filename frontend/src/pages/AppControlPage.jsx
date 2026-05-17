@@ -45,6 +45,13 @@ const AppControlPage = () => {
     appstore_url: '',
     app_download_message: ''
   });
+  const [monetization, setMonetization] = useState({
+    soft_skip_limit: 5,
+    hard_skip_limit: 8,
+    preview_duration_seconds: 30,
+    prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
+    prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
+  });
   
   // Filters
   const [errorPlatformFilter, setErrorPlatformFilter] = useState('all');
@@ -77,6 +84,9 @@ const AppControlPage = () => {
       if (settingsRes.data?.app_settings) {
         setAppSettings(settingsRes.data.app_settings);
       }
+      if (settingsRes.data?.monetization) {
+        setMonetization(prev => ({ ...prev, ...settingsRes.data.monetization }));
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -99,6 +109,15 @@ const AppControlPage = () => {
       toast.success('App settings saved successfully');
     } catch (error) {
       toast.error('Failed to save app settings');
+    }
+  };
+  
+  const saveMonetization = async () => {
+    try {
+      await axios.post(`${API}/admin/app-settings/monetization`, monetization, { withCredentials: true });
+      toast.success('Monetization settings saved');
+    } catch (error) {
+      toast.error('Failed to save monetization settings');
     }
   };
 
@@ -672,6 +691,72 @@ const AppControlPage = () => {
                 </div>
                 <Button onClick={saveGuestLimits} className="w-full">
                   Save Guest Limits
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Monetization Settings */}
+            <Card data-testid="admin-monetization-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Monetization (Spotify-style)
+                </CardTitle>
+                <CardDescription>Skip thresholds and contribution prompt for unpaid logged-in users</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm text-slate-400">Soft Skip Limit (first prompt)</label>
+                  <Input
+                    type="number"
+                    data-testid="soft-skip-limit-input"
+                    value={monetization.soft_skip_limit}
+                    onChange={(e) => setMonetization(prev => ({ ...prev, soft_skip_limit: parseInt(e.target.value) || 0 }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400">Hard Skip Limit (preview mode starts)</label>
+                  <Input
+                    type="number"
+                    data-testid="hard-skip-limit-input"
+                    value={monetization.hard_skip_limit}
+                    onChange={(e) => setMonetization(prev => ({ ...prev, hard_skip_limit: parseInt(e.target.value) || 0 }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400">Preview Duration (seconds)</label>
+                  <Input
+                    type="number"
+                    data-testid="preview-duration-input"
+                    value={monetization.preview_duration_seconds}
+                    onChange={(e) => setMonetization(prev => ({ ...prev, preview_duration_seconds: parseInt(e.target.value) || 0 }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400">Prompt Message (Swahili)</label>
+                  <textarea
+                    data-testid="prompt-message-sw"
+                    value={monetization.prompt_message_sw}
+                    onChange={(e) => setMonetization(prev => ({ ...prev, prompt_message_sw: e.target.value }))}
+                    rows={3}
+                    className="mt-1 w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400">Prompt Message (English)</label>
+                  <textarea
+                    data-testid="prompt-message-en"
+                    value={monetization.prompt_message_en}
+                    onChange={(e) => setMonetization(prev => ({ ...prev, prompt_message_en: e.target.value }))}
+                    rows={3}
+                    className="mt-1 w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100"
+                  />
+                </div>
+                <Button onClick={saveMonetization} className="w-full" data-testid="save-monetization-btn">
+                  Save Monetization Settings
                 </Button>
               </CardContent>
             </Card>
