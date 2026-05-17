@@ -3434,7 +3434,8 @@ export default function UserStreamingApp() {
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
   });
   
-  // Persist counters on change
+  // Persist counters on change (player is referenced via optional chain inside the effect,
+  // which runs after init — don't add `player` to deps to avoid TDZ during hoisting).
   useEffect(() => {
     try {
       localStorage.setItem('gracefy_monetization', JSON.stringify({
@@ -3444,6 +3445,7 @@ export default function UserStreamingApp() {
         previewClipCount,
       }));
     } catch { /* ignore quota */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skipCount, previewModeActive, previewClipCount]);
   
   // Load guest stats from localStorage on mount
@@ -3543,6 +3545,14 @@ export default function UserStreamingApp() {
       player.setGuestLimitReached(false);
     }
   }, [user, player?.setGuestLimitReached]);
+  
+  // Continuous-play guarantee: whenever monetization counters change, ensure the player's
+  // guest-halt flag is OFF so audio keeps flowing under the new Spotify-style model.
+  useEffect(() => {
+    if (player?.setGuestLimitReached) {
+      player.setGuestLimitReached(false);
+    }
+  }, [skipCount, previewModeActive, previewClipCount, player?.setGuestLimitReached]);
   
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
@@ -4243,17 +4253,8 @@ export default function UserStreamingApp() {
       return true;
     }
     
-    // If app is locked (too many dismissals), block and show modal
-    if (isAppLocked) {
-      console.log('[Guest] App is LOCKED - must login');
-      setShowGuestLimitModal(true);
-      return false;
-    }
-    
-    // No hard guest play/skip cap any more — graceful degradation handled
-    // by the Spotify-style preview mode (see incrementGuestPlayCount /
-    // incrementGuestSkipCount which set previewModeActive at the hard threshold).
-    // We never block playback for guests under the soft/hard thresholds.
+    // New Spotify-style monetization handles everything via banner/preview-mode.
+    // No app-lock, no hard halt — playback is always allowed.
     return true;
   };
 
@@ -4311,27 +4312,13 @@ export default function UserStreamingApp() {
     return false;
   };
   
-  // Dismiss login prompt - matches native app MAX_PROMPT_ATTEMPTS = 3
+  // Dismiss login prompt — under the new monetization model the app NEVER locks.
+  // Playback always continues; the user just sees the persistent banner + glow + previews.
   const dismissLoginPrompt = () => {
-    const newAttempts = promptAttempts + 1;
-    console.log(`[Guest] Dismissing prompt, attempts: ${promptAttempts} -> ${newAttempts}`);
-    setPromptAttempts(newAttempts);
     setShowGuestLimitModal(false);
-    
-    if (newAttempts >= MAX_PROMPT_ATTEMPTS) {
-      console.log('[Guest] MAX ATTEMPTS REACHED - LOCKING APP');
-      setIsAppLocked(true);
-      setShowGuestLimitModal(true);
-    } else {
-      // Reset guest limit flag to allow more plays after dismissal
-      // User gets another set of plays AND skips until next prompt
-      console.log('[Guest] Resetting guest limits - allowing more plays and skips');
-      if (player?.setGuestLimitReached) {
-        player.setGuestLimitReached(false);
-      }
-      // Reset play count AND skip count to allow more
-      setGuestPlayCount(0);
-      setGuestSkipCount(0);
+    // Always release any leftover guest-limit halt so playback continues
+    if (player?.setGuestLimitReached) {
+      player.setGuestLimitReached(false);
     }
   };
 
