@@ -3546,13 +3546,16 @@ export default function UserStreamingApp() {
     }
   }, [user, player?.setGuestLimitReached]);
   
-  // Continuous-play guarantee: whenever monetization counters change, ensure the player's
-  // guest-halt flag is OFF so audio keeps flowing under the new Spotify-style model.
+  // Continuous-play guarantee: whenever monetization counters change, ensure ALL halt
+  // flags are OFF so audio keeps flowing under the new Spotify-style model.
   useEffect(() => {
     if (player?.setGuestLimitReached) {
       player.setGuestLimitReached(false);
     }
-  }, [skipCount, previewModeActive, previewClipCount, player?.setGuestLimitReached]);
+    if (player?.setBlockAutoPlayNext) {
+      player.setBlockAutoPlayNext(false);
+    }
+  }, [skipCount, previewModeActive, previewClipCount, player?.setGuestLimitReached, player?.setBlockAutoPlayNext]);
   
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
@@ -3615,10 +3618,17 @@ export default function UserStreamingApp() {
       try {
         if (player?.nextSong) {
           player.nextSong();
+        } else if (player?.seekTo) {
+          // No queue available — restart current song so audio doesn't stop
+          player.seekTo(0);
         }
       } catch (e) {
-        console.log('Preview advance error', e);
+        console.log('Preview advance error, attempting recovery', e);
+        try { player?.seekTo?.(0); } catch (_) { /* noop */ }
       }
+      // Defensive: re-clear any halt flags after advance
+      try { player?.setGuestLimitReached?.(false); } catch (_) { /* noop */ }
+      try { player?.setBlockAutoPlayNext?.(false); } catch (_) { /* noop */ }
     }, previewMs);
     
     return () => {
