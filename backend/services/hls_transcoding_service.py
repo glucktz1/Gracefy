@@ -68,9 +68,12 @@ async def download_source_audio(audio_url: str, temp_dir: str) -> Optional[str]:
 def transcode_to_hls(source_path: str, output_dir: str, song_id: str) -> Dict:
     """
     Transcode MP3 to HLS with multiple quality tiers using FFmpeg.
+    Runs all quality tiers in parallel for massive speedup.
     
     Returns dict with paths to generated files and master playlist.
     """
+    import concurrent.futures
+    
     result = {
         'success': False,
         'master_playlist': None,
@@ -79,74 +82,81 @@ def transcode_to_hls(source_path: str, output_dir: str, song_id: str) -> Dict:
         'error': None
     }
     
+    def _run_tier(tier: Dict) -> Optional[str]:
+        """Encode a single tier. Returns error string on failure, None on success."""
+        tier_dir = os.path.join(output_dir, tier['name'])
+        os.makedirs(tier_dir, exist_ok=True)
+        playlist_path = os.path.join(tier_dir, 'playlist.m3u8')
+        segment_pattern = os.path.join(tier_dir, 'segment_%03d.ts')
+
+        cmd = [
+            'ffmpeg', '-y',
+            '-threads', '0',          # use all available CPU cores
+            '-i', source_path,
+            '-c:a', 'aac',
+            '-b:a', tier['bitrate'],
+            '-ac', '2',
+            '-ar', '44100',
+            '-vn',                    # no video stream
+            '-f', 'hls',
+            '-hls_time', str(SEGMENT_DURATION),
+            '-hls_list_size', '0',
+            '-hls_segment_filename', segment_pattern,
+            '-hls_playlist_type', 'vod',
+            playlist_path,
+        ]
+        logger.info(f"[{song_id}] Transcoding {tier['name']} tier ({tier['bitrate']})...")
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            return f"{tier['name']}: {proc.stderr[-500:]}"
+        return None
+
     try:
-        # Create output directories for each quality tier
+        # Create all output dirs upfront
         for tier in QUALITY_TIERS:
-            tier_dir = os.path.join(output_dir, tier['name'])
-            os.makedirs(tier_dir, exist_ok=True)
-        
-        # Generate HLS for each quality tier
-        for tier in QUALITY_TIERS:
-            tier_dir = os.path.join(output_dir, tier['name'])
-            playlist_path = os.path.join(tier_dir, 'playlist.m3u8')
-            segment_pattern = os.path.join(tier_dir, 'segment_%03d.ts')
-            
-            # FFmpeg command for HLS transcoding
-            cmd = [
-                'ffmpeg', '-y',
-                '-i', source_path,
-                '-c:a', 'aac',
-                '-b:a', tier['bitrate'],
-                '-ac', '2',  # Stereo
-                '-ar', '44100',  # Sample rate
-                '-f', 'hls',
-                '-hls_time', str(SEGMENT_DURATION),
-                '-hls_list_size', '0',  # Keep all segments in playlist
-                '-hls_segment_filename', segment_pattern,
-                '-hls_playlist_type', 'vod',
-                playlist_path
-            ]
-            
-            logger.info(f"Transcoding {tier['name']} quality...")
-            process = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if process.returncode != 0:
-                logger.error(f"FFmpeg error for {tier['name']}: {process.stderr}")
-                result['error'] = f"Transcoding failed for {tier['name']}: {process.stderr}"
+            os.makedirs(os.path.join(output_dir, tier['name']), exist_ok=True)
+
+        # Run all tiers in parallel using a thread pool (ffmpeg is CPU-bound subprocess)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(QUALITY_TIERS)) as ex:
+            errors = list(ex.map(_run_tier, QUALITY_TIERS))
+
+        # First failure aborts
+        for err in errors:
+            if err:
+                result['error'] = f"Transcoding failed: {err}"
+                logger.error(f"[{song_id}] {result['error']}")
                 return result
-            
-            # Collect generated files
+
+        # Collect outputs
+        for tier in QUALITY_TIERS:
+            tier_dir = os.path.join(output_dir, tier['name'])
             result['variants'].append({
                 'name': tier['name'],
                 'bitrate': tier['bitrate'],
                 'bandwidth': tier['bandwidth'],
-                'playlist': playlist_path
+                'playlist': os.path.join(tier_dir, 'playlist.m3u8'),
             })
-            
-            # Collect segment files
             for f in os.listdir(tier_dir):
                 if f.endswith('.ts'):
                     result['segments'].append(os.path.join(tier_dir, f))
-        
-        # Generate master playlist
+
+        # Master playlist
         master_playlist_path = os.path.join(output_dir, 'master.m3u8')
         master_content = "#EXTM3U\n#EXT-X-VERSION:3\n\n"
-        
         for tier in QUALITY_TIERS:
             master_content += f"#EXT-X-STREAM-INF:BANDWIDTH={tier['bandwidth']},NAME=\"{tier['name']}\"\n"
             master_content += f"{tier['name']}/playlist.m3u8\n\n"
-        
         with open(master_playlist_path, 'w') as f:
             f.write(master_content)
-        
+
         result['master_playlist'] = master_playlist_path
         result['success'] = True
-        logger.info(f"HLS transcoding complete: {len(result['segments'])} segments created")
-        
+        logger.info(f"[{song_id}] HLS transcoding complete: {len(result['segments'])} segments")
+
     except Exception as e:
-        logger.error(f"Transcoding error: {e}")
+        logger.error(f"[{song_id}] Transcoding error: {e}")
         result['error'] = str(e)
-    
+
     return result
 
 
