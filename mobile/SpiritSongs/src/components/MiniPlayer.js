@@ -22,6 +22,18 @@ const MiniPlayer = ({ onPress, navigation }) => {
   // Get billing values directly from context
   const billingEnabled = billingContext?.billingEnabled ?? false;
   const isPremium = billingContext?.isPremium ?? false;
+  const previewModeActive = billingContext?.previewModeActive ?? false;
+  const skipCount = billingContext?.skipCount ?? 0;
+  const monetization = billingContext?.monetization || { soft_skip_limit: 5 };
+  
+  // Show contribution banner when:
+  //   - Preview mode is active (Spotify-style 30s cap kicked in), OR
+  //   - Logged-in non-premium user crossed the soft threshold
+  const showContributeBanner =
+    !isPremium && (
+      previewModeActive ||
+      (isAuthenticated && billingEnabled && skipCount >= (monetization.soft_skip_limit || 5))
+    );
   
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -178,6 +190,24 @@ const MiniPlayer = ({ onPress, navigation }) => {
   return (
     <>
       <View style={styles.container}>
+        {/* Contribution banner — Spotify-style "Listening to a preview" strip in logo blue */}
+        {showContributeBanner && (
+          <TouchableOpacity
+            style={styles.contributeBanner}
+            activeOpacity={0.8}
+            onPress={() => setShowSubscriptionModal(true)}
+          >
+            <View style={styles.contributeLeft}>
+              <Ionicons name="star" size={14} color="#FFFFFF" />
+              <Text style={styles.contributeText} numberOfLines={1}>
+                Changia kidogo kusikiliza kwa uhuru
+              </Text>
+            </View>
+            <View style={styles.contributeCTA}>
+              <Text style={styles.contributeCTAText}>Changia</Text>
+            </View>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity 
           style={styles.innerContainer} 
           onPress={onPress}
@@ -320,6 +350,39 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  contributeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#3b82f6', // Gracefy logo blue
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  contributeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  contributeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  contributeCTA: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  contributeCTAText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   innerContainer: {
     borderRadius: BORDER_RADIUS.md,

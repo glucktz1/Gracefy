@@ -1938,7 +1938,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute }) => {
   // Show player if there's a song OR a radio station playing
   if (!player.currentSong && !player.currentRadioStation) return null;
   
@@ -1957,7 +1957,27 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800">
+    <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800" data-testid="mini-player">
+      {/* Contribution banner — Spotify-style "Listening to a preview" strip in logo blue */}
+      {showContributeBanner && !isRadio && (
+        <button
+          type="button"
+          onClick={onContribute}
+          data-testid="mini-player-contribute-banner"
+          className="w-full flex items-center justify-between gap-3 px-3 sm:px-4 py-2 bg-blue-500 hover:bg-blue-400 transition-colors text-white"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Star size={14} className="flex-shrink-0 fill-white text-white" />
+            <span className="text-xs sm:text-sm font-medium truncate">
+              {contributeMessage || 'Changia kidogo kusikiliza kwa uhuru'}
+            </span>
+          </div>
+          <span className="text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full flex-shrink-0">
+            Changia
+          </span>
+        </button>
+      )}
+      
       {/* Progress line - only for music, not radio (live streams) */}
       {!isRadio && (
         <div className="h-1 bg-zinc-800">
@@ -3500,9 +3520,9 @@ export default function UserStreamingApp() {
   }, [billingEnabled, isPremium, player?.isPlaying, user, player?.setBlockAutoPlayNext]);
   
   // PREVIEW MODE ENFORCEMENT (Spotify-style):
-  // Once a logged-in non-premium user has crossed the hard skip limit, each new song
-  // is allowed to play for only `preview_duration_seconds`, then pauses + shows the
-  // contribution prompt. Premium / billing-off / guest users are unaffected.
+  // When previewModeActive is true (after the hard skip/play threshold), each new song
+  // is allowed to play for only `preview_duration_seconds`, then we auto-skip to the
+  // next song so the listener keeps getting fresh 30s previews. Premium users are exempt.
   useEffect(() => {
     // Clear any previous timer first
     if (previewTimerRef.current) {
@@ -3511,22 +3531,24 @@ export default function UserStreamingApp() {
     }
     
     if (!previewModeActive) return;
-    if (!user || !billingEnabled || isPremium) return;
+    if (isPremium) return; // Premium users skip enforcement entirely
     if (!player?.currentSong || !player?.isPlaying) return;
     
     const previewMs = (monetizationSettings.preview_duration_seconds || 30) * 1000;
-    console.log(`[Billing] Preview mode active - song will pause in ${previewMs}ms`);
+    console.log(`[Billing] Preview mode active - song will auto-advance in ${previewMs}ms`);
     
     previewTimerRef.current = setTimeout(() => {
-      console.log('[Billing] Preview window elapsed - pausing playback + showing prompt');
+      console.log('[Billing] Preview window elapsed - auto-skipping to next preview');
       try {
-        if (player?.isPlaying && player?.togglePlay) {
+        // Auto-advance to keep music flowing in 30s clips
+        if (player?.nextSong) {
+          player.nextSong();
+        } else if (player?.togglePlay && player?.isPlaying) {
           player.togglePlay();
         }
       } catch (e) {
-        console.log('Pause error', e);
+        console.log('Preview advance error', e);
       }
-      setShowSubscriptionModal(true);
     }, previewMs);
     
     return () => {
@@ -3536,7 +3558,7 @@ export default function UserStreamingApp() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, user, billingEnabled, isPremium, monetizationSettings.preview_duration_seconds]);
+  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds]);
   
   // When user becomes premium (e.g. after successful payment), reset preview enforcement
   useEffect(() => {
@@ -4168,59 +4190,62 @@ export default function UserStreamingApp() {
       return false;
     }
     
-    // Check guest play count - 5 plays or 5 skips max
-    console.log(`[Guest] Checking limits: plays=${guestPlayCount}/${GUEST_PLAY_LIMIT}, skips=${guestSkipCount}/${GUEST_SKIP_LIMIT}`);
-    
-    if (guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT) {
-      console.log('[Guest] LIMIT REACHED - showing modal and STOPPING playback when song ends');
-      setShowGuestLimitModal(true);
-      // BLOCK autoplay - when current song ends, stop until user signs in
-      if (player?.setGuestLimitReached) {
-        player.setGuestLimitReached(true);
-      }
-      return false;
-    }
-    
+    // No hard guest play/skip cap any more — graceful degradation handled
+    // by the Spotify-style preview mode (see incrementGuestPlayCount /
+    // incrementGuestSkipCount which set previewModeActive at the hard threshold).
+    // We never block playback for guests under the soft/hard thresholds.
     return true;
   };
 
-  // Increment guest play count - ALWAYS ENFORCED (independent of billing)
+  // Increment guest play count — Spotify-style graceful degradation
+  // When limit is hit: enable 30s preview mode instead of complete halt
   // Returns true if limit reached and should show prompt
   const incrementGuestPlayCount = () => {
-    if (user) return false; // Logged in users have no limit
+    if (user) return false; // Logged in users have no guest limit
     
     const newCount = guestPlayCount + 1;
     console.log(`[Guest] Incrementing play count: ${guestPlayCount} -> ${newCount}`);
     setGuestPlayCount(newCount);
     
-    if (newCount >= GUEST_PLAY_LIMIT) {
-      console.log('[Guest] Play limit reached - showing prompt and BLOCKING autoplay');
-      // BLOCK autoplay - when current song ends, playback stops
-      if (player?.setGuestLimitReached) {
-        player.setGuestLimitReached(true);
-      }
-      setShowGuestLimitModal(true);
+    const soft = monetizationSettings.soft_skip_limit || 5;
+    const hard = monetizationSettings.hard_skip_limit || 8;
+    
+    // Soft threshold — show contribution prompt once
+    if (newCount === soft) {
+      console.log('[Guest] Soft play threshold — showing contribution prompt');
+      setShowSubscriptionModal(true);
+    }
+    
+    // Hard threshold — enable 30s preview mode (do NOT halt playback)
+    if (newCount >= hard && !previewModeActive) {
+      console.log('[Guest] Hard play threshold — enabling 30s preview mode');
+      setPreviewModeActive(true);
+      setShowSubscriptionModal(true);
       return true;
     }
     return false;
   };
   
-  // Increment guest skip count - ALWAYS ENFORCED (independent of billing)
-  // Returns true if limit reached and should show prompt
+  // Increment guest skip count — Spotify-style graceful degradation
   const incrementGuestSkipCount = () => {
-    if (user) return false; // Logged in users have no limit
+    if (user) return false;
     
     const newCount = guestSkipCount + 1;
     console.log(`[Guest] Incrementing skip count: ${guestSkipCount} -> ${newCount}`);
     setGuestSkipCount(newCount);
     
-    if (newCount >= GUEST_SKIP_LIMIT) {
-      console.log('[Guest] Skip limit reached - showing prompt and BLOCKING autoplay');
-      // BLOCK autoplay - when current song ends, playback stops
-      if (player?.setGuestLimitReached) {
-        player.setGuestLimitReached(true);
-      }
-      setShowGuestLimitModal(true);
+    const soft = monetizationSettings.soft_skip_limit || 5;
+    const hard = monetizationSettings.hard_skip_limit || 8;
+    
+    if (newCount === soft) {
+      console.log('[Guest] Soft skip threshold — showing contribution prompt');
+      setShowSubscriptionModal(true);
+    }
+    
+    if (newCount >= hard && !previewModeActive) {
+      console.log('[Guest] Hard skip threshold — enabling 30s preview mode');
+      setPreviewModeActive(true);
+      setShowSubscriptionModal(true);
       return true;
     }
     return false;
@@ -4562,65 +4587,44 @@ export default function UserStreamingApp() {
     }
   };
 
-  // BILLING TRIGGER: Skip wrapper with Spotify-style tiered enforcement for unpaid users.
+  // BILLING TRIGGER: Skip wrapper with Spotify-style tiered enforcement.
   //
-  // Logged-in non-premium flow (admin-configurable via /admin/app-settings/monetization):
-  //   1. First N skips           → unrestricted (default N = soft_skip_limit = 5)
-  //   2. At soft_skip_limit      → show contribution prompt (dismissible), allow more skips
-  //   3. At hard_skip_limit      → enable preview-mode: every subsequent song plays only
-  //                                 preview_duration_seconds before pausing + showing prompt
-  //   Guest skips are still enforced separately by GUEST_SKIP_LIMIT.
+  // Both guest and logged-in-non-premium users follow the same flow:
+  //   1. First N skips           → unrestricted (N = soft_skip_limit, default 5)
+  //   2. At soft_skip_limit      → show contribution prompt (dismissible)
+  //   3. At hard_skip_limit      → enable 30s preview mode (audio caps at preview_duration_seconds)
+  //   Skip itself is NEVER blocked — degradation is via the audio preview cap only.
   const handleSkipWithBillingCheck = (skipFunction) => {
-    // Guest user skip limit check - ALWAYS ENFORCED
     if (!user) {
-      // Check if limit already reached - BLOCK skip
-      if (guestSkipCount >= GUEST_SKIP_LIMIT || guestPlayCount >= GUEST_PLAY_LIMIT) {
-        console.log('[Guest] Limit already reached - BLOCKING skip');
-        setShowGuestLimitModal(true);
-        // Set flag to stop playback when song ends
-        if (player?.setGuestLimitReached) {
-          player.setGuestLimitReached(true);
-        }
-        return; // DO NOT allow skip
-      }
-      
-      // Increment guest skip count and check limit
-      if (incrementGuestSkipCount()) {
-        // Skip limit reached - show modal and BLOCK further actions
-        console.log('[Guest] Skip limit reached - BLOCKING skip');
-        return; // DO NOT allow skip
-      }
-      
-      // Allow the skip for guests under limit
+      // Guest: count the skip + (maybe) enable preview mode, but ALWAYS allow the skip
+      incrementGuestSkipCount();
       skipFunction();
       return;
     }
     
-    // Logged in user - If billing ON + not premium, enforce tiered limit
-    if (billingEnabled && !isPremium) {
-      const newSkipCount = skipCount + 1;
-      setSkipCount(newSkipCount);
-      const soft = monetizationSettings.soft_skip_limit || 5;
-      const hard = monetizationSettings.hard_skip_limit || 8;
-      console.log(`[Billing] Logged-in skip count: ${newSkipCount} (soft=${soft}, hard=${hard})`);
-      
-      // Stage 1: at soft limit, show contribution prompt (one-shot per cycle)
-      if (newSkipCount === soft) {
-        console.log('[Billing] Soft skip limit reached - showing contribution prompt');
-        setShowSubscriptionModal(true);
-      }
-      
-      // Stage 2: at hard limit, enforce preview mode going forward
-      if (newSkipCount >= hard) {
-        console.log('[Billing] Hard skip limit reached - enabling 30s preview mode');
-        setPreviewModeActive(true);
-        setShowSubscriptionModal(true);
-        // Stop the player so the next song starts under preview-mode enforcement
-      }
+    // Logged in user — billing OFF or premium: free skip
+    if (!billingEnabled || isPremium) {
+      skipFunction();
+      return;
     }
     
-    // Always allow the skip for logged-in users (the preview-mode timer below
-    // will cap their listen on the *next* song instead of blocking the action)
+    // Logged in non-premium with billing ON — tiered enforcement
+    const newSkipCount = skipCount + 1;
+    setSkipCount(newSkipCount);
+    const soft = monetizationSettings.soft_skip_limit || 5;
+    const hard = monetizationSettings.hard_skip_limit || 8;
+    console.log(`[Billing] Logged-in skip count: ${newSkipCount} (soft=${soft}, hard=${hard})`);
+    
+    if (newSkipCount === soft) {
+      console.log('[Billing] Soft skip limit — showing contribution prompt');
+      setShowSubscriptionModal(true);
+    }
+    if (newSkipCount >= hard && !previewModeActive) {
+      console.log('[Billing] Hard skip limit — enabling 30s preview mode');
+      setPreviewModeActive(true);
+      setShowSubscriptionModal(true);
+    }
+    
     skipFunction();
   };
 
@@ -6161,6 +6165,25 @@ export default function UserStreamingApp() {
         onAddToPlaylist={() => {
           // Always show download app popup for web
           setShowDownloadPopup(true);
+        }}
+        showContributeBanner={
+          // Show whenever the contribution prompt is meaningful for this listener:
+          //   - Preview mode is active (hard threshold crossed), OR
+          //   - Unpaid soft threshold has been crossed and they're not premium
+          !isPremium && (
+            previewModeActive ||
+            (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 5)) ||
+            (!user && guestPlayCount >= (monetizationSettings.soft_skip_limit || 5))
+          )
+        }
+        contributeMessage={
+          language === 'sw'
+            ? 'Changia kidogo kusikiliza kwa uhuru'
+            : 'Contribute a little to listen freely'
+        }
+        onContribute={() => {
+          // Open the contribution modal; user can choose to go to plans or dismiss
+          setShowSubscriptionModal(true);
         }}
       />
 
