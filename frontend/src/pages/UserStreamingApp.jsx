@@ -1791,7 +1791,7 @@ const BibleView = ({ language, t, onBack, onStopMusicPlayer }) => {
 };
 
 // Full-Screen Player Modal
-const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist }) => {
+const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute }) => {
   if (!player.currentSong) return null;
   
   // Use provided handlers or default to player methods
@@ -1799,7 +1799,26 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
   const handlePrev = onPrev || player.prevSong;
   
   return (
-    <div className="fixed inset-0 bg-gradient-to-b from-zinc-800 to-black z-[70] flex flex-col" data-testid="full-player">
+    <div className={`fixed inset-0 bg-gradient-to-b from-zinc-800 to-black z-[70] flex flex-col ${showContributeBanner ? 'monetization-glow-fullplayer' : ''}`} data-testid="full-player">
+      {/* Contribution banner — also shown at top of full player */}
+      {showContributeBanner && (
+        <button
+          type="button"
+          onClick={onContribute}
+          data-testid="full-player-contribute-banner"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-blue-500 hover:bg-blue-400 transition-colors text-white"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Star size={16} className="flex-shrink-0 fill-white text-white" />
+            <span className="text-sm font-semibold truncate">
+              {contributeMessage || 'Changia kidogo kusikiliza kwa uhuru'}
+            </span>
+          </div>
+          <span className="text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full flex-shrink-0">
+            Changia
+          </span>
+        </button>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <button onClick={onClose} className="p-2">
@@ -1957,7 +1976,7 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     : getThumbnail(player.currentAlbum);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800" data-testid="mini-player">
+    <div className={`fixed bottom-0 left-0 right-0 lg:left-64 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800 ${showContributeBanner ? 'monetization-glow' : ''}`} data-testid="mini-player">
       {/* Contribution banner — Spotify-style "Listening to a preview" strip in logo blue */}
       {showContributeBanner && !isRadio && (
         <button
@@ -6196,6 +6215,19 @@ export default function UserStreamingApp() {
           isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
           onNext={handleNextWithBilling}
           onPrev={handlePrevWithBilling}
+          showContributeBanner={
+            !isPremium && (
+              previewModeActive ||
+              (user && billingEnabled && skipCount >= (monetizationSettings.soft_skip_limit || 5)) ||
+              (!user && guestPlayCount >= (monetizationSettings.soft_skip_limit || 5))
+            )
+          }
+          contributeMessage={
+            language === 'sw'
+              ? 'Changia kidogo kusikiliza kwa uhuru'
+              : 'Contribute a little to listen freely'
+          }
+          onContribute={() => setShowSubscriptionModal(true)}
           onDownload={() => {
             // Always show download app popup for web
             setShowDownloadPopup(true);

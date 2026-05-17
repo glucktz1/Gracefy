@@ -69,7 +69,13 @@ const NowPlayingScreen = ({ navigation }) => {
   const [isLiked, setIsLiked] = useState(false);
 
   // Billing settings from context
-  const { billingEnabled, isPremium, canSkip, recordSkip, getRemainingSkips, promptSubscription } = useBilling();
+  const { billingEnabled, isPremium, canSkip, recordSkip, getRemainingSkips, promptSubscription, previewModeActive, skipCount, monetization } = useBilling();
+  
+  // Show contribution gold-glow when listener crosses soft/hard thresholds
+  const showContributeGlow = !isPremium && (
+    previewModeActive ||
+    (billingEnabled && skipCount >= (monetization?.soft_skip_limit || 5))
+  );
 
   // Handle skip with billing check
   const handleSkipNext = () => {
@@ -291,9 +297,26 @@ const NowPlayingScreen = ({ navigation }) => {
   return (
     <LinearGradient
       colors={['#2a3a2a', '#1a2a1a', COLORS.background]}
-      style={styles.container}
+      style={[styles.container, showContributeGlow && styles.monetizationGlowFullPlayer]}
     >
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {showContributeGlow && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => promptSubscription && promptSubscription('skip')}
+            style={localStyles.contributeBanner}
+          >
+            <View style={localStyles.contributeLeft}>
+              <Ionicons name="star" size={16} color="#FFFFFF" />
+              <Text style={localStyles.contributeText} numberOfLines={1}>
+                Changia kidogo kusikiliza kwa uhuru
+              </Text>
+            </View>
+            <View style={localStyles.contributeCTA}>
+              <Text style={localStyles.contributeCTAText}>Changia</Text>
+            </View>
+          </TouchableOpacity>
+        )}
         <ScrollView 
           style={styles.scrollView} 
           showsVerticalScrollIndicator={false}
@@ -620,6 +643,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Emergent-style gold glow for the full player when monetization threshold reached
+  monetizationGlowFullPlayer: {
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+    shadowColor: '#fbbf24',
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 24,
+  },
   safeArea: {
     flex: 1,
   },
@@ -878,6 +911,45 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
     marginTop: SPACING.md,
+  },
+});
+
+const localStyles = StyleSheet.create({
+  contributeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#3b82f6', // Gracefy logo blue
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  contributeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  contributeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  contributeCTA: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  contributeCTAText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 

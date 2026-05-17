@@ -189,7 +189,7 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
   return (
     <>
-      <View style={styles.container}>
+      <View style={[styles.container, showContributeBanner && styles.monetizationGlow]}>
         {/* Contribution banner — Spotify-style "Listening to a preview" strip in logo blue */}
         {showContributeBanner && (
           <TouchableOpacity
@@ -350,6 +350,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  // Emergent-style gold double-ring glow when monetization threshold reached
+  monetizationGlow: {
+    borderWidth: 2,
+    borderColor: '#fbbf24', // amber-400 (gold)
+    shadowColor: '#fbbf24',
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 18,
+    // Inner glow simulated via larger margin so border has space to shine
   },
   contributeBanner: {
     flexDirection: 'row',
