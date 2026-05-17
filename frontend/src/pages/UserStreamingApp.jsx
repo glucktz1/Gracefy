@@ -4835,6 +4835,24 @@ export default function UserStreamingApp() {
                   </div>
                 </section>
 
+                {/* Category Filter Pills — right after Quick Access */}
+                {!activeCategory && categories.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" data-testid="category-filter-pills">
+                    <button className="px-4 py-2 rounded-full bg-white text-black text-sm font-medium whitespace-nowrap">
+                      {language === 'sw' ? 'Zote' : 'All'}
+                    </button>
+                    {categories.slice(0, 8).map(cat => (
+                      <button
+                        key={cat.category_id}
+                        onClick={() => handleCategorySelect(cat)}
+                        className="px-4 py-2 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 text-sm font-medium whitespace-nowrap"
+                      >
+                        {language === 'sw' && cat.name_sw ? cat.name_sw : cat.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Neno la Leo - Horizontal scrolling tiles */}
                 {nenoLaLeoList.length > 0 && (
                   <section data-testid="neno-la-leo-section">
@@ -4893,23 +4911,6 @@ export default function UserStreamingApp() {
                     </div>
                   </section>
                 )}
-                {!activeCategory && (
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button className="px-4 py-2 rounded-full bg-white text-black text-sm font-medium whitespace-nowrap">
-                      {language === 'sw' ? 'Zote' : 'All'}
-                    </button>
-                    {categories.slice(0, 8).map(cat => (
-                      <button
-                        key={cat.category_id}
-                        onClick={() => handleCategorySelect(cat)}
-                        className="px-4 py-2 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 text-sm font-medium whitespace-nowrap"
-                      >
-                        {language === 'sw' && cat.name_sw ? cat.name_sw : cat.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 {/* Filtered Category View */}
                 {activeCategory && (
                   <section>
