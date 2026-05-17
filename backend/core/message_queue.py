@@ -144,6 +144,21 @@ class RabbitMQQueue:
             logger.info("RabbitMQ disabled, using in-memory queue")
             return False
         
+        # Skip local RabbitMQ in cloud deployments — robust_connection retries forever
+        # and floods logs with reconnect attempts. The in-memory queue covers cloud needs.
+        _is_cloud = bool(
+            os.environ.get('KUBERNETES_SERVICE_HOST')
+            or os.environ.get('K_SERVICE')
+            or os.environ.get('RAILWAY_ENVIRONMENT')
+            or os.environ.get('RENDER')
+            or os.environ.get('FLY_APP_NAME')
+        )
+        _is_localhost = bool(RABBITMQ_URL and ('localhost' in RABBITMQ_URL or '127.0.0.1' in RABBITMQ_URL))
+        if _is_cloud and _is_localhost:
+            logger.info("Cloud env detected with localhost RabbitMQ URL — using in-memory queue")
+            self._connected = False
+            return False
+        
         try:
             import aio_pika
             
@@ -168,7 +183,10 @@ class RabbitMQQueue:
             logger.warning("aio_pika not installed. Using in-memory queue fallback.")
             return False
         except Exception as e:
-            logger.warning(f"⚠️ RabbitMQ connection failed: {e}. Using in-memory fallback.")
+            if _is_localhost:
+                logger.info(f"Local RabbitMQ unavailable ({type(e).__name__}); using in-memory queue")
+            else:
+                logger.warning(f"⚠️ RabbitMQ connection failed: {e}. Using in-memory fallback.")
             self._stats['rabbitmq_errors'] += 1
             return False
     

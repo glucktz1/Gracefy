@@ -19,6 +19,29 @@ REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 REDIS_PREFIX = os.environ.get('REDIS_PREFIX', 'gracefy:')
 REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'true').lower() == 'true'
 
+
+def _is_cloud_env() -> bool:
+    """Detect if we're running inside a Kubernetes / container deployment.
+    
+    When True and REDIS_URL points at localhost, we skip the local Redis
+    connection (which would otherwise time out and spam warnings) because
+    in-memory + Upstash fallback covers all caching needs in the cloud.
+    """
+    return bool(
+        os.environ.get('KUBERNETES_SERVICE_HOST')
+        or os.environ.get('K_SERVICE')  # GCP Cloud Run
+        or os.environ.get('RAILWAY_ENVIRONMENT')
+        or os.environ.get('RENDER')
+        or os.environ.get('FLY_APP_NAME')
+    )
+
+
+def _is_localhost_url(url: str) -> bool:
+    """Check if a URL points at localhost / 127.0.0.1."""
+    if not url:
+        return False
+    return 'localhost' in url or '127.0.0.1' in url
+
 # Cache TTL defaults (in seconds)
 CACHE_TTL = {
     'home': 60,
@@ -62,6 +85,12 @@ class RedisCache:
             logger.info("Redis disabled, using in-memory cache only")
             return False
         
+        # Skip local Redis in cloud deployments — in-memory + Upstash covers it
+        if _is_cloud_env() and _is_localhost_url(REDIS_URL):
+            logger.info("Cloud env detected with localhost Redis URL — using in-memory fallback (no warning)")
+            self._connected = False
+            return False
+        
         try:
             import redis.asyncio as aioredis
             
@@ -80,7 +109,11 @@ class RedisCache:
             return True
             
         except Exception as e:
-            logger.warning(f"⚠️ Redis connection failed: {e}. Using in-memory fallback.")
+            # Demote to INFO when URL was localhost — fallback is expected behaviour
+            if _is_localhost_url(REDIS_URL):
+                logger.info(f"Local Redis unavailable ({type(e).__name__}); using in-memory fallback")
+            else:
+                logger.warning(f"⚠️ Redis connection failed: {e}. Using in-memory fallback.")
             self._connected = False
             return False
     

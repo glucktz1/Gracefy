@@ -44,6 +44,20 @@ class RedisCache:
         if not REDIS_ENABLED:
             logger.info("Redis caching disabled - using in-memory cache")
             return False
+        
+        # Skip local Redis in cloud deployments
+        _is_cloud = bool(
+            os.environ.get('KUBERNETES_SERVICE_HOST')
+            or os.environ.get('K_SERVICE')
+            or os.environ.get('RAILWAY_ENVIRONMENT')
+            or os.environ.get('RENDER')
+            or os.environ.get('FLY_APP_NAME')
+        )
+        _is_localhost = bool(REDIS_URL and ('localhost' in REDIS_URL or '127.0.0.1' in REDIS_URL))
+        if _is_cloud and _is_localhost:
+            logger.info("Cloud env detected with localhost Redis URL — using in-memory fallback")
+            self.connected = False
+            return False
             
         try:
             import redis.asyncio as redis
@@ -60,7 +74,10 @@ class RedisCache:
             logger.info(f"Redis connected: {REDIS_URL}")
             return True
         except Exception as e:
-            logger.warning(f"Redis connection failed: {e}. Using in-memory fallback.")
+            if _is_localhost:
+                logger.info(f"Local Redis unavailable ({type(e).__name__}); using in-memory fallback")
+            else:
+                logger.warning(f"Redis connection failed: {e}. Using in-memory fallback.")
             self.connected = False
             return False
     
