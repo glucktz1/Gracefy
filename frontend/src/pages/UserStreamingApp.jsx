@@ -3640,16 +3640,29 @@ export default function UserStreamingApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds, monetizationSettings.full_play_every_n_previews, previewClipCount]);
   
-  // When user becomes premium (e.g. after successful payment), reset preview enforcement
+  // When user becomes premium (transition false→true), reset preview enforcement.
+  // CRITICAL: must use a ref to track the previous value, because `isPremium` defaults
+  // to `true` on first render (loading state) which would otherwise wipe persisted state.
+  const wasPremiumRef = useRef(null);
   useEffect(() => {
-    if (isPremium) {
+    // Skip the very first effect run (just record the value)
+    if (wasPremiumRef.current === null) {
+      wasPremiumRef.current = isPremium;
+      return;
+    }
+    // Only reset on actual transition false → true (i.e. user just paid)
+    if (!wasPremiumRef.current && isPremium) {
+      console.log('[Monetization] User became premium — clearing enforcement');
       setPreviewModeActive(false);
       setSkipCount(0);
+      setPreviewClipCount(0);
       if (previewTimerRef.current) {
         clearTimeout(previewTimerRef.current);
         previewTimerRef.current = null;
       }
+      try { localStorage.removeItem('gracefy_monetization'); } catch { /* noop */ }
     }
+    wasPremiumRef.current = isPremium;
   }, [isPremium]);
 
   
