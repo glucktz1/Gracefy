@@ -3541,34 +3541,71 @@ export default function UserStreamingApp() {
 
   const player = useAudioPlayer();
   
-  // ============ PLAY GUARD ============
-  // Wrap the player so each new play bumps the unified usage counter, and so
-  // user-initiated playSong calls during preview mode are IGNORED (current
-  // preview cycle keeps playing until the user pays). Auto-advance from the
-  // preview timer always goes through `player.playSong` directly, so it isn't
-  // affected by this guard.
-  // We use a ref to swap the function in-place — no need to touch the 9 call sites.
+  // ============ PLAY GUARD (single-wrap, ref-based) ============
+  // Wraps player.playSong exactly ONCE per mount so it:
+  //   - In preview mode → ignores manual song selection (current cycle keeps playing)
+  //   - Otherwise → bumps the unified usage counter then calls the real playSong
+  // Uses refs to always read the latest state without re-wrapping on every render.
+  const monetizationRef = useRef({
+    previewModeActive: false,
+    isPremium: true,
+    usageCount: 0,
+    threshold: 6,
+  });
+  monetizationRef.current.previewModeActive = previewModeActive;
+  monetizationRef.current.isPremium = isPremium;
+  monetizationRef.current.usageCount = usageCount;
+  monetizationRef.current.threshold = monetizationSettings.hard_skip_limit || 6;
+  
   const originalPlaySongRef = useRef(null);
+  const wrappedOnceRef = useRef(false);
+  
   useEffect(() => {
-    if (!player?.playSong) return;
-    if (originalPlaySongRef.current === null) {
-      originalPlaySongRef.current = player.playSong;
-    }
-    // Reassign player.playSong so all consumers go through the guard
-    player.playSong = (song, album, queue, index) => {
-      // In preview mode, IGNORE manual selections — keep the current preview cycle alive
-      if (previewModeActive && !isPremium) {
-        console.log('[Monetization] Manual song selection ignored during preview mode');
-        // Optional: nudge with the daily-limit popup so user sees why
+    if (!player?.playSong || wrappedOnceRef.current) return;
+    if (originalPlaySongRef.current) return; // belt-and-braces
+    
+    originalPlaySongRef.current = player.playSong;
+    wrappedOnceRef.current = true;
+    
+    const guarded = (song, album, queue, index) => {
+      const s = monetizationRef.current;
+      
+      // In preview mode (and not premium) — ignore manual selection
+      if (s.previewModeActive && !s.isPremium) {
+        console.log('[Monetization] Manual song selection ignored — preview cycle continues');
         setShowDailyLimitPopup(true);
         return;
       }
-      // Otherwise bump usage and play normally
-      bumpUsage();
+      
+      // Bump usage atomically (no stale closure)
+      if (!s.isPremium) {
+        setUsageCount(prev => {
+          const next = prev + 1;
+          if (next === s.threshold) {
+            console.log(`[Monetization] Threshold ${s.threshold} reached via play → preview mode ON`);
+            setPreviewModeActive(true);
+            setShowDailyLimitPopup(true);
+          }
+          return next;
+        });
+      }
+      
       return originalPlaySongRef.current(song, album, queue, index);
     };
+    
+    // Mutate the player object so all consumers see the guarded version
+    player.playSong = guarded;
+    
+    return () => {
+      // Restore on unmount so we don't leak wrappers if the component remounts
+      if (player && originalPlaySongRef.current) {
+        try { player.playSong = originalPlaySongRef.current; } catch (_) { /* noop */ }
+        originalPlaySongRef.current = null;
+        wrappedOnceRef.current = false;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player, previewModeActive, isPremium, usageCount]);
+  }, [player]);
   
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
   
@@ -4691,23 +4728,24 @@ export default function UserStreamingApp() {
   };
 
   // ============ UNIFIED USAGE TRACKER ============
-  // Both plays and skips increment usageCount. After hitting the threshold,
-  // preview mode locks on (persistent until premium). Skip itself is NEVER
-  // blocked — songs keep playing in the 45s preview cycle.
+  // Both plays and skips increment usageCount via functional updater (no stale closures).
+  // After hitting the threshold, preview mode locks on (persistent until premium).
   const bumpUsage = () => {
     if (isPremium) return;
     const threshold = monetizationSettings.hard_skip_limit || 6;
-    const next = usageCount + 1;
-    setUsageCount(next);
-    console.log(`[Monetization] usage=${next}/${threshold}`);
-    if (next === threshold) {
-      console.log('[Monetization] Threshold reached → preview mode ON');
-      setPreviewModeActive(true);
-      setShowDailyLimitPopup(true);
-    }
+    setUsageCount(prev => {
+      const next = prev + 1;
+      console.log(`[Monetization] usage=${next}/${threshold}`);
+      if (next === threshold) {
+        console.log('[Monetization] Threshold reached → preview mode ON');
+        setPreviewModeActive(true);
+        setShowDailyLimitPopup(true);
+      }
+      return next;
+    });
   };
   
-  // Skip wrapper — just bumps usage and always allows the skip
+  // Skip wrapper — just bumps usage and always allows the skip (never blocks playback)
   const handleSkipWithBillingCheck = (skipFunction) => {
     bumpUsage();
     if (typeof skipFunction === 'function') skipFunction();
