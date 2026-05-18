@@ -3,8 +3,8 @@
 ## Admin (Gracefy)
 - URL: `/admin/login`
 - Email: `admin@gracefy.life`
-- Password: (empty - leave blank)
-- **CHANGE IMMEDIATELY AFTER FIRST LOGIN**
+- Password: `Mwanga@82!3`
+- `allow_empty_password`: false (empty-password backdoor removed)
 
 ## App User (Web/Mobile registration & login)
 - Endpoint: `POST /api/user/register`, `POST /api/user/login`
