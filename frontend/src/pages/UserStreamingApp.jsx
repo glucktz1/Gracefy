@@ -3403,50 +3403,57 @@ export default function UserStreamingApp() {
   const [guestStatsLoaded, setGuestStatsLoaded] = useState(false);
   
   // ==================== MONETIZATION STATE (persisted per day) ====================
-  // Counts both PLAYS and SKIPS toward the same daily quota for unpaid users.
-  // Persisted in localStorage so refresh / nav doesn't reset progress.
+  // Unified counter: every PLAY and every SKIP both increment usageCount.
+  // After threshold (default 6), preview mode locks ON until user pays.
   const loadMonetizationState = () => {
     try {
       const raw = localStorage.getItem('gracefy_monetization');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      // Reset if it's a new day
       if (parsed.date !== new Date().toDateString()) return null;
       return parsed;
     } catch { return null; }
   };
   const _persisted = loadMonetizationState();
   
-  const [skipCount, setSkipCount] = useState(_persisted?.skipCount || 0);
+  const [usageCount, setUsageCount] = useState(_persisted?.usageCount ?? _persisted?.skipCount ?? 0);
   const [previewModeActive, setPreviewModeActive] = useState(_persisted?.previewModeActive || false);
   const [previewClipCount, setPreviewClipCount] = useState(_persisted?.previewClipCount || 0);
-  const [allowFullPlay, setAllowFullPlay] = useState(false);
   const [showDailyLimitPopup, setShowDailyLimitPopup] = useState(false);
   const previewTimerRef = useRef(null);
   
+  // Legacy state names that older code still references — kept as aliases so we don't have
+  // to touch every call site. `skipCount` now represents the unified usage count.
+  const skipCount = usageCount;
+  const setSkipCount = setUsageCount;
+  
   const [monetizationSettings, setMonetizationSettings] = useState({
-    daily_play_limit: 9,
-    soft_skip_limit: 6,
-    hard_skip_limit: 9,
-    preview_duration_seconds: 45,
-    full_play_every_n_previews: 4,
+    daily_play_limit: 6,                 // unified threshold: 6 (plays + skips combined)
+    soft_skip_limit: 6,                  // legacy alias — same value
+    hard_skip_limit: 6,                  // unified: trigger preview mode at 6
+    preview_duration_seconds: 45,        // each preview lasts 45s
+    full_play_every_n_previews: 4,       // every 4th preview, allow a full play
     prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
   });
   
-  // Persist counters on change (player is referenced via optional chain inside the effect,
-  // which runs after init — don't add `player` to deps to avoid TDZ during hoisting).
+  // Persist counters on change
   useEffect(() => {
     try {
       localStorage.setItem('gracefy_monetization', JSON.stringify({
         date: new Date().toDateString(),
-        skipCount,
+        usageCount,
         previewModeActive,
         previewClipCount,
       }));
     } catch { /* ignore quota */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skipCount, previewModeActive, previewClipCount]);
+  }, [usageCount, previewModeActive, previewClipCount]);
+  
+  // Whether the current preview clip is the "full play" reward (every Nth)
+  // This is now derived from previewClipCount, not state, so it stays accurate.
+  const allowFullPlay = previewModeActive && previewClipCount > 0 &&
+    (previewClipCount % (monetizationSettings.full_play_every_n_previews || 4)) === 0;
   
   // Load guest stats from localStorage on mount
   useEffect(() => {
@@ -3533,6 +3540,36 @@ export default function UserStreamingApp() {
   const [homeRadioAudio, setHomeRadioAudio] = useState(null);
 
   const player = useAudioPlayer();
+  
+  // ============ PLAY GUARD ============
+  // Wrap the player so each new play bumps the unified usage counter, and so
+  // user-initiated playSong calls during preview mode are IGNORED (current
+  // preview cycle keeps playing until the user pays). Auto-advance from the
+  // preview timer always goes through `player.playSong` directly, so it isn't
+  // affected by this guard.
+  // We use a ref to swap the function in-place — no need to touch the 9 call sites.
+  const originalPlaySongRef = useRef(null);
+  useEffect(() => {
+    if (!player?.playSong) return;
+    if (originalPlaySongRef.current === null) {
+      originalPlaySongRef.current = player.playSong;
+    }
+    // Reassign player.playSong so all consumers go through the guard
+    player.playSong = (song, album, queue, index) => {
+      // In preview mode, IGNORE manual selections — keep the current preview cycle alive
+      if (previewModeActive && !isPremium) {
+        console.log('[Monetization] Manual song selection ignored during preview mode');
+        // Optional: nudge with the daily-limit popup so user sees why
+        setShowDailyLimitPopup(true);
+        return;
+      }
+      // Otherwise bump usage and play normally
+      bumpUsage();
+      return originalPlaySongRef.current(song, album, queue, index);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, previewModeActive, isPremium, usageCount]);
+  
   const [authForm, setAuthForm] = useState({ email: '', phone: '', password: '', name: '' });
   
   // Track if screen lock payment was triggered (blocks auto-play of next song)
@@ -3586,9 +3623,10 @@ export default function UserStreamingApp() {
   }, [billingEnabled, isPremium, player?.isPlaying, user, player?.setBlockAutoPlayNext]);
   
   // PREVIEW MODE ENFORCEMENT (Spotify-style):
-  // When previewModeActive is true (after the hard skip threshold or daily play cap):
-  //   - Every Nth song (full_play_every_n_previews) plays IN FULL (no skip, no preview cap)
-  //   - All other songs play for `preview_duration_seconds` then auto-advance to the next
+  // When previewModeActive is true:
+  //   - Every (full_play_every_n_previews)th song plays IN FULL (no timer cap)
+  //   - All other songs play for `preview_duration_seconds` (default 45s) then auto-advance
+  // The cycle keeps repeating: 4×preview → 1×full → 4×preview → 1×full → ...
   // Premium users are exempt.
   useEffect(() => {
     if (previewTimerRef.current) {
@@ -3599,34 +3637,29 @@ export default function UserStreamingApp() {
     if (!previewModeActive) return;
     if (isPremium) return;
     if (!player?.currentSong || !player?.isPlaying) return;
-    
-    // Every Nth song is a full play — skip the preview cap
-    const everyN = monetizationSettings.full_play_every_n_previews || 4;
-    const isFullPlayTurn = previewClipCount > 0 && previewClipCount % everyN === 0;
-    setAllowFullPlay(isFullPlayTurn);
-    if (isFullPlayTurn) {
-      console.log('[Billing] Full-play turn (no preview cap)');
+    if (allowFullPlay) {
+      console.log('[Monetization] Full-play turn (no preview cap)');
       return;
     }
     
     const previewMs = (monetizationSettings.preview_duration_seconds || 45) * 1000;
-    console.log(`[Billing] Preview mode - song will auto-advance in ${previewMs}ms`);
+    console.log(`[Monetization] Preview - song will auto-advance in ${previewMs}ms`);
     
     previewTimerRef.current = setTimeout(() => {
-      console.log('[Billing] Preview window elapsed - advancing');
+      console.log('[Monetization] Preview window elapsed - advancing');
       setPreviewClipCount(c => c + 1);
       try {
+        // Bypass the play guard — call the ORIGINAL nextSong, not the wrapped one
         if (player?.nextSong) {
           player.nextSong();
         } else if (player?.seekTo) {
-          // No queue available — restart current song so audio doesn't stop
           player.seekTo(0);
         }
       } catch (e) {
-        console.log('Preview advance error, attempting recovery', e);
+        console.log('Preview advance error', e);
         try { player?.seekTo?.(0); } catch (_) { /* noop */ }
       }
-      // Defensive: re-clear any halt flags after advance
+      // Defensive: re-clear any halt flags so playback never stops
       try { player?.setGuestLimitReached?.(false); } catch (_) { /* noop */ }
       try { player?.setBlockAutoPlayNext?.(false); } catch (_) { /* noop */ }
     }, previewMs);
@@ -3638,7 +3671,7 @@ export default function UserStreamingApp() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds, monetizationSettings.full_play_every_n_previews, previewClipCount]);
+  }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds, allowFullPlay]);
   
   // When user becomes premium (transition false→true), reset preview enforcement.
   // CRITICAL: must use a ref to track the previous value, because `isPremium` defaults
@@ -4657,41 +4690,27 @@ export default function UserStreamingApp() {
     }
   };
 
-  // ============ MONETIZATION SKIP HANDLER (Spotify-style, day-persistent) ============
-  //   1. Skip 1-5                → free
-  //   2. Skip 6                  → contribute banner + gold glow appear (persistent)
-  //   3. Skip 7-8                → free
-  //   4. Skip 9 (hard)           → preview mode ON, show daily-limit popup
-  //   5. Skip > 9                → BLOCKED + popup re-shown
-  // Counters reset only on day change. Premium users bypass.
-  const handleSkipWithBillingCheck = (skipFunction) => {
-    if (isPremium) {
-      skipFunction();
-      return;
-    }
-    
-    const soft = monetizationSettings.soft_skip_limit || 6;
-    const hard = monetizationSettings.hard_skip_limit || 9;
-    
-    const newCount = skipCount + 1;
-    setSkipCount(newCount);
-    
-    if (newCount === soft) {
-      console.log(`[Monetization] Soft limit (${soft}) reached — banner ON`);
-      // banner shows via condition; no modal needed yet
-    }
-    if (newCount === hard) {
-      console.log(`[Monetization] Hard limit (${hard}) reached — preview mode ON + popup`);
+  // ============ UNIFIED USAGE TRACKER ============
+  // Both plays and skips increment usageCount. After hitting the threshold,
+  // preview mode locks on (persistent until premium). Skip itself is NEVER
+  // blocked — songs keep playing in the 45s preview cycle.
+  const bumpUsage = () => {
+    if (isPremium) return;
+    const threshold = monetizationSettings.hard_skip_limit || 6;
+    const next = usageCount + 1;
+    setUsageCount(next);
+    console.log(`[Monetization] usage=${next}/${threshold}`);
+    if (next === threshold) {
+      console.log('[Monetization] Threshold reached → preview mode ON');
       setPreviewModeActive(true);
       setShowDailyLimitPopup(true);
     }
-    if (newCount > hard) {
-      console.log('[Monetization] Past hard cap — BLOCKING skip, re-show popup');
-      setShowDailyLimitPopup(true);
-      return; // BLOCK the skip
-    }
-    
-    skipFunction();
+  };
+  
+  // Skip wrapper — just bumps usage and always allows the skip
+  const handleSkipWithBillingCheck = (skipFunction) => {
+    bumpUsage();
+    if (typeof skipFunction === 'function') skipFunction();
   };
 
   // Wrapped skip functions for the player
