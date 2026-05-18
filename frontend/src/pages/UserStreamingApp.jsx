@@ -3549,11 +3549,13 @@ export default function UserStreamingApp() {
   const monetizationRef = useRef({
     previewModeActive: false,
     isPremium: true,
+    billingEnabled: false,
     usageCount: 0,
     threshold: 6,
   });
   monetizationRef.current.previewModeActive = previewModeActive;
   monetizationRef.current.isPremium = isPremium;
+  monetizationRef.current.billingEnabled = billingEnabled;
   monetizationRef.current.usageCount = usageCount;
   monetizationRef.current.threshold = monetizationSettings.hard_skip_limit || 6;
   
@@ -3570,25 +3572,28 @@ export default function UserStreamingApp() {
     const guarded = (song, album, queue, index) => {
       const s = monetizationRef.current;
       
-      // In preview mode (and not premium) — ignore manual selection
-      if (s.previewModeActive && !s.isPremium) {
+      // FULL BYPASS when billing is off or user is premium — everything free
+      if (!s.billingEnabled || s.isPremium) {
+        return originalPlaySongRef.current(song, album, queue, index);
+      }
+      
+      // In preview mode — ignore manual selection (current cycle keeps playing)
+      if (s.previewModeActive) {
         console.log('[Monetization] Manual song selection ignored — preview cycle continues');
         setShowDailyLimitPopup(true);
         return;
       }
       
-      // Bump usage atomically (no stale closure)
-      if (!s.isPremium) {
-        setUsageCount(prev => {
-          const next = prev + 1;
-          if (next === s.threshold) {
-            console.log(`[Monetization] Threshold ${s.threshold} reached via play → preview mode ON`);
-            setPreviewModeActive(true);
-            setShowDailyLimitPopup(true);
-          }
-          return next;
-        });
-      }
+      // Otherwise bump usage atomically (no stale closure)
+      setUsageCount(prev => {
+        const next = prev + 1;
+        if (next === s.threshold) {
+          console.log(`[Monetization] Threshold ${s.threshold} reached via play → preview mode ON`);
+          setPreviewModeActive(true);
+          setShowDailyLimitPopup(true);
+        }
+        return next;
+      });
       
       return originalPlaySongRef.current(song, album, queue, index);
     };
@@ -3672,7 +3677,7 @@ export default function UserStreamingApp() {
     }
     
     if (!previewModeActive) return;
-    if (isPremium) return;
+    if (!billingEnabled || isPremium) return; // billing off OR premium → no enforcement
     if (!player?.currentSong || !player?.isPlaying) return;
     if (allowFullPlay) {
       console.log('[Monetization] Full-play turn (no preview cap)');
@@ -3734,6 +3739,24 @@ export default function UserStreamingApp() {
     }
     wasPremiumRef.current = isPremium;
   }, [isPremium]);
+  
+  // When billing is disabled at the server level, clear ALL stale monetization state.
+  // Without this, a user who hit preview mode while billing was on would still be in
+  // preview mode after admin turns billing off.
+  useEffect(() => {
+    if (billingStatusChecked && !billingEnabled) {
+      console.log('[Monetization] Billing OFF — clearing all enforcement state');
+      setPreviewModeActive(false);
+      setUsageCount(0);
+      setPreviewClipCount(0);
+      setShowDailyLimitPopup(false);
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+      try { localStorage.removeItem('gracefy_monetization'); } catch { /* noop */ }
+    }
+  }, [billingStatusChecked, billingEnabled]);
 
   
   // i18n - Translation hook
@@ -4728,10 +4751,10 @@ export default function UserStreamingApp() {
   };
 
   // ============ UNIFIED USAGE TRACKER ============
-  // Both plays and skips increment usageCount via functional updater (no stale closures).
-  // After hitting the threshold, preview mode locks on (persistent until premium).
+  // Bumps usage only when billing is ON and user isn't premium.
+  // When billing is OFF, this is a NO-OP — everything is free.
   const bumpUsage = () => {
-    if (isPremium) return;
+    if (!billingEnabled || isPremium) return;
     const threshold = monetizationSettings.hard_skip_limit || 6;
     setUsageCount(prev => {
       const next = prev + 1;
@@ -4745,7 +4768,7 @@ export default function UserStreamingApp() {
     });
   };
   
-  // Skip wrapper — just bumps usage and always allows the skip (never blocks playback)
+  // Skip wrapper — never blocks playback; only counts when billing is enforced.
   const handleSkipWithBillingCheck = (skipFunction) => {
     bumpUsage();
     if (typeof skipFunction === 'function') skipFunction();
@@ -6290,8 +6313,11 @@ export default function UserStreamingApp() {
           setShowDownloadPopup(true);
         }}
         showContributeBanner={
-          // Persistent banner for any unpaid listener once soft threshold or preview-mode is reached
-          !isPremium && (previewModeActive || skipCount >= (monetizationSettings.soft_skip_limit || 6))
+          // Banner shows ONLY when billing is ON, user isn't premium, and threshold reached
+          billingEnabled && !isPremium && (
+            previewModeActive ||
+            skipCount >= (monetizationSettings.soft_skip_limit || 6)
+          )
         }
         contributeMessage={
           language === 'sw'
@@ -6313,10 +6339,13 @@ export default function UserStreamingApp() {
           isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
           onNext={handleNextWithBilling}
           onPrev={handlePrevWithBilling}
-          lockProgress={previewModeActive && !isPremium && !allowFullPlay}
+          lockProgress={billingEnabled && previewModeActive && !isPremium && !allowFullPlay}
           showContributeBanner={
-            // Persistent: any unpaid listener once soft threshold or preview-mode is reached
-            !isPremium && (previewModeActive || skipCount >= (monetizationSettings.soft_skip_limit || 6))
+            // Banner shows ONLY when billing is ON, user isn't premium, and threshold reached
+            billingEnabled && !isPremium && (
+              previewModeActive ||
+              skipCount >= (monetizationSettings.soft_skip_limit || 6)
+            )
           }
           contributeMessage={
             language === 'sw'
