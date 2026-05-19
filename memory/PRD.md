@@ -14,6 +14,33 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: May 19, 2026 — Analytics Accuracy + Performance Pass (current)
+- ✅ **Real-time listener tracking fixed for web** — `/listening/start` now mirrors
+  every session into `active_streams` (was mobile-only). Web users finally appear
+  on the realtime dashboard.
+- ✅ **Web heartbeat ping** — new `/api/listening/ping` endpoint + 20s setInterval in
+  `useAudioPlayer.js` keeps active listeners visible while audio plays.
+- ✅ **Reliable session-end on tab close** — `/listening/end` and `/listening/ping`
+  now manually parse `await request.body()` so `navigator.sendBeacon` and
+  `fetch({keepalive:true})` (Content-Type: text/plain) are accepted (previously 422).
+- ✅ **Server-side Cloudflare geolocation** — `core/geo_utils.py::resolve_geo()` reads
+  `CF-IPCountry / CF-Region / CF-IPCity / CF-Connecting-IP` and persists country
+  to `app_users` on every `/listening/start`. Zero external API calls.
+  `/geo/detect-country` and `/user/home/geo` now short-circuit through the CF header.
+- ✅ **`/analytics/overview` bug**: was querying empty `users` collection (admin only)
+  → fixed to aggregate `app_users + users`. Total Users now reports 50, not 0.
+- ✅ **Realtime endpoint hardened**: 15s cache, opportunistic stale-stream cleanup
+  rate-limited to once per 30s, fallback now includes in-progress sessions
+  (end_time=null, started <30 min ago), parallelised plays-today + new-users counts.
+- ✅ **Performance**: parallelised + cached the hot dashboard endpoints. Warm-cache
+  latency on `analytics/overview`, `analytics/trends`, `analytics/realtime`,
+  `neno-la-leo/active`, `user/home/geo`, `app-settings` all <120ms (was 1.7–9s).
+- ✅ **MongoDB indexes**: `core/indexes.py::ensure_indexes()` creates 20 indexes at
+  startup on `active_streams.{is_active,last_heartbeat}`, `listening_sessions.{start_time,counted_as_play,user_id,song_id}`, `app_users.{country,user_id,created_at}`, etc.
+- ✅ **Cache invalidation on play count**: `/listening/end` clears
+  `analytics:overview/realtime/trends` so new plays show on the dashboard immediately.
+- ✅ Testing: 100% pass rate (20/20) — iteration_46.json.
+
 ### Session: Feb 2026 — HLS Verification + Neno Player + Home Sections
 - ✅ **HLS Pipeline Verified end-to-end** (after parallel multi-tier ffmpeg refactor)
   - Parallelized Bunny CDN uploads (8 concurrent) — single-song time **55s → 33s**
