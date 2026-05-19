@@ -30,13 +30,31 @@ const API = `${BACKEND_URL}/api`;
 
 // Available roles
 const ROLES = [
-  { value: "admin", label: "Admin", description: "Full system access", color: "bg-red-500" },
+  { value: "super_admin", label: "Super Admin", description: "Full system access (all permissions)", color: "bg-pink-600" },
+  { value: "admin", label: "Admin", description: "Administrative access", color: "bg-red-500" },
   { value: "choir_admin", label: "Choir Admin", description: "Manage choir content", color: "bg-purple-500" },
   { value: "church_admin", label: "Church Admin", description: "Manage church content", color: "bg-blue-500" },
   { value: "content_manager", label: "Content Manager", description: "Manage songs and albums", color: "bg-green-500" },
   { value: "viewer", label: "Viewer", description: "View only access", color: "bg-gray-500" },
-  { value: "user", label: "User", description: "Basic user access", color: "bg-zinc-500" },
 ];
+
+// Sensible default permission bundle per role - editable per-user via checkboxes.
+const ROLE_DEFAULT_PERMISSIONS = {
+  super_admin: ["*"],
+  admin: [
+    "user_management", "role_assignment", "content_moderation", "content_approval",
+    "view_platform_analytics", "view_all_revenue_reports", "approve_payouts",
+    "platform_settings", "layout_promotion_control",
+  ],
+  choir_admin: ["create_albums", "manage_songs", "manage_own_content", "view_own_analytics"],
+  church_admin: ["content_moderation", "view_own_analytics", "manage_own_content"],
+  content_manager: [
+    "content_moderation", "content_approval", "create_albums", "manage_songs",
+    "manage_own_content", "bulk_upload", "view_platform_analytics", "view_own_analytics",
+    "layout_promotion_control", "featured_content", "manage_banners",
+  ],
+  viewer: ["view_platform_analytics"],
+};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -51,8 +69,39 @@ export default function AdminUsersPage() {
     email: "",
     username: "",
     password: "",
-    role: "user",
+    role: "viewer",
+    permissions: [],
   });
+
+  const [permissionCatalog, setPermissionCatalog] = useState([]);
+
+  // Fetch permission catalog (categorised) so we can render checkboxes.
+  useEffect(() => {
+    axios.get(`${API}/rbac/permissions`, { withCredentials: true })
+      .then((res) => setPermissionCatalog(res.data?.categories || []))
+      .catch(() => setPermissionCatalog([]));
+  }, []);
+
+  const togglePermission = (permId) => {
+    setFormData((prev) => {
+      const has = prev.permissions.includes(permId);
+      return {
+        ...prev,
+        permissions: has
+          ? prev.permissions.filter((p) => p !== permId)
+          : [...prev.permissions, permId],
+      };
+    });
+  };
+
+  const handleRoleChange = (newRole) => {
+    setFormData((prev) => ({
+      ...prev,
+      role: newRole,
+      // Auto-populate permissions when role changes - user can still override.
+      permissions: ROLE_DEFAULT_PERMISSIONS[newRole] || prev.permissions,
+    }));
+  };
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -124,7 +173,8 @@ export default function AdminUsersPage() {
       email: "",
       username: "",
       password: "",
-      role: "user",
+      role: "viewer",
+      permissions: ROLE_DEFAULT_PERMISSIONS.viewer,
     });
     setEditingUser(null);
     setShowPassword(false);
@@ -137,7 +187,8 @@ export default function AdminUsersPage() {
       email: user.email || "",
       username: user.username || "",
       password: "",
-      role: user.role || "user",
+      role: user.role || "viewer",
+      permissions: user.permissions || ROLE_DEFAULT_PERMISSIONS[user.role] || [],
     });
     setIsModalOpen(true);
   };
@@ -427,7 +478,7 @@ export default function AdminUsersPage() {
               <label className="block text-sm font-medium text-zinc-400 mb-1">Role *</label>
               <Select
                 value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                onValueChange={handleRoleChange}
               >
                 <SelectTrigger className="bg-zinc-800 border-zinc-700" data-testid="user-role-select">
                   <SelectValue placeholder="Select role" />
@@ -445,6 +496,58 @@ export default function AdminUsersPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Access Level / Permissions — only shown for non-super_admin roles. */}
+            {formData.role !== "super_admin" && (
+              <div className="border border-zinc-800 rounded-lg p-3 max-h-72 overflow-y-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-zinc-300">Access Level</label>
+                  <span className="text-xs text-zinc-500" data-testid="permission-count-label">
+                    {formData.permissions.length} selected
+                  </span>
+                </div>
+                {permissionCatalog.length === 0 ? (
+                  <p className="text-xs text-zinc-500">Loading permissions…</p>
+                ) : (
+                  permissionCatalog.map((cat) => (
+                    <div key={cat.category} className="mb-3">
+                      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+                        {cat.category}
+                      </p>
+                      <div className="space-y-1.5">
+                        {cat.permissions.map((perm) => {
+                          const checked = formData.permissions.includes(perm.id);
+                          return (
+                            <label
+                              key={perm.id}
+                              className="flex items-start gap-2 cursor-pointer hover:bg-zinc-800/40 p-1 rounded"
+                              data-testid={`permission-row-${perm.id}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => togglePermission(perm.id)}
+                                className="mt-0.5 accent-violet-500"
+                                data-testid={`permission-cbx-${perm.id}`}
+                              />
+                              <div className="flex-1">
+                                <p className="text-sm text-zinc-200">{perm.name}</p>
+                                <p className="text-xs text-zinc-500">{perm.description}</p>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            {formData.role === "super_admin" && (
+              <div className="bg-pink-500/10 border border-pink-500/30 rounded-lg p-3 text-sm text-pink-300">
+                ⚠️ Super Admin grants ALL permissions ("*"). Use sparingly.
+              </div>
+            )}
 
             <DialogFooter className="pt-4">
               <Button

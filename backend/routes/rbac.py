@@ -76,6 +76,7 @@ PERMISSION_CATEGORIES = [
             {"id": "platform_settings", "name": "Platform Settings", "description": "Modify platform configuration"},
             {"id": "user_management", "name": "User Management", "description": "Manage user accounts"},
             {"id": "role_management", "name": "Role Management", "description": "Create and modify roles"},
+            {"id": "role_assignment", "name": "Role Assignment", "description": "Assign roles & permissions to admin users"},
         ]
     },
     {
@@ -84,6 +85,7 @@ PERMISSION_CATEGORIES = [
             {"id": "create_albums", "name": "Create Albums", "description": "Upload and publish albums"},
             {"id": "manage_own_content", "name": "Manage Own Content", "description": "Edit own uploaded content"},
             {"id": "bulk_upload", "name": "Bulk Upload", "description": "Upload multiple files at once"},
+            {"id": "manage_songs", "name": "Manage Songs", "description": "Upload, edit and delete songs"},
         ]
     },
     {
@@ -91,13 +93,14 @@ PERMISSION_CATEGORIES = [
         "permissions": [
             {"id": "content_moderation", "name": "Content Moderation", "description": "Review and moderate content"},
             {"id": "content_approval", "name": "Content Approval", "description": "Approve pending submissions"},
+            {"id": "choir_onboarding_approval", "name": "Choir Onboarding", "description": "Approve choir signup requests"},
             {"id": "delete_content", "name": "Delete Content", "description": "Remove content from platform"},
         ]
     },
     {
         "category": "Analytics & Reports",
         "permissions": [
-            {"id": "view_analytics", "name": "View Analytics", "description": "Access platform analytics"},
+            {"id": "view_platform_analytics", "name": "Platform Analytics", "description": "Access platform-wide analytics"},
             {"id": "view_own_analytics", "name": "View Own Analytics", "description": "View analytics for own content"},
             {"id": "view_all_revenue_reports", "name": "Revenue Reports", "description": "Access financial reports"},
             {"id": "export_reports", "name": "Export Reports", "description": "Download analytics reports"},
@@ -109,6 +112,8 @@ PERMISSION_CATEGORIES = [
             {"id": "manage_subscriptions", "name": "Manage Subscriptions", "description": "Handle subscription plans"},
             {"id": "process_payments", "name": "Process Payments", "description": "Handle payment operations"},
             {"id": "manage_donations", "name": "Manage Donations", "description": "Oversee donation system"},
+            {"id": "approve_payouts", "name": "Approve Payouts", "description": "Approve withdrawals & artist payouts"},
+            {"id": "revenue_configuration", "name": "Revenue Configuration", "description": "Configure revenue & monetization rules"},
         ]
     },
     {

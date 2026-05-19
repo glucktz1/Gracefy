@@ -429,14 +429,22 @@ const ProtectedRoute = ({ children }) => {
     const checkAuth = async () => {
       try {
         const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
-        // Check if user has admin role
-        if (response.data.role !== 'admin') {
-          // Non-admin users should be redirected to user app
+        // Allow any admin/staff role - super_admin, admin, content_manager,
+        // choir_admin, church_admin, viewer. Only plain end "user" is denied.
+        const role = response.data.role;
+        if (!role || role === 'user') {
           navigate("/", { replace: true });
           return;
         }
         setUser(response.data);
-        await fetchUserPermissions(response.data);
+        // If backend already returned permissions, use them directly. Falls
+        // back to /rbac fetch only if missing (legacy accounts).
+        if (Array.isArray(response.data.permissions) && response.data.permissions.length) {
+          setUserPermissions(response.data.permissions);
+          setLoading(false);
+        } else {
+          await fetchUserPermissions(response.data);
+        }
       } catch (error) {
         navigate("/admin/login", { replace: true });
       } finally {

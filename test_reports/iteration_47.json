@@ -1,0 +1,45 @@
+{
+  "summary": "Tested iteration 47 fixes: admin_users RBAC refactor, /auth/me permissions, /rbac/permissions catalog, religious leader Neno la Leo upload, choir login + new nested revenue shape, and content_manager permission gating. Wrote 12 new pytest cases in /app/backend/tests/test_admin_rbac_portals.py — all 12 pass (100%). Ran seed script /app/backend/scripts/seed_demo_accounts.py first (idempotent — updated existing demo accounts).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/admin/users/login",
+        "issue": "Login does NOT lowercase the incoming email before lookup, while POST /api/admin/users DOES lowercase the email on insert. Result: an admin created with 'Foo@x.com' is stored as 'foo@x.com' and the only way to log in is to type 'foo@x.com'. Mixed-case login attempts return 401 'Invalid credentials'. Fix: in admin_user_login (routes/auth.py line 516), do `email = (data.get('email') or data.get('username') or '').strip().lower()` so creation + login are symmetrical."
+      },
+      {
+        "endpoint": "POST /api/neno-la-leo/leader/neno",
+        "issue": "Pydantic model NenoLaLeoCreate still REQUIRES `leader_id` in the request body even though the handler overrides it on line 422 with the authenticated leader's id. Frontend would have to send a dummy value. Suggest making leader_id Optional[str]=None in the model so callers can omit it."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_admin_rbac_portals.py",
+    "/app/test_reports/pytest/iter47_results.xml"
+  ],
+  "action_items": [
+    "(LOW) Lowercase email in admin_user_login (routes/auth.py ~L516) to mirror the create path and avoid case-sensitive lockouts.",
+    "(LOW) Mark leader_id Optional in NenoLaLeoCreate (routes/neno_la_leo.py L41) since the handler overrides it from the auth token."
+  ],
+  "critical_code_review_comments": [
+    "core/admin_auth.py: clean dependency-injection pattern; checks admin_sessions first (token prefix 'admin_'), falls back to legacy user_sessions, handles wildcard '*' correctly for super_admin. Correctly raises 401 vs 403.",
+    "routes/auth.py GET /admin/users: nicely merges admin_users + legacy users (role != 'user') and dedupes by email — exactly what was needed to make the page render for both old and new admins.",
+    "routes/auth.py POST /admin/users: correctly inserts into admin_users (so user can actually log in afterwards) and rejects duplicates across BOTH collections — good defensive check.",
+    "routes/auth.py _find_admin_anywhere: handy helper for PUT/DELETE that finds a record in either collection and reports which one — keeps the handlers DRY.",
+    "routes/auth.py /auth/me: returns permissions=['*'] for super_admin and mirrors admin_id->user_id for frontend uniformity — good.",
+    "routes/choirs.py revenue endpoint shape: {summary, rates, albums, monthly} returned with monthly array of exactly 6 entries — matches ChoirDashboard.jsx expectations.",
+    "scripts/seed_demo_accounts.py is idempotent (uses update_one when existing, insert when not) — safe to re-run any time.",
+    "NIT: routes/auth.py admin_user_login session_doc hardcodes role='admin' (line 553) regardless of the actual admin_user.role — should write admin_user.get('role') so super_admin / content_manager are reflected in the session record (not just in the response)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_rbac_portals.py"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "n/a (backend-only request)"},
+  "test_credentials": "All 4 from /app/memory/test_credentials.md — verified working: admin@gracefy.life / Mwanga@82!3, content_manager@gracefy.test / Content@2026, priest.demo@gracefy.test / Priest@2026, choir.demo@gracefy.test / Choir@2026.",
+  "seed_data_creation": "Ran /app/backend/scripts/seed_demo_accounts.py (idempotent — updated content_manager admin, priest leader profile + account, choir singer + account). Test class TestAdminUsersCRUD creates and then immediately deletes one TEST_-prefixed admin per run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified for iteration 47: (1) /admin/users GET returns total>=2 with both admin@gracefy.life (super_admin, perms=['*']) and content_manager@gracefy.test, (2) POST creates admin in admin_users so they can log in, (3) PUT/DELETE work via _find_admin_anywhere, (4) cannot self-delete (400), (5) /auth/me returns permissions array, (6) /rbac/permissions exposes role_assignment, approve_payouts, view_platform_analytics, (7) content_manager (no user_management/role_assignment) gets 403 on /admin/users, (8) leader Neno la Leo creates with auto-generated verse_reference + Swahili word_day_name, (9) choir revenue returns nested {summary, rates, albums, monthly[6]} shape. Two minor follow-ups noted (email lowercase on login, leader_id Optional in NenoLaLeoCreate) — neither blocks the user-reported issues. Run with: `export $(grep -v ^# /app/frontend/.env | xargs) && pytest /app/backend/tests/test_admin_rbac_portals.py -v`",
+  "rca of the issue": "Original bug (Admin Users page showed error / 401) RCA: legacy routes/auth.py was querying db.users + db.user_sessions for the admin, but admin login writes to db.admin_users + db.admin_sessions with tokens prefixed 'admin_'. Fix in core/admin_auth.py introduces require_permissions() which (a) extracts the token from cookie or Bearer header, (b) checks admin_sessions FIRST when token starts with 'admin_', (c) loads from admin_users and applies wildcard '*' for super_admin, (d) falls back to legacy user_sessions/users for older non-end-user roles, (e) returns 403 with 'Missing required permission: user_management or role_assignment' if perm set doesn't include '*' or any required perm. All 4 admin CRUD routes now use this dependency and pass with the seeded super_admin while correctly denying content_manager."
+}

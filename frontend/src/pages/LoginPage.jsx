@@ -27,11 +27,11 @@ export default function LoginPage() {
       try {
         const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
         if (response.data) {
-          // Check if user has admin role
-          if (response.data.role === 'admin') {
+          // Allow any admin/staff role to land on the admin dashboard.
+          const role = response.data.role;
+          if (role && role !== 'user') {
             navigate("/dashboard", { replace: true });
           } else {
-            // Non-admin users should be redirected to user app
             navigate("/app", { replace: true });
           }
         }

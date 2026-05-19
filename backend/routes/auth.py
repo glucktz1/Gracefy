@@ -3,7 +3,7 @@ Authentication routes for Gracefy.
 Handles admin panel auth, mobile app auth, OTP, and password reset.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from datetime import datetime, timezone, timedelta
 import uuid
 import hashlib
@@ -14,6 +14,7 @@ import os
 
 from core.database import get_db
 from core.cache import cache
+from core.admin_auth import require_admin, require_permissions
 
 # Import SMS service
 try:
@@ -147,7 +148,13 @@ async def get_current_user(request: Request):
             )
             
             if admin_user:
-                admin_user["role"] = "admin"
+                admin_user["role"] = admin_user.get("role") or "admin"
+                # Super admins implicitly have all permissions
+                if not admin_user.get("permissions"):
+                    admin_user["permissions"] = ["*"] if admin_user.get("is_super_admin") or admin_user.get("role") in ("admin", "super_admin") else []
+                # Mirror admin_id as user_id for frontend convenience
+                if "user_id" not in admin_user:
+                    admin_user["user_id"] = admin_user["admin_id"]
                 return admin_user
     
     # Check regular user sessions
@@ -191,190 +198,191 @@ async def logout(request: Request, response: Response):
 
 # ============== ADMIN USER MANAGEMENT ==============
 
-VALID_ROLES = ["admin", "choir_admin", "church_admin", "content_manager", "viewer", "user"]
-
-@router.get("/admin/users")
-async def get_admin_users(request: Request):
-    """Get all admin/system users"""
-    db = get_db()
-    
-    # Verify admin access
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header[7:]
-    
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    session = await db.user_sessions.find_one({"session_token": session_token})
-    if not session:
-        raise HTTPException(status_code=401, detail="Invalid session")
-    
-    current_user = await db.users.find_one({"user_id": session["user_id"]})
-    if not current_user or current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Get all system users
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(200)
-    
-    return {"users": users, "total": len(users)}
+VALID_ROLES = ["admin", "super_admin", "choir_admin", "church_admin", "content_manager", "viewer", "user"]
 
 
-@router.post("/admin/users")
-async def create_admin_user(request: Request, data: dict):
-    """Create a new admin/system user with username and password"""
-    db = get_db()
-    
-    # Verify admin access
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header[7:]
-    
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    session = await db.user_sessions.find_one({"session_token": session_token})
-    if not session:
-        raise HTTPException(status_code=401, detail="Invalid session")
-    
-    current_user = await db.users.find_one({"user_id": session["user_id"]})
-    if not current_user or current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Validate input
-    email = data.get("email")
-    username = data.get("username")
-    password = data.get("password")
-    name = data.get("name")
-    role = data.get("role", "user")
-    
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="Email and password required")
-    
-    if role not in VALID_ROLES:
-        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")
-    
-    # Check if email already exists
-    existing = await db.users.find_one({"email": email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Check if username already exists (if provided)
-    if username:
-        existing_username = await db.users.find_one({"username": username})
-        if existing_username:
-            raise HTTPException(status_code=400, detail="Username already taken")
-    
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    
-    user = {
-        "user_id": f"user_{uuid.uuid4().hex[:12]}",
-        "email": email,
-        "username": username,
-        "name": name or username or email.split("@")[0],
-        "password_hash": password_hash,
-        "role": role,
-        "status": "active",
-        "created_by": current_user["user_id"],
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.users.insert_one(user)
+def _hash_password(pwd: str) -> str:
+    return hashlib.sha256(pwd.encode()).hexdigest()
+
+
+def _strip(user: dict) -> dict:
+    """Strip Mongo + secret fields, normalise id field name."""
+    if not user:
+        return user
     user.pop("_id", None)
     user.pop("password_hash", None)
-    
-    logger.info(f"Admin user created: {email} with role {role} by {current_user['email']}")
-    
+    # Normalise so frontend always sees `user_id` even if stored as `admin_id`
+    if "user_id" not in user and user.get("admin_id"):
+        user["user_id"] = user["admin_id"]
     return user
 
 
-@router.put("/admin/users/{user_id}")
-async def update_admin_user(request: Request, user_id: str, data: dict):
-    """Update an admin/system user"""
+@router.get("/admin/users")
+async def get_admin_users(request: Request, _admin=Depends(require_permissions("user_management", "role_assignment"))):
+    """Return all admin / staff users (merged from ``admin_users`` + legacy ``users``).
+
+    The login-flow target collection (``admin_users``) holds the real admins
+    while the legacy ``users`` collection still contains older staff records.
+    Listing must include both so the page never shows an empty list.
+    """
     db = get_db()
-    
-    # Verify admin access
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header[7:]
-    
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    session = await db.user_sessions.find_one({"session_token": session_token})
-    if not session:
-        raise HTTPException(status_code=401, detail="Invalid session")
-    
-    current_user = await db.users.find_one({"user_id": session["user_id"]})
-    if not current_user or current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Find user to update
-    user = await db.users.find_one({"user_id": user_id})
+    admin_docs = await db.admin_users.find(
+        {}, {"_id": 0, "password_hash": 0}
+    ).sort("created_at", -1).to_list(200)
+    legacy_docs = await db.users.find(
+        {"role": {"$ne": "user"}},  # exclude plain end-users
+        {"_id": 0, "password_hash": 0}
+    ).sort("created_at", -1).to_list(200)
+
+    seen_emails: set = set()
+    merged: list = []
+    for doc in admin_docs + legacy_docs:
+        _strip(doc)
+        email = (doc.get("email") or "").lower()
+        if email and email in seen_emails:
+            continue
+        if email:
+            seen_emails.add(email)
+        merged.append(doc)
+
+    return {"users": merged, "total": len(merged)}
+
+
+@router.post("/admin/users")
+async def create_admin_user(
+    request: Request,
+    data: dict,
+    current=Depends(require_permissions("user_management", "role_assignment")),
+):
+    """Create a new admin/staff user. Stored in ``admin_users`` so they can
+    log in via POST /api/admin/users/login."""
+    db = get_db()
+
+    email = (data.get("email") or "").strip().lower()
+    username = data.get("username")
+    password = data.get("password")
+    name = data.get("name")
+    role = data.get("role", "viewer")
+    permissions = data.get("permissions") or []
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    if role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")
+    if not isinstance(permissions, list):
+        raise HTTPException(status_code=400, detail="`permissions` must be a list of permission ids")
+
+    # Reject duplicates across BOTH collections so the user can never log in twice.
+    if await db.admin_users.find_one({"email": email}) or await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if username:
+        if await db.admin_users.find_one({"username": username}) or await db.users.find_one({"username": username}):
+            raise HTTPException(status_code=400, detail="Username already taken")
+
+    admin_id = f"adm_{uuid.uuid4().hex[:12]}"
+    new_user = {
+        "admin_id": admin_id,
+        "user_id": admin_id,  # mirror for frontend uniformity
+        "email": email,
+        "username": username,
+        "name": name or username or email.split("@")[0],
+        "password_hash": _hash_password(password),
+        "role": role,
+        "permissions": permissions,
+        "is_super_admin": role == "super_admin",
+        "status": "active",
+        "is_active": True,
+        "allow_empty_password": False,
+        "created_by": current.get("admin_id") or current.get("user_id"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    await db.admin_users.insert_one(new_user)
+    _strip(new_user)
+    logger.info(f"Admin user created: {email} role={role} by {current.get('email')}")
+    return new_user
+
+
+async def _find_admin_anywhere(db, user_id: str):
+    """Find an admin record by id in either collection.
+
+    Returns ``(doc, collection_name)`` or ``(None, None)``.
+    """
+    doc = await db.admin_users.find_one({"$or": [{"admin_id": user_id}, {"user_id": user_id}]})
+    if doc:
+        return doc, "admin_users"
+    doc = await db.users.find_one({"user_id": user_id})
+    if doc:
+        return doc, "users"
+    return None, None
+
+
+@router.put("/admin/users/{user_id}")
+async def update_admin_user(
+    request: Request,
+    user_id: str,
+    data: dict,
+    _admin=Depends(require_permissions("user_management", "role_assignment")),
+):
+    """Update an admin/staff user. Works for records in either collection."""
+    db = get_db()
+    user, coll = await _find_admin_anywhere(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Prepare update
+
+    id_field = "admin_id" if coll == "admin_users" else "user_id"
     update_data = {}
-    
+
     if "name" in data:
         update_data["name"] = data["name"]
-    if "role" in data and data["role"] in VALID_ROLES:
+    if "username" in data:
+        update_data["username"] = data["username"]
+    if "role" in data:
+        if data["role"] not in VALID_ROLES:
+            raise HTTPException(status_code=400, detail="Invalid role")
         update_data["role"] = data["role"]
+        update_data["is_super_admin"] = data["role"] == "super_admin"
+    if "permissions" in data:
+        if not isinstance(data["permissions"], list):
+            raise HTTPException(status_code=400, detail="`permissions` must be a list")
+        update_data["permissions"] = data["permissions"]
     if "status" in data and data["status"] in ["active", "inactive", "suspended"]:
         update_data["status"] = data["status"]
+        update_data["is_active"] = data["status"] == "active"
     if "password" in data and data["password"]:
-        update_data["password_hash"] = hashlib.sha256(data["password"].encode()).hexdigest()
-    
+        update_data["password_hash"] = _hash_password(data["password"])
+
     if update_data:
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await db.users.update_one({"user_id": user_id}, {"$set": update_data})
-    
-    updated_user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
-    return updated_user
+        await db[coll].update_one({id_field: user[id_field]}, {"$set": update_data})
+
+    updated = await db[coll].find_one({id_field: user[id_field]}, {"_id": 0, "password_hash": 0})
+    return _strip(updated)
 
 
 @router.delete("/admin/users/{user_id}")
-async def delete_admin_user(request: Request, user_id: str):
-    """Delete an admin/system user"""
+async def delete_admin_user(
+    request: Request,
+    user_id: str,
+    current=Depends(require_permissions("user_management", "role_assignment")),
+):
+    """Delete an admin/staff user. Cannot delete self."""
     db = get_db()
-    
-    # Verify admin access
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header[7:]
-    
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    session = await db.user_sessions.find_one({"session_token": session_token})
-    if not session:
-        raise HTTPException(status_code=401, detail="Invalid session")
-    
-    current_user = await db.users.find_one({"user_id": session["user_id"]})
-    if not current_user or current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Cannot delete yourself
-    if user_id == current_user["user_id"]:
+    self_id = current.get("admin_id") or current.get("user_id")
+    if user_id == self_id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
-    
-    result = await db.users.delete_one({"user_id": user_id})
-    
-    if result.deleted_count == 0:
+
+    user, coll = await _find_admin_anywhere(db, user_id)
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Also delete any sessions
-    await db.user_sessions.delete_many({"user_id": user_id})
-    
+
+    id_field = "admin_id" if coll == "admin_users" else "user_id"
+    await db[coll].delete_one({id_field: user[id_field]})
+    # Kill any active sessions for this user
+    await db.admin_sessions.delete_many({"admin_id": user.get("admin_id") or user.get("user_id")})
+    await db.user_sessions.delete_many({"user_id": user.get("user_id")})
+
     return {"message": "User deleted successfully"}
 
 
@@ -575,7 +583,8 @@ async def admin_user_login(data: dict, response: Response):
                 "admin_id": admin_user["admin_id"],
                 "email": admin_user["email"],
                 "name": admin_user.get("name"),
-                "role": "admin",
+                "role": admin_user.get("role") or "admin",
+                "is_super_admin": admin_user.get("is_super_admin", False),
                 "permissions": admin_user.get("permissions", [])
             }
         }
