@@ -276,6 +276,27 @@ const useAudioPlayer = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
+  // Periodic heartbeat while playing - keeps the user on the live listener
+  // dashboard for as long as audio is actively playing (every 20s).
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+    const interval = setInterval(() => {
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+      const position = Math.floor(audioRef.current?.currentTime || 0);
+      // Fire-and-forget. Use keepalive so it survives tab background.
+      try {
+        fetch(`${API}/listening/ping`, {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sid, position_seconds: position }),
+        }).catch(() => {});
+      } catch (_) {}
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
   // Save playback state to localStorage
   const savePlaybackState = useCallback((song, album, time) => {
     if (song && album) {
@@ -485,11 +506,19 @@ const useAudioPlayer = () => {
       console.log('[Player] Guest limit reached:', guestLimitReachedRef.current);
       
       // Track the ended session with duration (for play count) - non-blocking
+      // Uses fetch+keepalive so the request survives a redirect / nav.
       if (sessionIdRef.current) {
-        axios.post(`${API}/listening/end`, {
-          session_id: sessionIdRef.current,
-          duration_seconds: Math.floor(audio.duration || 0)
-        }).catch(e => console.log("Failed to track play end"));
+        try {
+          fetch(`${API}/listening/end`, {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionIdRef.current,
+              duration_seconds: Math.floor(audio.duration || 0),
+            }),
+          }).catch(() => {});
+        } catch (_) {}
       }
       
       // Check if auto-play is blocked (screen lock payment feature or guest limit)
@@ -795,17 +824,17 @@ const useAudioPlayer = () => {
       console.log('[Player] Error stopping current audio:', e);
     }
     
-    // End previous session with duration
+    // End previous session with duration (keepalive fetch survives rapid skip/nav)
     if (sessionIdRef.current && audioRef.current) {
       try {
-        const duration = Math.floor(audioRef.current.currentTime);
-        await axios.post(`${API}/listening/end`, { 
-          session_id: sessionIdRef.current,
-          duration_seconds: duration
-        });
-      } catch (e) {
-        console.log("Error ending session");
-      }
+        const dur = Math.floor(audioRef.current.currentTime);
+        fetch(`${API}/listening/end`, {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionIdRef.current, duration_seconds: dur }),
+        }).catch(() => {});
+      } catch (_) {}
     }
 
     setQueue(songQueue.length > 0 ? songQueue : [{ song, album }]);

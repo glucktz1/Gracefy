@@ -101,33 +101,28 @@ async def delete_crash_report(report_id: str):
 
 @router.get("/app-settings")
 async def get_public_app_settings():
-    """Get public app settings for the frontend"""
+    """Get public app settings for the frontend.
+
+    Cached 30s + queried in parallel - this endpoint is hit on EVERY page
+    load and was previously doing 4 sequential find_one calls.
+    """
     db = get_db()
-    
-    # Get guest limits
-    guest_limits = await db.app_settings.find_one(
-        {"setting_type": "guest_limits"},
-        {"_id": 0}
+    from core.cache import cache
+    import asyncio
+
+    cache_key = "app-settings:public"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    # Parallel fetch instead of 4 sequential round-trips
+    guest_limits, billing, app_config, monetization = await asyncio.gather(
+        db.app_settings.find_one({"setting_type": "guest_limits"}, {"_id": 0}),
+        db.app_settings.find_one({"setting_type": "billing"}, {"_id": 0}),
+        db.app_settings.find_one({"setting_type": "app_config"}, {"_id": 0}),
+        db.app_settings.find_one({"setting_type": "monetization"}, {"_id": 0}),
     )
-    
-    # Get billing settings
-    billing = await db.app_settings.find_one(
-        {"setting_type": "billing"},
-        {"_id": 0}
-    )
-    
-    # Get app config with store links
-    app_config = await db.app_settings.find_one(
-        {"setting_type": "app_config"},
-        {"_id": 0}
-    )
-    
-    # Get monetization config (skip thresholds, preview duration, prompt message)
-    monetization = await db.app_settings.find_one(
-        {"setting_type": "monetization"},
-        {"_id": 0}
-    )
-    
+
     defaults = {
         "max_plays": 3,
         "max_skips": 3,
@@ -150,8 +145,8 @@ async def get_public_app_settings():
     mon_config = (monetization or {}).get("config", monetization_defaults)
     # Merge defaults with admin overrides (admin may save partial config)
     monetization_out = {**monetization_defaults, **mon_config}
-    
-    return {
+
+    result = {
         "guest_play_limit": config.get("max_plays", 3),
         "guest_skip_limit": config.get("max_skips", 3),
         "guest_listen_minutes": config.get("max_listen_minutes", 10),
@@ -161,6 +156,8 @@ async def get_public_app_settings():
         "app_download_message": app_settings.get("app_download_message", ""),
         "monetization": monetization_out,
     }
+    await cache.set(cache_key, result, 30)
+    return result
 
 
 @router.get("/admin/app-settings")
@@ -231,7 +228,14 @@ async def save_guest_limits(data: dict):
         }},
         upsert=True
     )
-    
+
+    # Invalidate the public app-settings cache so the change is visible immediately.
+    try:
+        from core.cache import cache
+        await cache.delete("app-settings:public")
+    except Exception:
+        pass
+
     return {"success": True}
 
 
@@ -257,7 +261,13 @@ async def save_app_settings(data: dict):
         }},
         upsert=True
     )
-    
+
+    try:
+        from core.cache import cache
+        await cache.delete("app-settings:public")
+    except Exception:
+        pass
+
     return {"success": True}
 
 
@@ -294,7 +304,13 @@ async def save_monetization_settings(data: dict):
         }},
         upsert=True
     )
-    
+
+    try:
+        from core.cache import cache
+        await cache.delete("app-settings:public")
+    except Exception:
+        pass
+
     return {"success": True}
 
 

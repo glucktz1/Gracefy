@@ -4,12 +4,14 @@ Handles browse, search, and user content discovery.
 """
 
 from fastapi import APIRouter, HTTPException, Request, Query
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 import logging
+import uuid
 
 from core.database import get_db
 from core.cache import cache
+from core.geo_utils import resolve_geo
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["browse"])
@@ -300,31 +302,147 @@ async def get_subscription_status(request: Request):
 
 @router.post("/listening/start")
 async def start_listening(request: Request, data: dict):
-    """Track start of listening session"""
+    """Track start of listening session.
+
+    Persists a row in ``listening_sessions`` (used for play-count + history)
+    and mirrors a row into ``active_streams`` (used by the real-time dashboard).
+
+    Also resolves the caller's country / city from Cloudflare headers and
+    upserts it onto the ``app_users`` profile - no client-side opt-in needed.
+    """
     db = get_db()
     user = await get_user_from_token(request)
-    
-    import uuid
-    
+
+    user_id = (user["user_id"] if user else None) or data.get("user_id") or "anonymous"
+    device_id = data.get("device_id") or data.get("device_info", {}).get("device_id") if isinstance(data.get("device_info"), dict) else None
+    if not device_id:
+        device_id = f"web_{uuid.uuid4().hex[:10]}"
+
+    song_id = data.get("song_id")
+    album_id = data.get("album_id")
+    content_type = data.get("content_type")  # "song", "teaching_lesson", "bible_tts"
+    content_id = data.get("content_id")
+    platform = data.get("platform", "web")
+
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    geo = resolve_geo(request)
+
+    # --- Hydrate song metadata for nicer realtime cards ---
+    song_title = None
+    artist_name = None
+    if song_id:
+        song_doc = await db.songs.find_one(
+            {"song_id": song_id},
+            {"_id": 0, "title": 1, "artist_name": 1}
+        )
+        if song_doc:
+            song_title = song_doc.get("title")
+            artist_name = song_doc.get("artist_name")
+
+    session_id = f"ls_{uuid.uuid4().hex[:12]}"
     session = {
-        "session_id": f"ls_{uuid.uuid4().hex[:12]}",
-        "user_id": user["user_id"] if user else data.get("user_id", "anonymous"),
-        "song_id": data.get("song_id"),
-        "album_id": data.get("album_id"),
-        "content_type": data.get("content_type"),  # "song", "teaching_lesson", "bible_tts"
-        "content_id": data.get("content_id"),
-        "start_time": datetime.now(timezone.utc).isoformat(),
+        "session_id": session_id,
+        "user_id": user_id,
+        "song_id": song_id,
+        "album_id": album_id,
+        "content_type": content_type,
+        "content_id": content_id,
+        "start_time": now_iso,
         "end_time": None,
         "duration_seconds": 0,
         "counted_as_play": False,
-        "platform": data.get("platform", "web"),
-        "device_info": data.get("device_info")
+        "platform": platform,
+        "device_info": data.get("device_info"),
+        "device_id": device_id,
+        "country": geo["country"],
+        "region": geo["region"],
+        "city": geo["city"],
+        "ip_address": geo["ip"],
     }
-    
+
     await db.listening_sessions.insert_one(session)
     session.pop("_id", None)
-    
-    return {"session_id": session["session_id"]}
+
+    # Mirror into active_streams so web users show up on the real-time dashboard.
+    # We re-use session_id as stream_id to keep heartbeat / end calls simple.
+    stream = {
+        "stream_id": session_id,
+        "session_id": session_id,
+        "user_id": user_id,
+        "device_id": device_id,
+        "song_id": song_id,
+        "song_title": song_title,
+        "artist_name": artist_name,
+        "album_id": album_id,
+        "platform": platform,
+        "start_time": now_iso,
+        "last_heartbeat": now_iso,
+        "is_active": True,
+        "country": geo["country"],
+        "city": geo["city"],
+        "created_at": now_iso,
+    }
+    await db.active_streams.insert_one(stream)
+
+    # Persist geo onto the user profile so location analytics aggregate correctly.
+    if user_id and user_id != "anonymous" and geo["country"]:
+        await db.app_users.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "country": geo["country"],
+                "region": geo["region"],
+                "city": geo["city"],
+                "last_seen_at": now_iso,
+            }},
+        )
+        # Invalidate the cached location overview so the dashboard picks it up fast.
+        try:
+            await cache.delete("analytics:location:overview")
+        except Exception:
+            pass
+
+    return {
+        "session_id": session_id,
+        "stream_id": session_id,
+        "country": geo["country"],
+    }
+
+
+@router.post("/listening/ping")
+async def listening_ping(request: Request, data: dict = None):
+    """Lightweight heartbeat for web players (mobile uses /listening/heartbeat).
+
+    Body: ``{ "session_id": "...", "position_seconds": <int> }``
+    Keeps ``active_streams.last_heartbeat`` fresh so the user shows on the
+    real-time listener dashboard for as long as they are actually playing.
+    """
+    db = get_db()
+
+    # Handle sendBeacon (text/plain) gracefully
+    if data is None:
+        try:
+            import json
+            body = await request.body()
+            data = json.loads(body.decode("utf-8")) if body else {}
+        except Exception:
+            data = {}
+
+    session_id = data.get("session_id") or data.get("stream_id")
+    if not session_id:
+        return {"ok": False}
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.active_streams.update_one(
+        {"stream_id": session_id},
+        {"$set": {
+            "last_heartbeat": now_iso,
+            "position_seconds": data.get("position_seconds", 0),
+            "is_active": True,
+        }},
+    )
+    return {"ok": True}
 
 
 @router.post("/listening/end")
@@ -351,14 +469,25 @@ async def end_listening(request: Request, data: dict = None):
     
     # Update session with end time and duration
     counted_as_play = duration >= MINIMUM_PLAY_SECONDS
+    now_iso = datetime.now(timezone.utc).isoformat()
     
     await db.listening_sessions.update_one(
         {"session_id": session_id},
         {"$set": {
-            "end_time": datetime.now(timezone.utc).isoformat(),
+            "end_time": now_iso,
             "duration_seconds": duration,
             "counted_as_play": counted_as_play
         }}
+    )
+
+    # Close the mirrored active_streams row so the realtime dashboard updates immediately.
+    await db.active_streams.update_one(
+        {"stream_id": session_id},
+        {"$set": {
+            "is_active": False,
+            "end_time": now_iso,
+            "duration_seconds": duration,
+        }},
     )
     
     # If duration >= 45 seconds, count as play

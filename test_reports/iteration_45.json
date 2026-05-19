@@ -1,0 +1,63 @@
+{
+  "summary": "Backend tests for the Gracefy analytics + listening tracking refactor (Cloudflare geo, active_streams mirror, parallel/cached analytics). 26 tests written, 24/26 passed (92.3%). Verified: /listening/start creates rows in both listening_sessions and active_streams; /listening/ping updates heartbeat; /listening/end closes both rows; 45s+ plays increment songs.plays + album play_count; /analytics/overview now reports total_users>=50 (app_users included); /analytics/realtime, /analytics/live-listeners, /analytics/trends, /neno-la-leo/active, /app-settings all return correct shape and serve warm-cache responses in <120ms (target <200ms); CF-IPCountry preference verified directly against backend localhost (works correctly).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/listening/end and POST /api/listening/ping",
+        "issue": "Both routes declare `data: dict = None` as a body parameter. When called with Content-Type: text/plain (the only content-type navigator.sendBeacon emits without a Blob workaround), FastAPI/Pydantic rejects the request with 422 BEFORE the handler body runs. This breaks the new browser tab-close / sendBeacon flow described in /app/frontend/src/hooks/useAudioPlayer.js — meaning active_streams rows are NEVER closed when the user closes a tab, leaving them as ghost listeners until the 2-min heartbeat cleanup fires. Same problem for /listening/ping if the frontend ever sends it via sendBeacon. Repro: `curl -X POST $URL/api/listening/end -H 'Content-Type: text/plain' -d '{\"session_id\":\"X\",\"duration_seconds\":60}'` returns 422 dict_type error. Fix: drop the typed `data` parameter and parse `await request.body()` manually based on Content-Type (the in-function fallback that exists today is unreachable because validation happens first).",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/user/home/geo (cold)",
+        "issue": "First (cold-cache) call measured 7.5s on the preview URL; target is <4s. Subsequent warm calls are ~90ms. Likely an external IP-lookup HTTP call on the cold path."
+      },
+      {
+        "endpoint": "GET /api/analytics/overview (cold)",
+        "issue": "First cold call observed at 9.2s via curl (target <4s). Warm is ~86ms. Many sequential count_documents queries on Atlas (~250ms RTT each) — consider asyncio.gather like /analytics/trends already does."
+      },
+      {
+        "endpoint": "POST /api/listening/start",
+        "issue": "Returns `country: null` when no CF-IPCountry header is present (no IP-lookup fallback). Country only gets persisted on app_users when the Cloudflare header is set, so on the preview/staging URL (ingress strips CF-*) location analytics will remain empty even though the same code works in real Cloudflare-fronted production."
+      },
+      {
+        "endpoint": "POST /api/listening/end",
+        "issue": "After incrementing play counts, the code does NOT invalidate caches (analytics:overview / home:*). Same flow in /analytics/record-play does the invalidation. Means newly-counted plays will not appear in dashboard until the existing 60s overview cache expires."
+      },
+      {
+        "endpoint": "POST /api/listening/end",
+        "issue": "Re-fetches `db.songs.find_one(song_id)` again right after the $inc — redundant since `session.song_id` already gave us the song_id and we just need album_id; could be replaced by a single read or chained $lookup. Minor perf only."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_analytics_listening_perf.py",
+    "/app/test_reports/pytest/analytics_listening_perf_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix /api/listening/end and /api/listening/ping to actually accept Content-Type: text/plain (navigator.sendBeacon). Remove the `data: dict = None` body parameter and parse await request.body() manually. Without this, the tab-close flow silently 422s and active_streams ghost rows linger.",
+    "After /api/listening/end increments play counts, invalidate cache keys 'analytics:overview', 'analytics:realtime' (or use cache.delete pattern) so admin dashboard reflects new plays immediately.",
+    "Add a short-timeout IP-lookup fallback OR pre-resolve country at the edge for /user/home/geo so first-page-load is <4s on environments without Cloudflare headers (preview/staging).",
+    "Parallelise the ~12 count_documents calls inside /analytics/overview with asyncio.gather to bring cold response under the 4s target on Atlas."
+  ],
+  "critical_code_review_comments": [
+    "FastAPI parameter declaration `data: dict = None` is incompatible with text/plain bodies — common mistake; the in-function `if data is None` fallback never runs because validation rejects first.",
+    "/listening/end double-reads the songs collection (once via $inc, once via find_one) — small but avoidable.",
+    "/listening/end does not invalidate analytics caches; /analytics/record-play does. Inconsistent.",
+    "Cache TTLs are good (realtime 15s aligned with admin poll, live-listeners 5s, trends 60s, neno 30s, app-settings 30s) and warm-cache benchmark of <200ms is comfortably met across all endpoints.",
+    "Cloudflare header resolution (resolve_geo) works correctly when verified directly against the backend (localhost:8001) — preview URL ingress strips CF-* headers from external clients, which is expected and not a code bug.",
+    "Active_streams mirror creation in /listening/start is well-structured and uses session_id == stream_id which simplifies /ping and /end correlation — good design choice."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_analytics_listening_perf.py"
+  ],
+  "success_rate": {"backend": "92% (24/26)", "frontend": "n/a"},
+  "test_credentials": "Not required; analytics/listening endpoints are unauthenticated.",
+  "seed_data_creation": "Created a handful of TEST_-prefixed listening_sessions / active_streams rows during the run (e.g. user_ids `TEST_user_listen_1`, `TEST_play_user`, `TEST_beacon`, `TEST_rt_*`, `TEST_user_geo_*`). They will be auto-closed by the 2-min heartbeat sweep in /analytics/realtime, so no manual cleanup needed.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All tests in /app/backend/tests/test_analytics_listening_perf.py. Run with `REACT_APP_BACKEND_URL=<url> pytest backend/tests/test_analytics_listening_perf.py -v`. Two known failures: (1) sendBeacon text/plain on /listening/end (real bug — main agent must fix), (2) home/geo cold >4s (perf gap, lower priority). The CF header test uses http://localhost:8001 directly because Kubernetes ingress strips CF-* headers from external clients — do NOT change it to the public URL.",
+  "rca of the issue": "sendBeacon failure RCA: FastAPI builds an implicit Body() dependency from the type annotation `data: dict`. That dependency uses application/json parsing. When a request arrives with Content-Type: text/plain, FastAPI does not even try to parse JSON — Pydantic immediately returns 422 dict_type. Reproduction is 100% deterministic and reproduces both on the preview URL and direct localhost. Mitigation: change the signature to `async def end_listening(request: Request):` and inside the function do `raw = await request.body(); data = json.loads(raw) if raw else {}` with a try/except. Same fix for /listening/ping."
+}

@@ -26,9 +26,15 @@ async def get_analytics_overview():
     if cached:
         return cached
     
-    total_users = await db.users.count_documents({})
-    total_customers = await db.users.count_documents({"role": "customer"})
-    total_system_users = await db.users.count_documents({"role": {"$ne": "customer"}})
+    # `app_users` is the real end-user collection; the legacy `users` collection
+    # only holds admin/staff accounts. Aggregate both so dashboard reflects reality.
+    total_app_users = await db.app_users.count_documents({})
+    total_admin_users = await db.users.count_documents({})
+    total_users = total_app_users + total_admin_users
+
+    # Customers = real end users on the app. Anyone in `users` is a system/admin role.
+    total_customers = total_app_users
+    total_system_users = total_admin_users
     total_songs = await db.songs.count_documents({})
     total_albums = await db.albums.count_documents({})
     total_churches = await db.churches.count_documents({})
@@ -74,108 +80,115 @@ async def get_analytics_overview():
 
 @router.get("/analytics/trends")
 async def get_trends():
-    """Get user and content trends for charts - REAL DATA"""
+    """Get user and content trends for charts - REAL DATA.
+
+    Heavily parallelised + cached (60s) - prior implementation issued ~20
+    sequential queries and took 6s. New version runs them concurrently and
+    is dashboard-friendly even on cold cache.
+    """
     db = get_db()
+    import asyncio
     from datetime import timedelta
-    
+
+    cache_key = "analytics:trends"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
-    
-    # User Growth - Last 6 months of real data
-    user_growth = []
+
+    # Pre-compute month windows so coroutines don't recompute.
+    month_windows = []
     for i in range(5, -1, -1):
-        month_start = (now - timedelta(days=30*i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_start = (now - timedelta(days=30 * i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         month_end = (month_start + timedelta(days=32)).replace(day=1)
-        month_name = month_start.strftime("%b")
-        
-        # Count users created before this month end (cumulative)
-        total_users = await db.app_users.count_documents({
-            "created_at": {"$lt": month_end.isoformat()}
-        })
-        # Also count from regular users collection
-        total_users += await db.users.count_documents({
-            "created_at": {"$lt": month_end.isoformat()}
-        })
-        
-        # Active users in this month
-        active_users = await db.listening_sessions.distinct("user_id", {
-            "start_time": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}
-        })
-        
-        user_growth.append({
-            "month": month_name,
-            "users": total_users,
-            "active": len(active_users) if active_users else 0
-        })
-    
-    # Content Performance - Real category plays from listening sessions
+        month_windows.append((month_start, month_end, month_start.strftime("%b")))
+
+    async def _user_growth(window):
+        ms, me, name = window
+        total_app, total_admin, active = await asyncio.gather(
+            db.app_users.count_documents({"created_at": {"$lt": me.isoformat()}}),
+            db.users.count_documents({"created_at": {"$lt": me.isoformat()}}),
+            db.listening_sessions.distinct("user_id", {
+                "start_time": {"$gte": ms.isoformat(), "$lt": me.isoformat()}
+            }),
+        )
+        return {
+            "month": name,
+            "users": total_app + total_admin,
+            "active": len(active) if active else 0,
+        }
+
+    async def _donations(window):
+        ms, me, name = window
+        pipeline = [
+            {"$match": {"created_at": {"$gte": ms.isoformat(), "$lt": me.isoformat()}}},
+            {"$group": {"_id": None, "total": {"$sum": "$raised_amount"}}},
+        ]
+        res = await db.donation_campaigns.aggregate(pipeline).to_list(1)
+        return {"month": name, "amount": res[0]["total"] if res else 0}
+
+    # Content performance pipeline - bound to last 90 days so it stays cheap.
+    ninety_days_ago = (now - timedelta(days=90)).isoformat()
     category_pipeline = [
-        {"$match": {"counted_as_play": True}},
+        {"$match": {"counted_as_play": True, "start_time": {"$gte": ninety_days_ago}}},
         {"$lookup": {
             "from": "songs",
             "localField": "content_id",
             "foreignField": "song_id",
-            "as": "song"
+            "as": "song",
         }},
         {"$unwind": {"path": "$song", "preserveNullAndEmptyArrays": True}},
         {"$lookup": {
             "from": "albums",
             "localField": "song.album_id",
             "foreignField": "album_id",
-            "as": "album"
+            "as": "album",
         }},
         {"$unwind": {"path": "$album", "preserveNullAndEmptyArrays": True}},
-        {"$group": {
-            "_id": "$album.category_name",
-            "plays": {"$sum": 1}
-        }},
+        {"$group": {"_id": "$album.category_name", "plays": {"$sum": 1}}},
         {"$sort": {"plays": -1}},
-        {"$limit": 6}
+        {"$limit": 6},
     ]
-    categories = await db.listening_sessions.aggregate(category_pipeline).to_list(6)
-    
+
+    # Fire every coroutine concurrently
+    growth_tasks = [_user_growth(w) for w in month_windows]
+    donation_tasks = [_donations(w) for w in month_windows]
+    category_task = db.listening_sessions.aggregate(category_pipeline).to_list(6)
+
+    user_growth_results, donation_results, categories = await asyncio.gather(
+        asyncio.gather(*growth_tasks),
+        asyncio.gather(*donation_tasks),
+        category_task,
+    )
+
     # Fallback: if no listening sessions, get from albums directly
     if not categories:
         album_category_pipeline = [
             {"$group": {"_id": "$category_name", "plays": {"$sum": {"$ifNull": ["$total_plays", 0]}}}},
             {"$sort": {"plays": -1}},
-            {"$limit": 6}
+            {"$limit": 6},
         ]
         categories = await db.albums.aggregate(album_category_pipeline).to_list(6)
-    
+
     content_performance = [
         {"category": c["_id"] or "Uncategorized", "plays": c["plays"]}
         for c in categories
     ]
-    
-    # Add default categories if empty
+
     if not content_performance:
         content_performance = [
             {"category": "Music", "plays": await db.songs.count_documents({}) * 10},
             {"category": "Albums", "plays": await db.albums.count_documents({}) * 5},
         ]
-    
-    # Donations Trend - Real data from donations
-    donations_trend = []
-    for i in range(5, -1, -1):
-        month_start = (now - timedelta(days=30*i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        month_end = (month_start + timedelta(days=32)).replace(day=1)
-        month_name = month_start.strftime("%b")
-        
-        # Sum donations in this month
-        donation_pipeline = [
-            {"$match": {"created_at": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}}},
-            {"$group": {"_id": None, "total": {"$sum": "$raised_amount"}}}
-        ]
-        donation_result = await db.donation_campaigns.aggregate(donation_pipeline).to_list(1)
-        amount = donation_result[0]["total"] if donation_result else 0
-        
-        donations_trend.append({"month": month_name, "amount": amount})
-    
-    return {
-        "user_growth": user_growth,
+
+    result = {
+        "user_growth": list(user_growth_results),
         "content_performance": content_performance,
-        "donations_trend": donations_trend
+        "donations_trend": list(donation_results),
     }
+    await cache.set(cache_key, result, 60)
+    return result
 
 
 @router.get("/analytics/user-demographics")
@@ -966,85 +979,153 @@ async def get_enhanced_analytics(
 
 @router.get("/analytics/realtime")
 async def get_realtime_analytics():
-    """Get real-time analytics for live dashboard"""
+    """Get real-time analytics for live dashboard.
+
+    Short-cached (10s) so the 15s admin polling loop never hits the DB more
+    than ~1x per cycle even when several admins have the dashboard open.
+    """
     db = get_db()
     from datetime import timedelta
-    
+
+    cache_key = "analytics:realtime"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
     two_min_ago = (now - timedelta(minutes=2)).isoformat()
     five_min_ago = (now - timedelta(minutes=5)).isoformat()
     one_hour_ago = (now - timedelta(hours=1)).isoformat()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    
-    # Active streams from active_streams collection (real-time, heartbeat-based)
+
+    # Opportunistic cleanup, but only once per 30s. Saves a write on every poll.
+    cleanup_marker = await cache.get("analytics:realtime:lastcleanup")
+    if not cleanup_marker:
+        await db.active_streams.update_many(
+            {"is_active": True, "last_heartbeat": {"$lt": two_min_ago}},
+            {"$set": {"is_active": False, "auto_closed_at": now.isoformat()}},
+        )
+        await cache.set("analytics:realtime:lastcleanup", "1", 30)
+
+    # Active streams from active_streams collection (heartbeat-driven, both web + mobile)
     active_streams_data = await db.active_streams.find(
         {
             "is_active": True,
             "last_heartbeat": {"$gte": two_min_ago}
         },
-        {"_id": 0, "user_id": 1, "device_id": 1, "platform": 1, "song_title": 1, "artist_name": 1}
+        {"_id": 0, "user_id": 1, "device_id": 1, "platform": 1, "song_title": 1, "artist_name": 1, "country": 1}
     ).to_list(1000)
-    
+
     active_streams = len(active_streams_data)
-    
+
     # Count unique listeners (by user_id) and unique devices
     unique_users = set()
     unique_devices = set()
     platforms = {}
-    
+
     for s in active_streams_data:
         unique_users.add(s.get("user_id"))
         unique_devices.add(s.get("device_id"))
         p = s.get("platform", "unknown")
         platforms[p] = platforms.get(p, 0) + 1
-    
+
     active_listeners = len(unique_users)
-    
-    # Fallback to listening_sessions if no active_streams data
+
+    # Fallback to in-progress listening_sessions (web clients that haven't pinged
+    # yet but already started a session). Counts anything started in the last
+    # 5 minutes OR still open (end_time = None) and started in the last 30 min.
     if active_streams == 0:
+        thirty_min_ago = (now - timedelta(minutes=30)).isoformat()
         active_streams = await db.listening_sessions.count_documents({
-            "start_time": {"$gte": five_min_ago}
+            "$or": [
+                {"start_time": {"$gte": five_min_ago}},
+                {"end_time": None, "start_time": {"$gte": thirty_min_ago}},
+            ]
         })
-        
+
         active_pipeline = [
-            {"$match": {"start_time": {"$gte": five_min_ago}}},
+            {"$match": {
+                "$or": [
+                    {"start_time": {"$gte": five_min_ago}},
+                    {"end_time": None, "start_time": {"$gte": thirty_min_ago}},
+                ]
+            }},
             {"$group": {"_id": "$user_id"}},
             {"$count": "count"}
         ]
         active_result = await db.listening_sessions.aggregate(active_pipeline).to_list(1)
         active_listeners = active_result[0]["count"] if active_result else 0
-    
-    # Plays today (completed plays of 45+ seconds)
-    plays_today = await db.listening_sessions.count_documents({
-        "counted_as_play": True,
-        "start_time": {"$gte": today_start}
-    })
-    
-    # New users today
-    new_users_today = await db.app_users.count_documents({
-        "created_at": {"$gte": today_start}
-    })
-    
-    # Hourly plays trend
+
+    # Plays today, new users today, and hourly trend — fire in parallel.
+    import asyncio
     hourly_pipeline = [
         {"$match": {"counted_as_play": True, "start_time": {"$gte": one_hour_ago}}},
         {"$addFields": {"minute": {"$substr": ["$start_time", 11, 5]}}},
         {"$group": {"_id": "$minute", "plays": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
     ]
-    hourly_plays = await db.listening_sessions.aggregate(hourly_pipeline).to_list(60)
-    
-    # Currently playing (from active streams)
+    plays_today, new_users_today, hourly_plays = await asyncio.gather(
+        db.listening_sessions.count_documents({
+            "counted_as_play": True,
+            "start_time": {"$gte": today_start},
+        }),
+        db.app_users.count_documents({"created_at": {"$gte": today_start}}),
+        db.listening_sessions.aggregate(hourly_pipeline).to_list(60),
+    )
+
+    # Currently playing (from active streams; falls back to recent listening sessions)
     recent_plays = []
     for s in active_streams_data[:10]:
+        uid = s.get("user_id") or ""
         recent_plays.append({
             "song_title": s.get("song_title"),
             "artist_name": s.get("artist_name"),
             "platform": s.get("platform"),
-            "user_id": s.get("user_id", "")[:8] + "..."  # Truncate for privacy
+            "country": s.get("country"),
+            "user_id": (uid[:8] + "...") if len(uid) > 8 else uid,
         })
-    
-    return {
+
+    # If we had to fall back to listening_sessions, hydrate recent_plays from there.
+    if not recent_plays:
+        fallback_pipeline = [
+            {"$match": {
+                "$or": [
+                    {"start_time": {"$gte": five_min_ago}},
+                    {"end_time": None, "start_time": {"$gte": (now - timedelta(minutes=30)).isoformat()}},
+                ]
+            }},
+            {"$sort": {"start_time": -1}},
+            {"$limit": 10},
+            {"$lookup": {
+                "from": "songs",
+                "localField": "song_id",
+                "foreignField": "song_id",
+                "as": "_song",
+            }},
+            {"$project": {
+                "_id": 0,
+                "user_id": 1,
+                "platform": 1,
+                "country": 1,
+                "song_title": {"$arrayElemAt": ["$_song.title", 0]},
+                "artist_name": {"$arrayElemAt": ["$_song.artist_name", 0]},
+            }},
+        ]
+        try:
+            fallback_recent = await db.listening_sessions.aggregate(fallback_pipeline).to_list(10)
+            for s in fallback_recent:
+                uid = s.get("user_id") or ""
+                recent_plays.append({
+                    "song_title": s.get("song_title"),
+                    "artist_name": s.get("artist_name"),
+                    "platform": s.get("platform"),
+                    "country": s.get("country"),
+                    "user_id": (uid[:8] + "...") if len(uid) > 8 else uid,
+                })
+        except Exception:
+            pass
+
+    result = {
         "timestamp": now.isoformat(),
         "active_streams": active_streams,
         "active_listeners": active_listeners,
@@ -1055,6 +1136,11 @@ async def get_realtime_analytics():
         "hourly_trend": [{"time": h["_id"], "plays": h["plays"]} for h in hourly_plays],
         "recent_plays": recent_plays
     }
+
+    # 15s cache aligns with the admin dashboard's 15s poll interval so each
+    # poll typically hits the cache once it's warm.
+    await cache.set(cache_key, result, 15)
+    return result
 
 
 @router.get("/analytics/revenue-breakdown")
@@ -2933,13 +3019,45 @@ async def get_live_listeners():
     
     # Consider listeners active if heartbeat within last 30 seconds
     from datetime import timedelta
+
+    cache_key = "analytics:live-listeners"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
     cutoff = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
-    
-    # Get active listeners
-    active = await db.active_listeners.find(
+    two_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+
+    # Read from BOTH heartbeat collections so web (active_streams) and mobile
+    # (active_listeners) feed the same dashboard widget.
+    from_streams = await db.active_streams.find(
+        {"is_active": True, "last_heartbeat": {"$gte": two_min_ago}},
+        {"_id": 0, "user_id": 1, "device_id": 1, "platform": 1, "song_title": 1,
+         "artist_name": 1, "song_id": 1, "country": 1, "city": 1, "last_heartbeat": 1}
+    ).to_list(1000)
+
+    from_listeners = await db.active_listeners.find(
         {"last_heartbeat": {"$gte": cutoff}, "is_active": True},
         {"_id": 0}
     ).to_list(1000)
+
+    # Dedupe by session/stream id - mobile writes to both collections.
+    seen = set()
+    active = []
+    for s in from_streams:
+        key = s.get("user_id") or s.get("device_id")
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        active.append(s)
+    for s in from_listeners:
+        key = s.get("user_id") or s.get("device_id") or s.get("session_id")
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        active.append(s)
     
     # Count unique users and devices
     unique_users = set()
@@ -2951,8 +3069,9 @@ async def get_live_listeners():
             unique_users.add(listener["user_id"])
         if listener.get("device_id"):
             unique_devices.add(listener["device_id"])
-        
-        content_id = listener.get("content_id")
+
+        # Group by song_id (preferred) then content_id for non-song streams.
+        content_id = listener.get("song_id") or listener.get("content_id")
         if content_id:
             if content_id not in by_content:
                 by_content[content_id] = {
@@ -2966,7 +3085,7 @@ async def get_live_listeners():
     # Sort by listeners
     top_content = sorted(by_content.values(), key=lambda x: x["listeners"], reverse=True)[:10]
     
-    return {
+    result = {
         "total_active_listeners": len(active),
         "unique_users": len(unique_users),
         "unique_devices": len(unique_devices),
@@ -2974,5 +3093,7 @@ async def get_live_listeners():
         "listeners": active[:50],  # Return first 50 for display
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+    await cache.set(cache_key, result, 5)
+    return result
 
 

@@ -631,8 +631,8 @@ async def get_geo_filtered_home(
     db = get_db()
     
     # Import geo functions
-    from routes.geo_content import get_client_ip, get_country_from_ip, DEFAULT_COUNTRY
-    
+    from routes.geo_content import get_client_ip, get_country_from_ip, get_cf_country, DEFAULT_COUNTRY
+
     # Determine user's country
     if country:
         user_country = country.upper()
@@ -647,9 +647,11 @@ async def get_geo_filtered_home(
         else:
             user_country = DEFAULT_COUNTRY
     else:
-        # Detect from IP
-        client_ip = get_client_ip(request)
-        user_country = await get_country_from_ip(client_ip)
+        # Prefer Cloudflare header (zero-latency); fall back to external IP lookup.
+        user_country = get_cf_country(request)
+        if not user_country:
+            client_ip = get_client_ip(request)
+            user_country = await get_country_from_ip(client_ip)
     
     # Cache key includes country and platform
     cache_key = f"home:geo:{user_country}:{platform}:v1"

@@ -526,51 +526,73 @@ async def get_leader_analytics(request: Request):
 
 @router.get("/active")
 async def get_active_neno():
-    """Get all active Neno la Leo for users (last 30 days)"""
+    """Get all active Neno la Leo for users (last 30 days).
+
+    Optimised: 30s cache + single aggregation with $lookup (instead of N+1
+    leader fetches) + cleanup tasks rate-limited to once per minute.
+    """
     db = get_db()
-    
+    from core.cache import cache
+
+    cache_key = "neno:active"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
     thirty_days_ago = (now - timedelta(days=30)).isoformat()
-    
-    # Auto-activate scheduled neno
-    await db.neno_la_leo.update_many(
-        {
-            "is_active": False,
-            "publish_datetime": {"$lte": now.isoformat()}
-        },
-        {"$set": {"is_active": True}}
-    )
-    
-    # Auto-deactivate expired neno (older than 30 days)
-    await db.neno_la_leo.update_many(
-        {
-            "is_active": True,
-            "expires_at": {"$lt": now.isoformat()}
-        },
-        {"$set": {"is_active": False}}
-    )
-    
-    # Get active neno
-    neno_list = await db.neno_la_leo.find(
-        {
-            "is_active": True,
-            "word_date": {"$gte": thirty_days_ago[:10]}  # Just date part
-        },
-        {"_id": 0}
-    ).sort("word_date", -1).to_list(50)
-    
-    # Enrich with leader info
-    for neno in neno_list:
-        leader = await db.religious_leaders.find_one(
-            {"leader_id": neno.get("leader_id")},
-            {"_id": 0, "name": 1, "title": 1, "photo_url": 1}
+
+    # Run the activate/expire cleanup at most once per 60s to keep this endpoint hot.
+    cleanup_marker_key = "neno:active:lastcleanup"
+    last_cleanup = await cache.get(cleanup_marker_key)
+    if not last_cleanup:
+        await db.neno_la_leo.update_many(
+            {"is_active": False, "publish_datetime": {"$lte": now.isoformat()}},
+            {"$set": {"is_active": True}},
         )
-        neno["leader"] = leader
-        # Format display
+        await db.neno_la_leo.update_many(
+            {"is_active": True, "expires_at": {"$lt": now.isoformat()}},
+            {"$set": {"is_active": False}},
+        )
+        await cache.set(cleanup_marker_key, "1", 60)
+
+    # Single aggregation with $lookup replaces N+1 find_one per neno.
+    pipeline = [
+        {"$match": {
+            "is_active": True,
+            "word_date": {"$gte": thirty_days_ago[:10]},
+        }},
+        {"$sort": {"word_date": -1}},
+        {"$limit": 50},
+        {"$lookup": {
+            "from": "religious_leaders",
+            "localField": "leader_id",
+            "foreignField": "leader_id",
+            "as": "_leader",
+        }},
+        {"$addFields": {
+            "leader": {"$arrayElemAt": ["$_leader", 0]},
+        }},
+        {"$project": {"_id": 0, "_leader": 0}},
+    ]
+    neno_list = await db.neno_la_leo.aggregate(pipeline).to_list(50)
+
+    for neno in neno_list:
+        leader = neno.get("leader") or {}
+        # Strip _id from embedded leader doc if present (Pydantic-safe response).
+        if isinstance(leader, dict):
+            leader.pop("_id", None)
+            leader.pop("password_hash", None)
+        neno["leader"] = leader if leader else None
         neno["display_date"] = f"{neno.get('word_day_name', '')} {neno.get('word_date', '')}"
-        neno["leader_display"] = f"{leader.get('title', '')} {leader.get('name', '')}" if leader else "Unknown"
-    
-    return {"neno_list": neno_list, "total": len(neno_list)}
+        neno["leader_display"] = (
+            f"{leader.get('title', '')} {leader.get('name', '')}".strip()
+            if leader else "Unknown"
+        )
+
+    result = {"neno_list": neno_list, "total": len(neno_list)}
+    await cache.set(cache_key, result, 30)
+    return result
 
 @router.get("/{neno_id}")
 async def get_single_neno(neno_id: str):

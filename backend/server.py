@@ -484,7 +484,14 @@ async def startup():
     
     # Run database migrations
     await run_migrations()
-    
+
+    # Ensure analytics + real-time MongoDB indexes (idempotent, runs in <1s)
+    try:
+        from core.indexes import ensure_indexes
+        await ensure_indexes()
+    except Exception as e:
+        logger.warning(f"Index ensure failed: {e}")
+
     logger.info("="*60)
     logger.info("✅ Gracefy API startup complete (HIGH AVAILABILITY)")
     logger.info("   🔧 Architecture: Modular Routers + HA Components")

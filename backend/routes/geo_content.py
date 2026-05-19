@@ -78,6 +78,11 @@ async def get_country_from_ip(ip_address: str) -> str:
 
 def get_client_ip(request: Request) -> str:
     """Extract client IP from request, handling proxies."""
+    # Cloudflare provides the most reliable client IP
+    cf_ip = request.headers.get("CF-Connecting-IP") or request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
+
     # Check X-Forwarded-For header (common for proxies/load balancers)
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
@@ -93,17 +98,37 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
+def get_cf_country(request: Request) -> Optional[str]:
+    """Return ISO-3166 alpha-2 country code from Cloudflare's CF-IPCountry header.
+    Returns None if the request isn't proxied through Cloudflare or the code is invalid.
+    """
+    cc = (request.headers.get("CF-IPCountry") or request.headers.get("cf-ipcountry") or "").strip().upper()
+    if not cc or cc in ("XX", "T1"):
+        return None
+    return cc if cc in VALID_COUNTRY_CODES else None
+
+
 # ============== USER COUNTRY DETECTION ==============
 
 @router.get("/geo/detect-country")
 async def detect_user_country(request: Request):
     """
     Detect user's country from IP address.
-    Used on app session start.
+
+    Prefers Cloudflare's ``CF-IPCountry`` header (zero-latency, free) and
+    only falls back to the external ip-api lookup when not behind Cloudflare.
     """
+    cf_country = get_cf_country(request)
+    if cf_country:
+        return {
+            "country_code": cf_country,
+            "detected_from": "cloudflare",
+            "ip_address": "cloudflare",
+        }
+
     client_ip = get_client_ip(request)
     country_code = await get_country_from_ip(client_ip)
-    
+
     return {
         "country_code": country_code,
         "detected_from": "ip",
