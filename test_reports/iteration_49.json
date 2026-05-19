@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 49 — verified visitor/anonymous tracking, device-name capture (Samsung/iPhone/Infinix/Tecno/empty UA), per-user devices[] persistence on app_users, billing-off short-circuit on /api/choir/revenue, and the new /api/analytics/devices endpoint. Wrote /app/backend/tests/test_visitor_devices_billing.py with 17 pytest cases. Discovered + fixed one real backend bug in /app/backend/routes/browse.py (operator-precedence bug ignored explicit device_id from request body). After fix: 17/17 PASS (100%).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/listening/start",
+        "issue": "FIXED — Original code at routes/browse.py:318 used `data.get('device_id') or data.get('device_info', {}).get('device_id') if isinstance(data.get('device_info'), dict) else None`. Due to Python operator precedence (`or` binds tighter than ternary `if/else`), the whole expression resolved to None whenever `device_info` was absent or non-dict — meaning the explicit `device_id` field in the request body was silently ignored and the server always generated a fresh `web_xxxxxx` ID. Symptom: native-app callers couldn't keep a stable device fingerprint; devices[] would balloon on every play. Replaced with an explicit if/elif/if block."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_visitor_devices_billing.py",
+    "/app/test_reports/pytest/iter49_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED during this run: routes/browse.py device_id ternary precedence bug (see backend_issues.minor).",
+    "Defaults['minimum_payout'] in core/play_analytics.py is short-circuited together with revenue when billing_enabled=False. That's correct, but the response still returns the minimum_payout in `rates`. If a UI conditionally hides the payout button based on `rates.minimum_payout`, double-check it also respects `billing_enabled` to avoid showing 'min payout: 10,000 TZS' on an unbilled account.",
+    "core/play_analytics.py L195-197: when billing_enabled=False we zero current_balance/total_earned/total_withdrawn from the account doc. If billing is later turned back on, the stored account.current_balance still reflects pre-toggle reality — confirm there's a reconciliation job, otherwise re-enabling billing instantly shows back any previously-accrued balance (which may be desired, but worth documenting).",
+    "routes/analytics.py /analytics/realtime aggregates `device_brand` from in-memory active_streams data — perfectly fine for live view. The companion /analytics/devices aggregates from listening_sessions over the full window with $facet — also good, but consider an index on listening_sessions.start_time + device_brand to keep the 30d/90d facet under 200ms as data grows.",
+    "routes/browse.py listening/start: the location $push uses `$slice: -50` (keep last 50). When the doc has no `locations` field yet, MongoDB treats $push+$slice on an absent field correctly (creates new array, slices last 50). Verified — no issue. Good defensive choice.",
+    "device_parser.py: empty UA test passes (no crash, brand=None type='unknown'). However the `_ANDROID_BRANDS` Samsung regex matches `Galaxy` first which is also present in some non-Samsung emulator UAs (e.g., 'BlueStacks Galaxy'). Low impact, optional tightening."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_visitor_devices_billing.py",
+    "/app/backend/routes/browse.py"
+  ],
+  "success_rate": {"backend": "100% (17/17 after fix)", "frontend": "n/a (backend-only)"},
+  "test_credentials": "Used admin@gracefy.life / Mwanga@82!3 via POST /api/admin/users/login. Worked first try.",
+  "seed_data_creation": "Reset app_users.devices[] for user_b7a83cedbc75 at start of iPhone-push test so the dedupe assertion was deterministic. Toggled db.app_settings({setting_type:'billing'}) between true/false during billing tests, then reset to False at end of run to restore preview env baseline.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 11 requested features verified: (1) anonymous Samsung UA → device_brand=Samsung, model contains SM-A536B, OS='Android 13', is_anonymous=True on both listening_sessions + active_streams. (2) iPhone UA with real user_id user_b7a83cedbc75 → device pushed into app_users.devices[] AND last_device/last_seen_at populated. (3) Same user_id+device_id call twice → no duplicate device entry (after browse.py fix). (4) /api/analytics/realtime returns active_visitors + anonymous_plays_today + device_brands[]. (5) /api/analytics/overview returns total_visitor_plays + visitor_plays_today. (6) /api/analytics/devices works for periods 7d/30d/90d/all with {by_brand, by_os, by_platform, total}. (7+8) /api/choir/revenue/sing_819ad8e12623 zeros everything when billing_enabled=False (plays still counted, total_plays=34) and computes gross=plays*5 / net=plays*5*0.7 when on. (9) /api/admin/choirs/{id}.analytics.billing_enabled toggles correctly. (10) /api/admin/users/{user_id} returns devices[] array. (11) /api/analytics/devices is public (200 without auth). UA parser correctly identifies Infinix, Tecno; empty UA does not crash. Test file is parametrised — re-run: `cd /app/backend && set -a; source .env; set +a; export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2 | tr -d '\"'); pytest tests/test_visitor_devices_billing.py -v`. Billing flag has been reset to False at end of testing.",
+  "rca of the issue": "RCA — device_id from body ignored: /app/backend/routes/browse.py:318 used `data.get('device_id') or data.get('device_info', {}).get('device_id') if isinstance(data.get('device_info'), dict) else None`. Python operator precedence binds `or` tighter than the conditional expression `X if Y else Z`, so the whole left side was only evaluated when device_info was a dict; otherwise it short-circuited to None, ignoring an explicit `device_id` in the JSON body. Mitigation applied: rewrote as explicit if/elif/if block so explicit device_id always wins, with device_info as a fallback and a generated `web_xxxxxx` ID as the final fallback. Verified by re-running the dedupe test — the same device_id no longer creates duplicate devices[] entries on app_users."
+}

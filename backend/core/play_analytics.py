@@ -21,15 +21,22 @@ DEFAULTS = {
 }
 
 
-async def _get_rates(db) -> Dict[str, int]:
-    """Read monetization settings (falls back to DEFAULTS)."""
+async def _get_rates(db) -> Dict[str, object]:
+    """Read monetization settings + billing flag.
+
+    Returns ``{tzs_per_play, platform_fee_percentage, minimum_payout,
+    billing_enabled}``. When ``billing_enabled`` is False all revenue math
+    short-circuits to zero so unpaid users never see revenue numbers.
+    """
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)]) or {}
+    billing_doc = await db.app_settings.find_one({"setting_type": "billing"}) or {}
     return {
         "tzs_per_play": int(settings.get("tzs_per_play", DEFAULTS["tzs_per_play"])),
         "platform_fee_percentage": int(
             settings.get("platform_fee_percentage", DEFAULTS["platform_fee_percentage"])
         ),
         "minimum_payout": int(settings.get("minimum_payout_threshold", DEFAULTS["minimum_payout"])),
+        "billing_enabled": bool(billing_doc.get("enabled", False)),
     }
 
 
@@ -49,8 +56,12 @@ async def get_choir_play_analytics(
     """
     db = get_db()
     rates = await _get_rates(db)
-    tzs = rates["tzs_per_play"]
-    fee_pct = rates["platform_fee_percentage"]
+    billing_enabled = rates.get("billing_enabled", False)
+    # When billing is OFF, revenue math is short-circuited to zero across the
+    # board - choirs / leaders should never see TZS amounts the platform isn't
+    # actually charging for. Plays themselves are still counted.
+    tzs = rates["tzs_per_play"] if billing_enabled else 0
+    fee_pct = rates["platform_fee_percentage"] if billing_enabled else 0
 
     # Choir-owned albums (artist_id OR singer_id - schema is inconsistent across legacy uploads).
     own_albums = await db.albums.find(
@@ -181,17 +192,19 @@ async def get_choir_play_analytics(
         "gross_revenue": gross,
         "platform_fee": platform_fee,
         "net_revenue": net,
-        "current_balance": int((account or {}).get("current_balance", 0)),
-        "total_earned": int((account or {}).get("total_earned", net)),
-        "total_withdrawn": int((account or {}).get("total_withdrawn", 0)),
+        "current_balance": int((account or {}).get("current_balance", 0)) if billing_enabled else 0,
+        "total_earned": int((account or {}).get("total_earned", net)) if billing_enabled else 0,
+        "total_withdrawn": int((account or {}).get("total_withdrawn", 0)) if billing_enabled else 0,
         "follower_count": follower_count,
         "album_count": album_count,
         "song_count": song_count,
+        "billing_enabled": billing_enabled,
     }
 
     return {
         "summary": summary,
         "rates": rates,
+        "billing_enabled": billing_enabled,
         "albums": album_breakdown,
         "top_songs": top_songs,
         "monthly": monthly,

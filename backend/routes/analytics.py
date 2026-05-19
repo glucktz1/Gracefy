@@ -68,6 +68,24 @@ async def get_analytics_overview():
     total_content_minutes = content_duration_result[0]["total"] if content_duration_result else 0
     total_raised = donation_result[0]["total"] if donation_result else 0
 
+    # Visitor (anonymous) plays - lifetime + today, useful in admin overview.
+    from datetime import timedelta as _td
+    today_start_iso = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).isoformat()
+    anon_filter = {"$or": [
+        {"is_anonymous": True},
+        {"user_id": "anonymous"},
+        {"user_id": None},
+    ]}
+    total_visitor_plays, visitor_plays_today = await asyncio.gather(
+        db.listening_sessions.count_documents({**anon_filter, "counted_as_play": True}),
+        db.listening_sessions.count_documents({
+            **anon_filter, "counted_as_play": True,
+            "start_time": {"$gte": today_start_iso},
+        }),
+    )
+
     result = {
         "total_users": total_users,
         "total_customers": total_customers,
@@ -81,7 +99,9 @@ async def get_analytics_overview():
         "total_raised": total_raised,
         "total_content_containers": total_content_containers,
         "total_content_episodes": total_content_episodes,
-        "total_content_minutes": total_content_minutes
+        "total_content_minutes": total_content_minutes,
+        "total_visitor_plays": total_visitor_plays,
+        "visitor_plays_today": visitor_plays_today,
     }
     
     await cache.set(cache_key, result, 60)
@@ -1107,23 +1127,38 @@ async def get_realtime_analytics():
             "is_active": True,
             "last_heartbeat": {"$gte": two_min_ago}
         },
-        {"_id": 0, "user_id": 1, "device_id": 1, "platform": 1, "song_title": 1, "artist_name": 1, "country": 1}
+        {"_id": 0, "user_id": 1, "device_id": 1, "platform": 1, "song_title": 1,
+         "artist_name": 1, "country": 1, "device_brand": 1, "device_model": 1,
+         "device_os": 1, "device_name": 1, "is_anonymous": 1}
     ).to_list(1000)
 
     active_streams = len(active_streams_data)
 
-    # Count unique listeners (by user_id) and unique devices
+    # Count unique listeners (by user_id), unique devices, unique anonymous visitors.
     unique_users = set()
     unique_devices = set()
+    unique_visitors = set()  # anonymous (= no logged-in user_id)
     platforms = {}
+    device_brands: dict = {}
 
     for s in active_streams_data:
-        unique_users.add(s.get("user_id"))
+        uid = s.get("user_id")
+        # Visitor = anonymous OR no user_id. Track them by device_id so we
+        # don't conflate two tabs from the same visitor.
+        is_anon = s.get("is_anonymous") or (not uid) or uid == "anonymous"
+        if is_anon:
+            if s.get("device_id"):
+                unique_visitors.add(s.get("device_id"))
+        else:
+            unique_users.add(uid)
         unique_devices.add(s.get("device_id"))
         p = s.get("platform", "unknown")
         platforms[p] = platforms.get(p, 0) + 1
+        brand = s.get("device_brand") or "Unknown"
+        device_brands[brand] = device_brands.get(brand, 0) + 1
 
     active_listeners = len(unique_users)
+    active_visitors = len(unique_visitors)
 
     # Fallback to in-progress listening_sessions (web clients that haven't pinged
     # yet but already started a session). Counts anything started in the last
@@ -1158,13 +1193,23 @@ async def get_realtime_analytics():
         {"$group": {"_id": "$minute", "plays": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
     ]
-    plays_today, new_users_today, hourly_plays = await asyncio.gather(
+    plays_today, new_users_today, hourly_plays, anonymous_plays_today = await asyncio.gather(
         db.listening_sessions.count_documents({
             "counted_as_play": True,
             "start_time": {"$gte": today_start},
         }),
         db.app_users.count_documents({"created_at": {"$gte": today_start}}),
         db.listening_sessions.aggregate(hourly_pipeline).to_list(60),
+        # Visitor (anonymous) plays today - listeners with no logged-in user_id.
+        db.listening_sessions.count_documents({
+            "counted_as_play": True,
+            "start_time": {"$gte": today_start},
+            "$or": [
+                {"is_anonymous": True},
+                {"user_id": "anonymous"},
+                {"user_id": None},
+            ],
+        }),
     )
 
     # Currently playing (from active streams; falls back to recent listening sessions)
@@ -1219,13 +1264,22 @@ async def get_realtime_analytics():
         except Exception:
             pass
 
+    # Top 5 device brands (always sorted, frontend can display as-is).
+    top_device_brands = sorted(
+        [{"brand": k, "count": v} for k, v in device_brands.items()],
+        key=lambda x: x["count"], reverse=True,
+    )[:8]
+
     result = {
         "timestamp": now.isoformat(),
         "active_streams": active_streams,
         "active_listeners": active_listeners,
+        "active_visitors": active_visitors,
         "unique_devices": len(unique_devices),
         "platforms": platforms,
+        "device_brands": top_device_brands,
         "plays_today": plays_today,
+        "anonymous_plays_today": anonymous_plays_today,
         "new_users_today": new_users_today,
         "hourly_trend": [{"time": h["_id"], "plays": h["plays"]} for h in hourly_plays],
         "recent_plays": recent_plays
@@ -1234,6 +1288,62 @@ async def get_realtime_analytics():
     # 15s cache aligns with the admin dashboard's 15s poll interval so each
     # poll typically hits the cache once it's warm.
     await cache.set(cache_key, result, 15)
+    return result
+
+
+@router.get("/analytics/devices")
+async def get_device_analytics(period: str = Query("30d", description="7d, 30d, 90d, all")):
+    """Device breakdown by brand / OS for the admin analytics page.
+
+    Aggregates ``listening_sessions`` across the requested window. Returns
+    ``{by_brand, by_os, by_platform, total}`` ordered desc.
+    """
+    db = get_db()
+    from datetime import timedelta as _td
+    cache_key = f"analytics:devices:{period}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period)
+    match = {}
+    if days:
+        match["start_time"] = {
+            "$gte": (datetime.now(timezone.utc) - _td(days=days)).isoformat()
+        }
+
+    pipeline = [
+        {"$match": match},
+        {"$facet": {
+            "by_brand": [
+                {"$group": {"_id": {"$ifNull": ["$device_brand", "Unknown"]}, "n": {"$sum": 1}}},
+                {"$sort": {"n": -1}},
+                {"$limit": 15},
+            ],
+            "by_os": [
+                {"$group": {"_id": {"$ifNull": ["$device_os", "Unknown"]}, "n": {"$sum": 1}}},
+                {"$sort": {"n": -1}},
+                {"$limit": 10},
+            ],
+            "by_platform": [
+                {"$group": {"_id": {"$ifNull": ["$platform", "unknown"]}, "n": {"$sum": 1}}},
+                {"$sort": {"n": -1}},
+            ],
+            "total": [{"$count": "n"}],
+        }},
+    ]
+    rows = await db.listening_sessions.aggregate(pipeline).to_list(1)
+    facet = rows[0] if rows else {}
+
+    result = {
+        "period": period,
+        "by_brand": [{"brand": r["_id"], "count": r["n"]} for r in facet.get("by_brand", [])],
+        "by_os": [{"os": r["_id"], "count": r["n"]} for r in facet.get("by_os", [])],
+        "by_platform": [{"platform": r["_id"], "count": r["n"]} for r in facet.get("by_platform", [])],
+        "total": (facet.get("total") or [{}])[0].get("n", 0),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await cache.set(cache_key, result, 60)
     return result
 
 

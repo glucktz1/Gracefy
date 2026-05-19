@@ -12,6 +12,7 @@ import uuid
 from core.database import get_db
 from core.cache import cache
 from core.geo_utils import resolve_geo
+from core.device_parser import parse_device, device_label
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["browse"])
@@ -314,7 +315,9 @@ async def start_listening(request: Request, data: dict):
     user = await get_user_from_token(request)
 
     user_id = (user["user_id"] if user else None) or data.get("user_id") or "anonymous"
-    device_id = data.get("device_id") or data.get("device_info", {}).get("device_id") if isinstance(data.get("device_info"), dict) else None
+    device_id = data.get("device_id")
+    if not device_id and isinstance(data.get("device_info"), dict):
+        device_id = data["device_info"].get("device_id")
     if not device_id:
         device_id = f"web_{uuid.uuid4().hex[:10]}"
 
@@ -328,6 +331,25 @@ async def start_listening(request: Request, data: dict):
     now_iso = now.isoformat()
 
     geo = resolve_geo(request)
+
+    # ---- Device parsing (User-Agent → friendly brand/model) ----
+    # Mobile clients may pass `device_info` explicitly; web falls back to the
+    # User-Agent header. Either way we end up with the same normalised shape.
+    explicit_di = data.get("device_info") if isinstance(data.get("device_info"), dict) else {}
+    ua_string = explicit_di.get("user_agent") or request.headers.get("user-agent") or ""
+    parsed = parse_device(ua_string)
+    # Native apps can override brand/model directly
+    if explicit_di.get("brand"):
+        parsed["brand"] = explicit_di["brand"]
+    if explicit_di.get("model"):
+        parsed["model"] = explicit_di["model"]
+    if explicit_di.get("os"):
+        parsed["os"] = explicit_di["os"]
+    device_brand = parsed.get("brand")
+    device_model = parsed.get("model")
+    device_os = parsed.get("os")
+    device_type = parsed.get("type") or platform
+    device_name = device_label(parsed)
 
     # --- Hydrate song metadata for nicer realtime cards ---
     song_title = None
@@ -356,6 +378,12 @@ async def start_listening(request: Request, data: dict):
         "platform": platform,
         "device_info": data.get("device_info"),
         "device_id": device_id,
+        "device_brand": device_brand,
+        "device_model": device_model,
+        "device_os": device_os,
+        "device_type": device_type,
+        "device_name": device_name,
+        "is_anonymous": user_id == "anonymous",
         "country": geo["country"],
         "region": geo["region"],
         "city": geo["city"],
@@ -372,6 +400,12 @@ async def start_listening(request: Request, data: dict):
         "session_id": session_id,
         "user_id": user_id,
         "device_id": device_id,
+        "device_brand": device_brand,
+        "device_model": device_model,
+        "device_os": device_os,
+        "device_type": device_type,
+        "device_name": device_name,
+        "is_anonymous": user_id == "anonymous",
         "song_id": song_id,
         "song_title": song_title,
         "artist_name": artist_name,
@@ -386,17 +420,75 @@ async def start_listening(request: Request, data: dict):
     }
     await db.active_streams.insert_one(stream)
 
-    # Persist geo onto the user profile so location analytics aggregate correctly.
-    if user_id and user_id != "anonymous" and geo["country"]:
-        await db.app_users.update_one(
-            {"user_id": user_id},
-            {"$set": {
+    # Persist geo + device onto the user profile so the admin user detail page
+    # can show "last seen on iPhone in Dar es Salaam" and aggregate analytics
+    # can break down listeners by device brand.
+    if user_id and user_id != "anonymous":
+        # Build a unique device fingerprint - the same physical device used
+        # repeatedly should de-dupe so we don't bloat the array on every play.
+        device_record = {
+            "device_id": device_id,
+            "brand": device_brand,
+            "model": device_model,
+            "os": device_os,
+            "type": device_type,
+            "name": device_name,
+            "platform": platform,
+            "last_seen_at": now_iso,
+        }
+
+        set_fields = {"last_seen_at": now_iso, "last_device": device_record}
+        if geo["country"]:
+            set_fields["country"] = geo["country"]
+            set_fields["region"] = geo["region"]
+            set_fields["city"] = geo["city"]
+            set_fields["last_location"] = {
                 "country": geo["country"],
                 "region": geo["region"],
                 "city": geo["city"],
-                "last_seen_at": now_iso,
-            }},
+                "ip": geo["ip"],
+                "at": now_iso,
+            }
+
+        # First try to bump last_seen on an existing matching device.
+        bumped = await db.app_users.update_one(
+            {"user_id": user_id, "devices.device_id": device_id},
+            {"$set": {**set_fields, "devices.$.last_seen_at": now_iso,
+                      "devices.$.name": device_name,
+                      "devices.$.brand": device_brand,
+                      "devices.$.model": device_model,
+                      "devices.$.os": device_os}},
         )
+        # If no existing device row, push a new one (and seed first_seen).
+        # No upsert - we only attach devices to real user profiles, never
+        # auto-create profiles from anonymous/test listening sessions.
+        if bumped.matched_count == 0:
+            device_record["first_seen_at"] = now_iso
+            await db.app_users.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": set_fields,
+                    "$push": {"devices": device_record},
+                },
+            )
+
+        # Append a location-history row (capped at 50 most recent entries via
+        # $slice) so the admin can see "user moved between Dar and Arusha".
+        if geo["country"]:
+            await db.app_users.update_one(
+                {"user_id": user_id},
+                {"$push": {"locations": {
+                    "$each": [{
+                        "country": geo["country"],
+                        "region": geo["region"],
+                        "city": geo["city"],
+                        "ip": geo["ip"],
+                        "at": now_iso,
+                    }],
+                    "$slice": -50,
+                }}},
+            )
+
         # Invalidate the cached location overview so the dashboard picks it up fast.
         try:
             await cache.delete("analytics:location:overview")

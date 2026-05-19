@@ -175,6 +175,7 @@ export default function ChoirDetailsPage() {
   const monthly = analytics.monthly || data.monthly || [];
   const topSongs = analytics.top_songs || [];
   const topAlbums = analytics.albums || [];
+  const billingEnabled = analytics.billing_enabled ?? revenue.billing_enabled ?? false;
 
   return (
     <div className="page-container animate-fade-in" data-testid="choir-details-page">
@@ -212,10 +213,18 @@ export default function ChoirDetailsPage() {
 
       {/* Revenue Summary */}
       <div className="bg-gradient-to-r from-violet-900/40 to-emerald-900/40 rounded-2xl p-6 mb-6">
+        {!billingEnabled && (
+          <div className="mb-4 flex items-center gap-2 text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-sm" data-testid="billing-off-banner">
+            <span className="font-semibold">Billing OFF</span>
+            <span className="opacity-75">— plays are counted but no revenue is calculated.</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div>
             <p className="text-zinc-400 text-xs">Net Revenue</p>
-            <p className="text-2xl font-bold text-white" data-testid="net-revenue">TZS {(revenue?.net_revenue || 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-white" data-testid="net-revenue">
+              {billingEnabled ? `TZS ${(revenue?.net_revenue || 0).toLocaleString()}` : <span className="text-zinc-500">—</span>}
+            </p>
           </div>
           <div>
             <p className="text-zinc-400 text-xs">Total Plays</p>
@@ -227,11 +236,15 @@ export default function ChoirDetailsPage() {
           </div>
           <div>
             <p className="text-zinc-400 text-xs">Current Balance</p>
-            <p className="text-2xl font-bold text-emerald-400">TZS {(revenue?.current_balance || 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-emerald-400">
+              {billingEnabled ? `TZS ${(revenue?.current_balance || 0).toLocaleString()}` : <span className="text-zinc-500">—</span>}
+            </p>
           </div>
           <div>
             <p className="text-zinc-400 text-xs">Total Withdrawn</p>
-            <p className="text-2xl font-bold text-white">TZS {(revenue?.total_withdrawn || 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-white">
+              {billingEnabled ? `TZS ${(revenue?.total_withdrawn || 0).toLocaleString()}` : <span className="text-zinc-500">—</span>}
+            </p>
           </div>
         </div>
         {monthly && monthly.length > 0 && (
