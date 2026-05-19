@@ -168,7 +168,13 @@ export default function ChoirDetailsPage() {
     );
   }
 
-  const { choir, account, revenue, albums, withdrawals, monthly } = data;
+  const { choir, account, albums, withdrawals } = data;
+  // analytics holds the canonical summary + top_songs + albums (with plays) + monthly trend
+  const analytics = data.analytics || {};
+  const revenue = analytics.summary || data.revenue || {};
+  const monthly = analytics.monthly || data.monthly || [];
+  const topSongs = analytics.top_songs || [];
+  const topAlbums = analytics.albums || [];
 
   return (
     <div className="page-container animate-fade-in" data-testid="choir-details-page">
@@ -209,15 +215,15 @@ export default function ChoirDetailsPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div>
             <p className="text-zinc-400 text-xs">Net Revenue</p>
-            <p className="text-2xl font-bold text-white">TZS {(revenue?.net_revenue || 0).toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-zinc-400 text-xs">Stream Hours</p>
-            <p className="text-2xl font-bold text-white">{(revenue?.total_hours || 0).toFixed(1)}h</p>
+            <p className="text-2xl font-bold text-white" data-testid="net-revenue">TZS {(revenue?.net_revenue || 0).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-zinc-400 text-xs">Total Plays</p>
-            <p className="text-2xl font-bold text-white">{revenue?.total_plays || 0}</p>
+            <p className="text-2xl font-bold text-white" data-testid="total-plays">{revenue?.total_plays || 0}</p>
+          </div>
+          <div>
+            <p className="text-zinc-400 text-xs">Minutes Streamed</p>
+            <p className="text-2xl font-bold text-white">{(revenue?.total_minutes_streamed || 0).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-zinc-400 text-xs">Current Balance</p>
@@ -228,7 +234,51 @@ export default function ChoirDetailsPage() {
             <p className="text-2xl font-bold text-white">TZS {(revenue?.total_withdrawn || 0).toLocaleString()}</p>
           </div>
         </div>
+        {monthly && monthly.length > 0 && (
+          <div className="mt-4 h-24">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthly}>
+                <Area type="monotone" dataKey="plays" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
+                <XAxis dataKey="month" stroke="#52525b" fontSize={10} />
+                <Tooltip
+                  contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8 }}
+                  formatter={(v) => [`${v} plays`, "Plays"]}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
+
+      {/* Top performing songs */}
+      {topSongs.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <TrendingUp size={18} className="text-emerald-400" />
+              Best Performing Songs
+            </h3>
+            <span className="text-xs text-zinc-500">{topSongs.length} tracked</span>
+          </div>
+          <div className="space-y-2" data-testid="top-songs-list">
+            {topSongs.slice(0, 10).map((song, i) => (
+              <div key={song.song_id} className="flex items-center gap-4 p-2 hover:bg-zinc-800/40 rounded-lg">
+                <span className="text-zinc-500 font-bold w-6">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white truncate">{song.title || "Untitled"}</p>
+                </div>
+                <div className="flex items-center gap-1 text-sm">
+                  <Play size={12} className="text-violet-400" />
+                  <span className="text-white font-semibold">{song.plays}</span>
+                </div>
+                <span className="text-xs text-emerald-400 font-mono w-20 text-right">
+                  TZS {(song.revenue || 0).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

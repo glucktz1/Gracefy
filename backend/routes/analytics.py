@@ -279,29 +279,113 @@ async def get_user_demographics():
 
 @router.get("/analytics/content-performance")
 async def get_content_performance(
-    period: str = Query("7d", description="Time period: 7d, 30d, 90d")
+    period: str = Query("7d", description="Time period: 7d, 30d, 90d, all")
 ):
-    """Get content performance metrics"""
+    """Get content performance metrics for the period.
+
+    Counts plays from ``listening_sessions`` for accurate period filtering.
+    Falls back to all-time song.plays / album.total_plays counters when no
+    listening sessions exist (e.g. very young installs).
+    """
     db = get_db()
-    
-    # Calculate date range
     from datetime import timedelta
-    days = {"7d": 7, "30d": 30, "90d": 90}.get(period, 7)
-    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    
-    # Top albums by plays
-    top_albums = await db.albums.find(
-        {"status": "active"},
-        {"_id": 0, "album_id": 1, "title": 1, "total_plays": 1, "artist_name": 1}
-    ).sort("total_plays", -1).limit(10).to_list(10)
-    
-    # Top songs by plays
-    top_songs = await db.songs.find(
-        {"status": "active"},
-        {"_id": 0, "song_id": 1, "title": 1, "plays": 1, "album_id": 1}
-    ).sort("plays", -1).limit(10).to_list(10)
-    
-    # Category distribution
+
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period)
+    start_iso = (
+        (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        if days else None
+    )
+
+    # ---- Top songs ----------------------------------------------------------
+    song_match = {"counted_as_play": True}
+    if start_iso:
+        song_match["start_time"] = {"$gte": start_iso}
+
+    top_songs_rows = await db.listening_sessions.aggregate([
+        {"$match": song_match},
+        {"$group": {"_id": "$song_id", "plays": {"$sum": 1}}},
+        {"$match": {"_id": {"$ne": None}}},
+        {"$sort": {"plays": -1}},
+        {"$limit": 10},
+        {"$lookup": {
+            "from": "songs",
+            "localField": "_id",
+            "foreignField": "song_id",
+            "as": "song",
+        }},
+        {"$unwind": {"path": "$song", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {
+            "from": "albums",
+            "localField": "song.album_id",
+            "foreignField": "album_id",
+            "as": "album",
+        }},
+        {"$unwind": {"path": "$album", "preserveNullAndEmptyArrays": True}},
+        {"$project": {
+            "_id": 0,
+            "song_id": "$_id",
+            "title": "$song.title",
+            "plays": 1,
+            "album_id": "$song.album_id",
+            "album_title": "$album.title",
+            "artist_name": "$album.artist_name",
+            "thumbnail": "$song.thumbnail",
+        }},
+    ]).to_list(10)
+
+    top_songs = top_songs_rows or []
+
+    # Fallback to all-time counter when there are no plays in the window.
+    if not top_songs:
+        top_songs = await db.songs.find(
+            {"status": "active"},
+            {"_id": 0, "song_id": 1, "title": 1, "plays": 1, "album_id": 1, "thumbnail": 1}
+        ).sort("plays", -1).limit(10).to_list(10)
+
+    # ---- Top albums (derived from song plays so we use the SAME data set) ---
+    album_play_map: dict = {}
+    if top_songs and top_songs[0].get("plays") is not None and start_iso:
+        # Need to compute albums independently because top_songs already capped to 10.
+        top_albums_rows = await db.listening_sessions.aggregate([
+            {"$match": song_match},
+            {"$lookup": {
+                "from": "songs",
+                "localField": "song_id",
+                "foreignField": "song_id",
+                "as": "song",
+            }},
+            {"$unwind": {"path": "$song", "preserveNullAndEmptyArrays": True}},
+            {"$group": {"_id": "$song.album_id", "plays": {"$sum": 1}}},
+            {"$match": {"_id": {"$ne": None}}},
+            {"$sort": {"plays": -1}},
+            {"$limit": 10},
+            {"$lookup": {
+                "from": "albums",
+                "localField": "_id",
+                "foreignField": "album_id",
+                "as": "album",
+            }},
+            {"$unwind": {"path": "$album", "preserveNullAndEmptyArrays": True}},
+            {"$project": {
+                "_id": 0,
+                "album_id": "$_id",
+                "title": "$album.title",
+                "artist_name": "$album.artist_name",
+                "thumbnail": "$album.thumbnail",
+                "plays": 1,
+            }},
+        ]).to_list(10)
+        top_albums = top_albums_rows
+    else:
+        top_albums = await db.albums.find(
+            {"status": "active"},
+            {"_id": 0, "album_id": 1, "title": 1, "total_plays": 1,
+             "artist_name": 1, "thumbnail": 1}
+        ).sort("total_plays", -1).limit(10).to_list(10)
+        for a in top_albums:
+            a["plays"] = a.get("total_plays", 0)
+
+    # ---- Category distribution ---------------------------------------------
     category_pipeline = [
         {"$match": {"status": "active"}},
         {"$group": {"_id": "$category_name", "count": {"$sum": 1}, "plays": {"$sum": "$total_plays"}}},
@@ -309,11 +393,11 @@ async def get_content_performance(
         {"$limit": 10}
     ]
     categories = await db.albums.aggregate(category_pipeline).to_list(10)
-    
+
     return {
         "period": period,
-        "top_albums": top_albums,
         "top_songs": top_songs,
+        "top_albums": top_albums,
         "category_distribution": [
             {"category": c["_id"] or "Uncategorized", "albums": c["count"], "plays": c["plays"]}
             for c in categories

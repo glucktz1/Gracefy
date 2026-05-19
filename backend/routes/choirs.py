@@ -421,174 +421,31 @@ async def get_my_albums(request: Request):
 async def get_choir_revenue(choir_id: str):
     """Return revenue + listening analytics for a choir.
 
-    Response shape expected by ChoirDashboard.jsx::
+    Thin wrapper around ``core.play_analytics.get_choir_play_analytics`` so
+    admin and choir self-service views share identical math.
 
-        {
-          "summary": {
-              "total_plays": <int>,
-              "total_minutes_streamed": <int>,
-              "gross_revenue": <int TZS>,
-              "platform_fee": <int>,
-              "net_revenue": <int>,
-              "current_balance": <int>,
-              "total_withdrawn": <int>,
-              "follower_count": <int>,
-              "album_count": <int>,
-              "song_count": <int>
-          },
-          "rates": {
-              "tzs_per_play": <int>,
-              "platform_fee_percentage": <int>,
-              "minimum_payout": <int>
-          },
-          "albums": [{album_id, title, plays, revenue, revenue_percentage}],
-          "monthly": [{month, plays, gross_revenue, net_revenue}]
-        }
+    Returns ``{summary, rates, albums, top_songs, monthly}`` plus legacy
+    flat fields (current_balance, monthly_revenue, top_albums) for backward
+    compatibility.
     """
     db = get_db()
-    from datetime import datetime, timezone, timedelta
+    from core.play_analytics import get_choir_play_analytics
 
     account = await db.choir_accounts.find_one(
         {"choir_id": choir_id}, {"_id": 0, "password_hash": 0}
     )
-    if not account:
-        # Empty response in the expected shape - dashboard won't break.
-        return {
-            "summary": {
-                "total_plays": 0, "total_minutes_streamed": 0,
-                "gross_revenue": 0, "platform_fee": 0, "net_revenue": 0,
-                "current_balance": 0, "total_withdrawn": 0,
-                "follower_count": 0, "album_count": 0, "song_count": 0,
-            },
-            "rates": {"tzs_per_play": 0, "platform_fee_percentage": 30, "minimum_payout": 10000},
-            "albums": [],
-            "monthly": [],
-        }
 
-    # Choir-owned albums (singer_id == choir_id) ------------------------------
-    own_albums = await db.albums.find(
-        {"$or": [{"singer_id": choir_id}, {"artist_id": choir_id}]},
-        {"_id": 0, "album_id": 1, "title": 1, "total_plays": 1},
-    ).to_list(500)
-    album_ids = [a["album_id"] for a in own_albums]
-    album_count = len(own_albums)
+    analytics = await get_choir_play_analytics(choir_id, account=account)
 
-    # Songs in those albums
-    own_songs = await db.songs.find(
-        {"album_id": {"$in": album_ids}} if album_ids else {"album_id": None},
-        {"_id": 0, "song_id": 1, "album_id": 1, "title": 1, "plays": 1},
-    ).to_list(2000)
-    song_ids = [s["song_id"] for s in own_songs]
-    song_count = len(own_songs)
-
-    # Plays per song & per album from REAL listening_sessions -----------------
-    plays_by_song: dict = {}
-    plays_by_album: dict = {}
-    total_plays = 0
-    total_minutes = 0
-    if song_ids:
-        pipeline = [
-            {"$match": {"counted_as_play": True, "song_id": {"$in": song_ids}}},
-            {"$group": {
-                "_id": "$song_id",
-                "plays": {"$sum": 1},
-                "minutes": {"$sum": {"$divide": ["$duration_seconds", 60]}},
-            }},
-        ]
-        async for row in db.listening_sessions.aggregate(pipeline):
-            plays_by_song[row["_id"]] = row["plays"]
-            total_plays += row["plays"]
-            total_minutes += int(row.get("minutes") or 0)
-        # Group plays into albums via the song -> album map
-        song_to_album = {s["song_id"]: s["album_id"] for s in own_songs}
-        for sid, p in plays_by_song.items():
-            aid = song_to_album.get(sid)
-            if aid:
-                plays_by_album[aid] = plays_by_album.get(aid, 0) + p
-
-    # Rates -------------------------------------------------------------------
-    settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)]) or {}
-    tzs_per_play = int(settings.get("tzs_per_play", 5))
-    platform_fee_pct = int(settings.get("platform_fee_percentage", 30))
-    min_payout = int(settings.get("minimum_payout_threshold", 10000))
-
-    gross = total_plays * tzs_per_play
-    platform_fee = int(gross * platform_fee_pct / 100)
-    net = gross - platform_fee
-
-    # Album breakdown
-    album_breakdown = []
-    for a in own_albums:
-        p = plays_by_album.get(a["album_id"], 0)
-        a_gross = p * tzs_per_play
-        a_net = a_gross - int(a_gross * platform_fee_pct / 100)
-        album_breakdown.append({
-            "album_id": a["album_id"],
-            "title": a.get("title"),
-            "plays": p,
-            "revenue": a_net,
-            "revenue_percentage": round(100 * a_net / net, 1) if net else 0,
-        })
-    album_breakdown.sort(key=lambda x: x["revenue"], reverse=True)
-
-    # Monthly trend (last 6 months) -------------------------------------------
-    monthly = []
-    now = datetime.now(timezone.utc)
-    for i in range(5, -1, -1):
-        start = (now - timedelta(days=30 * i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        end = (start + timedelta(days=32)).replace(day=1)
-        name = start.strftime("%b")
-        m_plays = 0
-        if song_ids:
-            m_plays = await db.listening_sessions.count_documents({
-                "counted_as_play": True,
-                "song_id": {"$in": song_ids},
-                "start_time": {"$gte": start.isoformat(), "$lt": end.isoformat()},
-            })
-        m_gross = m_plays * tzs_per_play
-        m_net = m_gross - int(m_gross * platform_fee_pct / 100)
-        monthly.append({
-            "month": name,
-            "plays": m_plays,
-            "gross_revenue": m_gross,
-            "net_revenue": m_net,
-        })
-
-    # Follower count (best-effort, may not exist for choirs)
-    follower_count = await db.followers.count_documents(
-        {"following_id": choir_id, "following_type": {"$in": ["choir", "singer"]}}
-    ) if "followers" in await db.list_collection_names() else 0
-
-    summary = {
-        "total_plays": total_plays,
-        "total_minutes_streamed": total_minutes,
-        "gross_revenue": gross,
-        "platform_fee": platform_fee,
-        "net_revenue": net,
-        "current_balance": int(account.get("current_balance", 0)),
-        "total_earned": int(account.get("total_earned", net)),
-        "total_withdrawn": int(account.get("total_withdrawn", 0)),
-        "follower_count": follower_count,
-        "album_count": album_count,
-        "song_count": song_count,
-    }
-
+    # Backward-compatible legacy fields
     return {
-        "summary": summary,
-        "rates": {
-            "tzs_per_play": tzs_per_play,
-            "platform_fee_percentage": platform_fee_pct,
-            "minimum_payout": min_payout,
-        },
-        "albums": album_breakdown,
-        "monthly": monthly,
-        # Legacy fields kept for backward compatibility
+        **analytics,
         "choir_id": choir_id,
-        "current_balance": summary["current_balance"],
-        "total_earned": summary["total_earned"],
-        "total_withdrawn": summary["total_withdrawn"],
-        "monthly_revenue": monthly,
-        "top_albums": album_breakdown[:10],
+        "current_balance": analytics["summary"]["current_balance"],
+        "total_earned": analytics["summary"]["total_earned"],
+        "total_withdrawn": analytics["summary"]["total_withdrawn"],
+        "monthly_revenue": analytics["monthly"],
+        "top_albums": analytics["albums"][:10],
     }
 
 

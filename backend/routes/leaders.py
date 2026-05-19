@@ -77,26 +77,39 @@ async def get_leaders(
 
 @router.get("/admin/leaders/{leader_id}")
 async def get_leader(leader_id: str):
-    """Get single leader details"""
+    """Get single leader details + play analytics (admin)."""
     db = get_db()
-    
+    from core.play_analytics import get_leader_play_analytics
+
     leader = await db.religious_leaders.find_one({"leader_id": leader_id}, {"_id": 0})
     if not leader:
         raise HTTPException(status_code=404, detail="Leader not found")
-    
-    # Get leader's teachings
+
     teachings = await db.teachings.find(
         {"leader_id": leader_id},
         {"_id": 0}
     ).sort("created_at", -1).to_list(100)
-    
-    # Get account info if exists
+
     account = await db.leader_accounts.find_one(
         {"leader_id": leader_id},
         {"_id": 0, "password_hash": 0}
     )
-    
-    return {"leader": leader, "teachings": teachings, "account": account}
+
+    analytics = await get_leader_play_analytics(leader_id)
+
+    return {
+        "leader": leader,
+        "teachings": teachings,
+        "account": account,
+        "analytics": analytics,
+    }
+
+
+@router.get("/admin/leaders/{leader_id}/analytics")
+async def get_admin_leader_analytics(leader_id: str):
+    """Standalone leader analytics endpoint (admin)."""
+    from core.play_analytics import get_leader_play_analytics
+    return await get_leader_play_analytics(leader_id)
 
 
 @router.post("/admin/leaders")
@@ -486,86 +499,45 @@ async def get_leader_teaching_detail(request: Request, teaching_id: str):
 
 @router.get("/leader/analytics")
 async def get_leader_analytics(request: Request, period: str = "30d"):
-    """Get leader's analytics"""
+    """Get leader's play analytics (self-service).
+
+    Uses the canonical ``core.play_analytics.get_leader_play_analytics`` so
+    leader-portal and admin views surface identical numbers. The legacy
+    keys (total_teachings, total_plays, current_balance, teaching_breakdown)
+    are returned for backward compat with LeaderDashboardPage.
+    """
     db = get_db()
-    
+    from core.play_analytics import get_leader_play_analytics
+
     leader_id, _ = await get_leader_from_token(request)
-    
-    # Calculate date range
-    if period == "7d":
-        start_date = datetime.now(timezone.utc) - timedelta(days=7)
-    elif period == "30d":
-        start_date = datetime.now(timezone.utc) - timedelta(days=30)
-    elif period == "90d":
-        start_date = datetime.now(timezone.utc) - timedelta(days=90)
-    else:
-        start_date = datetime.now(timezone.utc) - timedelta(days=30)
-    
-    # Get leader's teachings
-    teachings = await db.teachings.find(
-        {"leader_id": leader_id},
-        {"_id": 0, "teaching_id": 1, "title": 1, "view_count": 1, "listen_count": 1}
-    ).to_list(100)
-    
-    teaching_ids = [t["teaching_id"] for t in teachings]
-    
-    # Get play counts from listening sessions
-    pipeline = [
-        {
-            "$match": {
-                "teaching_id": {"$in": teaching_ids},
-                "started_at": {"$gte": start_date.isoformat()}
-            }
-        },
-        {
-            "$group": {
-                "_id": "$teaching_id",
-                "total_plays": {"$sum": 1},
-                "total_duration": {"$sum": "$duration_seconds"},
-                "unique_listeners": {"$addToSet": "$user_id"}
-            }
-        }
-    ]
-    
-    teaching_stats = {}
-    async for doc in db.teaching_sessions.aggregate(pipeline):
-        teaching_stats[doc["_id"]] = {
-            "plays": doc["total_plays"],
-            "duration": doc["total_duration"],
-            "unique_listeners": len(doc["unique_listeners"])
-        }
-    
-    # Calculate totals
-    total_plays = sum(s.get("plays", 0) for s in teaching_stats.values())
-    total_duration = sum(s.get("duration", 0) for s in teaching_stats.values())
-    total_unique_listeners = len(set(
-        listener for s in teaching_stats.values() for listener in s.get("unique_listeners", [])
-    ))
-    
-    # Get leader revenue info
+
+    analytics = await get_leader_play_analytics(leader_id)
+    summary = analytics["summary"]
+
     leader = await db.religious_leaders.find_one(
         {"leader_id": leader_id},
         {"_id": 0, "current_balance": 1, "total_earned": 1, "total_withdrawn": 1}
-    )
-    
+    ) or {}
+
     return {
         "period": period,
-        "total_teachings": len(teachings),
-        "total_plays": total_plays,
-        "total_duration_minutes": total_duration // 60,
-        "unique_listeners": total_unique_listeners,
-        "current_balance": leader.get("current_balance", 0) if leader else 0,
-        "total_earned": leader.get("total_earned", 0) if leader else 0,
-        "total_withdrawn": leader.get("total_withdrawn", 0) if leader else 0,
+        "summary": summary,
+        "top_teachings": analytics["top_teachings"],
+        "top_neno": analytics["top_neno"],
+        "monthly": analytics["monthly"],
+        # Legacy keys ---------------------------------------------------------
+        "total_teachings": summary["teaching_count"],
+        "total_plays": summary["total_plays"],
+        "total_duration_minutes": summary["total_minutes_streamed"],
+        "unique_listeners": summary["follower_count"],
+        "current_balance": leader.get("current_balance", 0),
+        "total_earned": leader.get("total_earned", 0),
+        "total_withdrawn": leader.get("total_withdrawn", 0),
         "teaching_breakdown": [
-            {
-                "teaching_id": t["teaching_id"],
-                "title": t["title"],
-                "plays": teaching_stats.get(t["teaching_id"], {}).get("plays", 0),
-                "duration_minutes": teaching_stats.get(t["teaching_id"], {}).get("duration", 0) // 60
-            }
-            for t in teachings
-        ]
+            {"teaching_id": t["teaching_id"], "title": t["title"],
+             "plays": t["plays"], "duration_minutes": 0}
+            for t in analytics["top_teachings"]
+        ],
     }
 
 

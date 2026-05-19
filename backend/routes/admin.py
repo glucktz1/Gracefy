@@ -775,26 +775,43 @@ async def get_admin_choirs(
 
 @router.get("/admin/choirs/{choir_id}")
 async def get_admin_choir(choir_id: str):
-    """Get choir details for admin"""
+    """Get full choir profile + play analytics for the admin choir-details page.
+
+    Returns ``{choir, account, albums, analytics}`` where ``analytics`` has the
+    same shape as the choir self-service dashboard (summary/top_songs/etc.).
+    """
     db = get_db()
-    
+    from core.play_analytics import get_choir_play_analytics
+
     choir = await db.singers.find_one({"singer_id": choir_id}, {"_id": 0})
     if not choir:
         raise HTTPException(status_code=404, detail="Choir not found")
-    
-    # Get account
+
     account = await db.choir_accounts.find_one(
         {"choir_id": choir_id},
         {"_id": 0, "password_hash": 0}
     )
-    
-    # Get albums
+
+    # Albums (return with both possible owner key so legacy + new rows are caught)
     albums = await db.albums.find(
-        {"artist_id": choir_id},
+        {"$or": [{"artist_id": choir_id}, {"singer_id": choir_id}]},
         {"_id": 0}
-    ).to_list(100)
-    
-    return {"choir": choir, "account": account, "albums": albums}
+    ).to_list(200)
+
+    analytics = await get_choir_play_analytics(choir_id, account=account)
+
+    # Inject the latest play counts into the legacy `albums` list so the
+    # admin page shows real numbers next to each album without changing its UI.
+    plays_by_album = {a["album_id"]: a["plays"] for a in analytics["albums"]}
+    for a in albums:
+        a["plays"] = plays_by_album.get(a.get("album_id"), int(a.get("total_plays") or 0))
+
+    return {
+        "choir": choir,
+        "account": account,
+        "albums": albums,
+        "analytics": analytics,
+    }
 
 
 @router.put("/admin/choirs/{choir_id}")
