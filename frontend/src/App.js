@@ -211,7 +211,10 @@ const Sidebar = ({ user, userPermissions = [], onLogout, isOpen, setIsOpen }) =>
   ];
 
   // Filter nav items based on user permissions
+  // Super admins / accounts seeded with permissions=["*"] get a free pass.
+  const hasWildcard = userPermissions.includes("*");
   const filterItem = (item) => {
+    if (hasWildcard) return true;
     if (!item.permissions || item.permissions.length === 0) return true;
     return item.permissions.some(perm => userPermissions.includes(perm));
   };

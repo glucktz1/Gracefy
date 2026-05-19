@@ -513,7 +513,7 @@ async def admin_user_login(data: dict, response: Response):
     """Login with username/email and password for admin users"""
     db = get_db()
     
-    email = data.get("email") or data.get("username")
+    email = (data.get("email") or data.get("username") or "").strip().lower()
     password = data.get("password", "")  # Allow empty password
     
     if not email:
@@ -550,7 +550,7 @@ async def admin_user_login(data: dict, response: Response):
             "admin_id": admin_user["admin_id"],
             "user_id": admin_user["admin_id"],
             "email": admin_user["email"],
-            "role": "admin",
+            "role": admin_user.get("role") or "admin",
             "session_token": session_token,
             "expires_at": expires_at.isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat()

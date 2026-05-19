@@ -38,7 +38,9 @@ class ReligiousLeaderUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class NenoLaLeoCreate(BaseModel):
-    leader_id: str
+    # Optional - the /leader/neno handler overrides this from the auth token.
+    # Admin /admin/neno endpoint requires it to be supplied.
+    leader_id: Optional[str] = None
     book: str  # e.g., "Mathayo", "Luka"
     chapter: int
     verse_start: int
@@ -280,6 +282,10 @@ async def create_neno(data: NenoLaLeoCreate, _admin=Depends(require_admin)):
     """Create a new Neno la Leo entry (Admin only)"""
     db = get_db()
     
+    # leader_id is required for the admin path (leader path overrides via token)
+    if not data.leader_id:
+        raise HTTPException(status_code=400, detail="leader_id is required")
+
     # Verify leader exists
     leader = await db.religious_leaders.find_one({"leader_id": data.leader_id})
     if not leader:
