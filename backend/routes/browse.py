@@ -411,23 +411,27 @@ async def start_listening(request: Request, data: dict):
 
 
 @router.post("/listening/ping")
-async def listening_ping(request: Request, data: dict = None):
+async def listening_ping(request: Request):
     """Lightweight heartbeat for web players (mobile uses /listening/heartbeat).
 
     Body: ``{ "session_id": "...", "position_seconds": <int> }``
     Keeps ``active_streams.last_heartbeat`` fresh so the user shows on the
     real-time listener dashboard for as long as they are actually playing.
+
+    NOTE: This route reads the body manually (no `data: dict` parameter) so
+    it accepts ``Content-Type: text/plain`` from ``navigator.sendBeacon`` and
+    ``fetch({ keepalive: true })`` requests issued during tab close. A typed
+    body parameter would cause FastAPI to 422 on non-JSON content-types
+    before the handler runs.
     """
     db = get_db()
 
-    # Handle sendBeacon (text/plain) gracefully
-    if data is None:
-        try:
-            import json
-            body = await request.body()
-            data = json.loads(body.decode("utf-8")) if body else {}
-        except Exception:
-            data = {}
+    import json
+    try:
+        raw = await request.body()
+        data = json.loads(raw.decode("utf-8")) if raw else {}
+    except Exception:
+        data = {}
 
     session_id = data.get("session_id") or data.get("stream_id")
     if not session_id:
@@ -446,20 +450,22 @@ async def listening_ping(request: Request, data: dict = None):
 
 
 @router.post("/listening/end")
-async def end_listening(request: Request, data: dict = None):
-    """Track end of listening session - counts as play if 45+ seconds"""
+async def end_listening(request: Request):
+    """Track end of listening session - counts as play if 45+ seconds.
+
+    Reads the body manually so the route accepts ``Content-Type: text/plain``
+    from ``navigator.sendBeacon`` (tab-close) and keepalive fetch.
+    """
     db = get_db()
-    
+
     MINIMUM_PLAY_SECONDS = 45  # Play counts only if played 45+ seconds
-    
-    # Handle beacon requests which send as text/plain
-    if data is None:
-        try:
-            body = await request.body()
-            import json
-            data = json.loads(body.decode('utf-8'))
-        except Exception:
-            return {"tracked": False}
+
+    import json
+    try:
+        raw = await request.body()
+        data = json.loads(raw.decode("utf-8")) if raw else {}
+    except Exception:
+        return {"tracked": False}
     
     session_id = data.get("session_id")
     duration = data.get("duration_seconds", 0)
@@ -531,6 +537,14 @@ async def end_listening(request: Request, data: dict = None):
                         {"teaching_id": lesson.get("teaching_id")},
                         {"$inc": {"play_count": 1}}
                     )
+
+        # Invalidate analytics caches so the new play count is visible immediately.
+        try:
+            await cache.delete("analytics:overview")
+            await cache.delete("analytics:realtime")
+            await cache.delete("analytics:trends")
+        except Exception:
+            pass
     
     return {
         "tracked": True,

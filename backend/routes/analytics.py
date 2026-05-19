@@ -17,47 +17,57 @@ router = APIRouter(prefix="/api", tags=["analytics"])
 
 @router.get("/analytics/overview")
 async def get_analytics_overview():
-    """Get dashboard analytics overview"""
+    """Get dashboard analytics overview.
+
+    Parallelised - all base counts run concurrently against Atlas (~250ms RTT)
+    instead of sequentially.
+    """
     db = get_db()
-    
+    import asyncio
+
     # Use cache for expensive counts
     cache_key = "analytics:overview"
     cached = await cache.get(cache_key)
     if cached:
         return cached
-    
+
     # `app_users` is the real end-user collection; the legacy `users` collection
     # only holds admin/staff accounts. Aggregate both so dashboard reflects reality.
-    total_app_users = await db.app_users.count_documents({})
-    total_admin_users = await db.users.count_documents({})
-    total_users = total_app_users + total_admin_users
+    content_duration_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$total_duration_minutes"}}}]
+    donation_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$raised_amount"}}}]
 
-    # Customers = real end users on the app. Anyone in `users` is a system/admin role.
+    (
+        total_app_users, total_admin_users,
+        total_songs, total_albums, total_churches,
+        total_leaders, total_donations,
+        pending_churches, pending_leaders, pending_posts,
+        total_content_containers, total_content_episodes,
+        content_duration_result, donation_result,
+    ) = await asyncio.gather(
+        db.app_users.count_documents({}),
+        db.users.count_documents({}),
+        db.songs.count_documents({}),
+        db.albums.count_documents({}),
+        db.churches.count_documents({}),
+        db.religious_leaders.count_documents({}),
+        db.donation_campaigns.count_documents({}),
+        db.churches.count_documents({"status": "pending"}),
+        db.religious_leaders.count_documents({"status": "pending"}),
+        db.community_posts.count_documents({"status": "pending"}),
+        db.content_containers.count_documents({}),
+        db.content_episodes.count_documents({}),
+        db.content_containers.aggregate(content_duration_pipeline).to_list(1),
+        db.donation_campaigns.aggregate(donation_pipeline).to_list(1),
+    )
+
+    total_users = total_app_users + total_admin_users
     total_customers = total_app_users
     total_system_users = total_admin_users
-    total_songs = await db.songs.count_documents({})
-    total_albums = await db.albums.count_documents({})
-    total_churches = await db.churches.count_documents({})
-    total_leaders = await db.religious_leaders.count_documents({})
-    total_donations = await db.donation_campaigns.count_documents({})
-    pending_approvals = await db.churches.count_documents({"status": "pending"})
-    pending_approvals += await db.religious_leaders.count_documents({"status": "pending"})
-    pending_approvals += await db.community_posts.count_documents({"status": "pending"})
-    
-    # Get leader content stats
-    total_content_containers = await db.content_containers.count_documents({})
-    total_content_episodes = await db.content_episodes.count_documents({})
-    
-    # Content duration in minutes
-    content_duration_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$total_duration_minutes"}}}]
-    content_duration_result = await db.content_containers.aggregate(content_duration_pipeline).to_list(1)
+    pending_approvals = pending_churches + pending_leaders + pending_posts
+
     total_content_minutes = content_duration_result[0]["total"] if content_duration_result else 0
-    
-    # Get total raised amount
-    pipeline = [{"$group": {"_id": None, "total": {"$sum": "$raised_amount"}}}]
-    donation_result = await db.donation_campaigns.aggregate(pipeline).to_list(1)
     total_raised = donation_result[0]["total"] if donation_result else 0
-    
+
     result = {
         "total_users": total_users,
         "total_customers": total_customers,

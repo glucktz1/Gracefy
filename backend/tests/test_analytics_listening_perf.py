@@ -122,6 +122,85 @@ class TestListeningTracking:
             after = match.get("plays", 0) or 0
             assert after >= before + 1, f"Expected plays to grow from {before}, got {after}"
 
+    def test_ping_sendbeacon_text_plain(self, s):
+        """navigator.sendBeacon sends text/plain. /listening/ping must accept it."""
+        start, _ = _post(s, "/listening/start", json={
+            "song_id": "test_song_ping_beacon", "user_id": "TEST_beacon_ping", "platform": "web"
+        })
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+        import json as _json
+        r = requests.post(f"{API}/listening/ping",
+                          data=_json.dumps({"session_id": sid, "position_seconds": 5}),
+                          headers={"Content-Type": "text/plain"},
+                          timeout=15)
+        assert r.status_code == 200, f"ping text/plain rejected: {r.status_code} {r.text}"
+        assert r.json().get("ok") is True
+
+    def test_end_json_still_works(self, s):
+        """Regression: regular Content-Type: application/json must still work."""
+        start, _ = _post(s, "/listening/start", json={
+            "song_id": "test_song_json", "user_id": "TEST_json_regr", "platform": "web"
+        })
+        sid = start.json()["session_id"]
+        r, _ = _post(s, "/listening/end", json={"session_id": sid, "duration_seconds": 10})
+        assert r.status_code == 200
+        assert r.json().get("tracked") is True
+        assert r.json().get("counted_as_play") is False
+
+    def test_end_invalidates_analytics_caches(self, s):
+        """After a counted play (>=45s), analytics:overview & realtime caches
+        must be invalidated so plays_today reflects the new play immediately."""
+        # Warm the realtime cache first
+        r0, _ = _get(s, "/analytics/realtime")
+        assert r0.status_code == 200
+        plays_before = r0.json().get("plays_today", 0)
+
+        # Pick a real song
+        songs_r = s.get(f"{API}/user/search?q=a&type=song&limit=1", timeout=15).json()
+        songs = songs_r.get("songs", [])
+        if not songs:
+            pytest.skip("No songs to test cache invalidation")
+        song_id = songs[0]["song_id"]
+
+        # Start + end a session with duration>=45s
+        start, _ = _post(s, "/listening/start", json={
+            "song_id": song_id, "user_id": "TEST_cache_inv", "platform": "web"
+        })
+        sid = start.json()["session_id"]
+        end, _ = _post(s, "/listening/end", json={"session_id": sid, "duration_seconds": 60})
+        assert end.status_code == 200
+        assert end.json().get("counted_as_play") is True
+
+        # Realtime cache should have been busted; next call should rebuild and
+        # show plays_today incremented (or at least >= before).
+        time.sleep(0.5)
+        r1, _ = _get(s, "/analytics/realtime")
+        plays_after = r1.json().get("plays_today", 0)
+        assert plays_after >= plays_before + 1, (
+            f"Cache not invalidated: plays_today before={plays_before}, after={plays_after}. "
+            "/listening/end should cache.delete('analytics:realtime')."
+        )
+
+    def test_overview_cold_under_4s_after_invalidation(self, s):
+        """After cache-invalidation triggered by /listening/end, overview cold
+        rebuild should now be <4s (parallelised with asyncio.gather)."""
+        # Trigger an end-with-play to invalidate analytics:overview
+        songs_r = s.get(f"{API}/user/search?q=a&type=song&limit=1", timeout=15).json()
+        songs = songs_r.get("songs", [])
+        if not songs:
+            pytest.skip("No songs available")
+        start, _ = _post(s, "/listening/start", json={
+            "song_id": songs[0]["song_id"], "user_id": "TEST_cold_overview", "platform": "web"
+        })
+        sid = start.json()["session_id"]
+        _post(s, "/listening/end", json={"session_id": sid, "duration_seconds": 60})
+
+        # Next overview call is a cold rebuild
+        r, ms = _get(s, "/analytics/overview", timeout=30)
+        assert r.status_code == 200
+        assert ms < COLD_THRESHOLD_MS, f"cold /analytics/overview took {ms:.0f}ms (target <{COLD_THRESHOLD_MS})"
+
     def test_end_sendbeacon_text_plain(self, s):
         # navigator.sendBeacon sends Content-Type: text/plain. The endpoint
         # MUST accept this. Currently broken (FastAPI 422s before handler runs)

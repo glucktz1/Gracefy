@@ -1,0 +1,46 @@
+{
+  "summary": "Re-tested the 3 fixes applied by main agent after iteration 45: (1) /listening/end + /listening/ping now read body manually so navigator.sendBeacon (Content-Type: text/plain) is accepted, (2) /listening/end invalidates analytics:overview/realtime/trends caches after a counted play, (3) /analytics/overview parallelised with asyncio.gather. All 4 previously-flagged issues now PASS. Added 4 new targeted tests (text/plain on ping, JSON regression, cache-invalidation visibility on /analytics/realtime, cold /analytics/overview <4s after invalidation). Re-ran TestOverview, TestRealtime, TestTrends, TestListeningTracking - 20/20 pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/user/home/geo (cold)",
+        "issue": "Still ~7.5s on cold call (no IP-lookup fallback). Out of scope for this iteration but unfixed from iter 45."
+      },
+      {
+        "endpoint": "POST /api/listening/start",
+        "issue": "Country still null when CF-IPCountry header absent (Kubernetes ingress strips CF-* from external clients). Works fine when called direct via localhost or behind real Cloudflare; no code change needed."
+      },
+      {
+        "endpoint": "POST /api/listening/end",
+        "issue": "Still double-reads songs collection after $inc (find_one to get album_id). Minor perf only, unchanged from iter 45."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_analytics_listening_perf.py",
+    "/app/test_reports/pytest/iter46_listening_results.xml"
+  ],
+  "action_items": [
+    "(Optional, lower priority) Cache cold /user/home/geo or add 1s IP-lookup timeout fallback so first page load is <4s on environments without Cloudflare in front (preview/staging).",
+    "(Optional, micro-perf) Drop the second db.songs.find_one in /listening/end - song_id from session is already sufficient; just look up album_id via $lookup or one read instead of two."
+  ],
+  "critical_code_review_comments": [
+    "Fix for sendBeacon (text/plain) is correct: route now reads `await request.body()` with json.loads + try/except. /listening/end and /listening/ping both correctly handle empty bodies (returns {tracked: False} / {ok: False}).",
+    "Cache invalidation in /listening/end is wrapped in try/except so a Redis blip won't 500 the play count — good defensive pattern.",
+    "asyncio.gather over the 14 count_documents + 2 aggregates inside /analytics/overview is the right fix - cold call dropped from 9.2s -> ~1.7s as expected.",
+    "Cache TTL alignment unchanged (realtime 15s, overview 60s) - good fit for 15s admin polling cycle.",
+    "Note: the in-flight invalidation deletes 'analytics:overview', 'analytics:realtime', 'analytics:trends' but NOT 'analytics:demographics' (5-min TTL) or 'analytics:revenue-breakdown'. Those are aggregate views and 5 min staleness is acceptable, so this is intentional / fine."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_analytics_listening_perf.py"
+  ],
+  "success_rate": {"backend": "100% (20/20 on targeted re-test; previously 24/26)", "frontend": "n/a"},
+  "test_credentials": "Not required.",
+  "seed_data_creation": "Created TEST_-prefixed listening_sessions / active_streams entries (TEST_beacon_ping, TEST_json_regr, TEST_cache_inv, TEST_cold_overview, etc). Auto-closed by the 2-min heartbeat sweep — no manual cleanup needed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 3 HIGH/MINOR fixes from iter 45 are verified. Test file /app/backend/tests/test_analytics_listening_perf.py now has 4 new tests under TestListeningTracking (test_ping_sendbeacon_text_plain, test_end_json_still_works, test_end_invalidates_analytics_caches, test_overview_cold_under_4s_after_invalidation). Run with `export $(grep -v ^# /app/frontend/.env | xargs) && pytest backend/tests/test_analytics_listening_perf.py -v`. Remaining open items: /user/home/geo cold latency (~7.5s) and /listening/end double-read of songs collection — both low priority.",
+  "rca of the issue": "Original sendBeacon 422 was caused by FastAPI implicitly building a Body() dependency from the `data: dict` type annotation, which forced JSON parsing before the handler ran. Fix replaces `data: dict` with `await request.body()` + json.loads inside a try/except, so any content-type (text/plain, application/json, missing) is accepted and parsed once. Verified via curl + 4 new pytest assertions. Cache-invalidation fix verified end-to-end: after a 60s play, /analytics/realtime.plays_today increments on the very next call (previously would have stayed stale for up to 15s). Overview parallelisation verified: cold call now <4s consistently (measured ~1.7-2.5s)."
+}
