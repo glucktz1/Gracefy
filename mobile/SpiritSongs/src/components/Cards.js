@@ -6,6 +6,7 @@ import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZES } from '../config/theme';
 import { getImageUrl } from '../services/api';
 import { useDownloads, DOWNLOAD_STATUS } from '../context/DownloadContext';
 import AnimatedEqualizer from './AnimatedEqualizer';
+import LiveListenerBadge from './LiveListenerBadge';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,9 @@ export const LargeCard = ({ item, onPress, style }) => (
         {item.artist_name || item.description || `${item.song_count || 0} songs`}
       </Text>
     </LinearGradient>
+    <View style={styles.cardLiveBadge} pointerEvents="none">
+      <LiveListenerBadge albumId={item.album_id} songId={item.song_id} />
+    </View>
   </TouchableOpacity>
 );
 
@@ -39,10 +43,15 @@ export const MediumCard = ({ item, onPress, style }) => (
     onPress={onPress}
     activeOpacity={0.8}
   >
-    <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/150' }}
-      style={styles.mediumCardImage}
-    />
+    <View style={styles.mediumCardImageWrap}>
+      <Image
+        source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/150' }}
+        style={styles.mediumCardImage}
+      />
+      <View style={styles.cardLiveBadge} pointerEvents="none">
+        <LiveListenerBadge albumId={item.album_id} songId={item.song_id} />
+      </View>
+    </View>
     <Text style={styles.mediumCardTitle} numberOfLines={2}>{item.title || item.name}</Text>
     <Text style={styles.mediumCardSubtitle} numberOfLines={1}>
       {item.artist_name || item.type || 'Album'}
@@ -57,10 +66,15 @@ export const SmallCard = ({ item, onPress, style }) => (
     onPress={onPress}
     activeOpacity={0.8}
   >
-    <Image
-      source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/80' }}
-      style={styles.smallCardImage}
-    />
+    <View style={styles.smallCardImageWrap}>
+      <Image
+        source={{ uri: getImageUrl(item.thumbnail || item.thumbnail_url) || 'https://via.placeholder.com/80' }}
+        style={styles.smallCardImage}
+      />
+      <View style={styles.cardLiveBadge} pointerEvents="none">
+        <LiveListenerBadge albumId={item.album_id} songId={item.song_id} />
+      </View>
+    </View>
     <View style={styles.smallCardInfo}>
       <Text style={styles.smallCardTitle} numberOfLines={1}>{item.title || item.name}</Text>
     </View>
@@ -295,11 +309,21 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
   },
+  cardLiveBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
 
   // Medium Card
   mediumCard: {
     width: 150,
     marginRight: SPACING.md,
+  },
+  mediumCardImageWrap: {
+    width: 150,
+    height: 150,
+    position: 'relative',
   },
   mediumCardImage: {
     width: 150,
@@ -329,6 +353,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     marginBottom: SPACING.sm,
+  },
+  smallCardImageWrap: {
+    width: 64,
+    height: 64,
+    position: 'relative',
   },
   smallCardImage: {
     width: 64,

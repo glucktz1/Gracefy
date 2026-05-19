@@ -24,6 +24,7 @@ import { useGeo } from '../context/GeoContext';
 import { useBilling } from '../context/BillingContext';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 import { FullScreenLoader } from '../components/GracefyLoader';
+import LiveListenerBadge from '../components/LiveListenerBadge';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - SPACING.md * 3) / 2;
@@ -438,6 +439,10 @@ const HomeScreen = ({ navigation }) => {
           style={styles.smallSquareImage}
         />
         {renderAlbumTags(album)}
+        {/* Live listener social-proof badge */}
+        <View style={styles.liveBadgeContainer} pointerEvents="none">
+          <LiveListenerBadge albumId={album.album_id} />
+        </View>
       </View>
       <Text style={styles.smallSquareTitle} numberOfLines={1}>{album.title}</Text>
       <Text style={styles.smallSquareArtist} numberOfLines={1}>{album.artist_name}</Text>
@@ -2152,6 +2157,11 @@ const styles = StyleSheet.create({
   albumTagBadge: {
     position: 'absolute',
     top: 6,
+    left: 6,
+  },
+  liveBadgeContainer: {
+    position: 'absolute',
+    bottom: 6,
     left: 6,
   },
   albumTagPill: {

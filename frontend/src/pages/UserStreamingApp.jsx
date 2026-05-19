@@ -37,6 +37,7 @@ import {
   shuffleArray,
 } from "@/utils/streamingHelpers";
 import useAudioPlayer from "@/hooks/useAudioPlayer";
+import LiveListenerBadge from "@/components/LiveListenerBadge";
 
 // ==================== COMPONENTS ====================
 
@@ -121,6 +122,10 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md', availableTags = [] }) =
         <div className="absolute bottom-2 right-2 w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-300 shadow-xl shadow-black/40">
           <Play size={20} fill="black" className="text-black ml-0.5" />
         </div>
+        {/* Live listener social-proof badge — rendered only when count > 0 */}
+        <div className="absolute bottom-2 left-2">
+          <LiveListenerBadge albumId={album.album_id} />
+        </div>
       </div>
       <h3 className="font-semibold text-sm truncate">{album.title}</h3>
       <p className="text-xs text-zinc-400 truncate mt-0.5">{album.artist_name || 'Various Artists'}</p>
@@ -164,6 +169,10 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <h3 className="font-bold text-lg text-white truncate">{album.title}</h3>
         <p className="text-sm text-zinc-300 truncate">{album.artist_name}</p>
+      </div>
+      {/* Live listener social-proof badge */}
+      <div className="absolute top-3 right-3 z-10">
+        <LiveListenerBadge albumId={album.album_id} size="lg" />
       </div>
       <div className="absolute bottom-4 right-4 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
         <Play size={22} fill="black" className="text-black ml-0.5" />

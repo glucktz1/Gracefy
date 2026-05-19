@@ -3107,3 +3107,67 @@ async def get_live_listeners():
     return result
 
 
+@router.get("/analytics/live-listeners/counts")
+async def get_live_listener_counts():
+    """Return live listener counts grouped by album_id and by song_id.
+
+    Used by the user-facing home/album cards to render a small
+    "🔴 N listening" social-proof badge. Counts come from heartbeat-fresh rows
+    in ``active_streams`` (last 2 minutes). Cached 10s.
+
+    Response::
+
+        {
+          "by_album": {"<album_id>": <count>, ...},
+          "by_song":  {"<song_id>": <count>, ...},
+          "total":    <int>,
+          "timestamp": "..."
+        }
+    """
+    db = get_db()
+    from datetime import timedelta
+
+    cache_key = "analytics:live-listeners:counts"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    now = datetime.now(timezone.utc)
+    two_min_ago = (now - timedelta(minutes=2)).isoformat()
+
+    # Single aggregation pipeline - cheap thanks to the (is_active, last_heartbeat) index.
+    pipeline = [
+        {"$match": {"is_active": True, "last_heartbeat": {"$gte": two_min_ago}}},
+        {"$facet": {
+            "by_album": [
+                {"$match": {"album_id": {"$ne": None}}},
+                {"$group": {"_id": "$album_id", "n": {"$sum": 1}}},
+            ],
+            "by_song": [
+                {"$match": {"song_id": {"$ne": None}}},
+                {"$group": {"_id": "$song_id", "n": {"$sum": 1}}},
+            ],
+            "total": [
+                {"$count": "n"},
+            ],
+        }},
+    ]
+
+    rows = await db.active_streams.aggregate(pipeline).to_list(1)
+    facet = rows[0] if rows else {}
+
+    by_album = {r["_id"]: r["n"] for r in (facet.get("by_album") or []) if r.get("_id")}
+    by_song = {r["_id"]: r["n"] for r in (facet.get("by_song") or []) if r.get("_id")}
+    total = (facet.get("total") or [{}])[0].get("n", 0)
+
+    result = {
+        "by_album": by_album,
+        "by_song": by_song,
+        "total": total,
+        "timestamp": now.isoformat(),
+    }
+    await cache.set(cache_key, result, 10)
+    return result
+
+
+
