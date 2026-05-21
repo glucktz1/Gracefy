@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 50 — Validated campaign-targeting filter fixes in /api/advertising/campaigns/preview-users and the guests/devices fields on /api/analytics/realtime. 8/9 pytest cases PASS. All filter behaviour from the review request is correct: case-insensitive country & region match, no $or-clobber when premium+region combined, listened_content_ids default OR + opt-in 'all' AND, not_listened_content_ids exclusion, and realtime payload exposes active_visitors / anonymous_plays_today / device_brands. The single failure surfaces a real security gap: preview-users does NOT require an admin cookie — it returns 200 to anonymous callers. This contradicts the review request's claim that 'permission gating intact'.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/advertising/campaigns/preview-users",
+        "issue": "Endpoint has NO admin auth dependency (line 706 in /app/backend/routes/advertising.py — function signature is `(data: dict)` only; no Depends(get_current_admin_user)). Anonymous callers receive 200 with full PII payload (user_id, email, phone, country, region, premium status). The review request asserted 'without cookie should return 401' — currently returns 200. Same exposure may exist on other unguarded routes in this file; only preview-users was tested.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_campaign_filters_iter50.py",
+    "/app/test_reports/pytest/iter50_results.xml"
+  ],
+  "action_items": [
+    "Add `current_user: dict = Depends(get_current_admin_user)` to POST /api/advertising/campaigns/preview-users (line 707) and any sibling routes that leak user PII (preview-target-count, content/search, locations/* — audit the file). Without it, the admin user list can be enumerated by any unauthenticated visitor."
+  ],
+  "critical_code_review_comments": [
+    "advertising.py:706 preview_campaign_users is missing the Depends(get_current_admin_user) dependency that exists on every other admin route in this file (create_campaign:843, update_campaign:954, delete_campaign:1069, send_campaign:1088, cancel_campaign:1137). This is almost certainly an oversight, not by design.",
+    "advertising.py get_target_users() — the new `_ci()` helper uses `re.escape(value)` correctly and anchors with ^…$ ; safe against regex-injection. Good.",
+    "advertising.py:225 — match_mode default is 'any'. Falsy values (empty string, None) safely fall back to 'any'. Good.",
+    "advertising.py:241-247 — match_mode='all' runs one DB roundtrip per content id. Fine for the typical 1-10 ids campaigns use; would not scale beyond ~50 ids. Low priority.",
+    "advertising.py:227-235 — listened_user_ids set is computed even when match_mode=='all' (will be overwritten by intersection loop). Tiny wasted query; leave for now.",
+    "Dashboard.jsx Guests counter wiring not tested here (backend-only as requested)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_campaign_filters_iter50.py"
+  ],
+  "success_rate": {"backend": "89% (8/9)", "frontend": "n/a (backend-only)"},
+  "test_credentials": "admin@gracefy.life / Mwanga@82!3 via POST /api/admin/users/login — login works, returns session_token cookie + token in body.",
+  "seed_data_creation": "None — used the pre-seeded fake listening_session for user_44b6727624be on song_03ee102b6e8e described in the agent-to-agent context. No additional data created or mutated.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Re-run: `cd /app/backend && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2 | tr -d '\"'); pytest tests/test_campaign_filters_iter50.py -v`. Verified counts against live data: TZ email users=26, TZ+region 'dar es salaam'=5 (3 'Dar es Salam' + 1 'Dar es Salaam' + variants — region values are inconsistent in DB), premium TZ user (sole) = user_f47a1a5672c8 in Zanzibar, free TZ=25, free TZ Dar es Salaam=5, premium TZ Dar es Salaam=0 (proves AND), seeded listener user_44b6727624be returned only on song_03ee102b6e8e plays. After main agent adds admin dependency to preview-users, the 9th test will pass automatically.",
+  "rca of the issue": "RCA — preview-users missing auth: routes/advertising.py defines `async def preview_campaign_users(data: dict):` (line 707) with no FastAPI Depends() for admin auth. Every neighbouring write endpoint in the same router uses `Depends(get_current_admin_user)`. The omission is almost certainly a copy-paste miss when this endpoint was originally added — there is no middleware on the router that would enforce auth either. Mitigation: add `current_user: dict = Depends(get_current_admin_user)` parameter to preview_campaign_users() and re-deploy. The same fix pattern should be audited for /preview-target-count, /content/search, /locations/countries, /locations/regions which similarly lack the dependency."
+}

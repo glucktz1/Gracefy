@@ -125,24 +125,50 @@ export default function Dashboard() {
         <div className="bg-gradient-to-r from-emerald-900/30 via-zinc-900 to-violet-900/30 rounded-xl p-4 mb-6 border border-zinc-800">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-emerald-400 font-medium">Live</span>
                 </div>
-                <div className="text-zinc-300">
-                  <span className="font-semibold text-white">{liveListeners?.total_active_listeners || streamingStats?.active_streams || 0}</span> active listeners
+                <div className="text-zinc-300" data-testid="live-listeners-stat">
+                  <span className="font-semibold text-white">{liveListeners?.total_active_listeners || streamingStats?.active_streams || 0}</span> live listeners
                 </div>
                 <div className="text-zinc-500">•</div>
-                <div className="text-zinc-300">
-                  <span className="font-semibold text-white">{liveListeners?.unique_devices || streamingStats?.active_listeners || 0}</span> devices
+                {/* Guests = anonymous active streams (not logged in). */}
+                <div className="text-zinc-300" data-testid="active-guests-stat">
+                  <span className="font-semibold text-amber-300">{streamingStats?.active_visitors || 0}</span> guests
                 </div>
                 <div className="text-zinc-500">•</div>
-                <div className="text-zinc-300">
+                <div className="text-zinc-300" data-testid="today-customers-stat">
+                  <span className="font-semibold text-white">{streamingStats?.new_users_today || 0}</span> today&apos;s customers
+                </div>
+                <div className="text-zinc-500">•</div>
+                <div className="text-zinc-300" data-testid="active-devices-stat">
+                  <span className="font-semibold text-white">{liveListeners?.unique_devices || streamingStats?.unique_devices || 0}</span> devices
+                </div>
+                <div className="text-zinc-500">•</div>
+                <div className="text-zinc-300" data-testid="plays-today-stat">
                   <span className="font-semibold text-white">{streamingStats?.plays_today || 0}</span> plays today
+                  {streamingStats?.anonymous_plays_today > 0 && (
+                    <span className="text-amber-300 ml-1" data-testid="guest-plays-today-stat">
+                      ({streamingStats.anonymous_plays_today} guest)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
+            {/* Device brand breakdown - quick glance of who's listening on what */}
+            {streamingStats?.device_brands?.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-zinc-700/50 flex items-center gap-2 flex-wrap" data-testid="device-brands-row">
+                <span className="text-xs text-zinc-400">Devices:</span>
+                {streamingStats.device_brands.slice(0, 6).map((d) => (
+                  <span key={d.brand} className="text-xs bg-zinc-800/60 px-2 py-0.5 rounded-full">
+                    <span className="text-white">{d.brand}</span>
+                    <span className="text-emerald-400 ml-1">{d.count}</span>
+                  </span>
+                ))}
+              </div>
+            )}
             {/* Currently Playing */}
             {liveListeners?.top_playing_now?.length > 0 && (
               <div className="mt-2 pt-2 border-t border-zinc-700/50">
