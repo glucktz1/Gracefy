@@ -636,7 +636,8 @@ async def toggle_ad_status(ad_id: str, current_user: dict = Depends(get_current_
 @router.get("/content/search")
 async def search_content(
     q: str = Query(..., description="Search query"),
-    content_type: str = Query("all", description="Content type: all, songs, albums")
+    content_type: str = Query("all", description="Content type: all, songs, albums"),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     """Search for songs and albums to use in campaign targeting"""
     db = get_db()
@@ -678,7 +679,7 @@ async def search_content(
 
 
 @router.get("/locations/countries")
-async def get_available_countries():
+async def get_available_countries(current_user: dict = Depends(get_current_admin_user)):
     """Get list of countries where users are located"""
     db = get_db()
     
@@ -689,7 +690,10 @@ async def get_available_countries():
 
 
 @router.get("/locations/regions")
-async def get_regions_for_country(country: str = Query(...)):
+async def get_regions_for_country(
+    country: str = Query(...),
+    current_user: dict = Depends(get_current_admin_user),
+):
     """Get list of regions/cities for a specific country"""
     db = get_db()
     
@@ -704,7 +708,10 @@ async def get_regions_for_country(country: str = Query(...)):
 
 
 @router.post("/campaigns/preview-users")
-async def preview_campaign_users(data: dict):
+async def preview_campaign_users(
+    data: dict,
+    current_user: dict = Depends(get_current_admin_user),
+):
     """
     Preview users matching campaign filters with full details.
     Used to display user list in admin panel for selection.
@@ -772,7 +779,8 @@ async def list_campaigns(
     limit: int = Query(20, ge=1, le=100),
     status: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    current_user: dict = Depends(get_current_admin_user),
 ):
     """List all campaigns with pagination"""
     db = get_db()
@@ -1171,7 +1179,8 @@ async def preview_target_count(
     # User selection filters
     max_users: Optional[int] = Query(None),
     excluded_user_ids: Optional[str] = Query(None),
-    selected_user_ids: Optional[str] = Query(None)
+    selected_user_ids: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     """Preview how many users would receive a campaign with advanced filtering"""
     db = get_db()
@@ -1231,7 +1240,8 @@ async def preview_campaign_count_new(
     # User selection filters
     max_users: Optional[int] = Query(None),
     excluded_user_ids: Optional[str] = Query(None),
-    selected_user_ids: Optional[str] = Query(None)
+    selected_user_ids: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_admin_user),
 ):
     """Preview how many users would receive a campaign with advanced filtering"""
     db = get_db()
