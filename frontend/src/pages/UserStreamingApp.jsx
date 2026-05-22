@@ -2406,7 +2406,7 @@ const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, is
   };
   
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4" data-testid="guest-limit-modal">
       <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="text-center">
           <div className={`w-16 h-16 ${isLocked ? 'bg-red-600/20' : 'bg-blue-600/20'} rounded-full flex items-center justify-center mx-auto mb-4`}>
@@ -2433,6 +2433,7 @@ const GuestLimitModal = ({ show, onClose, onSignIn, remainingPlays, language, is
             <button
               onClick={onSignIn}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full transition-colors"
+              data-testid="guest-limit-signin-btn"
             >
               {language === 'sw' ? 'Ingia / Jisajili' : 'Sign In / Register'}
             </button>
@@ -3395,8 +3396,10 @@ export default function UserStreamingApp() {
   // Default to premium TRUE - never block users before we confirm billing is ON
   const [isPremium, setIsPremium] = useState(true);
   
-  // Guest play limit state - 5 plays or 5 skips before forcing login
-  const GUEST_PLAY_LIMIT = 5;
+  // Guest action limit — HARD BLOCK after 5 total interactions (plays + skips).
+  // No preview mode for guests. They must sign in/register to continue.
+  const GUEST_ACTION_LIMIT = 5;
+  const GUEST_PLAY_LIMIT = 5; // kept for backward-compat with modal copy
   const GUEST_SKIP_LIMIT = 5;
   const MAX_PROMPT_ATTEMPTS = 3;
   
@@ -3561,12 +3564,19 @@ export default function UserStreamingApp() {
     billingEnabled: false,
     usageCount: 0,
     threshold: 6,
+    // Guest hard-block snapshot — populated below
+    isGuest: true,
+    guestActions: 0,
+    guestLimit: 5,
   });
   monetizationRef.current.previewModeActive = previewModeActive;
   monetizationRef.current.isPremium = isPremium;
   monetizationRef.current.billingEnabled = billingEnabled;
   monetizationRef.current.usageCount = usageCount;
   monetizationRef.current.threshold = monetizationSettings.hard_skip_limit || 6;
+  monetizationRef.current.isGuest = !user;
+  monetizationRef.current.guestActions = (guestPlayCount || 0) + (guestSkipCount || 0);
+  monetizationRef.current.guestLimit = GUEST_ACTION_LIMIT;
   
   const originalPlaySongRef = useRef(null);
   const wrappedOnceRef = useRef(false);
@@ -3580,6 +3590,19 @@ export default function UserStreamingApp() {
     
     const guarded = (song, album, queue, index) => {
       const s = monetizationRef.current;
+      
+      // ----- GUEST HARD BLOCK (highest priority) -----
+      // Unauthenticated users get a strict 5-action cap. Once hit, NO playback
+      // is allowed regardless of billing state — they must sign in.
+      if (s.isGuest && s.guestActions >= s.guestLimit) {
+        console.log('[Guest] HARD BLOCK in playSong - forcing login modal');
+        setIsAppLocked(true);
+        setShowGuestLimitModal(true);
+        try { player?.pause?.(); } catch (_) { /* noop */ }
+        try { player?.setGuestLimitReached?.(true); } catch (_) { /* noop */ }
+        try { player?.setBlockAutoPlayNext?.(true); } catch (_) { /* noop */ }
+        return;
+      }
       
       // FULL BYPASS when billing is off or user is premium — everything free
       if (!s.billingEnabled || s.isPremium) {
@@ -3636,14 +3659,16 @@ export default function UserStreamingApp() {
   
   // Continuous-play guarantee: whenever monetization counters change, ensure ALL halt
   // flags are OFF so audio keeps flowing under the new Spotify-style model.
+  // EXCEPTION: locked guests (5-action hard block) — never release their halt.
   useEffect(() => {
+    if (!user && isAppLocked) return; // guest is hard-blocked; keep flags ON
     if (player?.setGuestLimitReached) {
       player.setGuestLimitReached(false);
     }
     if (player?.setBlockAutoPlayNext) {
       player.setBlockAutoPlayNext(false);
     }
-  }, [skipCount, previewModeActive, previewClipCount, player?.setGuestLimitReached, player?.setBlockAutoPlayNext]);
+  }, [skipCount, previewModeActive, previewClipCount, user, isAppLocked, player?.setGuestLimitReached, player?.setBlockAutoPlayNext]);
   
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
@@ -3787,8 +3812,10 @@ export default function UserStreamingApp() {
         const ageMs = Date.now() - (saved.timestamp || 0);
         if (ageMs < 24 * 60 * 60 * 1000) {
           // Check guest play limit before restoring (independent of billing)
-          if (!user && (guestPlayCount >= GUEST_PLAY_LIMIT || guestSkipCount >= GUEST_SKIP_LIMIT)) {
+          if (!user && (guestPlayCount + guestSkipCount >= GUEST_ACTION_LIMIT)) {
             console.log('[Guest] Limit already reached - not restoring playback');
+            setIsAppLocked(true);
+            setShowGuestLimitModal(true);
             return;
           }
           
@@ -4371,77 +4398,61 @@ export default function UserStreamingApp() {
 
   // Check if guest can play - ALWAYS ENFORCED (independent of billing)
   // Returns true if can play, false if limit reached
+  // ==================== GUEST HARD BLOCK ====================
+  // Guests (not logged in) get a strict 5-action limit (plays + skips combined).
+  // After the limit they are HARD BLOCKED with a non-dismissable login modal.
+  // Logged-in unpaid users follow a DIFFERENT path (preview mode) — see
+  // monetizationSettings + previewModeActive. Do NOT mix these two flows.
+  const guestActionTotal = (guestPlayCount || 0) + (guestSkipCount || 0);
+
+  // Block ALL further playback (pause + halt autoplay) and force login modal.
+  // Only called when the guest tries to take their 6th+ action.
+  const blockGuestAndForceLogin = (reason = "limit") => {
+    console.log(`[Guest] HARD BLOCK triggered (reason=${reason}) - playback halted, forcing login`);
+    setIsAppLocked(true);
+    setShowGuestLimitModal(true);
+    try { player?.pause?.(); } catch (_) { /* noop */ }
+    try { player?.setGuestLimitReached?.(true); } catch (_) { /* noop */ }
+    try { player?.setBlockAutoPlayNext?.(true); } catch (_) { /* noop */ }
+  };
+
+  // Returns false to BLOCK an attempted action (guest already at hard limit).
   const checkGuestPlayLimit = () => {
-    // If user is logged in, always allow
-    if (user) {
-      console.log('[Guest] User logged in - allowing play');
-      return true;
+    if (user) return true; // logged-in users handled by preview-mode flow
+
+    if (guestActionTotal >= GUEST_ACTION_LIMIT) {
+      blockGuestAndForceLogin("check");
+      return false;
     }
-    
-    // New Spotify-style monetization handles everything via banner/preview-mode.
-    // No app-lock, no hard halt — playback is always allowed.
     return true;
   };
 
-  // Increment guest play count — Spotify-style graceful degradation
-  // When limit is hit: enable 30s preview mode instead of complete halt
-  // Returns true if limit reached and should show prompt
+  // Increment guest play count. The 5th action IS allowed to complete —
+  // the modal only fires on the NEXT (6th) attempt via checkGuestPlayLimit.
   const incrementGuestPlayCount = () => {
-    if (user) return false; // Logged in users have no guest limit
-    
+    if (user) return false;
     const newCount = guestPlayCount + 1;
-    console.log(`[Guest] Incrementing play count: ${guestPlayCount} -> ${newCount}`);
+    console.log(`[Guest] Play count: ${guestPlayCount} -> ${newCount} (total ${newCount + guestSkipCount}/${GUEST_ACTION_LIMIT})`);
     setGuestPlayCount(newCount);
-    
-    const soft = monetizationSettings.soft_skip_limit || 5;
-    const hard = monetizationSettings.hard_skip_limit || 8;
-    
-    // Soft threshold — show contribution prompt once
-    if (newCount === soft) {
-      console.log('[Guest] Soft play threshold — showing contribution prompt');
-      setShowSubscriptionModal(true);
-    }
-    
-    // Hard threshold — enable 30s preview mode (do NOT halt playback)
-    if (newCount >= hard && !previewModeActive) {
-      console.log('[Guest] Hard play threshold — enabling 30s preview mode');
-      setPreviewModeActive(true);
-      setShowSubscriptionModal(true);
-      return true;
-    }
     return false;
   };
-  
-  // Increment guest skip count — Spotify-style graceful degradation
+
   const incrementGuestSkipCount = () => {
     if (user) return false;
-    
     const newCount = guestSkipCount + 1;
-    console.log(`[Guest] Incrementing skip count: ${guestSkipCount} -> ${newCount}`);
+    console.log(`[Guest] Skip count: ${guestSkipCount} -> ${newCount} (total ${guestPlayCount + newCount}/${GUEST_ACTION_LIMIT})`);
     setGuestSkipCount(newCount);
-    
-    const soft = monetizationSettings.soft_skip_limit || 5;
-    const hard = monetizationSettings.hard_skip_limit || 8;
-    
-    if (newCount === soft) {
-      console.log('[Guest] Soft skip threshold — showing contribution prompt');
-      setShowSubscriptionModal(true);
-    }
-    
-    if (newCount >= hard && !previewModeActive) {
-      console.log('[Guest] Hard skip threshold — enabling 30s preview mode');
-      setPreviewModeActive(true);
-      setShowSubscriptionModal(true);
-      return true;
-    }
     return false;
   };
-  
-  // Dismiss login prompt — under the new monetization model the app NEVER locks.
-  // Playback always continues; the user just sees the persistent banner + glow + previews.
+
+  // The guest hard-block modal is NON-DISMISSABLE while locked. The only way
+  // out is to sign in or register. Legacy callers stay safe (no-op when locked).
   const dismissLoginPrompt = () => {
+    if (isAppLocked) {
+      setShowGuestLimitModal(true);
+      return;
+    }
     setShowGuestLimitModal(false);
-    // Always release any leftover guest-limit halt so playback continues
     if (player?.setGuestLimitReached) {
       player.setGuestLimitReached(false);
     }
@@ -4777,8 +4788,14 @@ export default function UserStreamingApp() {
     });
   };
   
-  // Skip wrapper — never blocks playback; only counts when billing is enforced.
+  // Skip wrapper — for guests this enforces the 5-action HARD BLOCK.
+  // For logged-in users it only counts (preview-mode is handled by bumpUsage).
   const handleSkipWithBillingCheck = (skipFunction) => {
+    // Guest hard-block check BEFORE allowing the skip.
+    if (!user) {
+      if (!checkGuestPlayLimit()) return; // already at limit — block this skip
+      incrementGuestSkipCount();
+    }
     bumpUsage();
     if (typeof skipFunction === 'function') skipFunction();
   };
@@ -6385,7 +6402,7 @@ export default function UserStreamingApp() {
           setShowGuestLimitModal(false);
           setShowAuth(true);
         }}
-        remainingPlays={Math.max(0, GUEST_PLAY_LIMIT - guestPlayCount)}
+        remainingPlays={Math.max(0, GUEST_ACTION_LIMIT - (guestPlayCount + guestSkipCount))}
         language={language}
         isLocked={isAppLocked}
         promptAttempts={promptAttempts}

@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 51 — Frontend-only verification of (1) Admin Campaign Preview Users UI and (2) Guest 5-action HARD BLOCK. Test #1 PASSED end-to-end against live preview env: the campaign preview list now renders user rows with email + Premium badge, and the empty-state copy ('No users match these filters…') renders via data-testid='campaign-user-preview-empty' when the API returns []. Test #2 was verified by static code review and partial runtime probing only — could NOT drive 6 sequential plays end-to-end in the browser session (see context_for_next_testing_agent). Tests #3 (post-login modal reset) and #4 (logged-in preview-mode regression) were not executed in this iteration due to time budget after the play-driver issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Re-test the Guest 5-action HARD BLOCK end-to-end (Test #2) with a driver that issues 6 real playSong/skip events — the runtime probe could not reach the trigger because (a) 'Play Now' on the hero navigates to album detail without incrementing guest counters and (b) seeding gracefy_guest_plays/gracefy_guest_skips in localStorage before reload is overwritten back to 0 by the [Guest] Saving stats effect on mount.",
+    "Re-test Test #3 (sign-in reset of isAppLocked / showGuestLimitModal) once Test #2 is reproducible.",
+    "Re-test Test #4 (logged-in preview-mode regression: every 4th song full + 45s previews, no playback halt) — not executed in this iteration."
+  ],
+  "critical_code_review_comments": [
+    "UserStreamingApp.jsx:3399-3403 — GUEST_ACTION_LIMIT=5, GUEST_PLAY_LIMIT/GUEST_SKIP_LIMIT also =5 (legacy compat). Correct.",
+    "UserStreamingApp.jsx:4406 guestActionTotal = plays + skips. checkGuestPlayLimit (4420-4428) returns FALSE when total >= 5 — i.e. the 6th attempt is blocked, the 5th completes. Matches spec.",
+    "UserStreamingApp.jsx:4410-4417 blockGuestAndForceLogin correctly: setIsAppLocked(true), setShowGuestLimitModal(true), player.pause(), player.setGuestLimitReached(true), player.setBlockAutoPlayNext(true). All three guards are set so auto-advance is also halted in useAudioPlayer.js (504-537).",
+    "UserStreamingApp.jsx:2409 modal root has data-testid='guest-limit-modal'. There is NO onClick on the backdrop div, so backdrop click cannot dismiss — correct for HARD BLOCK.",
+    "UserStreamingApp.jsx:2440 the 'Later/Baadaye' button is wrapped in `{!isLocked && (...)}`, so it is hidden when isLocked=true. Only data-testid='guest-limit-signin-btn' remains for locked guests. Matches spec.",
+    "UserStreamingApp.jsx:4432-4446 increment functions return false for guests; logged-in users early-return (user check). Plays/skips never increment for logged-in users — preview-mode path is independent. Good.",
+    "AdvertisingPage.jsx:1419-1422 empty-state branch only renders when previewUsers.length===0 AND !previewUsersLoading — prevents flash of empty-state during fetch. Good.",
+    "AdvertisingPage.jsx:1441-1453 row shows BOTH email AND phone when present; falls back to user_id only when neither is set. Matches the P0 fix requirement.",
+    "Edge case to consider (not a blocker): if guestPlayCount or guestSkipCount is rehydrated from localStorage on reload AFTER user has already hit the limit, the modal will not auto-open until the next action. The 6th-action check is reactive, not load-time. If the requirement is 'guest cannot resume after refresh either', add a useEffect that calls blockGuestAndForceLogin('rehydrate') when guestActionTotal>=GUEST_ACTION_LIMIT on mount."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "Test #1 PASS; Tests #2/3/4 not fully runtime-verified (code review only)"},
+  "test_credentials": "admin@gracefy.life / Mwanga@82!3 — admin login through /admin/login worked, landed on /dashboard, /admin/advertising loads the Advertising & Campaigns page with Campaigns tab + Create Campaign dialog populated by API.",
+  "seed_data_creation": "None. Mocked one API response via page.route() (preview-users → empty list) only to verify the empty-state branch — no DB writes.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To repro the guest hard-block runtime test, do NOT seed localStorage before reload — the [Guest] Saving stats useEffect zeroes them on mount. Instead, drive the actual UI: navigate to a song detail / album, click the blue Play button (inside the album page that opens after 'Play Now') which fires player.playSong → checkGuestPlayLimit → incrementGuestPlayCount. Repeat with the skip-forward button in the bottom player to mix plays+skips. Allow ≥10s for first page load (loader screen lingers ~6-8s on this preview). The modal data-testid='guest-limit-modal' should appear on the 6th attempt with NO 'Later' button and a Sign In / Register button (data-testid='guest-limit-signin-btn'). Also confirm backdrop click + Escape do NOT close it (no handlers wired). Verified during this iteration: Admin Campaign Preview UI populates rows with email + Premium badge for non-empty results; the data-testid='campaign-user-preview-empty' branch shows 'No users match these filters. Try adjusting country / region or content filters.' when API returns [].",
+  "rca of the issue": "No bug RCA — both targeted fixes appear correctly implemented per code review and the Admin Campaign Preview UI fix is runtime-verified. Guest HARD BLOCK runtime end-to-end test could not be completed by this agent because the testing harness could not reliably issue 6 consecutive guest play/skip events through the live UI within the session budget; the code path itself (checkGuestPlayLimit → blockGuestAndForceLogin → modal render with !isLocked-guarded Later button + no backdrop dismiss handler) reads correct."
+}

@@ -179,6 +179,7 @@ export default function AdvertisingPage() {
   // Preview target users
   const previewTargetUsers = async () => {
     setPreviewUsersLoading(true);
+    setShowUserPreview(true);
     try {
       const response = await axios.post(`${API}/advertising/campaigns/preview-users`, {
         filter_type: campaignForm.target_filter_type,
@@ -186,17 +187,23 @@ export default function AdvertisingPage() {
         region: campaignForm.region || null,
         listened_content_ids: campaignForm.listened_content_ids,
         not_listened_content_ids: campaignForm.not_listened_content_ids,
+        // NOTE: intentionally NOT sending excluded_user_ids here so the admin
+        // can SEE every matched user (and toggle exclusions visually). The
+        // exclusion list is only applied at campaign-send time.
         max_users: campaignForm.send_to_all ? null : parseInt(campaignForm.max_users) || null,
-        excluded_user_ids: campaignForm.excluded_user_ids,
         selected_user_ids: campaignForm.selected_user_ids.length > 0 ? campaignForm.selected_user_ids : null,
         campaign_type: campaignForm.type
       }, { withCredentials: true });
-      setPreviewUsers(response.data.users || []);
-      setTargetPreviewCount(response.data.total);
-      setShowUserPreview(true);
+      const users = response.data.users || [];
+      setPreviewUsers(users);
+      setTargetPreviewCount(response.data.total ?? users.length);
+      if (users.length === 0) {
+        toast.info("No users matched these filters");
+      }
     } catch (error) {
       console.error("Error previewing users:", error);
-      toast.error("Failed to load user preview");
+      const msg = error.response?.data?.detail || error.message || "Failed to load user preview";
+      toast.error(`Failed to load user preview: ${msg}`);
     } finally {
       setPreviewUsersLoading(false);
     }
@@ -1383,6 +1390,7 @@ export default function AdvertisingPage() {
                             size="sm"
                             onClick={previewTargetUsers}
                             disabled={previewUsersLoading}
+                            data-testid="campaign-preview-users-btn"
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             {previewUsersLoading ? "Loading..." : "Preview Users"}
@@ -1390,52 +1398,74 @@ export default function AdvertisingPage() {
                         </div>
 
                         {/* User Preview List */}
-                        {showUserPreview && previewUsers.length > 0 && (
-                          <div className="border border-zinc-700 rounded-lg overflow-hidden">
+                        {showUserPreview && (
+                          <div className="border border-zinc-700 rounded-lg overflow-hidden" data-testid="campaign-user-preview-list">
                             <div className="bg-zinc-700 p-2 flex items-center justify-between">
-                              <span className="text-white text-sm font-medium">
-                                {previewUsers.length} users found
+                              <span className="text-white text-sm font-medium" data-testid="campaign-user-preview-count">
+                                {previewUsersLoading
+                                  ? "Loading users..."
+                                  : `${previewUsers.length} users found${campaignForm.excluded_user_ids.length > 0 ? ` (-${campaignForm.excluded_user_ids.length} excluded)` : ""}`}
                               </span>
                               <div className="flex gap-2">
-                                <Button size="sm" variant="ghost" onClick={selectAllUsers}>
+                                <Button size="sm" variant="ghost" onClick={selectAllUsers} data-testid="campaign-user-select-all-btn" disabled={previewUsers.length === 0}>
                                   <Check className="w-3 h-3 mr-1" /> Select All
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={deselectAllUsers}>
+                                <Button size="sm" variant="ghost" onClick={deselectAllUsers} data-testid="campaign-user-deselect-all-btn" disabled={previewUsers.length === 0}>
                                   <UserMinus className="w-3 h-3 mr-1" /> Deselect All
                                 </Button>
                               </div>
                             </div>
-                            <ScrollArea className="h-48">
-                              <div className="divide-y divide-zinc-800">
-                                {previewUsers.map(user => (
-                                  <div 
-                                    key={user.user_id}
-                                    className={`p-2 flex items-center gap-2 cursor-pointer hover:bg-zinc-800 ${
-                                      campaignForm.excluded_user_ids.includes(user.user_id) ? 'bg-red-900/20' : ''
-                                    }`}
-                                    onClick={() => toggleUserSelection(user.user_id)}
-                                  >
-                                    <Checkbox 
-                                      checked={!campaignForm.excluded_user_ids.includes(user.user_id)}
-                                      className="pointer-events-none"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-white text-sm truncate">{user.name || 'Unknown'}</p>
-                                      <p className="text-zinc-400 text-xs truncate">
-                                        {user.email || user.phone || user.user_id}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      {user.country && (
-                                        <Badge variant="outline" className="text-xs">{user.country}</Badge>
-                                      )}
-                                      {user.is_premium && (
-                                        <Badge className="bg-violet-600 text-xs">Premium</Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                            <ScrollArea className="h-64">
+                              {previewUsers.length === 0 && !previewUsersLoading ? (
+                                <div className="p-6 text-center text-zinc-400 text-sm" data-testid="campaign-user-preview-empty">
+                                  No users match these filters. Try adjusting country / region or content filters.
+                                </div>
+                              ) : (
+                                <div className="divide-y divide-zinc-800">
+                                  {previewUsers.map(user => {
+                                    const isExcluded = campaignForm.excluded_user_ids.includes(user.user_id);
+                                    return (
+                                      <div 
+                                        key={user.user_id}
+                                        className={`p-2 flex items-center gap-2 cursor-pointer hover:bg-zinc-800 ${isExcluded ? 'bg-red-900/20 opacity-60' : ''}`}
+                                        onClick={() => toggleUserSelection(user.user_id)}
+                                        data-testid={`campaign-user-row-${user.user_id}`}
+                                      >
+                                        <Checkbox 
+                                          checked={!isExcluded}
+                                          className="pointer-events-none"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-white text-sm truncate font-medium">{user.name || 'Unknown'}</p>
+                                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                                            {user.email && (
+                                              <span className="text-zinc-300 truncate" title={user.email}>
+                                                <Mail className="w-3 h-3 inline mr-1" />{user.email}
+                                              </span>
+                                            )}
+                                            {user.phone && (
+                                              <span className="text-zinc-300 truncate" title={user.phone}>
+                                                <MessageSquare className="w-3 h-3 inline mr-1" />{user.phone}
+                                              </span>
+                                            )}
+                                            {!user.email && !user.phone && (
+                                              <span className="text-zinc-500">{user.user_id}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                          {user.country && (
+                                            <Badge variant="outline" className="text-xs">{user.country}{user.region ? `, ${user.region}` : ''}</Badge>
+                                          )}
+                                          {user.is_premium && (
+                                            <Badge className="bg-violet-600 text-xs">Premium</Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </ScrollArea>
                           </div>
                         )}
