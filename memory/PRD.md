@@ -14,7 +14,12 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
-### Session: Feb 22, 2026 — Guest HARD BLOCK + Campaign Preview UI Fix
+### Session: Feb 22, 2026 — Data Usage Analytics + Guest HARD BLOCK + Campaign Preview UI Fix
+- ✅ **Data Usage Analytics** (`/api/analytics/data-usage` + new "Data Usage" tab in admin analytics):
+  - Backend formula: streaming @ 160 kbps, downloads @ 320 kbps. `MB = (kbps × seconds) / 8 / 1024`.
+  - Streams aggregated per-day from `listening_sessions.duration_seconds`; downloads aggregated per-day from `downloads` collection with `$lookup` to `songs` for duration (240s fallback when missing).
+  - Frontend: new tab with 4 summary stat cards (Total GB, Stream GB, Download GB, Listening Minutes) + **stacked bar chart** (Streams cyan + Downloads violet) + **single bar chart** for daily listening minutes + assumptions footnote.
+  - Verified end-to-end: 0.27 GB total / 232 listening minutes / 59 streams / 1 download over last 7 days.
 - ✅ **Guest 5-action HARD BLOCK** (`UserStreamingApp.jsx`):
   - New `GUEST_ACTION_LIMIT = 5` (plays + skips combined, was separate limits).
   - `checkGuestPlayLimit()` returns `false` when `guestPlayCount + guestSkipCount >= 5`; the 6th attempt triggers `blockGuestAndForceLogin()` which sets `isAppLocked=true`, shows the non-dismissable modal, pauses the player, and sets `setGuestLimitReached(true)` + `setBlockAutoPlayNext(true)`.

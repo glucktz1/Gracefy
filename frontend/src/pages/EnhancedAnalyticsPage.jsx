@@ -44,6 +44,160 @@ const StatCard = ({ icon: Icon, iconColor, label, value, subValue, trend, trendV
   </Card>
 );
 
+// ==================== Data Usage Section ====================
+// Powered by /api/analytics/data-usage. Shows:
+//   1. Stat cards: total GB, stream GB, download GB, total listening minutes
+//   2. Stacked bar chart: per-day stream MB + download MB (stacked = total GB)
+//   3. Single bar chart: per-day listening minutes
+//
+// Assumptions are surfaced in a footnote so admins know how GB is derived.
+const DataUsageSection = ({ dataUsage, period }) => {
+  if (!dataUsage) {
+    return (
+      <Card className="bg-zinc-900/50 border-zinc-800">
+        <CardContent className="py-12 text-center">
+          <Activity className="h-12 w-12 mx-auto mb-4 text-zinc-600" />
+          <p className="text-zinc-500">Loading data-usage analytics...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { summary = {}, daily = [], assumptions = {} } = dataUsage;
+  const periodLabel = period === '7d' ? 'last 7 days' : period === '30d' ? 'last 30 days' : period === '90d' ? 'last 90 days' : 'last 12 months';
+
+  // Pretty-format tick labels (MM-DD) for dense charts
+  const fmtDate = (v) => (v && v.length >= 10) ? v.slice(5) : v;
+  const fmtMB = (v) => `${(v ?? 0).toFixed(1)} MB`;
+  const fmtMin = (v) => `${Math.round(v ?? 0)} min`;
+
+  // Format GB summary
+  const totalGB = summary.total_gb ?? 0;
+  const streamGB = summary.stream_gb ?? 0;
+  const downloadGB = summary.download_gb ?? 0;
+  const listenMinutes = summary.total_listening_minutes ?? 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={Activity}
+          iconColor="cyan"
+          label="Total Data Used"
+          value={`${totalGB.toFixed(2)} GB`}
+          subValue={`${periodLabel}`}
+        />
+        <StatCard
+          icon={Play}
+          iconColor="violet"
+          label="Streaming Data"
+          value={`${streamGB.toFixed(2)} GB`}
+          subValue={`${(summary.total_streams || 0).toLocaleString()} streams`}
+        />
+        <StatCard
+          icon={Download}
+          iconColor="emerald"
+          label="Downloads Data"
+          value={`${downloadGB.toFixed(2)} GB`}
+          subValue={`${(summary.total_downloads || 0).toLocaleString()} downloads`}
+        />
+        <StatCard
+          icon={Clock}
+          iconColor="amber"
+          label="Listening Minutes"
+          value={listenMinutes.toLocaleString()}
+          subValue={`${(summary.unique_listeners || 0).toLocaleString()} unique listeners`}
+        />
+      </div>
+
+      {/* Stacked bar: per-day data used (streams + downloads) */}
+      <Card className="bg-zinc-900/50 border-zinc-800" data-testid="data-usage-chart-card">
+        <CardHeader>
+          <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+            <BarChart3 size={18} className="text-cyan-400" />
+            Data Used per Day — Streams + Downloads
+          </CardTitle>
+          <p className="text-xs text-zinc-500 mt-1">
+            Each bar = total MB egress that day. Inner blocks show streaming (cyan) vs downloads (violet).
+          </p>
+        </CardHeader>
+        <CardContent>
+          {daily.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={daily} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="date" stroke="#71717a" fontSize={10} tickFormatter={fmtDate} interval="preserveStartEnd" />
+                <YAxis stroke="#71717a" fontSize={10} tickFormatter={(v) => `${v} MB`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, color: '#fff' }}
+                  formatter={(value, name) => [fmtMB(value), name]}
+                  labelFormatter={(label) => `Date: ${label}`}
+                />
+                <Legend wrapperStyle={{ paddingTop: 8, fontSize: 12 }} />
+                <Bar dataKey="stream_mb" name="Streams" stackId="data" fill="#06b6d4" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="download_mb" name="Downloads" stackId="data" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[320px] flex items-center justify-center text-zinc-500" data-testid="data-usage-chart-empty">
+              No data-usage events recorded yet for this period.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Single bar: per-day listening minutes */}
+      <Card className="bg-zinc-900/50 border-zinc-800" data-testid="listening-minutes-chart-card">
+        <CardHeader>
+          <CardTitle className="text-white text-base font-semibold flex items-center gap-2">
+            <Clock size={18} className="text-amber-400" />
+            Listening Minutes per Day
+          </CardTitle>
+          <p className="text-xs text-zinc-500 mt-1">
+            Sum of all session durations (from listening_sessions).
+          </p>
+        </CardHeader>
+        <CardContent>
+          {daily.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={daily} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="date" stroke="#71717a" fontSize={10} tickFormatter={fmtDate} interval="preserveStartEnd" />
+                <YAxis stroke="#71717a" fontSize={10} tickFormatter={(v) => `${v}m`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, color: '#fff' }}
+                  formatter={(value) => [fmtMin(value), 'Listening']}
+                  labelFormatter={(label) => `Date: ${label}`}
+                />
+                <Bar dataKey="listening_minutes" name="Minutes" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[280px] flex items-center justify-center text-zinc-500">
+              No listening data recorded yet for this period.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Assumptions footnote */}
+      <Card className="bg-zinc-900/30 border-zinc-800/60">
+        <CardContent className="py-3">
+          <p className="text-[11px] text-zinc-500 leading-relaxed" data-testid="data-usage-assumptions">
+            <span className="text-zinc-400 font-medium">How we compute data used:</span>{' '}
+            streaming at <strong className="text-zinc-300">{assumptions.stream_kbps ?? 160} kbps</strong>{' '}
+            and downloads at <strong className="text-zinc-300">{assumptions.download_kbps ?? 320} kbps</strong>.{' '}
+            MB = (kbps × seconds) ÷ 8 ÷ 1024. Downloads use the song&apos;s stored duration; when missing we fall back to{' '}
+            <strong className="text-zinc-300">{assumptions.avg_song_seconds_fallback ?? 240}s</strong> per song.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+
 export default function EnhancedAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [realtime, setRealtime] = useState(null);
@@ -51,6 +205,7 @@ export default function EnhancedAnalyticsPage() {
   const [navigationAnalytics, setNavigationAnalytics] = useState(null);
   const [replayStats, setReplayStats] = useState(null);
   const [deviceDistribution, setDeviceDistribution] = useState(null);
+  const [dataUsage, setDataUsage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30d");
   const [replayPeriod, setReplayPeriod] = useState("day");
@@ -59,18 +214,20 @@ export default function EnhancedAnalyticsPage() {
   const fetchAnalytics = useCallback(async () => {
     try {
       const periodDays = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
-      const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes] = await Promise.all([
+      const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes, dataUsageRes] = await Promise.all([
         axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }),
         axios.get(`${API}/analytics/realtime`, { withCredentials: true }),
         axios.get(`${API}/admin/bible/analytics?days=30`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/admin/analytics/navigation?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/analytics/device-distribution`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API}/analytics/data-usage?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null })),
       ]);
       setAnalytics(analyticsRes.data);
       setRealtime(realtimeRes.data);
       setBibleAnalytics(bibleRes.data);
       setNavigationAnalytics(navRes.data);
       setDeviceDistribution(deviceRes.data);
+      setDataUsage(dataUsageRes.data);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast.error("Failed to load analytics");
@@ -302,6 +459,9 @@ export default function EnhancedAnalyticsPage() {
           </TabsTrigger>
           <TabsTrigger value="devices" className="data-[state=active]:bg-blue-600">
             <Smartphone size={14} className="mr-1" /> Devices
+          </TabsTrigger>
+          <TabsTrigger value="data-usage" className="data-[state=active]:bg-cyan-600" data-testid="analytics-tab-data-usage">
+            <Activity size={14} className="mr-1" /> Data Usage
           </TabsTrigger>
           <TabsTrigger value="bible" className="data-[state=active]:bg-amber-600">
             <BookOpen size={14} className="mr-1" /> Bible
@@ -857,6 +1017,11 @@ export default function EnhancedAnalyticsPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Data Usage Tab */}
+        <TabsContent value="data-usage" className="space-y-6" data-testid="analytics-tab-content-data-usage">
+          <DataUsageSection dataUsage={dataUsage} period={period} />
         </TabsContent>
 
         {/* Bible Analytics Tab */}

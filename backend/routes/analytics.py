@@ -3365,3 +3365,201 @@ async def get_live_listener_counts():
 
 
 
+
+
+# ==================== DATA USAGE ANALYTICS ====================
+# Estimates CDN egress (GB) consumed by streaming + downloading.
+#
+# Formula (per product decision on 2026-02-22):
+#   • Streaming bitrate: 160 kbps (mid HLS tier — 96/192/320)
+#   • Download bitrate:  320 kbps (high-quality MP3)
+#   • bytes = (bitrate_kbps * 1000 / 8) * seconds
+#         = bitrate_kbps * 125 * seconds  (bytes)
+#   • MB    = bytes / (1024 * 1024)
+#
+# For STREAMS we have real `duration_seconds` from listening_sessions.
+# For DOWNLOADS the file size isn't stored — we estimate using the song's
+# `duration` field (seconds). When duration is missing we fall back to
+# AVG_SONG_SECONDS (default 240s ≈ 4-minute song).
+#
+# Logic is bundled in one aggregation per collection so the endpoint runs
+# in ~2 round-trips regardless of date range.
+# =============================================================
+STREAM_KBPS = 160
+DOWNLOAD_KBPS = 320
+AVG_SONG_SECONDS = 240  # fallback when a downloaded song has no `duration`
+
+
+def _seconds_to_mb(seconds: float, kbps: int) -> float:
+    """Convert seconds of audio at a given bitrate to megabytes."""
+    if not seconds or seconds <= 0:
+        return 0.0
+    bytes_ = (kbps * 125.0) * seconds  # 125 = 1000/8
+    return round(bytes_ / (1024.0 * 1024.0), 3)
+
+
+@router.get("/analytics/data-usage")
+async def get_data_usage_analytics(
+    days: int = Query(30, ge=1, le=365),
+    request: Request = None,
+):
+    """Per-day CDN data usage (streaming vs downloads) + listening minutes.
+
+    Returns a single payload powering both charts on the admin analytics page:
+        {
+          "days": 30,
+          "summary": {
+            "total_gb": 12.34,
+            "stream_gb": 9.10,
+            "download_gb": 3.24,
+            "total_listening_minutes": 18234,
+            "total_streams": 4210,
+            "total_downloads": 312,
+            "unique_listeners": 187
+          },
+          "daily": [
+            {
+              "date": "2026-02-01",
+              "stream_mb": 312.5,
+              "download_mb": 89.1,
+              "total_mb": 401.6,
+              "listening_minutes": 612,
+              "stream_count": 124,
+              "download_count": 9
+            },
+            ...
+          ],
+          "assumptions": {
+            "stream_kbps": 160,
+            "download_kbps": 320,
+            "avg_song_seconds_fallback": 240
+          }
+        }
+    """
+    db = get_db()
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    start_dt = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_iso = start_dt.isoformat()
+
+    # --- Streams: aggregate listening_sessions by date(start_time) ---
+    # `start_time` is stored as an ISO string, so we slice the first 10 chars
+    # ("YYYY-MM-DD") to group per day. Only count sessions with real duration.
+    stream_pipeline = [
+        {"$match": {
+            "start_time": {"$gte": start_iso},
+            "duration_seconds": {"$gt": 0},
+        }},
+        {"$group": {
+            "_id": {"$substr": ["$start_time", 0, 10]},
+            "total_seconds": {"$sum": "$duration_seconds"},
+            "count": {"$sum": 1},
+            "users": {"$addToSet": "$user_id"},
+        }},
+        {"$sort": {"_id": 1}},
+    ]
+    stream_rows = await db.listening_sessions.aggregate(stream_pipeline).to_list(400)
+
+    # --- Downloads: aggregate `downloads` by date(downloaded_at) and join `songs` ---
+    download_pipeline = [
+        {"$match": {"downloaded_at": {"$gte": start_iso}}},
+        {"$lookup": {
+            "from": "songs",
+            "localField": "content_id",
+            "foreignField": "song_id",
+            "as": "song",
+        }},
+        {"$addFields": {
+            "song_duration": {
+                "$let": {
+                    "vars": {"d": {"$arrayElemAt": ["$song.duration", 0]}},
+                    "in": {
+                        "$cond": [
+                            {"$and": [
+                                {"$ne": ["$$d", None]},
+                                {"$gt": ["$$d", 0]},
+                            ]},
+                            "$$d",
+                            AVG_SONG_SECONDS,
+                        ]
+                    }
+                }
+            }
+        }},
+        {"$group": {
+            "_id": {"$substr": ["$downloaded_at", 0, 10]},
+            "total_seconds": {"$sum": "$song_duration"},
+            "count": {"$sum": 1},
+        }},
+        {"$sort": {"_id": 1}},
+    ]
+    download_rows = await db.downloads.aggregate(download_pipeline).to_list(400)
+
+    # Map by date for quick join
+    stream_by_date = {r["_id"]: r for r in stream_rows}
+    download_by_date = {r["_id"]: r for r in download_rows}
+
+    # Build dense day series (one row per day, zero-filled)
+    daily = []
+    all_users = set()
+    total_stream_mb = 0.0
+    total_download_mb = 0.0
+    total_listening_seconds = 0.0
+    total_streams = 0
+    total_downloads = 0
+
+    for i in range(days):
+        day = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
+        s = stream_by_date.get(day, {})
+        d = download_by_date.get(day, {})
+
+        stream_seconds = float(s.get("total_seconds") or 0)
+        download_seconds = float(d.get("total_seconds") or 0)
+
+        stream_mb = _seconds_to_mb(stream_seconds, STREAM_KBPS)
+        download_mb = _seconds_to_mb(download_seconds, DOWNLOAD_KBPS)
+        listening_minutes = round(stream_seconds / 60.0, 1)
+
+        stream_count = int(s.get("count") or 0)
+        download_count = int(d.get("count") or 0)
+
+        total_stream_mb += stream_mb
+        total_download_mb += download_mb
+        total_listening_seconds += stream_seconds
+        total_streams += stream_count
+        total_downloads += download_count
+        for uid in (s.get("users") or []):
+            if uid:
+                all_users.add(uid)
+
+        daily.append({
+            "date": day,
+            "stream_mb": round(stream_mb, 2),
+            "download_mb": round(download_mb, 2),
+            "total_mb": round(stream_mb + download_mb, 2),
+            "listening_minutes": listening_minutes,
+            "stream_count": stream_count,
+            "download_count": download_count,
+        })
+
+    summary = {
+        "total_gb": round((total_stream_mb + total_download_mb) / 1024.0, 3),
+        "stream_gb": round(total_stream_mb / 1024.0, 3),
+        "download_gb": round(total_download_mb / 1024.0, 3),
+        "total_listening_minutes": int(total_listening_seconds // 60),
+        "total_streams": total_streams,
+        "total_downloads": total_downloads,
+        "unique_listeners": len(all_users),
+    }
+
+    return {
+        "days": days,
+        "summary": summary,
+        "daily": daily,
+        "assumptions": {
+            "stream_kbps": STREAM_KBPS,
+            "download_kbps": DOWNLOAD_KBPS,
+            "avg_song_seconds_fallback": AVG_SONG_SECONDS,
+        },
+    }
