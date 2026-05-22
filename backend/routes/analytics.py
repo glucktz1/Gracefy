@@ -770,8 +770,14 @@ async def get_enhanced_analytics(
     """Get comprehensive enhanced analytics for the dashboard with real data"""
     db = get_db()
     from datetime import timedelta
-    
-    days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
+
+    # Cache results per period — the page hits this on every period toggle.
+    cache_key = f"analytics:enhanced:{period}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365, "1y": 365}.get(period, 30)
     now = datetime.now(timezone.utc)
     start_date = now - timedelta(days=days)
     
@@ -883,36 +889,46 @@ async def get_enhanced_analytics(
     })
     
     # ========== DAILY TREND ==========
+    # Single aggregation per collection instead of 2N sequential queries.
+    # Previously this loop ran ~730 round-trips for 1-year selections,
+    # causing 60s+ 502 timeouts on the analytics page.
     daily_trend = []
+
+    trend_start_iso = (now - timedelta(days=days)).isoformat()
+    streams_by_day_pipeline = [
+        {"$match": {"counted_as_play": True, "start_time": {"$gte": trend_start_iso}}},
+        {"$group": {
+            "_id": {"$substr": ["$start_time", 0, 10]},
+            "streams": {"$sum": 1},
+            "total_seconds": {"$sum": "$duration_seconds"},
+            "total_revenue_earned": {"$sum": {"$ifNull": ["$revenue_earned", 0]}},
+        }},
+    ]
+    streams_by_day_rows = await db.listening_sessions.aggregate(streams_by_day_pipeline).to_list(1000)
+    streams_by_day = {r["_id"]: r for r in streams_by_day_rows}
+
+    fallback_rate = revenue_settings.get("standard_rate_per_hour", 5) if revenue_settings else 5
     for i in range(days, 0, -1):
         day = (now - timedelta(days=i)).strftime("%Y-%m-%d")
-        day_start = f"{day}T00:00:00"
-        day_end = f"{day}T23:59:59"
-        
-        # Streams on this day
-        day_streams = await db.listening_sessions.count_documents({
-            "counted_as_play": True,
-            "start_time": {"$gte": day_start, "$lte": day_end}
-        })
-        
-        # Revenue on this day (if billing enabled)
-        day_revenue = 0
+        row = streams_by_day.get(day, {})
+
+        day_streams = int(row.get("streams") or 0)
+
+        # Use pre-computed revenue when present, otherwise estimate from total seconds.
         if billing_enabled:
-            day_sessions = await db.listening_sessions.find({
-                "counted_as_play": True,
-                "start_time": {"$gte": day_start, "$lte": day_end}
-            }, {"_id": 0, "duration_seconds": 1, "revenue_earned": 1}).to_list(10000)
-            
-            for s in day_sessions:
-                if s.get("revenue_earned"):
-                    day_revenue += s["revenue_earned"]
-                else:
-                    day_revenue += (s.get("duration_seconds", 0) / 3600) * (revenue_settings.get("standard_rate_per_hour", 5) if revenue_settings else 5)
-        
+            earned = float(row.get("total_revenue_earned") or 0)
+            if earned > 0:
+                day_revenue = earned
+            else:
+                day_seconds = float(row.get("total_seconds") or 0)
+                day_revenue = (day_seconds / 3600.0) * fallback_rate
+        else:
+            day_revenue = 0
+
         daily_trend.append({
             "date": day,
             "streams": day_streams,
-            "revenue": round(day_revenue, 2)
+            "revenue": round(day_revenue, 2),
         })
     
     # ========== TOP SONGS ==========
@@ -1057,7 +1073,7 @@ async def get_enhanced_analytics(
         "monetization_mode": monetization_mode
     }
     
-    return {
+    result = {
         "period": period,
         "overview": {
             "total_streams": total_streams,
@@ -1089,6 +1105,10 @@ async def get_enhanced_analytics(
         "albums": albums,
         "rates": rates
     }
+    # Cache for 5 minutes — period toggles on the analytics dashboard hit this
+    # repeatedly; without caching every toggle stalled ~13s on 1-year selection.
+    await cache.set(cache_key, result, 300)
+    return result
 
 
 @router.get("/analytics/realtime")
@@ -1355,7 +1375,7 @@ async def get_revenue_breakdown(
     db = get_db()
     from datetime import timedelta
     
-    days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
+    days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365, "1y": 365}.get(period, 30)
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     # Revenue by subscription plan
@@ -1464,7 +1484,7 @@ async def get_content_revenue_analytics(
 @router.get("/admin/analytics/navigation")
 async def get_navigation_analytics(
     platform: Optional[str] = Query(None),
-    days: int = Query(7, ge=1, le=90)
+    days: int = Query(7, ge=1, le=365)
 ):
     """Get navigation/page analytics - tracks which pages users visit"""
     db = get_db()

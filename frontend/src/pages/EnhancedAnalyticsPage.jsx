@@ -214,11 +214,14 @@ export default function EnhancedAnalyticsPage() {
   const fetchAnalytics = useCallback(async () => {
     try {
       const periodDays = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+      // Each request is independently catch-wrapped so a single endpoint
+      // failure (e.g. validation error on `days=365`) cannot break the whole
+      // dashboard. The period toggles must always work.
       const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes, dataUsageRes] = await Promise.all([
-        axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }),
-        axios.get(`${API}/analytics/realtime`, { withCredentials: true }),
-        axios.get(`${API}/admin/bible/analytics?days=30`, { withCredentials: true }).catch(() => ({ data: null })),
-        axios.get(`${API}/admin/analytics/navigation?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }).catch((e) => { console.warn('enhanced failed', e?.response?.status); return { data: null }; }),
+        axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch((e) => { console.warn('realtime failed', e?.response?.status); return { data: null }; }),
+        axios.get(`${API}/admin/bible/analytics?days=${Math.min(periodDays, 365)}`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API}/admin/analytics/navigation?days=${periodDays}`, { withCredentials: true }).catch((e) => { console.warn('navigation failed', e?.response?.status); return { data: null }; }),
         axios.get(`${API}/analytics/device-distribution`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/analytics/data-usage?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null })),
       ]);
