@@ -5183,6 +5183,9 @@ export default function UserStreamingApp() {
                             // Route through the main player so the mini player shows it
                             // and any other audio (songs/radio) is stopped first.
                             try { player.stopRadio && player.stopRadio(); } catch (e) {}
+                            // Guest 5-action HARD BLOCK applies to all media types.
+                            if (!checkGuestPlayLimit()) return;
+                            incrementGuestPlayCount();
                             player.playSong(virtualSong, virtualAlbum, [{ song: virtualSong, album: virtualAlbum }], 0);
                             // Track play (analytics) — non-blocking
                             axios.post(`${API}/neno-la-leo/${neno.neno_id}/play?audio_type=${audioType}`).catch(() => {});

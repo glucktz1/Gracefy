@@ -14,6 +14,23 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 22, 2026 — Guest HARD BLOCK + Campaign Preview UI Fix
+- ✅ **Guest 5-action HARD BLOCK** (`UserStreamingApp.jsx`):
+  - New `GUEST_ACTION_LIMIT = 5` (plays + skips combined, was separate limits).
+  - `checkGuestPlayLimit()` returns `false` when `guestPlayCount + guestSkipCount >= 5`; the 6th attempt triggers `blockGuestAndForceLogin()` which sets `isAppLocked=true`, shows the non-dismissable modal, pauses the player, and sets `setGuestLimitReached(true)` + `setBlockAutoPlayNext(true)`.
+  - Modal "Later" button hidden when `isLocked`; backdrop has no `onClick` (no dismiss); `dismissLoginPrompt()` re-asserts the modal when locked.
+  - **Rehydrate guard**: useEffect re-opens modal + sets `isAppLocked` on page reload when localStorage counters already >= 5 (page refresh bypass prevented).
+  - **Sign-in clears block**: existing `user`-change effect resets all counters + localStorage keys.
+  - **Continuous-play guard** updated to NOT release halt flags while a guest is locked (`if (!user && isAppLocked) return`).
+  - **Logged-in preview-mode unchanged**: guards are guest-only; the preview-mode timer / wrapped playSong logged-in paths are untouched.
+  - Skip handler `handleSkipWithBillingCheck` now enforces the guest HARD BLOCK before the skip; Neno la Leo button wired to `checkGuestPlayLimit + incrementGuestPlayCount`.
+- ✅ **Admin Campaign Preview Users UI** (`AdvertisingPage.jsx`):
+  - Renders preview list even when 0 users (empty-state copy via `data-testid="campaign-user-preview-empty"`).
+  - Shows BOTH email AND phone (with icons), country+region badge, premium badge.
+  - Stops sending `excluded_user_ids` to the preview endpoint so admins see every matched user and toggle exclusions visually.
+  - Added `data-testid`s: `campaign-preview-users-btn`, `campaign-user-preview-list`, `campaign-user-preview-count`, `campaign-user-row-{userId}`, select/deselect-all.
+- ✅ **Testing**: iteration_51 PASS (campaign UI) + iteration_52 PASS (guest rehydrate + sign-in reset). Test #4 (logged-in preview mode regression) code-reviewed only because preview env has `billing=OFF`.
+
 ### Session: May 19, 2026 — Analytics Accuracy + Performance Pass (current)
 - ✅ **Real-time listener tracking fixed for web** — `/listening/start` now mirrors
   every session into `active_streams` (was mobile-only). Web users finally appear
