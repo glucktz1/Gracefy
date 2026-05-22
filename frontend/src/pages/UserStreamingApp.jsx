@@ -3523,6 +3523,19 @@ export default function UserStreamingApp() {
       localStorage.removeItem('gracefy_prompt_attempts');
     }
   }, [user]);
+
+  // On rehydrate: if a guest already hit the 5-action limit before refresh,
+  // re-assert the HARD BLOCK so they can't bypass it by reloading the page.
+  useEffect(() => {
+    if (!guestStatsLoaded) return;
+    if (user) return;
+    if ((guestPlayCount + guestSkipCount) >= GUEST_ACTION_LIMIT) {
+      console.log('[Guest] Rehydrated past limit — re-asserting HARD BLOCK');
+      setIsAppLocked(true);
+      setShowGuestLimitModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestStatsLoaded, user]);
   
   // Geo-content state
   const [userCountry, setUserCountry] = useState('GLOBAL');
