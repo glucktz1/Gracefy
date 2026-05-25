@@ -26,6 +26,7 @@ import TrackPlayer, {
   useActiveTrack,
 } from 'react-native-track-player';
 import { Platform, AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAudioUrl, getImageUrl, playerAPI, liveTrackingAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
@@ -138,6 +139,37 @@ export const PlayerProvider = ({
   const playStartTimeRef = useRef(null);
   const playTrackedRef = useRef(false);
   const playTrackingTimerRef = useRef(null);
+  // HLS-broken cache (24h TTL via AsyncStorage). When true, we skip HLS and go
+  // straight to the MP3 URL — saves a 1-3s manifest probe on every first song
+  // after app cold-start whenever the .m3u8 manifest's CORS/playback is broken.
+  const hlsBrokenRef = useRef(false);
+  const HLS_BROKEN_KEY = '@gracefy:hls_broken_until';
+
+  // Load HLS-broken flag from AsyncStorage on mount.
+  useEffect(() => {
+    (async () => {
+      try {
+        const v = await AsyncStorage.getItem(HLS_BROKEN_KEY);
+        if (v) {
+          const until = parseInt(v, 10);
+          if (!isNaN(until) && until > Date.now()) {
+            hlsBrokenRef.current = true;
+            console.log('[Player] HLS known broken (persisted) — using MP3 directly');
+          }
+        }
+      } catch (_) { /* AsyncStorage unavailable */ }
+    })();
+  }, []);
+
+  const markHlsBroken = useCallback(async () => {
+    if (hlsBrokenRef.current) return;
+    hlsBrokenRef.current = true;
+    try {
+      // Remember for 24 hours.
+      await AsyncStorage.setItem(HLS_BROKEN_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
+      console.log('[Player] HLS marked broken — will use MP3 for next 24h');
+    } catch (_) { /* noop */ }
+  }, []);
 
   // ============ DERIVED STATE ============
   const isPlaying = playbackState.state === State.Playing;
@@ -311,6 +343,34 @@ export const PlayerProvider = ({
       console.warn('[Player] PlaybackError event:', error?.code, error?.message);
       if (guestLimitReachedRef.current) return;
       consecutivePlaybackErrors += 1;
+      // Detect HLS-related failure: if the active track was an HLS URL, mark
+      // HLS broken for 24h so subsequent songs go MP3-direct (1-3s faster).
+      try {
+        const active = await TrackPlayer.getActiveTrack().catch(() => null);
+        const url = active?.url || '';
+        if (active?.isHLS || /\.m3u8(\?|$)/.test(url)) {
+          await markHlsBroken();
+          // Retry CURRENT song immediately on MP3 — fastest recovery path.
+          const tpQueue = await TrackPlayer.getQueue();
+          const currentIndex = await TrackPlayer.getActiveTrackIndex();
+          const original = currentIndex != null ? queueRef.current?.[currentIndex] : null;
+          if (original) {
+            const mp3Url = getAudioUrl(original.audio_url || original.file_path);
+            if (mp3Url) {
+              await TrackPlayer.remove([currentIndex]);
+              await TrackPlayer.add(
+                [{ ...toTrackPlayerFormat(original), url: mp3Url, isHLS: false }],
+                currentIndex
+              );
+              await TrackPlayer.skip(currentIndex);
+              await TrackPlayer.play();
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Player] HLS-broken detection failed:', e?.message);
+      }
       if (consecutivePlaybackErrors > 3) {
         console.warn('[Player] Too many consecutive playback errors — stopping');
         try { await TrackPlayer.pause(); } catch (e) {}
@@ -792,15 +852,19 @@ export const PlayerProvider = ({
   // ============ CONVERT TRACK FORMAT ============
   // Supports HLS adaptive streaming when available
   const toTrackPlayerFormat = (track) => {
-    // Prioritize HLS URL for adaptive streaming, fallback to regular MP3
+    // Prioritize HLS URL for adaptive streaming, fallback to regular MP3.
+    // BUT — if we've previously detected HLS is broken (manifest CORS, missing
+    // segments, etc.), skip HLS entirely and use MP3 directly. Saves 1-3s of
+    // first-byte latency on every song until the next HLS retry window.
     let audioUrl;
-    if (track.hls_url) {
-      // Use HLS for adaptive streaming (auto-adjusts quality based on network)
+    if (track.hls_url && !hlsBrokenRef.current) {
       audioUrl = track.hls_url;
       console.log('[Player] Using HLS adaptive streaming for:', track.title);
     } else {
-      // Fallback to regular audio URL
       audioUrl = getAudioUrl(track.audio_url || track.file_path);
+      if (track.hls_url && hlsBrokenRef.current) {
+        console.log('[Player] Skipping HLS (known broken) → MP3 for:', track.title);
+      }
     }
     
     return {
@@ -813,7 +877,7 @@ export const PlayerProvider = ({
       artwork: getImageUrl(track.thumbnail || track.cover_url || track.album_thumbnail) || 'https://via.placeholder.com/300',
       duration: track.duration || 0,
       // Track type for analytics
-      isHLS: !!track.hls_url,
+      isHLS: !!track.hls_url && !hlsBrokenRef.current,
     };
   };
 
