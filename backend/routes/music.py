@@ -207,13 +207,11 @@ async def get_albums(
     if artist_id:
         query["artist_id"] = artist_id
     
-    # Execute query with pagination
-    cursor = db.albums.find(query, ALBUM_LIST_PROJECTION)
-    cursor = cursor.sort("created_at", -1).skip(skip).limit(limit)
-    
-    # Run count and fetch in parallel for better performance
-    albums = await cursor.to_list(limit)
-    total = await db.albums.count_documents(query)
+    # Parallelise find + count — used to be sequential (~2× Atlas RTT).
+    import asyncio
+    albums_task = db.albums.find(query, ALBUM_LIST_PROJECTION).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    count_task = db.albums.count_documents(query)
+    albums, total = await asyncio.gather(albums_task, count_task)
     
     albums = optimize_thumbnails(albums)
     
@@ -365,22 +363,27 @@ async def get_songs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200)
 ):
-    """Get songs with pagination."""
+    """Get songs with pagination. Cached for 60s."""
     db = get_db()
+    
+    cache_key = f"songs:list:{album_id}:{skip}:{limit}"
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        return cached_result
     
     query = {"status": "active"}
     if album_id:
         query["album_id"] = album_id
     
-    songs = await db.songs.find(query, SONG_LIST_PROJECTION)\
-        .sort("track_number", 1)\
-        .skip(skip)\
-        .limit(limit)\
-        .to_list(limit)
+    # Parallel find + count → roughly halves wall-clock latency on Atlas.
+    import asyncio
+    songs_task = db.songs.find(query, SONG_LIST_PROJECTION).sort("track_number", 1).skip(skip).limit(limit).to_list(limit)
+    count_task = db.songs.count_documents(query)
+    songs, total = await asyncio.gather(songs_task, count_task)
     
-    total = await db.songs.count_documents(query)
-    
-    return {"songs": songs, "total": total, "skip": skip, "limit": limit}
+    result = {"songs": songs, "total": total, "skip": skip, "limit": limit}
+    await cache.set(cache_key, result, 60)
+    return result
 
 
 @router.post("/albums")

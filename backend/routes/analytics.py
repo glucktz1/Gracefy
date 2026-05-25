@@ -2099,10 +2099,16 @@ async def get_device_distribution():
 
 
 @router.post("/analytics/track-device")
-async def track_user_device(data: dict):
+async def track_user_device(data: dict, request: Request):
     """
     Track user device information from app or web.
     Called when user opens the app or logs in.
+
+    If the client doesn't include `country`/`city` (e.g. Location permission
+    denied), we fall back to a server-side IP geolocation lookup so we still
+    get country-level analytics. Fallback order:
+      1. Cloudflare CF-IPCountry / CF-IPCity headers (zero-latency, free)
+      2. ip-api.com lookup (free, ~80ms p95) keyed by request.client.host
     """
     db = get_db()
     
@@ -2128,15 +2134,37 @@ async def track_user_device(data: dict):
     if data.get("device_info"):
         device_update["device_info"] = data["device_info"]
     
-    # Location info
+    # Location info from client (GPS) — only honored when explicitly supplied
     if data.get("location"):
         device_update["location"] = data["location"]
     if data.get("country"):
         device_update["country"] = data["country"]
     if data.get("city"):
         device_update["city"] = data["city"]
+    if data.get("region"):
+        device_update["region"] = data["region"]
+    
+    # ---- IP-geolocation fallback ----
+    # Fire only when the client did NOT send country (denied permission).
+    if not device_update.get("country"):
+        try:
+            from core.geo_utils import resolve_geo
+            geo = await resolve_geo(request)
+            if geo and geo.get("country"):
+                device_update["country"] = geo["country"]
+                device_update["country_source"] = geo.get("source", "ip")
+            if geo and geo.get("city") and not device_update.get("city"):
+                device_update["city"] = geo["city"]
+            if geo and geo.get("region") and not device_update.get("region"):
+                device_update["region"] = geo["region"]
+            if geo and geo.get("ip"):
+                device_update["last_ip"] = geo["ip"]
+        except Exception as e:
+            logger.warning(f"IP geo fallback failed for {user_id}: {e}")
     
     device_update["last_device_update"] = datetime.now(timezone.utc).isoformat()
+    # Also stamp last_seen_at so /admin/users last-seen column works.
+    device_update["last_seen_at"] = device_update["last_device_update"]
     
     if device_update:
         await db.app_users.update_one(

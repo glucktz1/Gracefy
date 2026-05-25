@@ -36,8 +36,13 @@ async def get_categories(
     type: Optional[str] = None,
     status: Optional[str] = None
 ):
-    """Get all content categories"""
+    """Get all content categories. Cached 5 minutes (categories rarely change)."""
     db = get_db()
+    
+    cache_key = f"categories:list:{type}:{status}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
     
     query = {}
     if type:
@@ -51,7 +56,9 @@ async def get_categories(
         .sort("sort_order", 1)\
         .to_list(100)
     
-    return {"categories": categories}
+    result = {"categories": categories}
+    await cache.set(cache_key, result, 300)
+    return result
 
 
 @router.get("/categories/{category_id}")

@@ -433,49 +433,57 @@ async def get_cdn_status():
 
 @router.get("/admin/cdn/stats")
 async def get_cdn_stats():
-    """Get CDN usage statistics - counts from actual content collections"""
+    """Get CDN usage statistics - counts from actual content collections.
+
+    Cached for 5 minutes — runs 12+ count_documents queries against Atlas
+    and was clocking ~3.7s on every page-load.
+    """
     db = get_db()
     
-    # Count audio files from songs collection
-    songs_with_cdn = await db.songs.count_documents({"audio_url": {"$regex": "^https://"}})
-    songs_with_internal = await db.songs.count_documents({"audio_url": {"$regex": "^/api/"}})
-    songs_no_audio = await db.songs.count_documents({
-        "$or": [
+    cache_key = "admin:cdn:stats:v1"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+    
+    # Parallelise the 12 count_documents queries → ~12× Atlas RTT → 1× RTT.
+    import asyncio
+    (
+        songs_with_cdn,
+        songs_with_internal,
+        songs_no_audio,
+        total_songs,
+        albums_with_cdn_thumb,
+        albums_with_base64_thumb,
+        albums_no_thumb,
+        total_albums,
+        songs_with_cdn_thumb,
+        songs_with_base64_thumb,
+        cdn_tracked_files,
+        local_tracked_files,
+        total_tracked,
+    ) = await asyncio.gather(
+        db.songs.count_documents({"audio_url": {"$regex": "^https://"}}),
+        db.songs.count_documents({"audio_url": {"$regex": "^/api/"}}),
+        db.songs.count_documents({"$or": [
             {"audio_url": {"$exists": False}},
             {"audio_url": None},
-            {"audio_url": ""}
-        ]
-    })
-    total_songs = await db.songs.count_documents({})
-    
-    # Count images from albums collection
-    albums_with_cdn_thumb = await db.albums.count_documents({"thumbnail": {"$regex": "^https://"}})
-    albums_with_base64_thumb = await db.albums.count_documents({"thumbnail": {"$regex": "^data:image"}})
-    albums_no_thumb = await db.albums.count_documents({
-        "$or": [
+            {"audio_url": ""},
+        ]}),
+        db.songs.count_documents({}),
+        db.albums.count_documents({"thumbnail": {"$regex": "^https://"}}),
+        db.albums.count_documents({"thumbnail": {"$regex": "^data:image"}}),
+        db.albums.count_documents({"$or": [
             {"thumbnail": {"$exists": False}},
             {"thumbnail": None},
-            {"thumbnail": ""}
-        ]
-    })
-    total_albums = await db.albums.count_documents({})
-    
-    # Count song thumbnails
-    songs_with_cdn_thumb = await db.songs.count_documents({"thumbnail": {"$regex": "^https://"}})
-    songs_with_base64_thumb = await db.songs.count_documents({"thumbnail": {"$regex": "^data:image"}})
-    
-    # Files collection stats (for legacy tracking)
-    cdn_tracked_files = await db.files.count_documents({"cdn_url": {"$ne": None}})
-    local_tracked_files = await db.files.count_documents({"storage_type": "local"})
-    total_tracked = await db.files.count_documents({})
-    
-    # Estimate sizes (from songs and albums)
-    songs_size_pipeline = [
-        {"$match": {"audio_url": {"$regex": "^https://"}}},
-        {"$group": {"_id": None, "count": {"$sum": 1}}}
-    ]
-    songs_result = await db.songs.aggregate(songs_size_pipeline).to_list(1)
-    cdn_audio_count = songs_result[0]["count"] if songs_result else 0
+            {"thumbnail": ""},
+        ]}),
+        db.albums.count_documents({}),
+        db.songs.count_documents({"thumbnail": {"$regex": "^https://"}}),
+        db.songs.count_documents({"thumbnail": {"$regex": "^data:image"}}),
+        db.files.count_documents({"cdn_url": {"$ne": None}}),
+        db.files.count_documents({"storage_type": "local"}),
+        db.files.count_documents({}),
+    )
     
     # Build response
     folders = {
@@ -504,7 +512,7 @@ async def get_cdn_stats():
     total_cdn_files = songs_with_cdn + albums_with_cdn_thumb + songs_with_cdn_thumb
     total_local_files = songs_with_internal + albums_with_base64_thumb + songs_with_base64_thumb
     
-    return {
+    result = {
         "cdn_files": total_cdn_files,
         "local_files": total_local_files,
         "total_size_mb": round((total_cdn_files * 5) + (albums_with_cdn_thumb * 0.5), 2),
@@ -527,6 +535,9 @@ async def get_cdn_stats():
             "thumbnails": f"{songs_with_cdn_thumb} song thumbnails on CDN"
         }
     }
+    # 5-minute cache — CDN stats are heavy, change slowly
+    await cache.set(cache_key, result, 300)
+    return result
 
 
 @router.get("/admin/cdn/files")

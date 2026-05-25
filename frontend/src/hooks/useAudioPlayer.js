@@ -88,7 +88,22 @@ const useAudioPlayer = () => {
     const audio = audioRef.current;
     const hlsUrl = song.hls_url;
     const mp3Url = getAudioUrl(song.audio_url);
-    const hlsKnownBroken = typeof window !== 'undefined' && sessionStorage.getItem('hls_broken') === '1';
+    // Persist HLS-broken across reloads (not just the tab session).
+    // Production CDN often returns no CORS on .m3u8, causing a 3s timeout
+    // on every first song after each page reload. Once we've confirmed HLS
+    // fails, remember it for 24h so MP3 is used directly.
+    const HLS_BROKEN_KEY = 'hls_broken_until';
+    let hlsKnownBroken = false;
+    try {
+      const sessionFlag = sessionStorage.getItem('hls_broken') === '1';
+      const persistedUntil = parseInt(localStorage.getItem(HLS_BROKEN_KEY) || '0', 10);
+      hlsKnownBroken = sessionFlag || (persistedUntil > Date.now());
+    } catch (_) { /* storage disabled */ }
+    
+    // Tell the browser to aggressively preload audio bytes BEFORE we set src.
+    // Without this, on slow networks the browser delays the byte fetch until
+    // .play() is called → adds 500-1500ms to perceived load time.
+    audio.preload = 'auto';
     
     // Cleanup any existing HLS instance
     cleanupHls();
@@ -107,9 +122,9 @@ const useAudioPlayer = () => {
         // Fail fast on CORS / network errors so we fall back to MP3 quickly
         manifestLoadingMaxRetry: 1,
         manifestLoadingRetryDelay: 500,
-        manifestLoadingTimeOut: 3000,
+        manifestLoadingTimeOut: 2000,
         levelLoadingMaxRetry: 1,
-        levelLoadingTimeOut: 3000,
+        levelLoadingTimeOut: 2000,
         fragLoadingMaxRetry: 2,
       });
       
@@ -132,8 +147,11 @@ const useAudioPlayer = () => {
         console.error('[Player] HLS error:', data.type, data.details);
         
         if (data.fatal) {
-          // Remember HLS is broken so we skip it for next songs this session
-          try { sessionStorage.setItem('hls_broken', '1'); } catch (e) {}
+          // Remember HLS is broken across reloads (24h TTL).
+          try {
+            sessionStorage.setItem('hls_broken', '1');
+            localStorage.setItem(HLS_BROKEN_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
+          } catch (e) {}
           
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -166,7 +184,7 @@ const useAudioPlayer = () => {
     } else {
       // No HLS available (or known broken this session), use direct MP3
       if (hlsKnownBroken) {
-        console.log('[Player] HLS known broken this session, using MP3:', mp3Url);
+        console.log('[Player] HLS known broken, using MP3 direct:', mp3Url);
       } else {
         console.log('[Player] Using direct MP3:', mp3Url);
       }

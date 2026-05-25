@@ -405,6 +405,63 @@ async def fetch_section_content(db, section: dict) -> dict:
     return section_data
 
 
+# Section types we DO NOT shuffle — their order is a product decision
+# (e.g. quick-access nav, hero/featured sections shown in a specific layout,
+# admin-curated content_ids list where the order is intentional).
+_SHUFFLE_SKIP_TYPES = {"quick_access", "hero"}
+_SHUFFLE_SKIP_CONTENT_TYPES = {"categories", "radio"}
+
+
+def _shuffle_home_response(response_data: dict) -> dict:
+    """Per-request shuffle for the home payload.
+
+    Every fresh app open should not see the same album/song order. We:
+      - Deep-copy each section so we never mutate cached state.
+      - Shuffle the `items` array (Fisher-Yates via random.shuffle).
+      - Skip sections where order is admin-defined (quick access, categories).
+
+    The cached payload is unchanged so the cache stays warm AND every caller
+    still gets a fresh order on every request.
+    """
+    import random
+    import copy
+
+    if not response_data or not isinstance(response_data, dict):
+        return response_data
+
+    sections = response_data.get("sections")
+    if not isinstance(sections, list):
+        return response_data
+
+    out_sections = []
+    for sec in sections:
+        if not isinstance(sec, dict):
+            out_sections.append(sec)
+            continue
+        sec_type = sec.get("section_type") or sec.get("type") or ""
+        content_type = sec.get("content_type") or ""
+        items = sec.get("items")
+        if (
+            isinstance(items, list)
+            and len(items) > 1
+            and sec_type not in _SHUFFLE_SKIP_TYPES
+            and content_type not in _SHUFFLE_SKIP_CONTENT_TYPES
+        ):
+            shuffled_items = list(items)
+            random.shuffle(shuffled_items)
+            new_sec = copy.copy(sec)  # shallow copy is enough; we only swap items[]
+            new_sec["items"] = shuffled_items
+            out_sections.append(new_sec)
+        else:
+            out_sections.append(sec)
+
+    out = copy.copy(response_data)
+    out["sections"] = out_sections
+    return out
+
+
+
+
 @router.get("/user/home")
 async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     """
@@ -416,12 +473,15 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     - Parallel section queries
     - Minimal field projections
     - Circuit breaker for fault tolerance
+
+    SHUFFLED PER REQUEST so every fresh app open shows a different order
+    (cache stores a larger pool; we sample/shuffle a window per request).
     """
     # Try hybrid cache first (L1 -> L2)
     cached_data = await get_cached_home_data(platform)
     if cached_data:
         logger.debug(f"Home data ({platform}) served from cache")
-        return cached_data
+        return _shuffle_home_response(cached_data)
     
     db = get_db()
     
@@ -492,7 +552,7 @@ async def get_user_home(platform: str = Query("app", enum=["app", "web"])):
     await set_cached_home_data(platform, response_data)
     
     logger.info(f"Home data generated with {len(home_data)} sections (cached)")
-    return response_data
+    return _shuffle_home_response(response_data)
 
 
 @router.get("/home/app")

@@ -330,7 +330,7 @@ async def start_listening(request: Request, data: dict):
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
 
-    geo = resolve_geo(request)
+    geo = await resolve_geo(request)
 
     # ---- Device parsing (User-Agent → friendly brand/model) ----
     # Mobile clients may pass `device_info` explicitly; web falls back to the

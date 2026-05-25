@@ -209,6 +209,7 @@ async def invalidate_albums_cache(album_id: str = None):
         await cache.delete(f'album_detail:{album_id}')
     await cache.delete_pattern('albums:*')
     await cache.delete_pattern('album_list:*')
+    await cache.delete_pattern('admin:albums:*')
 
 
 async def invalidate_songs_cache(song_id: str = None):
@@ -216,6 +217,7 @@ async def invalidate_songs_cache(song_id: str = None):
     if song_id:
         await cache.delete(f'song:{song_id}')
     await cache.delete_pattern('songs:*')
+    await cache.delete_pattern('admin:cdn:*')  # CDN stats depend on song audio_url
 
 
 async def invalidate_layout_cache():

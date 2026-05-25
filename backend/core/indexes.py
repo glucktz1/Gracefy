@@ -30,8 +30,19 @@ _INDEX_SPECS = [
     # --- Catalog lookups ---
     ("songs", [("song_id", 1)], {"name": "songs_song_id"}),
     ("songs", [("plays", -1)], {"name": "songs_plays_desc"}),
+    # Hot listing query: filter by status + album_id, sort by track_number.
+    ("songs", [("status", 1), ("album_id", 1), ("track_number", 1)], {"name": "songs_status_album_track"}),
+    ("songs", [("album_id", 1)], {"name": "songs_album_id"}),
     ("albums", [("album_id", 1)], {"name": "albums_album_id"}),
+    # Hot listing query: filter by status + category, sort by created_at DESC.
+    ("albums", [("status", 1), ("category_id", 1), ("created_at", -1)], {"name": "albums_status_cat_created"}),
+    ("albums", [("created_at", -1)], {"name": "albums_created_at"}),
     ("singers", [("singer_id", 1)], {"name": "singers_singer_id"}),
+
+    # --- Downloads (for data-usage analytics + per-user counts) ---
+    ("downloads", [("downloaded_at", -1)], {"name": "dl_downloaded_at"}),
+    ("downloads", [("user_id", 1), ("downloaded_at", -1)], {"name": "dl_user_time"}),
+    ("downloads", [("content_id", 1)], {"name": "dl_content_id"}),
 
     # --- User/location analytics ---
     ("app_users", [("user_id", 1)], {"name": "au_user_id"}),

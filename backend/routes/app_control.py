@@ -156,7 +156,7 @@ async def get_public_app_settings():
         "app_download_message": app_settings.get("app_download_message", ""),
         "monetization": monetization_out,
     }
-    await cache.set(cache_key, result, 30)
+    await cache.set(cache_key, result, 120)
     return result
 
 

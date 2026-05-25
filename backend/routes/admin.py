@@ -966,8 +966,13 @@ async def get_admin_albums(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200)
 ):
-    """Get all albums for admin"""
+    """Get all albums for admin. Cached 30s (admin lists change often)."""
     db = get_db()
+    
+    cache_key = f"admin:albums:list:{status}:{artist_id}:{skip}:{limit}"
+    cached = await app_cache.get(cache_key)
+    if cached:
+        return cached
     
     query = {}
     if status:
@@ -975,15 +980,15 @@ async def get_admin_albums(
     if artist_id:
         query["artist_id"] = artist_id
     
-    albums = await db.albums.find(query, {"_id": 0})\
-        .sort("created_at", -1)\
-        .skip(skip)\
-        .limit(limit)\
-        .to_list(limit)
+    # Parallel find + count.
+    import asyncio
+    albums_task = db.albums.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    count_task = db.albums.count_documents(query)
+    albums, total = await asyncio.gather(albums_task, count_task)
     
-    total = await db.albums.count_documents(query)
-    
-    return {"albums": albums, "total": total}
+    result = {"albums": albums, "total": total}
+    await app_cache.set(cache_key, result, 30)
+    return result
 
 
 @router.get("/admin/albums/{album_id}")
