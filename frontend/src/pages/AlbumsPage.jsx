@@ -290,13 +290,25 @@ export default function AlbumsPage() {
             <Badge 
               className="bg-zinc-700/50 text-zinc-400 border-zinc-600/30 text-xs cursor-pointer hover:bg-zinc-700"
               onClick={(e) => { e.stopPropagation(); triggerTranscoding(song.song_id); }}
+              title="Click to (re)trigger HLS transcoding"
             >
               <RefreshCw className="w-3 h-3 mr-1" />
               MP3 Only
             </Badge>
           );
         }
-        return null;
+        // ⚠️ The autoplay-killer state: NO audio_url AND NO hls_url.
+        // Surface a prominent warning so admins can re-upload the audio.
+        return (
+          <Badge
+            className="bg-red-600/30 text-red-300 border-red-500/40 text-xs animate-pulse"
+            title="This song has no audio source. Re-upload the audio file. Playback is impossible."
+            data-testid={`song-missing-source-badge-${song.song_id}`}
+          >
+            <AlertCircle className="w-3 h-3 mr-1" />
+            No Audio
+          </Badge>
+        );
     }
   };
 
@@ -1046,6 +1058,22 @@ export default function AlbumsPage() {
                       {selectedSongIds.length === albumSongs.length ? "Deselect All" : "Select All"}
                     </button>
                   )}
+                  {(() => {
+                    // Surface a count of songs that will BREAK autoplay so the
+                    // admin can spot the problem at a glance.
+                    const broken = albumSongs.filter(s => !s.audio_url && !s.hls_url).length;
+                    if (broken === 0) return null;
+                    return (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600/20 border border-red-500/40 text-red-300 text-xs"
+                        title="These songs have no audio source. Re-upload to fix."
+                        data-testid="album-songs-broken-count"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        {broken} broken
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex gap-2">
                   <Button
