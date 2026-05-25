@@ -3670,18 +3670,47 @@ export default function UserStreamingApp() {
     }
   }, [user, player?.setGuestLimitReached]);
   
-  // Continuous-play guarantee: whenever monetization counters change, ensure ALL halt
-  // flags are OFF so audio keeps flowing under the new Spotify-style model.
-  // EXCEPTION: locked guests (5-action hard block) — never release their halt.
+  // ===================== CONTINUOUS PLAY GUARANTEE =====================
+  // The unbreakable rule of this app:
+  //   • Billing OFF  → playback NEVER halts. Skip count is irrelevant.
+  //   • Premium user → playback NEVER halts. Skip count is irrelevant.
+  //   • Logged-in non-premium with billing ON → ENTERS preview mode (45s clips,
+  //     every 4th song plays in full). Playback STILL continues — never stops.
+  //   • Unauthenticated GUEST → HARD BLOCK after 5 total actions (the ONE
+  //     exception that genuinely halts playback).
+  //
+  // This single effect is the authority for halt-flag state on the player.
+  // It runs whenever ANY input changes and re-asserts the rules so a stale
+  // flag from a previous session can never persist and silently kill the
+  // skip button or auto-advance.
+  // ====================================================================
   useEffect(() => {
-    if (!user && isAppLocked) return; // guest is hard-blocked; keep flags ON
-    if (player?.setGuestLimitReached) {
-      player.setGuestLimitReached(false);
+    const isLockedGuest = !user && isAppLocked;
+
+    // Only locked guests stay halted. Everyone else must have ALL flags off.
+    if (isLockedGuest) {
+      try { player?.setGuestLimitReached?.(true); } catch (_) { /* noop */ }
+      try { player?.setBlockAutoPlayNext?.(true); } catch (_) { /* noop */ }
+      return;
     }
-    if (player?.setBlockAutoPlayNext) {
-      player.setBlockAutoPlayNext(false);
+
+    // Everyone else: clear halt flags so nextSong / auto-advance / skip all work.
+    try { player?.setGuestLimitReached?.(false); } catch (_) { /* noop */ }
+    try { player?.setBlockAutoPlayNext?.(false); } catch (_) { /* noop */ }
+    if (typeof setBlockAutoPlayNext === 'function') {
+      setBlockAutoPlayNext(false);
     }
-  }, [skipCount, previewModeActive, previewClipCount, user, isAppLocked, player?.setGuestLimitReached, player?.setBlockAutoPlayNext]);
+  }, [
+    user,
+    isAppLocked,
+    billingEnabled,
+    isPremium,
+    skipCount,
+    previewModeActive,
+    previewClipCount,
+    player?.setGuestLimitReached,
+    player?.setBlockAutoPlayNext,
+  ]);
   
   // Screen lock/visibility detection for billing prompt (must be after player is defined)
   useEffect(() => {
@@ -3690,16 +3719,11 @@ export default function UserStreamingApp() {
     
     const handleVisibilityChange = () => {
       // If document becomes hidden (screen lock, tab switch, etc.)
-      // and music is playing, show payment prompt but let current song finish
+      // and music is playing, show payment prompt but let current song finish.
+      // NOTE: under the new Spotify-style model we DO NOT halt the next song —
+      // playback must always continue. We just show the contribute prompt.
       if (document.hidden && player?.isPlaying && user) {
-        console.log('[Billing] Screen locked while playing - showing payment prompt, song continues');
-        // Don't pause - let the current song finish
-        // Set flag to block auto-play of next song using the player's method
-        if (player?.setBlockAutoPlayNext) {
-          player.setBlockAutoPlayNext(true);
-        }
-        setBlockAutoPlayNext(true);
-        // Show payment prompt
+        console.log('[Billing] Screen locked while playing — showing contribute prompt, playback continues');
         setShowScreenLockPayment(true);
       }
     };
@@ -3709,7 +3733,7 @@ export default function UserStreamingApp() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [billingEnabled, isPremium, player?.isPlaying, user, player?.setBlockAutoPlayNext]);
+  }, [billingEnabled, isPremium, player?.isPlaying, user]);
   
   // PREVIEW MODE ENFORCEMENT (Spotify-style):
   // When previewModeActive is true:
@@ -4801,14 +4825,33 @@ export default function UserStreamingApp() {
     });
   };
   
-  // Skip wrapper — for guests this enforces the 5-action HARD BLOCK.
-  // For logged-in users it only counts (preview-mode is handled by bumpUsage).
+  // Skip wrapper — billing-aware. Rules (in priority order):
+  //   1. GUEST hit 5-action cap → block & force login (the only true halt).
+  //   2. Billing OFF or user is premium → instant pass-through. Skip is FREE.
+  //   3. Logged-in non-premium with billing ON → just count usage; preview-mode
+  //      enforcement happens via the timer effect, never by halting the skip.
+  // The skip itself ALWAYS executes (so playback continuity is preserved) except
+  // for the guest hard-block path which is intentional.
   const handleSkipWithBillingCheck = (skipFunction) => {
-    // Guest hard-block check BEFORE allowing the skip.
+    // ----- GUEST HARD BLOCK -----
     if (!user) {
       if (!checkGuestPlayLimit()) return; // already at limit — block this skip
       incrementGuestSkipCount();
+      // Fall through to the skip itself unless we just hit the cap.
     }
+
+    // ----- FREE PATH (billing OFF or premium) -----
+    // No counting, no banners — just skip. This is the explicit guarantee
+    // that the user asked for: continuous play when billing is OFF.
+    if (!billingEnabled || isPremium) {
+      if (typeof skipFunction === 'function') skipFunction();
+      return;
+    }
+
+    // ----- BILLING ON, NON-PREMIUM PATH -----
+    // Bump the usage counter (may flip into preview-mode at the threshold)
+    // but ALWAYS perform the skip — preview-mode is enforced by the timer,
+    // not by blocking the skip button.
     bumpUsage();
     if (typeof skipFunction === 'function') skipFunction();
   };

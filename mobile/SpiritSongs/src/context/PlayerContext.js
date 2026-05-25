@@ -603,13 +603,27 @@ export const PlayerProvider = ({
     })();
   }, [progress.position, previewModeActive, isAuthenticated, billingEnabled, isPremium, isPlaying, previewDurationSeconds, onPreviewEnded]);
 
-  // Reset guest limit when user logs in
+  // Reset guest limit when user logs in.
   useEffect(() => {
     if (isAuthenticated) {
       console.log('[Player] User logged in - resetting guest limit flag');
       guestLimitReachedRef.current = false;
     }
   }, [isAuthenticated]);
+
+  // CONTINUOUS PLAY GUARANTEE: when billing is OFF or user is premium, the
+  // player must NEVER be in a halted state — clear all halt flags so skip /
+  // auto-advance never silently break, matching the web app's authoritative
+  // rule. Guest hard-block stays untouched.
+  useEffect(() => {
+    const halt = !isAuthenticated; // only guests can be halted
+    if (!halt) {
+      guestLimitReachedRef.current = false;
+    }
+    if (!billingEnabled || isPremium) {
+      guestLimitReachedRef.current = false;
+    }
+  }, [billingEnabled, isPremium, isAuthenticated]);
   
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
@@ -1084,11 +1098,13 @@ export const PlayerProvider = ({
         }
       }
       
-      // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
+      // BILLING LOGIC: never halt skip — playback must remain continuous.
+      // When billing is ON and we're in background, just queue a payment
+      // prompt for when the user returns, but ALWAYS perform the skip.
       if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
-        console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
+        console.log('[Player] Background skip on billing-on — showing prompt, skip continues');
         pendingPaymentPromptRef.current = true;
-        return;
+        // fall through and do the skip
       }
       
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
@@ -1157,11 +1173,11 @@ export const PlayerProvider = ({
         }
       }
       
-      // BILLING LOGIC: Only block if logged in + billing ON + not premium + in background
+      // BILLING LOGIC: never halt skip — playback must remain continuous.
       if (currentIsAuthenticated && currentBillingEnabled && !currentIsPremium && isInBackgroundRef.current) {
-        console.log('[Player] Blocking skip from lock screen for non-premium logged-in user');
+        console.log('[Player] Background prev on billing-on — showing prompt, prev continues');
         pendingPaymentPromptRef.current = true;
-        return;
+        // fall through to perform the seek/skip
       }
       
       // If more than 3 seconds in, restart current track
