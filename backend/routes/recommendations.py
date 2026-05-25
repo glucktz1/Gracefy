@@ -413,8 +413,20 @@ async def get_next_song_recommendations(
             if not song.get("artist_name"):
                 song["artist_name"] = album_data.get("artist_name")
     
+    # Filter out songs with NO playable source (no audio_url AND no hls_url).
+    # These cause the player to throw "no supported sources" mid-autoplay.
+    playable = []
+    skipped = 0
+    for s in final_recommendations:
+        if (s.get("audio_url") and s["audio_url"].strip()) or (s.get("hls_url") and s["hls_url"].strip()):
+            playable.append(s)
+        else:
+            skipped += 1
+    if skipped:
+        logger.info(f"[Recommendations] Filtered out {skipped} song(s) with no playable source")
+    
     return {
-        "songs": final_recommendations,
+        "songs": playable,
         "criteria_used": criteria_used,
         "total_pool": len(unique_recommendations)
     }

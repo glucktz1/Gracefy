@@ -254,9 +254,15 @@ export const PlayerProvider = ({
       const res = await playerAPI.getNextSongRecommendations(currentSongId, userId, 10);
       
       if (res?.data?.songs && res.data.songs.length > 0) {
-        const newSongs = res.data.songs.filter(
-          song => !queueRef.current.find(q => q.song_id === song.song_id)
-        );
+        // Filter out songs already in queue AND songs with no playable source —
+        // a missing audio_url + missing hls_url combo triggers native player
+        // errors that abort autoplay. Server now filters these out too, but
+        // we double-defend for older deployments.
+        const newSongs = res.data.songs.filter(song => {
+          const inQueue = queueRef.current.find(q => q.song_id === song.song_id);
+          const hasPlayable = (song.audio_url && song.audio_url.trim()) || (song.hls_url && song.hls_url.trim());
+          return !inQueue && hasPlayable;
+        });
         
         if (newSongs.length > 0) {
           console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);

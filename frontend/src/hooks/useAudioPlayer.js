@@ -153,23 +153,45 @@ const useAudioPlayer = () => {
             localStorage.setItem(HLS_BROKEN_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
           } catch (e) {}
           
+          // If we don't have an MP3 fallback URL, there's nothing to do but
+          // skip the song. The audio element's `error` event handler will
+          // catch this via "no supported sources" and advance the queue.
+          const canFallback = mp3Url && mp3Url !== SAMPLE_AUDIO_URL;
+          
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.log('[Player] HLS network error, falling back to MP3');
               cleanupHls();
-              // Fallback to MP3
-              audio.src = mp3Url;
-              if (onReady) onReady();
+              if (canFallback) {
+                audio.src = mp3Url;
+                if (onReady) onReady();
+              } else {
+                // No MP3 → trigger the audio error path to skip song
+                try { audio.removeAttribute('src'); audio.load(); } catch (_) {}
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.log('[Player] HLS media error, attempting recovery');
-              hls.recoverMediaError();
+              try {
+                hls.recoverMediaError();
+              } catch (recoveryErr) {
+                console.warn('[Player] HLS recovery threw, falling back to MP3:', recoveryErr?.message);
+                cleanupHls();
+                if (canFallback) {
+                  audio.src = mp3Url;
+                  if (onReady) onReady();
+                }
+              }
               break;
             default:
               console.log('[Player] HLS fatal error, falling back to MP3');
               cleanupHls();
-              audio.src = mp3Url;
-              if (onReady) onReady();
+              if (canFallback) {
+                audio.src = mp3Url;
+                if (onReady) onReady();
+              } else {
+                try { audio.removeAttribute('src'); audio.load(); } catch (_) {}
+              }
               break;
           }
         }
@@ -201,6 +223,47 @@ const useAudioPlayer = () => {
       cleanupHls();
     };
   }, [cleanupHls]);
+
+  // Global swallower for known audio errors so the React DEV error overlay
+  // doesn't surface "The element has no supported sources." as a fatal page
+  // crash. The audio element's own `error` event handler already takes care
+  // of skipping to the next song — these errors are intentional fall-throughs,
+  // not bugs the user should see.
+  useEffect(() => {
+    const AUDIO_ERROR_PATTERNS = [
+      'no supported sources',
+      'media error: format',
+      'NotSupportedError',
+      'MEDIA_ELEMENT_ERROR',
+    ];
+    const isKnownAudioError = (msg) => {
+      if (!msg || typeof msg !== 'string') return false;
+      return AUDIO_ERROR_PATTERNS.some(p => msg.toLowerCase().includes(p.toLowerCase()));
+    };
+    const onUnhandledRejection = (event) => {
+      const reason = event.reason;
+      const msg = reason?.message || String(reason || '');
+      if (isKnownAudioError(msg)) {
+        console.warn('[Player] Swallowed audio promise rejection:', msg);
+        event.preventDefault();
+      }
+    };
+    const onWindowError = (event) => {
+      const msg = event?.message || event?.error?.message || '';
+      if (isKnownAudioError(msg)) {
+        console.warn('[Player] Swallowed audio window error:', msg);
+        event.preventDefault();
+        return true;
+      }
+      return false;
+    };
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    window.addEventListener('error', onWindowError, true);
+    return () => {
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+      window.removeEventListener('error', onWindowError, true);
+    };
+  }, []);
 
   // ============ FETCH RECOMMENDATIONS FOR CONTINUOUS PLAY ============
   // This mirrors the native mobile app's logic in PlayerContext.js
@@ -429,11 +492,23 @@ const useAudioPlayer = () => {
       });
     }
 
-    // Validate audio URL before attempting to play
+    // Validate audio URL before attempting to play.
+    // Songs from /recommendations/next-songs may arrive without audio_url
+    // OR with hls_url pointing to a broken manifest. If we have NEITHER a
+    // usable mp3 NOR an hls_url, skip the song silently (don't show error
+    // overlay) and advance the queue. This prevents the "no supported sources"
+    // runtime error from killing autoplay continuity.
+    const hasHls = !!song.hls_url;
     const audioUrl = getAudioUrl(song.audio_url);
-    if (!audioUrl || audioUrl === SAMPLE_AUDIO_URL) {
-      console.error('[Player] Invalid or missing audio URL for song:', song.title);
+    const hasUsableMp3 = audioUrl && audioUrl !== SAMPLE_AUDIO_URL;
+    if (!hasHls && !hasUsableMp3) {
+      console.warn('[Player] Song has no usable source, skipping silently:', song.title || song.song_id);
       setIsLoading(false);
+      // Advance the queue without surfacing an error to the user.
+      const nextIdx = index + 1;
+      if (nextIdx < q.length) {
+        setTimeout(() => playFromQueueInternalRef.current(nextIdx, q), 50);
+      }
       return;
     }
     
