@@ -4251,6 +4251,65 @@ export default function UserStreamingApp() {
     }
   };
 
+  // Unified Quick Access click handler.
+  // Quick-access items can arrive in MANY shapes depending on how the admin
+  // configured them — categories, albums, songs, or a static "navigation"
+  // target (Library / Search / Bible / Profile / Subscription / Radio).
+  // The previous handler only looked for `category_id ? else album_id` which
+  // silently did nothing for every other shape (and even did nothing on
+  // production where some items have neither). This handler dispatches on
+  // whichever ID/field is present so EVERY tile takes the user somewhere.
+  const handleQuickAccessClick = (item) => {
+    if (!item) return;
+    console.log('[QuickAccess] click', {
+      keys: Object.keys(item),
+      navigation: item.navigation,
+      category_id: item.category_id,
+      album_id: item.album_id,
+    });
+    try {
+      // 1) Static navigation (admin-configured static screen routes)
+      const nav = (item.navigation || item.target_screen || '').toLowerCase();
+      if (nav) {
+        const navMap = {
+          library: () => setView('library'),
+          search: () => setView('search'),
+          bible: () => setView('bible'),
+          profile: () => setView('profile'),
+          subscription: () => setView('subscription'),
+          home: () => setView('home'),
+          radio: () => setView('radio'),
+        };
+        const fn = navMap[nav];
+        if (fn) { fn(); return; }
+      }
+      // 2) External URL
+      const href = item.target_url || item.link || item.url;
+      if (href && typeof href === 'string' && /^https?:\/\//.test(href)) {
+        window.open(href, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      // 3) Content IDs (priority: album → mix → song → category)
+      if (item.album_id) { openAlbum(item.album_id); return; }
+      if (item.mix_id || item.is_special_mix) { openSpecialMix(item); return; }
+      if (item.song_id && player?.playSong) {
+        const virtualAlbum = { album_id: item.album_id || `qa_${item.song_id}`, title: item.name || item.title || 'Song', thumbnail: item.thumbnail };
+        player.playSong(item, virtualAlbum, [{ song: item, album: virtualAlbum }], 0);
+        return;
+      }
+      if (item.category_id) {
+        // Categories live inside the home view — ensure we're there before
+        // selecting so the categoryAlbums grid renders.
+        if (view !== 'home') setView('home');
+        handleCategorySelect(item);
+        return;
+      }
+      console.warn('[QuickAccess] Unhandled item shape — no nav target:', item);
+    } catch (err) {
+      console.error('[QuickAccess] click failed:', err);
+    }
+  };
+
   const openAlbum = async (albumId) => {
     try {
       const res = await axios.get(`${API}/user/album/${albumId}`);
@@ -5143,9 +5202,9 @@ export default function UserStreamingApp() {
                     {/* Admin configured items (up to 4 more) */}
                     {quickAccessItems.slice(0, 4).map((item, i) => (
                       <QuickAccessCard 
-                        key={item.category_id || item.album_id || i} 
+                        key={item.category_id || item.album_id || item.song_id || item.choir_id || item.church_id || item.id || i} 
                         item={item} 
-                        onClick={() => item.category_id ? handleCategorySelect(item) : openAlbum(item.album_id)}
+                        onClick={() => handleQuickAccessClick(item)}
                         language={language}
                       />
                     ))}
@@ -5606,9 +5665,9 @@ export default function UserStreamingApp() {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           {items.slice(0, 6).map(item => (
                             <QuickAccessCard 
-                              key={item.category_id || item.name} 
+                              key={item.category_id || item.album_id || item.song_id || item.choir_id || item.church_id || item.id || item.name} 
                               item={item} 
-                              onClick={() => handleCategorySelect(item)}
+                              onClick={() => handleQuickAccessClick(item)}
                               language={language}
                             />
                           ))}
