@@ -2021,12 +2021,27 @@ async def get_device_distribution():
         
         # Device manufacturer
         device_info = user.get("device_info", {}) or {}
+        # Helper used across all fields below to coerce odd-shaped DB values
+        # (older docs sometimes store location / device_info as dicts) into a
+        # safe string. Returns None if it can't.
+        def _as_str(v):
+            if v is None:
+                return None
+            if isinstance(v, dict):
+                return v.get("name") or v.get("country") or v.get("city") or v.get("code") or v.get("model") or None
+            if isinstance(v, str):
+                return v.strip() or None
+            try:
+                return str(v).strip() or None
+            except Exception:
+                return None
+
         manufacturer = (
-            user.get("device_manufacturer") or 
-            device_info.get("manufacturer") or 
-            device_info.get("brand") or 
-            "Unknown"
-        ).strip().title()
+            _as_str(user.get("device_manufacturer"))
+            or _as_str(device_info.get("manufacturer"))
+            or _as_str(device_info.get("brand"))
+            or "Unknown"
+        ).title()
         
         # Normalize common manufacturer names
         if "samsung" in manufacturer.lower():
@@ -2052,26 +2067,31 @@ async def get_device_distribution():
         
         # Device model
         model = (
-            user.get("device_model") or 
-            device_info.get("model") or 
-            device_info.get("modelName") or 
-            "Unknown"
-        ).strip()
+            _as_str(user.get("device_model"))
+            or _as_str(device_info.get("model"))
+            or _as_str(device_info.get("modelName"))
+            or "Unknown"
+        )
         if model and model != "Unknown":
             model_key = f"{manufacturer} {model}"
             model_stats[model_key] = model_stats.get(model_key, 0) + 1
         
         # OS Version
         os_ver = (
-            user.get("os_version") or 
-            device_info.get("osVersion") or 
-            device_info.get("systemVersion") or 
-            "Unknown"
+            _as_str(user.get("os_version"))
+            or _as_str(device_info.get("osVersion"))
+            or _as_str(device_info.get("systemVersion"))
+            or "Unknown"
         )
         os_version_stats[os_ver] = os_version_stats.get(os_ver, 0) + 1
         
-        # Location
-        location = user.get("location") or user.get("country") or user.get("city") or "Unknown"
+        # Location — coerce dict location to a string label
+        location = (
+            _as_str(user.get("location"))
+            or _as_str(user.get("country"))
+            or _as_str(user.get("city"))
+            or "Unknown"
+        )
         location_stats[location] = location_stats.get(location, 0) + 1
     
     # Sort and limit results
