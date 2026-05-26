@@ -119,13 +119,20 @@ const useAudioPlayer = () => {
         capLevelToPlayerSize: false,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        // Fail fast on CORS / network errors so we fall back to MP3 quickly
+        // Larger back-buffer keeps a few seconds of audio ready in case of
+        // micro-stalls. Together with the watchdog this masks brief blips.
+        backBufferLength: 30,
+        // Fail fast on manifest CORS / network errors so we fall back to MP3
+        // quickly. BUT — once playback has started, segment loading is more
+        // generous so transient CDN slowness doesn't kill the song.
         manifestLoadingMaxRetry: 1,
         manifestLoadingRetryDelay: 500,
         manifestLoadingTimeOut: 2000,
-        levelLoadingMaxRetry: 1,
-        levelLoadingTimeOut: 2000,
-        fragLoadingMaxRetry: 2,
+        levelLoadingMaxRetry: 2,
+        levelLoadingTimeOut: 4000,
+        fragLoadingMaxRetry: 4,           // was 2 — recover from more blips
+        fragLoadingRetryDelay: 500,
+        fragLoadingMaxRetryTimeout: 8000,
       });
       
       hlsRef.current = hls;
@@ -768,21 +775,144 @@ const useAudioPlayer = () => {
       consecutiveErrorsRef.current = 0; // Reset error counter on successful playback
     };
 
+    // ===================== STALL / BUFFERING WATCHDOG =====================
+    // Goal: when a song stalls (network blip, HLS segment slow/404, CDN
+    // hiccup) it must AUTO-RECOVER instead of sitting indefinitely.
+    //
+    // Strategy (in escalating order, each tier waits ~3-4s before escalating):
+    //   1. Soft kick: pause+play on the audio element. Forces the browser
+    //      to re-evaluate the buffer state and start fetching again.
+    //   2. HLS-aware kick: if HLS.js is active, call `hls.startLoad()` at
+    //      the current playback position. This re-fetches the segment.
+    //   3. Hard reload: `audio.load()` then `audio.play()` from the saved
+    //      playback position. Last-resort but always recovers.
+    //   4. Source swap: if all three above fail in a row, fall back from
+    //      HLS to MP3 (or trigger song-skip).
+    //
+    // Watchdog runs on a 1s interval, only while `isPlaying` is true. It
+    // tracks `currentTime` movement — if time hasn't advanced for 3s while
+    // playback should be active, escalate.
+    // =====================================================================
+    let stallTier = 0;          // 0=ok, 1=soft, 2=hls, 3=reload, 4=fallback
+    let lastObservedTime = 0;
+    let stalledSinceTs = 0;
+    let lastEscalateTs = 0;
+
+    const STALL_THRESHOLD_MS = 3000;      // 3s with no time progression
+    const ESCALATE_COOLDOWN_MS = 3500;    // wait this long between tier kicks
+
+    const escalateStall = () => {
+      const audioEl = audioRef.current;
+      if (!audioEl) return;
+      const now = Date.now();
+      if (now - lastEscalateTs < ESCALATE_COOLDOWN_MS) return;
+      lastEscalateTs = now;
+      stallTier = Math.min(stallTier + 1, 4);
+      const savedTime = audioEl.currentTime;
+      console.warn(`[Stall-WD] Tier ${stallTier} kick @ t=${savedTime.toFixed(2)}s`);
+
+      try {
+        if (stallTier === 1) {
+          // Soft kick: pause then play
+          audioEl.pause();
+          setTimeout(() => {
+            audioEl.play().catch(() => {});
+          }, 80);
+        } else if (stallTier === 2 && hlsRef.current) {
+          // Force HLS to re-fetch the current segment
+          try {
+            hlsRef.current.stopLoad();
+            hlsRef.current.startLoad(savedTime);
+          } catch (e) {
+            console.warn('[Stall-WD] HLS restart threw:', e?.message);
+          }
+          audioEl.play().catch(() => {});
+        } else if (stallTier === 3) {
+          // Hard reload from saved position
+          try {
+            audioEl.load();
+            const onReadyOnce = () => {
+              audioEl.removeEventListener('loadedmetadata', onReadyOnce);
+              audioEl.currentTime = savedTime;
+              audioEl.play().catch(() => {});
+            };
+            audioEl.addEventListener('loadedmetadata', onReadyOnce);
+          } catch (e) {
+            console.warn('[Stall-WD] Hard reload threw:', e?.message);
+          }
+        } else if (stallTier === 4) {
+          // Last resort: if we were on HLS, mark broken and let onError chain
+          // fall back to MP3 (or the next song).
+          if (hlsRef.current) {
+            try {
+              sessionStorage.setItem('hls_broken', '1');
+              localStorage.setItem('hls_broken_until', String(Date.now() + 24 * 60 * 60 * 1000));
+            } catch (_) {}
+            try { hlsRef.current.destroy(); } catch (_) {}
+            hlsRef.current = null;
+            // Trigger MediaError → existing onError handler skips to next song
+            try { audioEl.removeAttribute('src'); audioEl.load(); } catch (_) {}
+          }
+        }
+      } catch (e) {
+        console.warn('[Stall-WD] Recovery threw:', e?.message);
+      }
+    };
+
+    const onPlaying = () => {
+      // Reset the watchdog whenever real playback resumes.
+      stallTier = 0;
+      stalledSinceTs = 0;
+      lastObservedTime = audioRef.current?.currentTime || 0;
+    };
+
+    const stallInterval = setInterval(() => {
+      const audioEl = audioRef.current;
+      if (!audioEl) return;
+      // Only act when we BELIEVE we should be playing but currentTime hasn't moved.
+      // Use audio.paused — single source of truth (cross-tab pause shouldn't trigger).
+      if (audioEl.paused || audioEl.ended) {
+        stallTier = 0;
+        stalledSinceTs = 0;
+        return;
+      }
+      const t = audioEl.currentTime;
+      const moved = Math.abs(t - lastObservedTime) > 0.05;
+      if (moved) {
+        lastObservedTime = t;
+        stalledSinceTs = 0;
+        stallTier = 0;
+        return;
+      }
+      // No movement — start (or continue) the stall clock
+      if (stalledSinceTs === 0) {
+        stalledSinceTs = Date.now();
+        return;
+      }
+      const stalledFor = Date.now() - stalledSinceTs;
+      if (stalledFor >= STALL_THRESHOLD_MS) {
+        escalateStall();
+      }
+    }, 1000);
+
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
     audio.addEventListener('play', onPlay);
+    audio.addEventListener('playing', onPlaying);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('waiting', onWaiting);
     audio.addEventListener('canplay', onCanPlay);
 
     return () => {
+      clearInterval(stallInterval);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
       audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('canplay', onCanPlay);

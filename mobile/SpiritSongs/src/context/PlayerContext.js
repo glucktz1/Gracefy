@@ -397,7 +397,85 @@ export const PlayerProvider = ({
     // Reset error counter on successful track change (a song actually started)
     const trackChangedResetSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () => {
       consecutivePlaybackErrors = 0;
+      // Reset stall watchdog when track changes
+      stallLastPos = 0;
+      stallTier = 0;
+      stalledSinceTs = 0;
     });
+
+    // ===================== STALL / BUFFERING WATCHDOG (mobile) =====================
+    // Same idea as the web watchdog: if playback should be active but the
+    // position hasn't advanced for ~3s, kick the player. Escalates through
+    // three tiers and finally skips to the next song. Polls every 1s.
+    // ===============================================================================
+    let stallLastPos = 0;
+    let stalledSinceTs = 0;
+    let stallTier = 0;
+    let lastEscalateTs = 0;
+    const STALL_THRESHOLD_MS = 3000;
+    const STALL_COOLDOWN_MS = 3500;
+
+    const stallWatchdogInterval = setInterval(async () => {
+      try {
+        const state = await TrackPlayer.getPlaybackState();
+        // Only act when the player thinks it's playing or buffering
+        if (state?.state !== State.Playing && state?.state !== State.Buffering) {
+          stalledSinceTs = 0;
+          stallTier = 0;
+          return;
+        }
+        const progress = await TrackPlayer.getProgress();
+        const pos = progress?.position || 0;
+        if (Math.abs(pos - stallLastPos) > 0.05) {
+          stallLastPos = pos;
+          stalledSinceTs = 0;
+          stallTier = 0;
+          return;
+        }
+        if (stalledSinceTs === 0) {
+          stalledSinceTs = Date.now();
+          return;
+        }
+        if (Date.now() - stalledSinceTs < STALL_THRESHOLD_MS) return;
+        if (Date.now() - lastEscalateTs < STALL_COOLDOWN_MS) return;
+        lastEscalateTs = Date.now();
+        stallTier = Math.min(stallTier + 1, 3);
+        console.warn(`[Stall-WD] Tier ${stallTier} kick at pos=${pos.toFixed(2)}s`);
+
+        if (stallTier === 1) {
+          // Soft kick: pause then play
+          await TrackPlayer.pause();
+          setTimeout(() => TrackPlayer.play().catch(() => {}), 80);
+        } else if (stallTier === 2) {
+          // Hard kick: seek to current position + 0.05 to force buffer reload
+          try {
+            await TrackPlayer.seekTo(Math.max(0, pos - 0.1));
+            await TrackPlayer.play();
+          } catch (e) {
+            console.warn('[Stall-WD] seek+play failed:', e?.message);
+          }
+        } else if (stallTier === 3) {
+          // Last resort: skip to next song (or restart current if no next)
+          console.warn('[Stall-WD] Persistent stall — skipping to next song');
+          try {
+            const qLen = (queueRef.current || []).length;
+            const idx = await TrackPlayer.getActiveTrackIndex();
+            if (idx != null && idx < qLen - 1) {
+              await TrackPlayer.skipToNext();
+              await TrackPlayer.play();
+            } else {
+              // No next song — restart current
+              await TrackPlayer.seekTo(0);
+              await TrackPlayer.play();
+            }
+          } catch (e) {
+            console.error('[Stall-WD] skipNext failed:', e?.message);
+          }
+        }
+      } catch (e) {
+        // Swallow — watchdog must never crash the app
+      }
+    }, 1000);
 
     // Listen for queue end to handle repeat or continuous play
     const queueEndedSub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
@@ -526,6 +604,7 @@ export const PlayerProvider = ({
       trackChangedSub.remove();
       playbackErrorSub.remove();
       trackChangedResetSub.remove();
+      clearInterval(stallWatchdogInterval);
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (playTrackingTimerRef.current) clearTimeout(playTrackingTimerRef.current);
     };
