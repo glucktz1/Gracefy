@@ -89,6 +89,81 @@ export default function UsersPage() {
     country: ""
   });
 
+  // Bulk-delete state
+  // selectedIds is the set of user_ids currently checked in the table.
+  // confirmText must equal "delete <N>" before the user can submit.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletePending, setDeletePending] = useState(false);
+  // When set, the user opened the delete modal for a single row (not selection).
+  // We keep the selection untouched in this case.
+  const [singleDeleteTarget, setSingleDeleteTarget] = useState(null);
+
+  const deleteCount = singleDeleteTarget ? 1 : selectedIds.length;
+  const expectedConfirm = `delete ${deleteCount}`;
+  const canConfirmDelete = deleteConfirmText.trim().toLowerCase() === expectedConfirm;
+
+  const toggleUserSelected = (userId, e) => {
+    if (e) e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const toggleSelectAllVisible = () => {
+    if (selectedIds.length === users.length && users.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(users.map(u => u.user_id));
+    }
+  };
+
+  const openDeleteConfirm = (singleUser = null) => {
+    setSingleDeleteTarget(singleUser);
+    setDeleteConfirmText("");
+    setDeleteConfirmOpen(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deletePending) return; // don't allow close mid-request
+    setDeleteConfirmOpen(false);
+    setSingleDeleteTarget(null);
+    setDeleteConfirmText("");
+  };
+
+  const executeDelete = async () => {
+    if (!canConfirmDelete) return;
+    setDeletePending(true);
+    try {
+      if (singleDeleteTarget) {
+        await axios.delete(`${API}/admin/users/${singleDeleteTarget.user_id}`, { withCredentials: true });
+        toast.success("User deleted");
+        // Drop from selection in case it was also checked
+        setSelectedIds(prev => prev.filter(id => id !== singleDeleteTarget.user_id));
+      } else {
+        const res = await axios.post(
+          `${API}/admin/users/bulk-delete`,
+          { user_ids: selectedIds, confirmation: deleteConfirmText.trim().toLowerCase() },
+          { withCredentials: true }
+        );
+        const total = res.data?.total_deleted ?? selectedIds.length;
+        toast.success(`Deleted ${total} user${total === 1 ? "" : "s"}`);
+        setSelectedIds([]);
+      }
+      setDeleteConfirmOpen(false);
+      setSingleDeleteTarget(null);
+      setDeleteConfirmText("");
+      fetchUsers();
+      fetchStats();
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || "Delete failed";
+      toast.error(`Delete failed: ${msg}`);
+    } finally {
+      setDeletePending(false);
+    }
+  };
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -897,6 +972,36 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
+      {/* Bulk delete toolbar - appears only when ≥1 row is selected */}
+      {selectedIds.length > 0 && (
+        <div
+          className="mb-3 flex items-center justify-between bg-red-950/40 border border-red-700/40 rounded-lg px-4 py-2"
+          data-testid="bulk-delete-toolbar"
+        >
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-red-300 font-medium">
+              {selectedIds.length} user{selectedIds.length === 1 ? "" : "s"} selected
+            </span>
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-zinc-400 hover:text-white text-xs underline"
+              data-testid="bulk-delete-clear-selection-btn"
+            >
+              Clear selection
+            </button>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => openDeleteConfirm(null)}
+            data-testid="bulk-delete-open-confirm-btn"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete selected
+          </Button>
+        </div>
+      )}
+
       {/* Users Table */}
       <Card className="bg-zinc-900/50 border-zinc-800">
         <CardContent className="p-0">
@@ -915,6 +1020,16 @@ export default function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-zinc-800 text-left">
+                    <th className="py-4 px-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length === users.length && users.length > 0}
+                        onChange={toggleSelectAllVisible}
+                        className="w-4 h-4 accent-red-500 cursor-pointer"
+                        title="Select all on this page"
+                        data-testid="bulk-delete-select-all-checkbox"
+                      />
+                    </th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">User ID</th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Email ID / Mobile No.</th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Membership Type</th>
@@ -924,20 +1039,30 @@ export default function UsersPage() {
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Plan Expiry At</th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Last Active At</th>
                     <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Status</th>
+                    <th className="py-4 px-4 text-xs font-medium text-zinc-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
                     <tr 
                       key={user.user_id} 
-                      className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors"
-                      onClick={() => handleViewUser(user)}
+                      className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors ${selectedIds.includes(user.user_id) ? 'bg-red-900/10' : ''}`}
                       data-testid={`user-row-${user.user_id}`}
                     >
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-3 w-10" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(user.user_id)}
+                          onChange={(e) => toggleUserSelected(user.user_id, e)}
+                          className="w-4 h-4 accent-red-500 cursor-pointer"
+                          data-testid={`user-select-checkbox-${user.user_id}`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="py-4 px-4 cursor-pointer" onClick={() => handleViewUser(user)}>
                         <span className="text-white font-medium">{user.user_id?.substring(0, 12) || "-"}</span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 cursor-pointer" onClick={() => handleViewUser(user)}>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{getCountryFlag(user.country)}</span>
                           <span className="text-zinc-300">{user.phone || user.email || "-"}</span>
@@ -971,6 +1096,16 @@ export default function UsersPage() {
                       </td>
                       <td className="py-4 px-4">
                         {getStatusBadge(user.status)}
+                      </td>
+                      <td className="py-4 px-4">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openDeleteConfirm(user); }}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1.5 rounded transition-colors"
+                          title="Delete user"
+                          data-testid={`user-delete-row-btn-${user.user_id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1138,6 +1273,81 @@ export default function UsersPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Delete Confirmation Modal — DOUBLE confirmation ===== */}
+      {/* Admin must literally type "delete <N>" (case-insensitive) where N is */}
+      {/* the count of users selected. We re-verify server-side. */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteConfirm();
+        }}
+      >
+        <DialogContent
+          className="bg-zinc-900 border-red-700/40 max-w-md"
+          data-testid="delete-confirm-modal"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              {singleDeleteTarget ? "Delete user" : `Delete ${deleteCount} users`}
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              {singleDeleteTarget ? (
+                <>
+                  This will <strong className="text-red-400">permanently delete</strong>{" "}
+                  <span className="text-white">
+                    {singleDeleteTarget.email || singleDeleteTarget.phone || singleDeleteTarget.user_id}
+                  </span>
+                  {" "}and all their listening history, downloads, subscriptions and tokens.
+                </>
+              ) : (
+                <>
+                  This will <strong className="text-red-400">permanently delete</strong>{" "}
+                  the {deleteCount} selected users and all their listening history,
+                  downloads, subscriptions and tokens. A snapshot is kept in{" "}
+                  <code className="text-zinc-300">deleted_users_audit</code> for forensics.
+                </>
+              )}
+              <br /><br />
+              To confirm, type exactly:{" "}
+              <code className="text-red-400 font-bold">{expectedConfirm}</code>
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder={expectedConfirm}
+            className="bg-zinc-950 border-zinc-700 text-white"
+            autoFocus
+            disabled={deletePending}
+            data-testid="delete-confirm-input"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canConfirmDelete) executeDelete();
+            }}
+          />
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={closeDeleteConfirm}
+              disabled={deletePending}
+              data-testid="delete-confirm-cancel-btn"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={executeDelete}
+              disabled={!canConfirmDelete || deletePending}
+              data-testid="delete-confirm-submit-btn"
+            >
+              {deletePending ? "Deleting..." : (singleDeleteTarget ? "Delete user" : `Delete ${deleteCount} users`)}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

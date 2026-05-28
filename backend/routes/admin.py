@@ -664,16 +664,115 @@ async def update_admin_user(user_id: str, data: dict):
 
 
 @router.delete("/admin/users/{user_id}")
-async def delete_admin_user(user_id: str):
-    """Delete user"""
+async def delete_admin_user(user_id: str, request: Request):
+    """Delete a single user (admin OR app user) by id.
+
+    Searches both collections so the admin can delete any user in one call.
+    Also cascades to clean up subscriptions, listening sessions and downloads
+    for the deleted app user (admin records are removed as-is).
+    """
     db = get_db()
     
+    # Admin user first
     result = await db.users.delete_one({"user_id": user_id})
+    if result.deleted_count > 0:
+        return {"message": "Admin user deleted", "user_type": "admin", "deleted": 1}
     
+    # Fall back to app_users with cascade cleanup
+    result = await db.app_users.delete_one({"user_id": user_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     
-    return {"message": "User deleted"}
+    # Cascade: remove related data the admin would expect to disappear with
+    # the user. We do it fire-and-forget style — failures here are logged
+    # but never block the user deletion itself.
+    try:
+        await db.subscriptions.delete_many({"user_id": user_id})
+        await db.listening_sessions.delete_many({"user_id": user_id})
+        await db.downloads.delete_many({"user_id": user_id})
+        await db.user_tokens.delete_many({"user_id": user_id})
+        await db.active_listeners.delete_many({"user_id": user_id})
+    except Exception as e:
+        logger.warning(f"Cascade cleanup for {user_id} partially failed: {e}")
+    
+    return {"message": "User deleted", "user_type": "app", "deleted": 1}
+
+
+@router.post("/admin/users/bulk-delete")
+async def bulk_delete_users(data: dict, request: Request):
+    """Bulk delete multiple users.
+
+    Payload: {"user_ids": [...], "confirmation": "delete N"}
+    The `confirmation` MUST literally read "delete <count>" (case-insensitive)
+    where <count> matches len(user_ids). This is a hard double-confirmation:
+    the client UI ALSO asks the admin to type the same string, AND we
+    re-verify here to prevent any accidental bulk deletion.
+    """
+    db = get_db()
+    
+    user_ids = data.get("user_ids") or []
+    if not isinstance(user_ids, list) or not user_ids:
+        raise HTTPException(status_code=400, detail="user_ids must be a non-empty list")
+    
+    # Server-side guard: max 500 per call to limit blast radius if a client bug
+    # ever sends thousands.
+    if len(user_ids) > 500:
+        raise HTTPException(status_code=400, detail="Cannot delete more than 500 users in a single call")
+    
+    # Confirmation phrase MUST be "delete <count>" (case-insensitive).
+    confirmation = (data.get("confirmation") or "").strip().lower()
+    expected = f"delete {len(user_ids)}"
+    if confirmation != expected:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Confirmation phrase must be exactly '{expected}'",
+        )
+    
+    # Audit log of what's being deleted (for forensic recovery if needed).
+    # Snapshot the users into an audit collection BEFORE deletion.
+    snapshots = await db.app_users.find(
+        {"user_id": {"$in": user_ids}}, {"_id": 0, "password_hash": 0}
+    ).to_list(len(user_ids))
+    admin_snaps = await db.users.find(
+        {"user_id": {"$in": user_ids}}, {"_id": 0, "password_hash": 0}
+    ).to_list(len(user_ids))
+    if snapshots or admin_snaps:
+        try:
+            await db.deleted_users_audit.insert_many([
+                {
+                    "user_id": s.get("user_id"),
+                    "email": s.get("email"),
+                    "name": s.get("name"),
+                    "user_type": "app" if s in snapshots else "admin",
+                    "deleted_at": datetime.now(timezone.utc).isoformat(),
+                    "snapshot": s,
+                }
+                for s in (list(snapshots) + list(admin_snaps))
+            ])
+        except Exception as e:
+            logger.warning(f"Could not write deletion audit: {e}")
+    
+    # Delete from both collections.
+    app_res = await db.app_users.delete_many({"user_id": {"$in": user_ids}})
+    admin_res = await db.users.delete_many({"user_id": {"$in": user_ids}})
+    
+    # Cascade cleanup — best-effort
+    try:
+        await db.subscriptions.delete_many({"user_id": {"$in": user_ids}})
+        await db.listening_sessions.delete_many({"user_id": {"$in": user_ids}})
+        await db.downloads.delete_many({"user_id": {"$in": user_ids}})
+        await db.user_tokens.delete_many({"user_id": {"$in": user_ids}})
+        await db.active_listeners.delete_many({"user_id": {"$in": user_ids}})
+    except Exception as e:
+        logger.warning(f"Bulk cascade cleanup partially failed: {e}")
+    
+    return {
+        "message": "Users deleted",
+        "requested": len(user_ids),
+        "deleted_app_users": app_res.deleted_count,
+        "deleted_admin_users": admin_res.deleted_count,
+        "total_deleted": app_res.deleted_count + admin_res.deleted_count,
+    }
 
 
 @router.post("/admin/users")
