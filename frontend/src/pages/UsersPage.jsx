@@ -71,10 +71,13 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [registerByFilter, setRegisterByFilter] = useState("all");
   
-  // Pagination
+  // Pagination — itemsPerPage is now controlled state so the bottom-row
+  // page-size Select (10/25/50/100) can actually change it. Previously this
+  // was a hardcoded `const` of 10 and the Select's onValueChange was a no-op,
+  // so picking 50 still showed 10.
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -167,8 +170,10 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      // Backend uses (skip, limit) — NOT (page, limit). Convert page → skip
+      // so the page-size selector + page navigation both work.
       const params = {
-        page: currentPage,
+        skip: (currentPage - 1) * itemsPerPage,
         limit: itemsPerPage,
         search: searchQuery || undefined,
         membership_type: membershipFilter !== "all" ? membershipFilter : undefined,
@@ -196,7 +201,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchQuery, membershipFilter, statusFilter, registerByFilter]);
+  }, [currentPage, itemsPerPage, searchQuery, membershipFilter, statusFilter, registerByFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -1117,14 +1122,24 @@ export default function UsersPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between p-4 border-t border-zinc-800">
-              <Select value={String(itemsPerPage)} onValueChange={() => {}}>
-                <SelectTrigger className="w-[80px] bg-zinc-950 border-zinc-800 text-white">
+              <Select
+                value={String(itemsPerPage)}
+                onValueChange={(v) => {
+                  const n = parseInt(v, 10);
+                  if (!isNaN(n) && n > 0) {
+                    setItemsPerPage(n);
+                    setCurrentPage(1); // reset to page 1 so the new size shows from the top
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[80px] bg-zinc-950 border-zinc-800 text-white" data-testid="users-page-size-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
                   <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
                   <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
                 </SelectContent>
               </Select>
 
