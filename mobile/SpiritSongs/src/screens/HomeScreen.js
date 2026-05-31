@@ -754,10 +754,8 @@ const HomeScreen = ({ navigation }) => {
     // Quick Access
     sections.push({ type: 'quickAccess', key: 'quickAccess' });
     
-    // Neno la Leo - Today's Word from religious leaders
-    if (nenoLaLeo.length > 0) {
-      sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
-    }
+    // (Neno la Leo previously lived here — moved to row #4 below, after the
+    // first 3 dynamic content sections, per product requirement.)
     
     // Category Filters
     if (categories.length > 0) {
@@ -768,6 +766,9 @@ const HomeScreen = ({ navigation }) => {
     // These should not include "Nyimbo Zote" which goes at the end
     // Filter out sections with empty/invalid items
     // Also filter out Mafundisho - we'll add it separately to control order
+    let dynamicRendered = 0;
+    let nenoEmitted = false;
+    const NENO_AFTER = 3; // splice Neno after the 3rd dynamic content row → row #4
     layoutSections
       .filter(s => s.section_type !== 'hero' && s.items?.length > 0)
       .filter(s => !s.title?.toLowerCase().includes('nyimbo zote')) // Exclude "Nyimbo Zote" - it goes last
@@ -790,7 +791,17 @@ const HomeScreen = ({ navigation }) => {
         sections.push({ type: 'dynamicSection', key: section.section_id, data: section });
         // Track the section type to avoid duplicates
         if (section.section_type) addedSectionTypes.add(section.section_type);
+        dynamicRendered += 1;
+        // Inject Neno la Leo right after the 3rd dynamic section so it lands at row #4.
+        if (!nenoEmitted && dynamicRendered === NENO_AFTER && nenoLaLeo.length > 0) {
+          sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
+          nenoEmitted = true;
+        }
       });
+    // Fewer than 3 dynamic sections? Still emit Neno la Leo so it's visible.
+    if (!nenoEmitted && nenoLaLeo.length > 0) {
+      sections.push({ type: 'nenoLaLeo', key: 'nenoLaLeo', data: nenoLaLeo });
+    }
     
     // Special Mixes (only if not already added from layout)
     if (specialMixes.length > 0 && !addedSectionTypes.has('special_mixes')) {

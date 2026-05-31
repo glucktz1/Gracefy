@@ -5229,111 +5229,12 @@ export default function UserStreamingApp() {
                   </div>
                 )}
 
-                {/* Neno la Leo - Horizontal scrolling tiles */}
-                {nenoLaLeoList.length > 0 && (
-                  <section data-testid="neno-la-leo-section">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h2 className="text-xl font-bold text-white">Neno la Leo</h2>
-                        <p className="text-xs text-zinc-500">Tafakari za kila siku kutoka kwa viongozi wa dini</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                      {nenoLaLeoList.map(neno => {
-                        const nenoSongId = `neno_${neno.neno_id}`;
-                        const isActive = player.currentSong?.song_id === nenoSongId;
-                        return (
-                        <div
-                          key={neno.neno_id}
-                          className={`flex-shrink-0 w-64 rounded-2xl p-4 transition-all cursor-pointer ${
-                            isActive
-                              ? 'bg-gradient-to-br from-violet-700/60 via-violet-900/60 to-fuchsia-900/40 border-2 border-violet-400 shadow-lg shadow-violet-500/30'
-                              : 'bg-gradient-to-br from-violet-900/40 via-zinc-900 to-violet-950/40 border border-violet-800/40 hover:border-violet-600'
-                          }`}
-                          data-testid={`neno-tile-${neno.neno_id}`}
-                          onClick={() => {
-                            // If this neno is already active, just toggle play/pause via main player
-                            if (isActive) {
-                              player.togglePlay();
-                              return;
-                            }
-                            // Play reading audio first if available, else reflection
-                            const url = neno.reading_audio_url || neno.reflection_audio_url;
-                            if (!url) {
-                              toast?.error?.("Hakuna sauti");
-                              return;
-                            }
-                            const audioType = neno.reading_audio_url ? "reading" : "reflection";
-                            const leaderName = neno.leader_display
-                              || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim()
-                              || 'Neno la Leo';
-                            const virtualSong = {
-                              song_id: nenoSongId,
-                              title: `${neno.verse_reference} — ${neno.word_day_name}`,
-                              audio_url: url,
-                              thumbnail: neno.leader?.photo_url || null,
-                              artist_name: leaderName,
-                              duration: 0,
-                              is_neno_la_leo: true,
-                            };
-                            const virtualAlbum = {
-                              album_id: `neno_album_${neno.neno_id}`,
-                              title: 'Neno la Leo',
-                              artist_name: leaderName,
-                              thumbnail: neno.leader?.photo_url || null,
-                            };
-                            // Route through the main player so the mini player shows it
-                            // and any other audio (songs/radio) is stopped first.
-                            try { player.stopRadio && player.stopRadio(); } catch (e) {}
-                            // Guest 5-action HARD BLOCK applies to all media types.
-                            if (!checkGuestPlayLimit()) return;
-                            incrementGuestPlayCount();
-                            player.playSong(virtualSong, virtualAlbum, [{ song: virtualSong, album: virtualAlbum }], 0);
-                            // Track play (analytics) — non-blocking
-                            axios.post(`${API}/neno-la-leo/${neno.neno_id}/play?audio_type=${audioType}`).catch(() => {});
-                          }}
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-medium text-violet-300 bg-violet-900/40 px-2 py-1 rounded-full">
-                              {neno.word_day_name}
-                            </span>
-                            {isActive && player.isPlaying ? (
-                              <div className="flex items-end gap-0.5 h-5" data-testid={`neno-playing-${neno.neno_id}`}>
-                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '40%', animationDelay: '0ms' }} />
-                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '100%', animationDelay: '120ms' }} />
-                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '60%', animationDelay: '240ms' }} />
-                                <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '80%', animationDelay: '360ms' }} />
-                              </div>
-                            ) : isActive ? (
-                              <Pause size={20} className="text-violet-300 fill-violet-300" />
-                            ) : (
-                              <Play size={20} className="text-violet-400 fill-violet-400" />
-                            )}
-                          </div>
-                          <h3 className="text-lg font-bold text-white mb-1 truncate">{neno.verse_reference}</h3>
-                          <p className="text-xs text-zinc-400 mb-3">{neno.word_date}</p>
-                          <div className="flex items-center gap-2 pt-3 border-t border-violet-800/30">
-                            {neno.leader?.photo_url ? (
-                              <img src={neno.leader.photo_url} alt="" className="w-7 h-7 rounded-full object-cover" />
-                            ) : (
-                              <div className="w-7 h-7 rounded-full bg-violet-700/40 flex items-center justify-center">
-                                <span className="text-xs text-violet-200">{(neno.leader?.name || '?').charAt(0)}</span>
-                              </div>
-                            )}
-                            <span className="text-xs text-zinc-300 truncate">
-                              {neno.leader_display || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 text-[10px] text-zinc-500">
-                            {neno.reading_audio_url && <span className="text-emerald-400">● Usomaji</span>}
-                            {neno.reflection_audio_url && <span className="text-violet-400">● Tafakari</span>}
-                          </div>
-                        </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                )}
+                {/* Neno la Leo block — extracted into a JSX variable so we can
+                    inject it at row #4 (after the first 3 dynamic content rows)
+                    instead of hardcoding it above the sections. See render
+                    logic inside `homeData.sections?.map(...)` below. */}
+                {(() => { return null; })()}
+
                 {/* Filtered Category View */}
                 {activeCategory && (
                   <section>
@@ -5351,12 +5252,114 @@ export default function UserStreamingApp() {
                   </section>
                 )}
 
-                {/* Dynamic Sections */}
-                {!activeCategory && homeData && homeData.sections?.map((section, idx) => {
+                {/* Dynamic Sections — Neno la Leo (when present) is injected as
+                    the 4th content row. We define the Neno JSX once in an IIFE so
+                    the closure-bound counter can decide where to splice it in
+                    without copying the 400-line section renderer below. */}
+                {(() => {
+                  if (activeCategory || !homeData) return null;
+                  const nenoLaLeoBlock = nenoLaLeoList.length > 0 ? (
+                    <section key="__neno_la_leo__" data-testid="neno-la-leo-section">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h2 className="text-xl font-bold text-white">Neno la Leo</h2>
+                          <p className="text-xs text-zinc-500">Tafakari za kila siku kutoka kwa viongozi wa dini</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        {nenoLaLeoList.map(neno => {
+                          const nenoSongId = `neno_${neno.neno_id}`;
+                          const isActive = player.currentSong?.song_id === nenoSongId;
+                          return (
+                          <div
+                            key={neno.neno_id}
+                            className={`flex-shrink-0 w-64 rounded-2xl p-4 transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-gradient-to-br from-violet-700/60 via-violet-900/60 to-fuchsia-900/40 border-2 border-violet-400 shadow-lg shadow-violet-500/30'
+                                : 'bg-gradient-to-br from-violet-900/40 via-zinc-900 to-violet-950/40 border border-violet-800/40 hover:border-violet-600'
+                            }`}
+                            data-testid={`neno-tile-${neno.neno_id}`}
+                            onClick={() => {
+                              if (isActive) { player.togglePlay(); return; }
+                              const url = neno.reading_audio_url || neno.reflection_audio_url;
+                              if (!url) { toast?.error?.("Hakuna sauti"); return; }
+                              const audioType = neno.reading_audio_url ? "reading" : "reflection";
+                              const leaderName = neno.leader_display
+                                || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim()
+                                || 'Neno la Leo';
+                              const virtualSong = {
+                                song_id: nenoSongId,
+                                title: `${neno.verse_reference} — ${neno.word_day_name}`,
+                                audio_url: url,
+                                thumbnail: neno.leader?.photo_url || null,
+                                artist_name: leaderName,
+                                duration: 0,
+                                is_neno_la_leo: true,
+                              };
+                              const virtualAlbum = {
+                                album_id: `neno_album_${neno.neno_id}`,
+                                title: 'Neno la Leo',
+                                artist_name: leaderName,
+                                thumbnail: neno.leader?.photo_url || null,
+                              };
+                              try { player.stopRadio && player.stopRadio(); } catch (e) {}
+                              if (!checkGuestPlayLimit()) return;
+                              incrementGuestPlayCount();
+                              player.playSong(virtualSong, virtualAlbum, [{ song: virtualSong, album: virtualAlbum }], 0);
+                              axios.post(`${API}/neno-la-leo/${neno.neno_id}/play?audio_type=${audioType}`).catch(() => {});
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs font-medium text-violet-300 bg-violet-900/40 px-2 py-1 rounded-full">{neno.word_day_name}</span>
+                              {isActive && player.isPlaying ? (
+                                <div className="flex items-end gap-0.5 h-5" data-testid={`neno-playing-${neno.neno_id}`}>
+                                  <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '40%', animationDelay: '0ms' }} />
+                                  <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '100%', animationDelay: '120ms' }} />
+                                  <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '60%', animationDelay: '240ms' }} />
+                                  <span className="w-1 bg-violet-300 animate-pulse" style={{ height: '80%', animationDelay: '360ms' }} />
+                                </div>
+                              ) : isActive ? (
+                                <Pause size={20} className="text-violet-300 fill-violet-300" />
+                              ) : (
+                                <Play size={20} className="text-violet-400 fill-violet-400" />
+                              )}
+                            </div>
+                            <h3 className="text-lg font-bold text-white mb-1 truncate">{neno.verse_reference}</h3>
+                            <p className="text-xs text-zinc-400 mb-3">{neno.word_date}</p>
+                            <div className="flex items-center gap-2 pt-3 border-t border-violet-800/30">
+                              {neno.leader?.photo_url ? (
+                                <img src={neno.leader.photo_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-violet-700/40 flex items-center justify-center">
+                                  <span className="text-xs text-violet-200">{(neno.leader?.name || '?').charAt(0)}</span>
+                                </div>
+                              )}
+                              <span className="text-xs text-zinc-300 truncate">
+                                {neno.leader_display || `${neno.leader?.title || ''} ${neno.leader?.name || ''}`.trim() || 'Unknown'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 text-[10px] text-zinc-500">
+                              {neno.reading_audio_url && <span className="text-emerald-400">● Usomaji</span>}
+                              {neno.reflection_audio_url && <span className="text-violet-400">● Tafakari</span>}
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ) : null;
+
+                  // Counter is mutated by the .map below; we splice Neno la Leo
+                  // in after the 3rd visible row (row #4).
+                  let renderedCount = 0;
+                  let nenoEmitted = false;
+                  const NENO_AFTER = 3;
+
+                  const rendered = (homeData.sections || []).map((section, idx) => {
                   // Skip hero (handled above) and quick_access (handled in static grid above)
                   if (section.section_type === 'hero') return null;
                   if (section.section_type === 'quick_access') return null; // Already rendered above
-                  
+
                   const items = section.items || [];
                   if (items.length === 0) return null;
                   
@@ -5741,7 +5744,25 @@ export default function UserStreamingApp() {
                       )}
                     </section>
                   );
-                })}
+                  });
+
+                  // Post-process the rendered array: iterate, skip null entries
+                  // (hero/quick_access/empty), count real renders and inject the
+                  // Neno la Leo block after the 3rd one. If fewer than 3 rows
+                  // render, Neno is appended at the end so it's always visible.
+                  const output = [];
+                  rendered.forEach((el) => {
+                    if (el == null) return;
+                    output.push(el);
+                    renderedCount += 1;
+                    if (!nenoEmitted && renderedCount === NENO_AFTER && nenoLaLeoBlock) {
+                      output.push(nenoLaLeoBlock);
+                      nenoEmitted = true;
+                    }
+                  });
+                  if (!nenoEmitted && nenoLaLeoBlock) output.push(nenoLaLeoBlock);
+                  return output;
+                })()}
 
                 {/* Additional Burners */}
                 {homeData && homeData.burners?.length > 1 && (
