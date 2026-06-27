@@ -4329,7 +4329,7 @@ export default function UserStreamingApp() {
       // Show the view immediately with a placeholder so the tap feels instant.
       setCategorySongsView({ id: categoryId, name: fallbackName, cover: null, songs: [], loading: true });
       setView('category-songs');
-      const res = await axios.get(`${API}/api/category/${categoryId}/all-songs?limit=200`);
+      const res = await axios.get(`${API}/category/${categoryId}/all-songs?limit=200`);
       const data = res.data || {};
       setCategorySongsView({
         id: categoryId,
