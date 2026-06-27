@@ -49,6 +49,7 @@ import ChatScreen from './src/screens/ChatScreen';
 import RadioScreen from './src/screens/RadioScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import LegalScreen from './src/screens/LegalScreen';
+import CategorySongsScreen from './src/screens/CategorySongsScreen';
 
 // Components
 import MiniPlayer from './src/components/MiniPlayer';
@@ -388,6 +389,7 @@ const AppContent = () => {
           <Stack.Screen name="Radio" component={RadioScreen} />
           <Stack.Screen name="Subscription" component={SubscriptionScreen} />
           <Stack.Screen name="Legal" component={LegalScreen} />
+          <Stack.Screen name="CategorySongs" component={CategorySongsScreen} />
         </Stack.Navigator>
 
         {/* Mini Player - Positioned directly above tab bar */}

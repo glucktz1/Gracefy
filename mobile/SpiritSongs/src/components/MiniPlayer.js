@@ -67,23 +67,14 @@ const MiniPlayer = ({ onPress, navigation }) => {
         translateX.setValue(0);
       },
       onPanResponderMove: (_, gestureState) => {
-        // Only allow swipe for premium users
-        if (billingEnabled && !isPremium) return;
+        // Allow swipe for everyone — guest/preview/skip limits are enforced
+        // inside skipNext/skipPrevious in PlayerContext. The mini-player
+        // should match Spotify's behavior: swipe left/right always tracks.
         translateX.setValue(gestureState.dx);
       },
       onPanResponderRelease: (_, gestureState) => {
         translateX.flattenOffset();
-        
-        // Check if user is premium
-        if (billingEnabled && !isPremium) {
-          // Reset position
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-          return;
-        }
-        
+
         if (gestureState.dx > SWIPE_THRESHOLD) {
           // Swipe right - previous track
           Animated.timing(translateX, {

@@ -110,6 +110,109 @@ async def get_category_content(category_id: str, limit: int = Query(50)):
     }
 
 
+@router.get("/category/{category_id}/all-songs")
+async def get_all_songs_in_category(category_id: str, limit: int = Query(200, ge=1, le=500)):
+    """
+    Spotify-style "category page" payload — every song that belongs to any
+    album in this category, enriched with the album's thumbnail/title so the
+    client can render a clean list and "Play All".
+
+    Always tries to return at least one representative cover so the Quick
+    Access card has a thumbnail even if the category record has none.
+    """
+    db = get_db()
+
+    # Categories live in two collections depending on type:
+    # `song_categories` for song-style cats (songcat_*) used by albums via
+    # the `category_id` field, and `categories` for content categories.
+    category = None
+    if category_id.startswith("songcat_"):
+        category = await db.song_categories.find_one(
+            {"song_category_id": category_id}, {"_id": 0}
+        )
+    if not category:
+        category = await db.categories.find_one({"category_id": category_id}, {"_id": 0})
+    if not category:
+        # Last-ditch: fall back to song_categories regardless of prefix
+        category = await db.song_categories.find_one(
+            {"song_category_id": category_id}, {"_id": 0}
+        )
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # Cache by category id — songs in a category don't churn often.
+    cache_key = f"category:all_songs:{category_id}:{limit}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    # Albums in this category. The data model uses `category_id` (singular)
+    # on albums and the value matches the song_category_id. Status is `active`.
+    albums = await db.albums.find(
+        {"category_id": category_id, "status": "active"},
+        {"_id": 0, "album_id": 1, "title": 1, "thumbnail": 1, "artist_name": 1}
+    ).sort("created_at", -1).to_list(500)
+
+    album_ids = [a["album_id"] for a in albums if a.get("album_id")]
+    albums_map = {a["album_id"]: a for a in albums}
+
+    songs = []
+    if album_ids:
+        songs = await db.songs.find(
+            {"album_id": {"$in": album_ids}, "status": "active"},
+            {"_id": 0}
+        ).sort("created_at", -1).limit(limit).to_list(limit)
+
+        # Enrich every song with album metadata + a thumbnail fallback so the
+        # client never sees a blank card.
+        for s in songs:
+            aid = s.get("album_id")
+            if aid and aid in albums_map:
+                a = albums_map[aid]
+                if not s.get("thumbnail"):
+                    s["thumbnail"] = a.get("thumbnail")
+                s["album_thumbnail"] = a.get("thumbnail")
+                s["album_title"] = a.get("title")
+                if not s.get("artist_name"):
+                    s["artist_name"] = a.get("artist_name")
+
+    # Pick a representative thumbnail for the category card:
+    # explicit category.thumbnail → first album with a thumbnail → first song
+    cover = category.get("thumbnail")
+    if not cover:
+        for a in albums:
+            if a.get("thumbnail"):
+                cover = a["thumbnail"]
+                break
+    if not cover:
+        for s in songs:
+            if s.get("thumbnail"):
+                cover = s["thumbnail"]
+                break
+
+    # Filter out songs without any playable source so "Play All" never trips
+    playable = [
+        s for s in songs
+        if (s.get("audio_url") and s["audio_url"].strip())
+        or (s.get("hls_url") and s["hls_url"].strip())
+    ]
+
+    # Normalize a `category_id` field on the response so the client doesn't
+    # need to care whether it came from `categories` or `song_categories`.
+    cat_out = dict(category)
+    cat_out["category_id"] = category.get("category_id") or category.get("song_category_id") or category_id
+
+    result = {
+        "category": cat_out,
+        "cover": cover,
+        "songs": playable,
+        "total_songs": len(playable),
+        "total_albums": len(albums),
+    }
+    await cache.set(cache_key, result, 120)
+    return result
+
+
 @router.post("/categories")
 async def create_category(data: dict):
     """Create a new category"""

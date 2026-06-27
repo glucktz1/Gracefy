@@ -1969,12 +1969,17 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 
 // Mini Player Bar
 const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute }) => {
+  // ============ HOOKS (declared BEFORE any early return so order stays stable) ============
+  // Swipe gesture state (Spotify-style): swipe LEFT = next, swipe RIGHT = prev.
+  const touchRef = React.useRef({ startX: 0, startY: 0, dx: 0, dy: 0, t: 0 });
+  const [dragOffset, setDragOffset] = React.useState(0);
+
   // Show player if there's a song OR a radio station playing
   if (!player.currentSong && !player.currentRadioStation) return null;
-  
+
   // Check if in radio mode
   const isRadio = player.isRadioMode && player.currentRadioStation;
-  
+
   // Use provided handlers or default to player methods
   const handleNext = onNext || player.nextSong;
   const handlePrev = onPrev || player.prevSong;
@@ -1986,10 +1991,50 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
     ? (player.currentRadioStation.favicon || player.currentRadioStation.thumbnail) 
     : getThumbnail(player.currentAlbum);
 
+  // ============ SWIPE HANDLERS ============
+  // Tap stays an expand; only horizontal motion > 50px triggers a swipe.
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    touchRef.current = { startX: t.clientX, startY: t.clientY, dx: 0, dy: 0, t: Date.now() };
+  };
+  const onTouchMove = (e) => {
+    if (isRadio) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchRef.current.startX;
+    const dy = t.clientY - touchRef.current.startY;
+    touchRef.current.dx = dx;
+    touchRef.current.dy = dy;
+    if (Math.abs(dx) > Math.abs(dy) * 1.4) {
+      setDragOffset(Math.max(-120, Math.min(120, dx)));
+    }
+  };
+  const onTouchEnd = () => {
+    const { dx, dy, t } = touchRef.current;
+    const dt = Date.now() - t;
+    setDragOffset(0);
+    if (isRadio) return;
+    const horizontal = Math.abs(dx) > Math.abs(dy) * 1.4;
+    const isSwipe = horizontal && (Math.abs(dx) > 60 || Math.abs(dx) / Math.max(dt, 1) > 0.3);
+    if (!isSwipe) return;
+    if (dx < 0) {
+      handleNext && handleNext();
+    } else {
+      handlePrev && handlePrev();
+    }
+  };
+
   return (
     <div
       className={`fixed left-0 right-0 lg:left-64 lg:bottom-0 bottom-14 z-50 bg-zinc-900/98 backdrop-blur-xl border-t border-zinc-800 ${showContributeBanner ? 'monetization-glow' : ''}`}
       data-testid="mini-player"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{
+        transform: dragOffset ? `translateX(${dragOffset * 0.4}px)` : undefined,
+        transition: dragOffset ? 'none' : 'transform 180ms cubic-bezier(.2,.8,.2,1)',
+        touchAction: 'pan-y',
+      }}
     >
       {/* Contribution banner — Spotify-style "Listening to a preview" strip in logo blue */}
       {showContributeBanner && !isRadio && (
@@ -3383,6 +3428,7 @@ export default function UserStreamingApp() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [categoryAlbums, setCategoryAlbums] = useState([]);
+  const [categorySongsView, setCategorySongsView] = useState(null); // { id, name, cover, songs }
   const [favorites, setFavorites] = useState([]);
   const [quickAccessItems, setQuickAccessItems] = useState([]);
   const [libraryTab, setLibraryTab] = useState('all');
@@ -4251,6 +4297,30 @@ export default function UserStreamingApp() {
     }
   };
 
+  // Open the Spotify-style "Category Songs" page — every song in the category
+  // with a Play All button. Used by Quick Access category tiles (Easter, Lent...)
+  const openCategorySongs = async (categoryId, fallbackName = '') => {
+    if (!categoryId) return;
+    try {
+      // Show the view immediately with a placeholder so the tap feels instant.
+      setCategorySongsView({ id: categoryId, name: fallbackName, cover: null, songs: [], loading: true });
+      setView('category-songs');
+      const res = await axios.get(`${API}/api/category/${categoryId}/all-songs?limit=200`);
+      const data = res.data || {};
+      setCategorySongsView({
+        id: categoryId,
+        name: (language === 'sw' && data.category?.name_sw) ? data.category.name_sw : (data.category?.name || fallbackName || 'Category'),
+        cover: data.cover,
+        songs: data.songs || [],
+        total: data.total_songs || 0,
+        loading: false,
+      });
+    } catch (e) {
+      console.error('[CategorySongs] load failed:', e);
+      setCategorySongsView({ id: categoryId, name: fallbackName || 'Category', cover: null, songs: [], total: 0, loading: false, error: true });
+    }
+  };
+
   // Unified Quick Access click handler.
   // Quick-access items can arrive in MANY shapes depending on how the admin
   // configured them — categories, albums, songs, or a static "navigation"
@@ -4298,10 +4368,9 @@ export default function UserStreamingApp() {
         return;
       }
       if (item.category_id) {
-        // Categories live inside the home view — ensure we're there before
-        // selecting so the categoryAlbums grid renders.
-        if (view !== 'home') setView('home');
-        handleCategorySelect(item);
+        // Spotify-style: a category card opens its full songs list with Play All.
+        const fallbackName = (language === 'sw' && item.name_sw) ? item.name_sw : (item.name || item.title || '');
+        openCategorySongs(item.category_id, fallbackName);
         return;
       }
       console.warn('[QuickAccess] Unhandled item shape — no nav target:', item);
@@ -5916,6 +5985,103 @@ export default function UserStreamingApp() {
                     isLiked={isFavorite(song.song_id)}
                   />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* CATEGORY SONGS VIEW — Spotify-style: every song in a category + Play All */}
+          {view === 'category-songs' && categorySongsView && (
+            <div data-testid="category-songs-view">
+              <button onClick={() => { setView('home'); setCategorySongsView(null); }} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6">
+                <ChevronLeft size={20} /> {t('common.back', 'Back')}
+              </button>
+
+              <div className="flex flex-col md:flex-row gap-6 mb-8">
+                <div className="w-48 h-48 md:w-52 md:h-52 flex-shrink-0 mx-auto md:mx-0">
+                  {categorySongsView.cover ? (
+                    <img src={categorySongsView.cover} alt={categorySongsView.name} className="w-full h-full object-cover rounded-lg shadow-2xl" />
+                  ) : (
+                    <div className="w-full h-full rounded-lg bg-gradient-to-br from-violet-700 to-blue-700 flex items-center justify-center shadow-2xl">
+                      <Music2 size={64} className="text-white/40" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <p className="text-xs text-zinc-400 uppercase tracking-wider">{t('common.category', 'Category')}</p>
+                  <h1 className="text-3xl md:text-5xl font-bold mt-1 mb-3">{categorySongsView.name}</h1>
+                  <div className="flex items-center justify-center md:justify-start gap-2 text-sm text-zinc-400">
+                    <span>{categorySongsView.songs?.length || 0} {language === 'sw' ? 'nyimbo' : 'songs'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 mb-6">
+                <button
+                  onClick={() => {
+                    const songs = categorySongsView.songs || [];
+                    if (!songs.length) return;
+                    const virtualAlbum = {
+                      album_id: `cat_${categorySongsView.id}`,
+                      title: categorySongsView.name,
+                      thumbnail: categorySongsView.cover,
+                      artist_name: language === 'sw' ? 'Mchanganyiko' : 'Mixed',
+                    };
+                    handlePlaySong(songs[0], virtualAlbum, songs.map(s => ({ song: s, album: virtualAlbum })), 0);
+                  }}
+                  className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl disabled:opacity-50"
+                  data-testid="play-category-all-btn"
+                  disabled={!categorySongsView.songs?.length}
+                >
+                  <Play size={26} fill="black" className="text-black ml-1" />
+                </button>
+                <span className="text-sm text-zinc-400">
+                  {categorySongsView.loading
+                    ? (language === 'sw' ? 'Inapakia…' : 'Loading…')
+                    : (language === 'sw' ? 'Cheza Zote' : 'Play All')}
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                {(categorySongsView.songs || []).map((song, index) => {
+                  const virtualAlbum = {
+                    album_id: song.album_id || `cat_${categorySongsView.id}`,
+                    title: song.album_title || categorySongsView.name,
+                    thumbnail: song.album_thumbnail || song.thumbnail || categorySongsView.cover,
+                    artist_name: song.artist_name,
+                  };
+                  return (
+                    <ListItem
+                      key={song.song_id}
+                      item={{ ...song, album: virtualAlbum }}
+                      index={index}
+                      onPlay={() => handlePlaySong(
+                        song,
+                        virtualAlbum,
+                        (categorySongsView.songs || []).map(s => ({
+                          song: s,
+                          album: {
+                            album_id: s.album_id || `cat_${categorySongsView.id}`,
+                            title: s.album_title || categorySongsView.name,
+                            thumbnail: s.album_thumbnail || s.thumbnail || categorySongsView.cover,
+                            artist_name: s.artist_name,
+                          },
+                        })),
+                        index
+                      )}
+                      isActive={player.currentSong?.song_id === song.song_id}
+                      isPlaying={player.isPlaying}
+                      onLike={handleLikeSong}
+                      onAddToPlaylist={handleAddToPlaylist}
+                      onDownload={handleDownloadSong}
+                      isLiked={isFavorite(song.song_id)}
+                    />
+                  );
+                })}
+                {!categorySongsView.loading && (!categorySongsView.songs || !categorySongsView.songs.length) && (
+                  <div className="text-center text-zinc-500 py-12">
+                    {language === 'sw' ? 'Hakuna nyimbo katika kategoria hii bado.' : 'No songs in this category yet.'}
+                  </div>
+                )}
               </div>
             </div>
           )}

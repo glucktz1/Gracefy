@@ -249,6 +249,12 @@ DB_NAME = gracefy_db
 6. Consolidate `users`/`app_users` collections
 
 ## Recent Changes
+- **2026-02 (Spotify polish — phase 1):**
+  - New backend endpoint `GET /api/category/{category_id}/all-songs` returns every song in a category (resolved via album.category_id ↔ song_categories collection) with album metadata enrichment and a representative cover thumbnail (category.thumbnail → first-album thumbnail → first-song thumbnail). 2-minute cache.
+  - Web: Quick Access category tiles now open a dedicated **Category Songs view** with cover art, total-songs count, and a circular **Play All** button (Spotify-style). New view registered as `view === 'category-songs'`.
+  - Web mini-player: added **swipe gestures** — swipe LEFT = next song, swipe RIGHT = previous song. Horizontal-only detection with 60px threshold or 0.3px/ms flick velocity; vertical scrolls still pass through.
+  - Mobile (Expo): new **CategorySongsScreen** with cover, Play All button, and SongListItem list. Registered as `CategorySongs` stack route. HomeScreen `handleItemPress` and `handleHeroPress` now route `category_id` items to it.
+  - Mobile mini-player: **swipe gestures unlocked for everyone** (previously premium-only). Guest skip-limits remain enforced inside `skipNext`/`skipPrevious` so the gate doesn't bypass.
 - **2026-02 (Mobile autoplay resilience):**
   - Backend `/api/recommendations/next-songs` now has a **guaranteed global fallback** — if criteria-based recommendations (same album, similar genre, same artist, trending, new releases) yield fewer than `limit` songs, the engine fills remaining slots with random popular songs from the global active pool. Autoplay can never run out of next-songs.
   - Mobile `PlayerContext.js`: `fetchAndAddRecommendations` now falls back to `/api/recommendations/trending` if next-songs API errors, and the `PlaybackQueueEnded` handler explicitly calls `TrackPlayer.play()` after adding recommendations (fixes paused-after-extend bug on some Android builds).
