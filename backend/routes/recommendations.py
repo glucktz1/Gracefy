@@ -424,7 +424,60 @@ async def get_next_song_recommendations(
             skipped += 1
     if skipped:
         logger.info(f"[Recommendations] Filtered out {skipped} song(s) with no playable source")
-    
+
+    # ============ GUARANTEED GLOBAL FALLBACK ============
+    # The cardinal rule: continuous play must NEVER stop. If the criteria-based
+    # pool gave us fewer than `limit` playable songs (which happens when the
+    # current song lives in a tiny category or unpopular album), top the queue
+    # up with random popular songs from the GLOBAL active pool. This ensures
+    # autoplay can never run out of next-songs, even when no album/genre/artist
+    # match exists. Songs from any category are eligible — exactly what the
+    # user expects.
+    if len(playable) < limit:
+        already_in = exclude_ids + [s["song_id"] for s in playable]
+        need = limit - len(playable)
+
+        # Pull a generous global pool with playable sources only
+        global_pool = await db.songs.find(
+            {
+                "song_id": {"$nin": already_in},
+                "status": "active",
+                "$or": [
+                    {"audio_url": {"$exists": True, "$ne": ""}},
+                    {"hls_url": {"$exists": True, "$ne": ""}},
+                ],
+            },
+            {"_id": 0},
+        ).sort("plays", -1).limit(max(need * 5, 30)).to_list(max(need * 5, 30))
+
+        # Randomize so users don't always hear the same global top songs
+        random.shuffle(global_pool)
+        fallback = global_pool[:need]
+
+        # Enrich fallback with album thumbnails too
+        fb_album_ids = list({s.get("album_id") for s in fallback if s.get("album_id")})
+        if fb_album_ids:
+            fb_albums = await db.albums.find(
+                {"album_id": {"$in": fb_album_ids}},
+                {"_id": 0, "album_id": 1, "thumbnail": 1, "title": 1, "artist_name": 1},
+            ).to_list(len(fb_album_ids))
+            fb_albums_map = {a["album_id"]: a for a in fb_albums}
+            for s in fallback:
+                aid = s.get("album_id")
+                if aid and aid in fb_albums_map:
+                    a = fb_albums_map[aid]
+                    if not s.get("thumbnail"):
+                        s["thumbnail"] = a.get("thumbnail")
+                    s["album_thumbnail"] = a.get("thumbnail")
+                    s["album_title"] = a.get("title")
+                    if not s.get("artist_name"):
+                        s["artist_name"] = a.get("artist_name")
+
+        if fallback:
+            logger.info(f"[Recommendations] Added {len(fallback)} global fallback song(s) to keep autoplay alive")
+            playable.extend(fallback)
+            criteria_used.append("global_fallback")
+
     return {
         "songs": playable,
         "criteria_used": criteria_used,

@@ -243,38 +243,59 @@ export const PlayerProvider = ({
 
   // ============ FETCH RECOMMENDATIONS FOR CONTINUOUS PLAY ============
   const fetchAndAddRecommendations = async (currentSongId) => {
-    if (isFetchingRecommendationsRef.current) return;
-    if (shuffleRef.current) return; // Don't fetch recommendations in shuffle mode
-    
+    if (isFetchingRecommendationsRef.current) return 0;
+    if (shuffleRef.current) return 0; // Don't fetch recommendations in shuffle mode
+
     isFetchingRecommendationsRef.current = true;
     console.log('[Player] Fetching recommendations for continuous play...');
-    
+
+    let addedCount = 0;
     try {
       const userId = user?.user_id || null;
-      const res = await playerAPI.getNextSongRecommendations(currentSongId, userId, 10);
-      
-      if (res?.data?.songs && res.data.songs.length > 0) {
-        // Filter out songs already in queue AND songs with no playable source —
-        // a missing audio_url + missing hls_url combo triggers native player
-        // errors that abort autoplay. Server now filters these out too, but
-        // we double-defend for older deployments.
-        const newSongs = res.data.songs.filter(song => {
+      let songs = [];
+
+      // Primary: next-songs recommendations (criteria-based + global fallback)
+      try {
+        const res = await playerAPI.getNextSongRecommendations(currentSongId, userId, 12);
+        if (res?.data?.songs?.length) songs = res.data.songs;
+      } catch (e) {
+        console.log('[Player] next-songs API error:', e.message);
+      }
+
+      // Hard fallback: if backend somehow still returned 0, hit trending so
+      // autoplay NEVER stalls regardless of recommendation engine config.
+      if (!songs.length) {
+        try {
+          const trendRes = await playerAPI.getTrending(12);
+          if (trendRes?.data?.songs?.length) {
+            songs = trendRes.data.songs;
+            console.log('[Player] Used trending as hard fallback for continuous play');
+          }
+        } catch (e) {
+          console.log('[Player] trending fallback error:', e.message);
+        }
+      }
+
+      if (songs.length > 0) {
+        // Filter out songs already in queue AND songs with no playable source.
+        const newSongs = songs.filter(song => {
           const inQueue = queueRef.current.find(q => q.song_id === song.song_id);
           const hasPlayable = (song.audio_url && song.audio_url.trim()) || (song.hls_url && song.hls_url.trim());
           return !inQueue && hasPlayable;
         });
-        
+
         if (newSongs.length > 0) {
           console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);
-          
+
           // Add songs to queue
           const updatedQueue = [...queueRef.current, ...newSongs];
           setQueue(updatedQueue);
           queueRef.current = updatedQueue;
-          
+
           // Add to TrackPlayer
           const tracksToAdd = newSongs.map(toTrackPlayerFormat);
           await TrackPlayer.add(tracksToAdd);
+          addedCount = newSongs.length;
         }
       }
     } catch (e) {
@@ -282,6 +303,7 @@ export const PlayerProvider = ({
     } finally {
       isFetchingRecommendationsRef.current = false;
     }
+    return addedCount;
   };
 
   // ============ RESTORE PLAYER STATE (when app reopens) ============
@@ -524,18 +546,27 @@ export const PlayerProvider = ({
             return;
           }
         }
-        
+
         const lastTrack = queueRef.current[queueRef.current.length - 1];
         if (lastTrack?.song_id) {
-          await fetchAndAddRecommendations(lastTrack.song_id);
-          
-          // Check if we added new songs
-          const trackPlayerQueue = await TrackPlayer.getQueue();
-          const currentIndex = await TrackPlayer.getActiveTrackIndex();
-          
-          if (currentIndex !== null && currentIndex < trackPlayerQueue.length - 1) {
+          const added = await fetchAndAddRecommendations(lastTrack.song_id);
+
+          // Always try to skip into the newly added songs and explicitly call
+          // play(). Without an explicit play(), some Android builds keep the
+          // player in "ended" state even after the queue is extended, leaving
+          // the user staring at a paused notification.
+          if (added > 0) {
             try {
-              await TrackPlayer.skipToNext();
+              const tpQueue = await TrackPlayer.getQueue();
+              const currentIndex = await TrackPlayer.getActiveTrackIndex();
+              if (currentIndex !== null && currentIndex < tpQueue.length - 1) {
+                await TrackPlayer.skipToNext();
+              } else {
+                // Fallback: skip to the first newly added track (index after current pos)
+                const targetIdx = Math.max(0, tpQueue.length - added);
+                await TrackPlayer.skip(targetIdx);
+              }
+              await TrackPlayer.play();
             } catch (e) {
               console.error('[Player] Skip to recommended error:', e);
             }

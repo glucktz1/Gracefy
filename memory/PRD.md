@@ -248,6 +248,11 @@ DB_NAME = gracefy_db
 5. SendGrid email campaigns
 6. Consolidate `users`/`app_users` collections
 
+## Recent Changes
+- **2026-02 (Mobile autoplay resilience):**
+  - Backend `/api/recommendations/next-songs` now has a **guaranteed global fallback** — if criteria-based recommendations (same album, similar genre, same artist, trending, new releases) yield fewer than `limit` songs, the engine fills remaining slots with random popular songs from the global active pool. Autoplay can never run out of next-songs.
+  - Mobile `PlayerContext.js`: `fetchAndAddRecommendations` now falls back to `/api/recommendations/trending` if next-songs API errors, and the `PlaybackQueueEnded` handler explicitly calls `TrackPlayer.play()` after adding recommendations (fixes paused-after-extend bug on some Android builds).
+
 ## Key Files
 - `/app/frontend/src/pages/UserStreamingApp.jsx` - Main web app (6500+ lines - NEEDS REFACTORING)
 - `/app/backend/routes/monetization.py` - Subscription & payment APIs
