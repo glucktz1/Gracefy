@@ -1971,8 +1971,8 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute }) => {
   // ============ HOOKS (declared BEFORE any early return so order stays stable) ============
   // Swipe gesture state (Spotify-style): swipe LEFT = next, swipe RIGHT = prev.
-  const touchRef = React.useRef({ startX: 0, startY: 0, dx: 0, dy: 0, t: 0 });
-  const [dragOffset, setDragOffset] = React.useState(0);
+  const touchRef = useRef({ startX: 0, startY: 0, dx: 0, dy: 0, t: 0 });
+  const [dragOffset, setDragOffset] = useState(0);
 
   // Show player if there's a song OR a radio station playing
   if (!player.currentSong && !player.currentRadioStation) return null;
