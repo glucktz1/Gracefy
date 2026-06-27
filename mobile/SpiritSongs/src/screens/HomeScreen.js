@@ -510,9 +510,9 @@ const HomeScreen = ({ navigation }) => {
       navigation.navigate('Churches', { selectedChurch: item });
     } else if (linkType === 'teaching' || item.teaching_id) {
       navigation.navigate('MafundishoDetail', { teachingId: item.teaching_id, mafundisho: item });
-    } else if (linkType === 'category' || item.category_id) {
+    } else if (linkType === 'category' || item.category_id || item.song_category_id) {
       navigation.navigate('CategorySongs', {
-        categoryId: item.category_id,
+        categoryId: item.category_id || item.song_category_id,
         categoryName: item.name_sw || item.name || item.title,
       });
     } else if (linkType === 'bible') {
@@ -580,10 +580,10 @@ const HomeScreen = ({ navigation }) => {
         handleMixPress(item);
       } else if (item.song_id) {
         handlePlaySong(item, items);
-      } else if (item.category_id) {
+      } else if (item.category_id || item.song_category_id) {
         // Spotify-style: tapping a category opens its full songs list + Play All
         navigation.navigate('CategorySongs', {
-          categoryId: item.category_id,
+          categoryId: item.category_id || item.song_category_id,
           categoryName: item.name_sw || item.name || item.title,
         });
       } else if (item.church_id) {

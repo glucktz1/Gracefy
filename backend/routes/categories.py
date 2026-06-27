@@ -156,25 +156,44 @@ async def get_all_songs_in_category(category_id: str, limit: int = Query(200, ge
     album_ids = [a["album_id"] for a in albums if a.get("album_id")]
     albums_map = {a["album_id"]: a for a in albums}
 
-    songs = []
+    # Songs in this category come from TWO sources:
+    #   1. Any song inside an album tagged with this category (album.category_id).
+    #   2. Songs DIRECTLY tagged via songs.song_categories (a per-song list).
+    # We union both so the page shows EVERY relevant song, no matter how the
+    # admin tagged it.
+    song_filters = []
     if album_ids:
-        songs = await db.songs.find(
-            {"album_id": {"$in": album_ids}, "status": "active"},
-            {"_id": 0}
-        ).sort("created_at", -1).limit(limit).to_list(limit)
+        song_filters.append({"album_id": {"$in": album_ids}})
+    song_filters.append({"song_categories": category_id})
 
-        # Enrich every song with album metadata + a thumbnail fallback so the
-        # client never sees a blank card.
-        for s in songs:
-            aid = s.get("album_id")
-            if aid and aid in albums_map:
-                a = albums_map[aid]
-                if not s.get("thumbnail"):
-                    s["thumbnail"] = a.get("thumbnail")
-                s["album_thumbnail"] = a.get("thumbnail")
-                s["album_title"] = a.get("title")
-                if not s.get("artist_name"):
-                    s["artist_name"] = a.get("artist_name")
+    songs = await db.songs.find(
+        {"$or": song_filters, "status": "active"},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+
+    # If any of the union'd songs reference albums we haven't loaded yet, pull
+    # their metadata too so thumbnails/titles still appear in the list.
+    extra_album_ids = list({s.get("album_id") for s in songs if s.get("album_id") and s.get("album_id") not in albums_map})
+    if extra_album_ids:
+        extra_albums = await db.albums.find(
+            {"album_id": {"$in": extra_album_ids}},
+            {"_id": 0, "album_id": 1, "title": 1, "thumbnail": 1, "artist_name": 1}
+        ).to_list(len(extra_album_ids))
+        for a in extra_albums:
+            albums_map[a["album_id"]] = a
+
+    # Enrich every song with album metadata + a thumbnail fallback so the
+    # client never sees a blank card.
+    for s in songs:
+        aid = s.get("album_id")
+        if aid and aid in albums_map:
+            a = albums_map[aid]
+            if not s.get("thumbnail"):
+                s["thumbnail"] = a.get("thumbnail")
+            s["album_thumbnail"] = a.get("thumbnail")
+            s["album_title"] = a.get("title")
+            if not s.get("artist_name"):
+                s["artist_name"] = a.get("artist_name")
 
     # Pick a representative thumbnail for the category card:
     # explicit category.thumbnail → first album with a thumbnail → first song

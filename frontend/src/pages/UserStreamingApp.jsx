@@ -4367,10 +4367,10 @@ export default function UserStreamingApp() {
         player.playSong(item, virtualAlbum, [{ song: item, album: virtualAlbum }], 0);
         return;
       }
-      if (item.category_id) {
+      if (item.category_id || item.song_category_id) {
         // Spotify-style: a category card opens its full songs list with Play All.
         const fallbackName = (language === 'sw' && item.name_sw) ? item.name_sw : (item.name || item.title || '');
-        openCategorySongs(item.category_id, fallbackName);
+        openCategorySongs(item.category_id || item.song_category_id, fallbackName);
         return;
       }
       console.warn('[QuickAccess] Unhandled item shape — no nav target:', item);
