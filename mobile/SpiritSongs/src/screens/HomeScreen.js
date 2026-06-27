@@ -514,6 +514,8 @@ const HomeScreen = ({ navigation }) => {
       navigation.navigate('CategorySongs', {
         categoryId: item.category_id || item.song_category_id,
         categoryName: item.name_sw || item.name || item.title,
+        coverHint: item.thumbnail || item.cover,
+        totalHint: typeof item.total_songs === 'number' ? item.total_songs : undefined,
       });
     } else if (linkType === 'bible') {
       navigation.navigate('Bible');
@@ -581,10 +583,14 @@ const HomeScreen = ({ navigation }) => {
       } else if (item.song_id) {
         handlePlaySong(item, items);
       } else if (item.category_id || item.song_category_id) {
-        // Spotify-style: tapping a category opens its full songs list + Play All
+        // Spotify-style: tapping a category opens its full songs list + Play All.
+        // Pass coverHint/totalHint so the destination screen paints the cover
+        // and count instantly without waiting for the API round-trip.
         navigation.navigate('CategorySongs', {
           categoryId: item.category_id || item.song_category_id,
           categoryName: item.name_sw || item.name || item.title,
+          coverHint: item.thumbnail || item.cover,
+          totalHint: typeof item.total_songs === 'number' ? item.total_songs : undefined,
         });
       } else if (item.church_id) {
         navigation.navigate('Churches', { selectedChurch: item });

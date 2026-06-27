@@ -125,7 +125,8 @@ export const SongListItem = ({
     <TouchableOpacity 
       style={[styles.songListItem, style]} 
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.55}
+      delayPressIn={0}
     >
       {/* Index/Equalizer column */}
       <View style={styles.songIndexContainer}>
