@@ -291,16 +291,54 @@ async def delete_category(category_id: str):
 # ============== SONG CATEGORIES ==============
 
 @router.get("/song-categories")
-async def get_song_categories():
-    """Get all song categories"""
+async def get_song_categories(with_counts: bool = False):
+    """Get all song categories.
+
+    Pass `with_counts=true` to include `total_songs` on each category — used by
+    the Quick Access tile badge so users see availability before tapping in.
+    Counts come from BOTH album.category_id and songs.song_categories so the
+    badge matches what /category/{id}/all-songs would actually return.
+    """
     db = get_db()
-    
+
+    cache_key = f"song_categories:list:{'wc' if with_counts else 'nc'}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
     categories = await db.song_categories.find(
         {"status": "active"},
         {"_id": 0}
     ).sort("sort_order", 1).to_list(50)
-    
-    return {"categories": categories}
+
+    if with_counts and categories:
+        cat_ids = [c.get("song_category_id") for c in categories if c.get("song_category_id")]
+
+        # Build {cat_id -> [album_ids]} in one pass
+        albums = await db.albums.find(
+            {"category_id": {"$in": cat_ids}, "status": "active"},
+            {"_id": 0, "album_id": 1, "category_id": 1}
+        ).to_list(2000)
+        albums_by_cat = {}
+        for a in albums:
+            albums_by_cat.setdefault(a["category_id"], []).append(a["album_id"])
+
+        # Count songs per category (album_id OR song_categories membership)
+        for c in categories:
+            cid = c.get("song_category_id")
+            album_ids = albums_by_cat.get(cid, [])
+            or_filters = [{"song_categories": cid}]
+            if album_ids:
+                or_filters.append({"album_id": {"$in": album_ids}})
+            count = await db.songs.count_documents(
+                {"$or": or_filters, "status": "active"}
+            )
+            c["total_songs"] = count
+
+    result = {"categories": categories}
+    # Short cache — counts can change as admins add songs.
+    await cache.set(cache_key, result, 60)
+    return result
 
 
 @router.get("/song-categories/all")

@@ -80,7 +80,14 @@ const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
           <IconComponent size={22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
       </div>
-      <span className="font-semibold text-sm text-white pr-3 truncate">{displayName}</span>
+      <div className="flex flex-col min-w-0 flex-1 pr-3 text-left">
+        <span className="font-semibold text-sm text-white truncate">{displayName}</span>
+        {typeof item.total_songs === 'number' && item.total_songs > 0 && (
+          <span className="text-[10px] text-zinc-400 truncate">
+            {item.total_songs} {language === 'sw' ? 'nyimbo' : (item.total_songs === 1 ? 'song' : 'songs')}
+          </span>
+        )}
+      </div>
     </button>
   );
 };
@@ -4021,7 +4028,7 @@ export default function UserStreamingApp() {
           ? `${API}/user/home/geo?country=${detectedCountry}&platform=web` 
           : `${API}/user/home?platform=web`;
         
-        const [homeRes, catRes, sectionsRes, tagsRes, radioRes, nenoRes] = await Promise.all([
+        const [homeRes, catRes, sectionsRes, tagsRes, radioRes, nenoRes, songCatRes] = await Promise.all([
           axios.get(homeEndpoint).catch((err) => {
             console.error('[Home] Failed to fetch home data:', err.message);
             // Fallback to non-geo endpoint if geo fails
@@ -4035,6 +4042,7 @@ export default function UserStreamingApp() {
           axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
           axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } })),
           axios.get(`${API}/neno-la-leo/active`).catch(() => ({ data: { neno_list: [] } })),
+          axios.get(`${API}/song-categories?with_counts=true`).catch(() => ({ data: { categories: [] } })),
         ]);
         setNenoLaLeoList(nenoRes.data?.neno_list || []);
         
@@ -4059,6 +4067,22 @@ export default function UserStreamingApp() {
         setAvailableTags(tagsRes.data?.tags || []);
         setHomeRadioStations(radioRes.data.stations?.slice(0, 6) || []);
         
+        // Build a {category_id -> total_songs} lookup so we can decorate Quick
+        // Access category tiles with a song-count badge.
+        const songCatList = songCatRes?.data?.categories || [];
+        const songCounts = {};
+        for (const c of songCatList) {
+          const id = c.song_category_id || c.category_id;
+          if (id && typeof c.total_songs === 'number') songCounts[id] = c.total_songs;
+        }
+        const decorateWithCount = (items) => (items || []).map(item => {
+          const id = item.category_id || item.song_category_id;
+          if (!id) return item;
+          if (typeof item.total_songs === 'number') return item;
+          if (id in songCounts) return { ...item, total_songs: songCounts[id] };
+          return item;
+        });
+
         // Get quick access section items from homeRes (NOT sectionsRes)
         const quickSection = homeRes.data.sections?.find(s => s.section_type === 'quick_access' || s.type === 'quick_access');
         console.log('[QuickAccess] Section found:', quickSection?.name, 'Items:', quickSection?.items?.length);
@@ -4066,18 +4090,18 @@ export default function UserStreamingApp() {
         if (quickSection?.items?.length > 0) {
           // Use items directly from the section
           console.log('[QuickAccess] Using section items:', quickSection.items.map(i => i.name || i.title));
-          setQuickAccessItems(quickSection.items);
+          setQuickAccessItems(decorateWithCount(quickSection.items));
         } else if (quickSection?.content_ids?.length > 0) {
           // Fetch the specific items by content_ids
           const items = quickSection.content_type === 'categories' 
             ? catRes.data.categories?.filter(c => quickSection.content_ids.includes(c.category_id))
             : [];
           console.log('[QuickAccess] Using content_ids items:', items.length);
-          setQuickAccessItems(items);
+          setQuickAccessItems(decorateWithCount(items));
         } else {
           // Default to first 4 categories (to combine with 4 user items = 8 total)
           console.log('[QuickAccess] Using default categories');
-          setQuickAccessItems(catRes.data.categories?.slice(0, 4) || []);
+          setQuickAccessItems(decorateWithCount(catRes.data.categories?.slice(0, 4) || []));
         }
       } catch (e) {
         console.error("Failed to fetch data", e);
