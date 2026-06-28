@@ -216,6 +216,15 @@ export const homeAPI = {
     return response;
   },
   getSongCategories: () => api.get('/song-categories/all'),
+  // Spotify-style: categories with total_songs counts for the Quick Access tile badge.
+  // Backed by /api/song-categories?with_counts=true (60s server cache).
+  getSongCategoriesWithCounts: async () => {
+    const cached = getCached('song_categories_counts');
+    if (cached) return { data: cached };
+    const response = await api.get('/song-categories?with_counts=true');
+    setCache('song_categories_counts', response.data);
+    return response;
+  },
   // Mix methods
   getMixSongs: (id) => api.get(`/special-mixes/${id}/songs`),
   // Tags

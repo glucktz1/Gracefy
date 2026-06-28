@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl, radioAPI, geoAPI, nenoLaLeoAPI } from '../services/api';
@@ -50,6 +51,9 @@ const HomeScreen = ({ navigation }) => {
   const [layoutSections, setLayoutSections] = useState([]);
   const [heroContent, setHeroContent] = useState({ items: [] });
   const [quickAccessConfig, setQuickAccessConfig] = useState([]);
+  // Categories with song counts — used to enrich the Quick Access tiles with
+  // the "X nyimbo" badge that matches the web UI exactly.
+  const [songCategoriesWithCounts, setSongCategoriesWithCounts] = useState([]);
   
   // Category Filters
   const [categories, setCategories] = useState([]);
@@ -156,6 +160,7 @@ const HomeScreen = ({ navigation }) => {
         radioRes,
         geoAlbumsRes,
         nenoRes,
+        songCategoriesRes,
       ] = await Promise.all([
         // Get home data with sections, hero, and burners in correct layout order
         homeAPI.getAppHome().catch(() => ({ data: { sections: [], hero: { items: [] }, burners: [] } })),
@@ -169,9 +174,12 @@ const HomeScreen = ({ navigation }) => {
           ? geoAPI.getLocalizedFeed(userCountry, 'albums').catch(() => ({ data: { albums: [] } }))
           : Promise.resolve({ data: { albums: [] } }),
         nenoLaLeoAPI.getActive().catch(() => ({ data: { neno_list: [] } })),
+        // Spotify-style Quick Access tiles with song-count badges (matches web)
+        contentAPI.getSongCategoriesWithCounts().catch(() => ({ data: { categories: [] } })),
       ]);
 
       setNenoLaLeo(nenoRes.data?.neno_list || []);
+      setSongCategoriesWithCounts(songCategoriesRes.data?.categories || []);
 
       // Album Tags
       const tags = tagsRes.data?.tags || [];
@@ -1063,77 +1071,142 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
-  const renderQuickAccessSection = () => (
-    <View style={styles.quickAccessContainer}>
-      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Library', { tab: 'liked' })}>
-        <LinearGradient colors={['#5D3FD3', '#7B68EE']} style={styles.quickAccessIcon}>
-          <Ionicons name="heart" size={20} color={COLORS.text} />
-        </LinearGradient>
-        <Text style={styles.quickAccessText} numberOfLines={2}>Nyimbo Pendwa</Text>
-      </TouchableOpacity>
-
-      {userPlaylists[0] ? (
-        <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[0] })}>
-          <Image source={{ uri: getImageUrl(userPlaylists[0]?.thumbnail) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
-          <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[0]?.name || 'Playlist'}</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Library')}>
-          <LinearGradient colors={['#1DB954', '#169c46']} style={styles.quickAccessIcon}>
-            <Ionicons name="add" size={20} color={COLORS.text} />
+  // ============ Quick Access Tile (Spotify-style, matches web) ============
+  // A small horizontal pill: thumbnail/icon on the left, name + optional count
+  // on the right. Mirrors the QuickAccessCard component in UserStreamingApp.jsx.
+  const renderQuickAccessTile = (cfg) => {
+    const {
+      key,
+      onPress,
+      thumbnail,
+      iconName,
+      iconColors,
+      title,
+      subtitle,
+    } = cfg;
+    return (
+      <TouchableOpacity
+        key={key}
+        style={styles.quickAccessItem}
+        onPress={onPress}
+        activeOpacity={0.6}
+        delayPressIn={0}
+        data-testid={`quick-${key}`}
+      >
+        {thumbnail ? (
+          <ExpoImage
+            source={thumbnail}
+            style={styles.quickAccessImage}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+          />
+        ) : (
+          <LinearGradient colors={iconColors || ['#5D3FD3', '#7B68EE']} style={styles.quickAccessIcon}>
+            <Ionicons name={iconName || 'musical-notes'} size={22} color={COLORS.text} />
           </LinearGradient>
-          <Text style={styles.quickAccessText} numberOfLines={2}>Playlist Mpya</Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Library', { tab: 'downloads' })}>
-        <LinearGradient colors={['#E91429', '#ff4757']} style={styles.quickAccessIcon}>
-          <Ionicons name="download" size={20} color={COLORS.text} />
-        </LinearGradient>
-        <Text style={styles.quickAccessText} numberOfLines={2}>Zilizopakuwa</Text>
+        )}
+        <View style={styles.quickAccessTextWrap}>
+          <Text style={styles.quickAccessText} numberOfLines={1}>{title}</Text>
+          {subtitle ? (
+            <Text style={styles.quickAccessSubtext} numberOfLines={1}>{subtitle}</Text>
+          ) : null}
+        </View>
       </TouchableOpacity>
+    );
+  };
 
-      {userPlaylists[1] ? (
-        <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Playlist', { playlist: userPlaylists[1] })}>
-          <Image source={{ uri: getImageUrl(userPlaylists[1]?.thumbnail) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
-          <Text style={styles.quickAccessText} numberOfLines={2}>{userPlaylists[1]?.name || 'Playlist'}</Text>
-        </TouchableOpacity>
-      ) : recentAlbums[0] ? (
-        <TouchableOpacity style={styles.quickAccessItem} onPress={() => handleAlbumPress(recentAlbums[0])}>
-          <Image source={{ uri: getImageUrl(recentAlbums[0].thumbnail || recentAlbums[0].thumbnail_url) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
-          <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[0].title}</Text>
-        </TouchableOpacity>
-      ) : <View style={styles.quickAccessItem} />}
+  const renderQuickAccessSection = () => {
+    // 4 USER tiles, identical to web (Liked / Playlists / Downloads / Library).
+    const userTiles = [
+      {
+        key: 'liked_songs',
+        title: 'Nyimbo Pendwa',
+        iconName: 'heart',
+        iconColors: ['#a855f7', '#d946ef'],
+        onPress: () => navigation.navigate('Library', { tab: 'liked' }),
+      },
+      {
+        key: 'playlists',
+        title: 'Playlists',
+        iconName: 'list',
+        iconColors: ['#f97316', '#f59e0b'],
+        onPress: () => navigation.navigate('Library', { tab: 'playlists' }),
+      },
+      {
+        key: 'downloads',
+        title: 'Zilizopakuwa',
+        iconName: 'download',
+        iconColors: ['#3b82f6', '#16a34a'],
+        onPress: () => navigation.navigate('Library', { tab: 'downloads' }),
+      },
+      {
+        key: 'library',
+        title: 'Maktaba Yangu',
+        iconName: 'library',
+        iconColors: ['#2563eb', '#06b6d4'],
+        onPress: () => navigation.navigate('Library'),
+      },
+    ];
 
-      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Bible')}>
-        <LinearGradient colors={['#1a472a', '#2d5a3d']} style={styles.quickAccessIcon}>
-          <Ionicons name="book" size={20} color={COLORS.text} />
-        </LinearGradient>
-        <Text style={styles.quickAccessText} numberOfLines={2}>Biblia</Text>
-      </TouchableOpacity>
+    // 4 ADMIN/CATEGORY tiles — first try admin-curated quick_access items
+    // (so admin layout overrides work). If those are missing, fall back to
+    // the top 4 song-categories with counts (Spotify-default behavior).
+    let adminItems = [];
+    if (Array.isArray(quickAccessConfig) && quickAccessConfig.length > 0) {
+      adminItems = quickAccessConfig.slice(0, 4);
+    } else if (Array.isArray(songCategoriesWithCounts) && songCategoriesWithCounts.length > 0) {
+      adminItems = songCategoriesWithCounts.slice(0, 4);
+    }
 
-      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Churches')}>
-        <LinearGradient colors={['#FF6B35', '#f5a623']} style={styles.quickAccessIcon}>
-          <Ionicons name="business" size={20} color={COLORS.text} />
-        </LinearGradient>
-        <Text style={styles.quickAccessText} numberOfLines={2}>Makanisa</Text>
-      </TouchableOpacity>
+    // Build a {id → total_songs} map so we can decorate admin items that came
+    // from the layout config (which doesn't include counts).
+    const countsMap = {};
+    for (const c of songCategoriesWithCounts) {
+      const id = c.song_category_id || c.category_id;
+      if (id && typeof c.total_songs === 'number') countsMap[id] = c.total_songs;
+    }
 
-      {recentAlbums[1] ? (
-        <TouchableOpacity style={styles.quickAccessItem} onPress={() => handleAlbumPress(recentAlbums[1])}>
-          <Image source={{ uri: getImageUrl(recentAlbums[1].thumbnail || recentAlbums[1].thumbnail_url) || 'https://via.placeholder.com/56' }} style={styles.quickAccessImage} />
-          <Text style={styles.quickAccessText} numberOfLines={2}>{recentAlbums[1].title}</Text>
-        </TouchableOpacity>
-      ) : <View style={styles.quickAccessItem} />}
+    const adminTiles = adminItems.map((item, i) => {
+      const id = item.category_id || item.song_category_id || item.album_id || item.id;
+      const total = typeof item.total_songs === 'number'
+        ? item.total_songs
+        : (id && countsMap[id]);
+      const displayName = item.name_sw || item.name || item.title || 'Category';
+      const thumb = item.thumbnail || item.cover_image;
+      return {
+        key: id || `admin-${i}`,
+        title: displayName,
+        subtitle: typeof total === 'number' && total > 0 ? `${total} nyimbo` : undefined,
+        thumbnail: thumb ? getImageUrl(thumb) : null,
+        iconName: 'musical-notes',
+        iconColors: ['#1DB954', '#169c46'],
+        onPress: () => {
+          // Categories: open the Spotify-style "all songs in category" page.
+          if (item.category_id || item.song_category_id) {
+            navigation.navigate('CategorySongs', {
+              categoryId: item.category_id || item.song_category_id,
+              categoryName: displayName,
+              coverHint: thumb,
+              totalHint: total,
+            });
+          } else if (item.album_id) {
+            handleAlbumPress(item);
+          } else if (item.mix_id) {
+            handleMixPress(item);
+          }
+        },
+      };
+    });
 
-      <TouchableOpacity style={styles.quickAccessItem} onPress={() => navigation.navigate('Radio')}>
-        <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.quickAccessIcon}>
-          <Ionicons name="radio" size={20} color={COLORS.text} />
-        </LinearGradient>
-        <Text style={styles.quickAccessText} numberOfLines={2}>Redio</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    const tiles = [...userTiles, ...adminTiles];
+
+    return (
+      <View style={styles.quickAccessContainer}>
+        {tiles.map(renderQuickAccessTile)}
+      </View>
+    );
+  };
 
   const renderCategoryFilters = (cats) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryFiltersContainer} contentContainerStyle={styles.categoryFiltersContent}>
@@ -1656,11 +1729,19 @@ const styles = StyleSheet.create({
     height: 56,
   },
   quickAccessText: {
-    flex: 1,
     fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
+  },
+  quickAccessTextWrap: {
+    flex: 1,
     paddingHorizontal: SPACING.sm,
+    justifyContent: 'center',
+  },
+  quickAccessSubtext: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 
   // Category Filters - Spotify style
