@@ -282,35 +282,75 @@ const useAudioPlayer = () => {
     }
     
     // Don't fetch in shuffle mode
-    if (shuffleRef.current) {
-      console.log('[Player] Shuffle mode active, skipping recommendation fetch');
-      return false;
-    }
-    
+    if (isFetchingRecommendationsRef.current) return false;
+    // NOTE: we intentionally DO fetch recommendations even in shuffle mode.
+    // Shuffle only affects order-of-play within the queue; continuous play
+    // should still top-up the queue in the background so autoplay never stops.
+
     isFetchingRecommendationsRef.current = true;
     console.log('[Player] Fetching recommendations for continuous play...');
-    
+
     try {
       const userId = localStorage.getItem('user_id') || null;
-      const res = await axios.get(`${API}/recommendations/next-songs`, {
-        params: {
-          current_song_id: currentSongId,
-          user_id: userId,
-          limit: 10
+      let songs = [];
+
+      // Primary: criteria-based recommendations (with server-side global fallback).
+      try {
+        const res = await axios.get(`${API}/recommendations/next-songs`, {
+          params: { current_song_id: currentSongId, user_id: userId, limit: 12 }
+        });
+        if (res.data?.songs?.length) songs = res.data.songs;
+      } catch (e) {
+        console.log('[Player] next-songs API error:', e.message);
+      }
+
+      // Hard fallback: trending endpoint. Fires only if the primary returned
+      // zero (e.g. tiny/isolated category). Guarantees continuous autoplay
+      // even when the recommendation engine has no criteria matches.
+      if (!songs.length) {
+        try {
+          const trendRes = await axios.get(`${API}/recommendations/trending`, {
+            params: { limit: 12 }
+          });
+          if (trendRes.data?.songs?.length) {
+            songs = trendRes.data.songs;
+            console.log('[Player] Used trending as hard fallback');
+          }
+        } catch (e) {
+          console.log('[Player] trending fallback error:', e.message);
         }
-      });
-      
-      if (res.data?.songs && res.data.songs.length > 0) {
+      }
+
+      // Final resort: pull random popular songs. Ensures we NEVER hand back
+      // an empty list — matches the mobile behavior.
+      if (!songs.length) {
+        try {
+          const randRes = await axios.get(`${API}/songs`, {
+            params: { limit: 12, sort: 'plays' }
+          });
+          if (randRes.data?.songs?.length) {
+            songs = randRes.data.songs;
+            console.log('[Player] Used popular-songs endpoint as final fallback');
+          }
+        } catch (e) {
+          console.log('[Player] popular fallback error:', e.message);
+        }
+      }
+
+      if (songs.length > 0) {
         const currentQueue = queueRef.current;
         const currentSongIds = new Set(currentQueue.map(q => (q.song || q).song_id));
-        
-        // Filter out songs already in queue
-        const newSongs = res.data.songs.filter(song => !currentSongIds.has(song.song_id));
-        
+
+        // Filter out songs already in queue AND songs with no playable source.
+        const newSongs = songs.filter(song => {
+          if (currentSongIds.has(song.song_id)) return false;
+          const hasPlayable = (song.audio_url && song.audio_url.trim()) || (song.hls_url && song.hls_url.trim());
+          return hasPlayable;
+        });
+
         if (newSongs.length > 0) {
           console.log(`[Player] Adding ${newSongs.length} recommended songs to queue`);
-          console.log('[Player] Criteria used:', res.data.criteria_used);
-          
+
           // Format songs with album info for queue
           const formattedSongs = newSongs.map(song => ({
             song: song,
@@ -321,25 +361,25 @@ const useAudioPlayer = () => {
               artist_name: song.artist_name
             }
           }));
-          
+
           // Add to queue
           const updatedQueue = [...currentQueue, ...formattedSongs];
           setQueue(updatedQueue);
           queueRef.current = updatedQueue;
-          
+
           return true;
         } else {
           console.log('[Player] All recommended songs already in queue');
         }
       } else {
-        console.log('[Player] No recommendations returned');
+        console.log('[Player] No recommendations returned from any source');
       }
     } catch (e) {
       console.log('[Player] Recommendation fetch error:', e.message);
     } finally {
       isFetchingRecommendationsRef.current = false;
     }
-    
+
     return false;
   }, []);
 
@@ -1129,7 +1169,9 @@ const useAudioPlayer = () => {
       playFromQueue(nextIndex);
       
       // Pre-fetch recommendations when 2 songs from queue end (like native app)
-      if (continuousPlay && !shuffle && queue.length - nextIndex <= 2) {
+      // We now pre-fetch even in shuffle mode — the newly added songs simply
+      // widen the pool the shuffler can pick from.
+      if (continuousPlay && queue.length - nextIndex <= 2) {
         const currentItem = queue[nextIndex];
         const song = currentItem.song || currentItem;
         if (song?.song_id) {

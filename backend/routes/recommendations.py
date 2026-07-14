@@ -380,11 +380,17 @@ async def get_next_song_recommendations(
             seen.add(song["song_id"])
             unique_recommendations.append(song)
     
-    # Sort by score (highest first)
+    # Sort by score (highest first) THEN shuffle within score bands so we don't
+    # replay the identical top-10 in the exact same order every time. The
+    # `shuffle_recommendations` admin setting acts as a full shuffle override.
     unique_recommendations.sort(key=lambda x: x.get("_score", 0), reverse=True)
-    
-    # Shuffle if configured
-    if settings.get("shuffle_recommendations"):
+
+    # Default behavior: light shuffle to introduce variety. If the admin has
+    # explicitly disabled it (`shuffle_recommendations == False`), keep the
+    # deterministic score order. When unset (None) we shuffle by default —
+    # continuous play should feel dynamic, not like a rerun.
+    shuffle_setting = settings.get("shuffle_recommendations")
+    if shuffle_setting is None or shuffle_setting:
         random.shuffle(unique_recommendations)
     
     # Limit results
