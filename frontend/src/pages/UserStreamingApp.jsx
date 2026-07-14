@@ -4466,6 +4466,62 @@ export default function UserStreamingApp() {
     }
   };
 
+  // ============ DEEP-LINK AUTO-OPEN ============
+  // Shared URLs from the Share buttons look like `/?album=abc`, `/?category=xyz`,
+  // or `/?song=song_123`. On first mount we parse them and open the target view
+  // so shared links feel first-class (matches Spotify's link behavior).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const albumParam = params.get('album');
+    const categoryParam = params.get('category');
+    const songParam = params.get('song');
+
+    let didHandle = false;
+    if (albumParam) {
+      openAlbum(albumParam);
+      didHandle = true;
+    } else if (categoryParam) {
+      openCategorySongs(categoryParam);
+      didHandle = true;
+    } else if (songParam) {
+      // For a bare song id we need to fetch the song + its album, then start playback.
+      (async () => {
+        try {
+          const r = await axios.get(`${API}/song/${songParam}`);
+          const song = r.data?.song || r.data;
+          if (!song) return;
+          let album = null;
+          if (song.album_id) {
+            try {
+              const a = await axios.get(`${API}/user/album/${song.album_id}`);
+              album = a.data?.album || null;
+            } catch (_) {}
+          }
+          const virtualAlbum = album || {
+            album_id: song.album_id || `song_${song.song_id}`,
+            title: song.album_title || song.title,
+            thumbnail: song.album_thumbnail || song.thumbnail,
+            artist_name: song.artist_name,
+          };
+          handlePlaySong(song, virtualAlbum, [{ song, album: virtualAlbum }], 0);
+        } catch (e) {
+          console.log('[DeepLink] song open failed:', e.message);
+        }
+      })();
+      didHandle = true;
+    }
+
+    // Clean the URL so a refresh doesn't re-trigger the deep-link and so the
+    // address bar stays tidy after the target opens.
+    if (didHandle) {
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.history.replaceState({}, '', url.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const openSpecialMix = async (mix) => {
     try {
       // Fetch the special mix songs from the API

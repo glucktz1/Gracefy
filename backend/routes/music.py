@@ -76,6 +76,33 @@ def optimize_thumbnails(items: list) -> list:
 
 # ============== ALBUMS ==============
 
+@router.get("/song/{song_id}")
+async def get_song_by_id(song_id: str):
+    """Fetch a single song by id. Used for deep-link auto-open (shared URLs).
+
+    Returns the song enriched with album thumbnail/title so the client can
+    render the mini-player + queue without an extra album fetch.
+    """
+    db = get_db()
+    song = await db.songs.find_one({"song_id": song_id, "status": "active"}, {"_id": 0})
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if song.get("album_id"):
+        album = await db.albums.find_one(
+            {"album_id": song["album_id"]},
+            {"_id": 0, "album_id": 1, "title": 1, "thumbnail": 1, "artist_name": 1}
+        )
+        if album:
+            song["album_title"] = album.get("title")
+            song["album_thumbnail"] = album.get("thumbnail")
+            if not song.get("artist_name"):
+                song["artist_name"] = album.get("artist_name")
+            if not song.get("thumbnail"):
+                song["thumbnail"] = album.get("thumbnail")
+    return {"song": song}
+
+
+
 @router.get("/songs/{song_id}/download")
 async def get_song_download_url(song_id: str):
     """Get download URL for a song"""
