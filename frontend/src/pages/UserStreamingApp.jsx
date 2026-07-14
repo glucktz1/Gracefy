@@ -4940,9 +4940,12 @@ export default function UserStreamingApp() {
   };
 
   // Handler for Like (song) - WITH BILLING CHECK
-  // Universal share handler for songs AND albums. Uses Web Share API when
-  // available (mobile browsers, most modern desktops), falls back to
-  // clipboard-copy on unsupported browsers.
+  // Universal share handler for songs / albums / categories.
+  //   • Uses Web Share API when available (native share sheet on mobile).
+  //   • Falls back to `navigator.clipboard.writeText`.
+  //   • FINAL fallback: opens a prompt() with the URL so the user can copy
+  //     manually. This guarantees share ALWAYS produces something, even on
+  //     Firefox desktop / older browsers where both APIs are unavailable.
   const handleShare = async (kind, entity) => {
     if (!entity) return;
     const origin = window.location.origin;
@@ -4962,20 +4965,56 @@ export default function UserStreamingApp() {
       title = `Gracefy — ${entity.name}`;
       text = `${entity.name}${entity.total_songs ? ` • ${entity.total_songs} songs` : ''}`;
     }
-    try {
-      if (navigator.share) {
+
+    // 1) Native share sheet (mobile Chrome/Safari + modern desktop Chrome/Edge)
+    if (navigator.share) {
+      try {
         await navigator.share({ title, text, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success(language === 'sw' ? 'Kiungo kimenakiliwa!' : 'Link copied to clipboard!');
-      }
-    } catch (e) {
-      // User cancelled — silent no-op. Only log real errors.
-      if (e && e.name !== 'AbortError') {
-        console.log('[Share] error:', e);
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // user cancelled
+        console.log('[Share] navigator.share failed:', e);
+        // fall through to clipboard fallback
       }
     }
+
+    // 2) Modern clipboard API — requires secure context (HTTPS) + permission.
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success(language === 'sw' ? 'Kiungo kimenakiliwa!' : 'Link copied!');
+        return;
+      } catch (e) {
+        console.log('[Share] clipboard.writeText failed:', e);
+      }
+    }
+
+    // 3) Legacy fallback: hidden textarea + document.execCommand('copy').
+    // Works on older browsers and non-secure contexts.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) {
+        toast.success(language === 'sw' ? 'Kiungo kimenakiliwa!' : 'Link copied!');
+        return;
+      }
+    } catch (_) {}
+
+    // 4) LAST resort — show the URL in a prompt so the user can copy manually.
+    // Guarantees share ALWAYS produces something the user can act on.
+    try {
+      window.prompt(language === 'sw' ? 'Nakili kiungo:' : 'Copy this link:', url);
+    } catch (_) {
+      toast.error(language === 'sw' ? 'Imeshindwa kushiriki' : 'Share failed');
+    }
   };
+
 
 
   const handleLikeSong = (song) => {
@@ -5088,7 +5127,7 @@ export default function UserStreamingApp() {
     }
   };
 
-  const handlePlaySong = (song, album, allSongs, index) => {
+  const handlePlaySong = (song, album, allSongs, index, options = {}) => {
     // Check guest play limit first
     if (!checkGuestPlayLimit()) return;
     
@@ -5096,12 +5135,21 @@ export default function UserStreamingApp() {
     incrementGuestPlayCount();
     
     const queue = allSongs.map(s => ({ song: s, album }));
-    player.playSong(song, album, queue, index);
+    // Forward optional `sourceContext` so the audio player can bind the queue
+    // to a specific source (category / album) — this is what makes the Play
+    // All button correctly toggle Play↔Pause and enforces category-only autoplay.
+    player.playSong(song, album, queue, index, options);
   };
 
   const handlePlayAlbum = () => {
     if (selectedAlbumSongs.length > 0) {
-      handlePlaySong(selectedAlbumSongs[0], selectedAlbum, selectedAlbumSongs, 0);
+      handlePlaySong(
+        selectedAlbumSongs[0],
+        selectedAlbum,
+        selectedAlbumSongs,
+        0,
+        { sourceContext: { type: 'album', id: selectedAlbum.album_id, name: selectedAlbum.title } }
+      );
     }
   };
 
@@ -6129,17 +6177,36 @@ export default function UserStreamingApp() {
               </div>
 
               <div className="flex items-center gap-4 mb-6">
-                <button 
-                  onClick={handlePlayAlbum}
-                  className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
-                  data-testid="play-album-btn"
-                >
-                  {player.isPlaying && player.currentAlbum?.album_id === selectedAlbum.album_id ? (
-                    <Pause size={26} fill="black" className="text-black" />
-                  ) : (
-                    <Play size={26} fill="black" className="text-black ml-1" />
-                  )}
-                </button>
+                {(() => {
+                  const isPlayingThisAlbum = player.isPlaying
+                    && (player.queueSource?.type === 'album' && player.queueSource?.id === selectedAlbum.album_id
+                        || player.currentAlbum?.album_id === selectedAlbum.album_id);
+                  const isCurrentAlbum = player.queueSource?.type === 'album' && player.queueSource?.id === selectedAlbum.album_id
+                    || player.currentAlbum?.album_id === selectedAlbum.album_id;
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isPlayingThisAlbum) {
+                          player.togglePlay && player.togglePlay();
+                          return;
+                        }
+                        if (isCurrentAlbum) {
+                          player.togglePlay && player.togglePlay();
+                          return;
+                        }
+                        handlePlayAlbum();
+                      }}
+                      className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
+                      data-testid="play-album-btn"
+                    >
+                      {isPlayingThisAlbum ? (
+                        <Pause size={26} fill="black" className="text-black" />
+                      ) : (
+                        <Play size={26} fill="black" className="text-black ml-1" />
+                      )}
+                    </button>
+                  );
+                })()}
                 <button onClick={() => toggleFavorite('album', selectedAlbum.album_id)} className={isFavorite(selectedAlbum.album_id) ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}>
                   <Heart size={28} fill={isFavorite(selectedAlbum.album_id) ? 'currentColor' : 'none'} />
                 </button>
