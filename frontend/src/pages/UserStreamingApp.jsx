@@ -2099,6 +2099,13 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
               {isRadio && <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase font-bold">Live</span>}
             </div>
             <p className="text-xs text-zinc-400 truncate">{displaySubtitle}</p>
+            {/* Source-context chip: shows when the queue was started from a
+                specific category/album so the user always knows the origin. */}
+            {!isRadio && player.queueSource?.name && (
+              <p className="text-[10px] text-blue-400/90 truncate mt-0.5" data-testid="mini-player-source-chip">
+                Playing from {player.queueSource.name}
+              </p>
+            )}
           </div>
         </button>
 

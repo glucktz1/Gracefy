@@ -36,7 +36,10 @@ const useAudioPlayer = () => {
   // top-ups. Playback stays inside that source and simply stops (or repeats
   // if repeat=all) when the last song ends. Cleared whenever a new song is
   // played from a different context.
-  const queueBoundToSourceRef = useRef(null); // null | { type: 'category'|'album', id }
+  //
+  // State-backed so the mini-player can render a "Playing from X" chip.
+  const [queueSource, setQueueSource] = useState(null); // null | { type, id, name }
+  const queueBoundToSourceRef = useRef(null);
   const [streamingQuality, setStreamingQuality] = useState('auto'); // 'auto', 'low', 'medium', 'high'
   
   // Radio state
@@ -1093,6 +1096,7 @@ const useAudioPlayer = () => {
     // player stops fetching cross-source recommendations on queue end so the
     // user hears ONLY songs from that source (Play All Easter = only Easter).
     queueBoundToSourceRef.current = options.sourceContext || null;
+    setQueueSource(options.sourceContext || null);
     if (options.sourceContext) {
       console.log('[Player] Queue bound to source:', options.sourceContext);
     }
@@ -1381,6 +1385,8 @@ const useAudioPlayer = () => {
     restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached,
     // Continuous play (auto-recommendations) - mirrors native app
     continuousPlay, toggleContinuousPlay,
+    // Source context of the current queue (e.g. { type:'category', name:'Easter' })
+    queueSource,
     // HLS Adaptive Streaming
     streamingQuality, setStreamingQuality,
     // Radio
