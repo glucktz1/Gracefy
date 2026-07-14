@@ -3120,26 +3120,27 @@ async def record_download(data: dict, request: Request = None):
 
 @router.get("/analytics/download-stats")
 async def get_download_stats():
-    """Get download analytics for admin dashboard"""
+    """Get download analytics for admin dashboard.
+
+    Heavily-cached (60s) — the previous cold path fired 4 count_documents +
+    2 aggregations + 1 distinct sequentially, ~2s on real data. Now cached
+    + parallelised so the dashboard hits < 200ms warm.
+    """
     db = get_db()
-    
+    import asyncio
+
+    cache_key = "analytics:download_stats"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
     # Total downloads
-    total_downloads = await db.downloads.count_documents({})
-    
-    # Downloads today
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    downloads_today = await db.downloads.count_documents({"downloaded_at": {"$gte": today_start}})
-    
-    # Downloads this week
     from datetime import timedelta
-    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-    downloads_week = await db.downloads.count_documents({"downloaded_at": {"$gte": week_ago}})
-    
-    # Downloads this month
-    month_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-    downloads_month = await db.downloads.count_documents({"downloaded_at": {"$gte": month_ago}})
-    
-    # Most downloaded songs (top 10)
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+
     top_songs_pipeline = [
         {"$match": {"content_type": "song"}},
         {"$group": {
@@ -3151,26 +3152,25 @@ async def get_download_stats():
         {"$sort": {"downloads": -1}},
         {"$limit": 10}
     ]
-    top_songs = await db.downloads.aggregate(top_songs_pipeline).to_list(10)
-    
-    # Downloads by day (last 7 days)
     daily_pipeline = [
         {"$match": {"downloaded_at": {"$gte": week_ago}}},
-        {"$addFields": {
-            "date": {"$substr": ["$downloaded_at", 0, 10]}
-        }},
-        {"$group": {
-            "_id": "$date",
-            "downloads": {"$sum": 1}
-        }},
+        {"$addFields": {"date": {"$substr": ["$downloaded_at", 0, 10]}}},
+        {"$group": {"_id": "$date", "downloads": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
     ]
-    daily_downloads = await db.downloads.aggregate(daily_pipeline).to_list(7)
-    
-    # Unique users who downloaded
-    unique_downloaders = await db.downloads.distinct("user_id", {"user_id": {"$ne": None}})
-    
-    return {
+
+    # Run all Mongo queries concurrently for a big cold-path speedup.
+    total_downloads, downloads_today, downloads_week, downloads_month, top_songs, daily_downloads, unique_downloaders = await asyncio.gather(
+        db.downloads.count_documents({}),
+        db.downloads.count_documents({"downloaded_at": {"$gte": today_start}}),
+        db.downloads.count_documents({"downloaded_at": {"$gte": week_ago}}),
+        db.downloads.count_documents({"downloaded_at": {"$gte": month_ago}}),
+        db.downloads.aggregate(top_songs_pipeline).to_list(10),
+        db.downloads.aggregate(daily_pipeline).to_list(7),
+        db.downloads.distinct("user_id", {"user_id": {"$ne": None}}),
+    )
+
+    result = {
         "total_downloads": total_downloads,
         "downloads_today": downloads_today,
         "downloads_this_week": downloads_week,
@@ -3185,8 +3185,10 @@ async def get_download_stats():
             } for s in top_songs
         ],
         "daily_downloads": [{"date": d["_id"], "downloads": d["downloads"]} for d in daily_downloads],
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": now.isoformat()
     }
+    await cache.set(cache_key, result, 60)
+    return result
 
 
 @router.get("/analytics/user-downloads/{user_id}")

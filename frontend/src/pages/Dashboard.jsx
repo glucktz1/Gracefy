@@ -26,23 +26,33 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsRes, trendsRes, demographicsRes, streamingRes, downloadRes, liveRes] = await Promise.all([
+        // ============ TIERED FETCH FOR FAST DASHBOARD PAINT ============
+        // Critical (blocks UI): overview + trends — the tiles + main charts.
+        // Non-critical (background): demographics, realtime, downloads,
+        // live-listeners — enrich the UI shortly after first paint.
+        const [analyticsRes, trendsRes] = await Promise.all([
           axios.get(`${API}/analytics/overview`, { withCredentials: true }),
           axios.get(`${API}/analytics/trends`, { withCredentials: true }),
-          axios.get(`${API}/analytics/user-demographics`, { withCredentials: true }),
-          axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch(() => ({ data: null })),
-          axios.get(`${API}/analytics/download-stats`, { withCredentials: true }).catch(() => ({ data: null })),
-          axios.get(`${API}/analytics/live-listeners`, { withCredentials: true }).catch(() => ({ data: null }))
         ]);
         setAnalytics(analyticsRes.data);
         setTrends(trendsRes.data);
-        setDemographics(demographicsRes.data);
-        setStreamingStats(streamingRes.data);
-        setDownloadStats(downloadRes.data);
-        setLiveListeners(liveRes.data);
+        // Unblock the UI as soon as the two critical payloads land.
+        setLoading(false);
+
+        // Now enrich in the background — no spinner, no blocking.
+        Promise.all([
+          axios.get(`${API}/analytics/user-demographics`, { withCredentials: true }).catch(() => ({ data: null })),
+          axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch(() => ({ data: null })),
+          axios.get(`${API}/analytics/download-stats`, { withCredentials: true }).catch(() => ({ data: null })),
+          axios.get(`${API}/analytics/live-listeners`, { withCredentials: true }).catch(() => ({ data: null })),
+        ]).then(([demographicsRes, streamingRes, downloadRes, liveRes]) => {
+          if (demographicsRes.data) setDemographics(demographicsRes.data);
+          if (streamingRes.data) setStreamingStats(streamingRes.data);
+          if (downloadRes.data) setDownloadStats(downloadRes.data);
+          if (liveRes.data) setLiveListeners(liveRes.data);
+        }).catch(() => {});
       } catch (error) {
         console.error("Error fetching analytics:", error);
-      } finally {
         setLoading(false);
       }
     };
