@@ -324,16 +324,30 @@ async def get_song_categories(with_counts: bool = False):
             albums_by_cat.setdefault(a["category_id"], []).append(a["album_id"])
 
         # Count songs per category (album_id OR song_categories membership)
+        # and aggregate `plays` across those songs so we can sort by "most
+        # streamed" — used by the Quick Access grid to surface the top-3 hot
+        # categories on both web and mobile.
         for c in categories:
             cid = c.get("song_category_id")
             album_ids = albums_by_cat.get(cid, [])
             or_filters = [{"song_categories": cid}]
             if album_ids:
                 or_filters.append({"album_id": {"$in": album_ids}})
-            count = await db.songs.count_documents(
-                {"$or": or_filters, "status": "active"}
-            )
+            match = {"$or": or_filters, "status": "active"}
+            count = await db.songs.count_documents(match)
+            plays_agg = await db.songs.aggregate([
+                {"$match": match},
+                {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$plays", 0]}}}}
+            ]).to_list(1)
             c["total_songs"] = count
+            c["total_plays"] = (plays_agg[0]["total"] if plays_agg else 0) or 0
+
+        # Sort categories by total_plays DESC so top-streamed float to the
+        # top for the Quick Access "top 3" tiles. `sort_order` still applies
+        # as a tie-breaker for the admin-curated positioning.
+        categories.sort(
+            key=lambda c: (-(c.get("total_plays") or 0), c.get("sort_order") or 999)
+        )
 
     result = {"categories": categories}
     # Short cache — counts can change as admins add songs.

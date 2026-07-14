@@ -42,7 +42,7 @@ import LiveListenerBadge from "@/components/LiveListenerBadge";
 // ==================== COMPONENTS ====================
 
 // Quick Access Card - Spotify-style compact tile
-const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
+const QuickAccessCard = ({ item, onClick, language = 'sw', compact = false }) => {
   // Determine icon and gradient based on item type
   let IconComponent = categoryIcons[item.name?.toLowerCase()] || categoryIcons.default;
   let gradient = 'from-blue-600 to-teal-700';
@@ -70,18 +70,18 @@ const QuickAccessCard = ({ item, onClick, language = 'sw' }) => {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 bg-zinc-800/70 hover:bg-zinc-700/90 rounded overflow-hidden transition-all duration-200 h-14"
+      className={`flex items-center gap-2 bg-zinc-800/70 hover:bg-zinc-700/90 rounded overflow-hidden transition-all duration-200 ${compact ? 'h-11' : 'h-14'}`}
       data-testid={`quick-${item.id || item.category_id || item.album_id || item.type}`}
     >
-      <div className={`w-14 h-14 bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
+      <div className={`${compact ? 'w-11 h-11' : 'w-14 h-14'} bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
         {thumbUrl ? (
           <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <IconComponent size={22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
+          <IconComponent size={compact ? 18 : 22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
       </div>
-      <div className="flex flex-col min-w-0 flex-1 pr-3 text-left">
-        <span className="font-semibold text-sm text-white truncate">{displayName}</span>
+      <div className={`flex flex-col min-w-0 flex-1 ${compact ? 'pr-2' : 'pr-3'} text-left`}>
+        <span className={`font-semibold ${compact ? 'text-xs' : 'text-sm'} text-white truncate`}>{displayName}</span>
         {typeof item.total_songs === 'number' && item.total_songs > 0 && (
           <span className="text-[10px] text-zinc-400 truncate">
             {item.total_songs} {language === 'sw' ? 'nyimbo' : (item.total_songs === 1 ? 'song' : 'songs')}
@@ -4137,9 +4137,13 @@ export default function UserStreamingApp() {
           console.log('[QuickAccess] Using content_ids items:', items.length);
           setQuickAccessItems(decorateWithCount(items));
         } else {
-          // Default to first 4 categories (to combine with 4 user items = 8 total)
-          console.log('[QuickAccess] Using default categories');
-          setQuickAccessItems(decorateWithCount(catRes.data.categories?.slice(0, 4) || []));
+          // Default → top-streamed song-categories (sorted server-side by total_plays desc).
+          // This gives the "top 3 hot categories" tiles requested by the admin
+          // spec (Praise & Worship, Lent, Easter). Fallback to legacy `categories`
+          // if the with_counts endpoint fails.
+          const source = (songCatList && songCatList.length > 0) ? songCatList : (catRes.data.categories || []);
+          console.log('[QuickAccess] Using top-streamed categories:', source.slice(0, 3).map(c => c.name || c.name_sw));
+          setQuickAccessItems(decorateWithCount(source.slice(0, 6)));
         }
       } catch (e) {
         console.error("Failed to fetch data", e);
@@ -5306,37 +5310,37 @@ export default function UserStreamingApp() {
               )}
 
               <div className="px-4 lg:px-6 pt-6 space-y-8">
-                {/* Quick Access Grid - 8 tiles, no header, user items first */}
+                {/* Quick Access Grid — 6 tiles: 3 user shortcuts + top-3 streamed
+                    categories. Compact size (h-12) for mobile-friendly grid. */}
                 <section>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {/* User items first */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {/* User items first (3 tiles: Liked, Playlists, Downloads) */}
                     <QuickAccessCard 
                       item={{ type: 'liked_songs', name: t('library.likedSongs', 'Liked Songs') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('liked'); }}
                       language={language}
+                      compact
                     />
                     <QuickAccessCard 
                       item={{ type: 'playlists', name: t('library.playlists', 'Playlists') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('playlists'); }}
                       language={language}
+                      compact
                     />
                     <QuickAccessCard 
                       item={{ type: 'downloads', name: t('library.downloads', 'Downloads') }} 
                       onClick={() => { setView('library'); setLibraryTab && setLibraryTab('downloads'); }}
                       language={language}
+                      compact
                     />
-                    <QuickAccessCard 
-                      item={{ type: 'library', name: t('library.yourLibrary', 'My Library') }} 
-                      onClick={() => setView('library')}
-                      language={language}
-                    />
-                    {/* Admin configured items (up to 4 more) */}
-                    {quickAccessItems.slice(0, 4).map((item, i) => (
+                    {/* Top-3 streamed categories (sorted server-side by total plays desc) */}
+                    {quickAccessItems.slice(0, 3).map((item, i) => (
                       <QuickAccessCard 
-                        key={item.category_id || item.album_id || item.song_id || item.choir_id || item.church_id || item.id || i} 
+                        key={item.category_id || item.song_category_id || item.album_id || item.song_id || item.choir_id || item.church_id || item.id || i} 
                         item={item} 
                         onClick={() => handleQuickAccessClick(item)}
                         language={language}
+                        compact
                       />
                     ))}
                   </div>

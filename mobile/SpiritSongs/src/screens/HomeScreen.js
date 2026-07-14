@@ -1117,7 +1117,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const renderQuickAccessSection = () => {
-    // 4 USER tiles, identical to web (Liked / Playlists / Downloads / Library).
+    // 3 USER tiles (Spotify-style): Liked / Playlists / Downloads.
     const userTiles = [
       {
         key: 'liked_songs',
@@ -1140,23 +1140,18 @@ const HomeScreen = ({ navigation }) => {
         iconColors: ['#3b82f6', '#16a34a'],
         onPress: () => navigation.navigate('Library', { tab: 'downloads' }),
       },
-      {
-        key: 'library',
-        title: 'Maktaba Yangu',
-        iconName: 'library',
-        iconColors: ['#2563eb', '#06b6d4'],
-        onPress: () => navigation.navigate('Library'),
-      },
     ];
 
-    // 4 ADMIN/CATEGORY tiles — first try admin-curated quick_access items
-    // (so admin layout overrides work). If those are missing, fall back to
-    // the top 4 song-categories with counts (Spotify-default behavior).
+    // Top-3 STREAMED categories from `songCategoriesWithCounts` (backend
+    // returns these sorted by total_plays DESC — Kisifu / Kwaresma / Pasaka).
+    // Skip empty categories so we never show a "0 nyimbo" tile.
     let adminItems = [];
     if (Array.isArray(quickAccessConfig) && quickAccessConfig.length > 0) {
-      adminItems = quickAccessConfig.slice(0, 4);
+      adminItems = quickAccessConfig.slice(0, 3);
     } else if (Array.isArray(songCategoriesWithCounts) && songCategoriesWithCounts.length > 0) {
-      adminItems = songCategoriesWithCounts.slice(0, 4);
+      adminItems = songCategoriesWithCounts
+        .filter(c => (c.total_songs === undefined) || c.total_songs > 0)
+        .slice(0, 3);
     }
 
     // Build a {id → total_songs} map so we can decorate admin items that came
@@ -1182,7 +1177,6 @@ const HomeScreen = ({ navigation }) => {
         iconName: 'musical-notes',
         iconColors: ['#1DB954', '#169c46'],
         onPress: () => {
-          // Categories: open the Spotify-style "all songs in category" page.
           if (item.category_id || item.song_category_id) {
             navigation.navigate('CategorySongs', {
               categoryId: item.category_id || item.song_category_id,
@@ -1199,6 +1193,7 @@ const HomeScreen = ({ navigation }) => {
       };
     });
 
+    // 6 total tiles = 3 user + 3 top-streamed categories.
     const tiles = [...userTiles, ...adminTiles];
 
     return (
@@ -1710,7 +1705,7 @@ const styles = StyleSheet.create({
   },
   quickAccessItem: {
     width: CARD_WIDTH,
-    height: 56,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
@@ -1719,29 +1714,29 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   quickAccessIcon: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quickAccessImage: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
   },
   quickAccessText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     color: COLORS.text,
   },
   quickAccessTextWrap: {
     flex: 1,
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
     justifyContent: 'center',
   },
   quickAccessSubtext: {
-    fontSize: 10,
+    fontSize: 9,
     color: COLORS.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
 
   // Category Filters - Spotify style
