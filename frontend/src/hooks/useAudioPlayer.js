@@ -807,14 +807,16 @@ const useAudioPlayer = () => {
       
       setIsLoading(false);
 
-      // Auto-skip to next on error (with safeguard against infinite skip loop)
-      // If 3+ consecutive songs fail, stop trying so we don't hammer the user with toasts.
+      // Auto-skip to next on error (with safeguard against infinite skip loop).
+      // Bumped from 3 → 10 so a stretch of broken CDN URLs doesn't kill an
+      // otherwise-good 69-song category queue. If we truly can't play 10 in
+      // a row, something is fundamentally broken and stopping is fine.
       consecutiveErrorsRef.current += 1;
-      if (consecutiveErrorsRef.current <= 3 && !guestLimitReachedRef.current && !blockAutoPlayNextRef.current) {
-        console.log(`[Player] Auto-skipping after error (attempt ${consecutiveErrorsRef.current}/3)`);
+      if (consecutiveErrorsRef.current <= 10 && !guestLimitReachedRef.current && !blockAutoPlayNextRef.current) {
+        console.log(`[Player] Auto-skipping after error (attempt ${consecutiveErrorsRef.current}/10)`);
         // Defer to avoid same-tick recursion
         setTimeout(() => handleSongEnd(), 250);
-      } else if (consecutiveErrorsRef.current > 3) {
+      } else if (consecutiveErrorsRef.current > 10) {
         console.warn('[Player] Too many consecutive errors — stopping playback');
         setIsPlaying(false);
       }

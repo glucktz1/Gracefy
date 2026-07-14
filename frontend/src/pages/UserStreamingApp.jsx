@@ -189,7 +189,7 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
 };
 
 // Compact List Item
-const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPlaylist, onDownload, isLiked }) => {
+const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPlaylist, onDownload, onShare, isLiked }) => {
   const thumbUrl = getThumbnail(item) || getThumbnail(item.album);
   return (
     <div className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-zinc-800/60 transition-colors group">
@@ -239,6 +239,16 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
             title="Download"
           >
             <Download size={18} className="text-zinc-400" />
+          </button>
+        )}
+        {onShare && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onShare(item); }}
+            className="p-2 hover:bg-zinc-700 rounded-full"
+            title="Share"
+            data-testid={`share-song-btn-${item.song_id}`}
+          >
+            <Share2 size={18} className="text-zinc-400" />
           </button>
         )}
       </div>
@@ -4874,6 +4884,44 @@ export default function UserStreamingApp() {
   };
 
   // Handler for Like (song) - WITH BILLING CHECK
+  // Universal share handler for songs AND albums. Uses Web Share API when
+  // available (mobile browsers, most modern desktops), falls back to
+  // clipboard-copy on unsupported browsers.
+  const handleShare = async (kind, entity) => {
+    if (!entity) return;
+    const origin = window.location.origin;
+    let url = origin;
+    let title = 'Gracefy';
+    let text = '';
+    if (kind === 'song') {
+      url = `${origin}/?song=${encodeURIComponent(entity.song_id)}`;
+      title = `Gracefy — ${entity.title}`;
+      text = `${entity.title}${entity.artist_name ? ` • ${entity.artist_name}` : ''}`;
+    } else if (kind === 'album') {
+      url = `${origin}/?album=${encodeURIComponent(entity.album_id)}`;
+      title = `Gracefy — ${entity.title}`;
+      text = `${entity.title}${entity.artist_name ? ` • ${entity.artist_name}` : ''}`;
+    } else if (kind === 'category') {
+      url = `${origin}/?category=${encodeURIComponent(entity.id || entity.category_id || entity.song_category_id)}`;
+      title = `Gracefy — ${entity.name}`;
+      text = `${entity.name}${entity.total_songs ? ` • ${entity.total_songs} songs` : ''}`;
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success(language === 'sw' ? 'Kiungo kimenakiliwa!' : 'Link copied to clipboard!');
+      }
+    } catch (e) {
+      // User cancelled — silent no-op. Only log real errors.
+      if (e && e.name !== 'AbortError') {
+        console.log('[Share] error:', e);
+      }
+    }
+  };
+
+
   const handleLikeSong = (song) => {
     // BILLING LOGIC (matches native app):
     // 1. Guest: Prompt to login
@@ -5954,6 +6002,10 @@ export default function UserStreamingApp() {
                             onLike={handleLikeSong}
                             onAddToPlaylist={handleAddToPlaylist}
                             onDownload={handleDownloadSong}
+                        onShare={(s) => handleShare('song', s)}
+                      onShare={(s) => handleShare('song', s)}
+                    onShare={(s) => handleShare('song', s)}
+                            onShare={(s) => handleShare('song', s)}
                             isLiked={isFavorite(song.song_id)}
                           />
                         ))}
@@ -6026,13 +6078,22 @@ export default function UserStreamingApp() {
                   className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
                   data-testid="play-album-btn"
                 >
-                  <Play size={26} fill="black" className="text-black ml-1" />
+                  {player.isPlaying && player.currentAlbum?.album_id === selectedAlbum.album_id ? (
+                    <Pause size={26} fill="black" className="text-black" />
+                  ) : (
+                    <Play size={26} fill="black" className="text-black ml-1" />
+                  )}
                 </button>
                 <button onClick={() => toggleFavorite('album', selectedAlbum.album_id)} className={isFavorite(selectedAlbum.album_id) ? 'text-blue-400' : 'text-zinc-400 hover:text-white'}>
                   <Heart size={28} fill={isFavorite(selectedAlbum.album_id) ? 'currentColor' : 'none'} />
                 </button>
-                <button className="text-zinc-400 hover:text-white">
-                  <MoreHorizontal size={28} />
+                <button
+                  onClick={() => handleShare('album', selectedAlbum)}
+                  className="text-zinc-400 hover:text-white"
+                  data-testid="share-album-btn"
+                  title={language === 'sw' ? 'Shiriki' : 'Share'}
+                >
+                  <Share2 size={26} />
                 </button>
               </div>
 
@@ -6048,6 +6109,7 @@ export default function UserStreamingApp() {
                     onLike={handleLikeSong}
                     onAddToPlaylist={handleAddToPlaylist}
                     onDownload={handleDownloadSong}
+                    onShare={(s) => handleShare('song', s)}
                     isLiked={isFavorite(song.song_id)}
                   />
                 ))}
@@ -6082,37 +6144,71 @@ export default function UserStreamingApp() {
               </div>
 
               <div className="flex items-center gap-4 mb-6">
-                <button
-                  onClick={() => {
-                    const songs = categorySongsView.songs || [];
-                    if (!songs.length) return;
-                    const virtualAlbum = {
-                      album_id: `cat_${categorySongsView.id}`,
-                      title: categorySongsView.name,
-                      thumbnail: categorySongsView.cover,
-                      artist_name: language === 'sw' ? 'Mchanganyiko' : 'Mixed',
-                    };
-                    // Bind queue to this category so autoplay stays inside it
-                    // (Play All Easter → only Easter songs).
-                    handlePlaySong(
-                      songs[0],
-                      virtualAlbum,
-                      songs.map(s => ({ song: s, album: virtualAlbum })),
-                      0,
-                      { sourceContext: { type: 'category', id: categorySongsView.id, name: categorySongsView.name } }
-                    );
-                  }}
-                  className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl disabled:opacity-50"
-                  data-testid="play-category-all-btn"
-                  disabled={!categorySongsView.songs?.length}
-                >
-                  <Play size={26} fill="black" className="text-black ml-1" />
-                </button>
+                {(() => {
+                  const isPlayingThisCategory = player.isPlaying
+                    && player.queueSource?.type === 'category'
+                    && player.queueSource?.id === categorySongsView.id;
+                  return (
+                    <button
+                      onClick={() => {
+                        const songs = categorySongsView.songs || [];
+                        if (!songs.length) return;
+                        // If this category is already playing, treat the button as a Pause toggle.
+                        if (isPlayingThisCategory) {
+                          player.togglePlay && player.togglePlay();
+                          return;
+                        }
+                        // If the same category was already loaded and just paused, resume.
+                        const currentInThisCategory = player.queueSource?.type === 'category'
+                          && player.queueSource?.id === categorySongsView.id;
+                        if (currentInThisCategory) {
+                          player.togglePlay && player.togglePlay();
+                          return;
+                        }
+                        const virtualAlbum = {
+                          album_id: `cat_${categorySongsView.id}`,
+                          title: categorySongsView.name,
+                          thumbnail: categorySongsView.cover,
+                          artist_name: language === 'sw' ? 'Mchanganyiko' : 'Mixed',
+                        };
+                        handlePlaySong(
+                          songs[0],
+                          virtualAlbum,
+                          songs.map(s => ({ song: s, album: virtualAlbum })),
+                          0,
+                          { sourceContext: { type: 'category', id: categorySongsView.id, name: categorySongsView.name } }
+                        );
+                      }}
+                      className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl disabled:opacity-50"
+                      data-testid="play-category-all-btn"
+                      disabled={!categorySongsView.songs?.length}
+                    >
+                      {isPlayingThisCategory ? (
+                        <Pause size={26} fill="black" className="text-black" />
+                      ) : (
+                        <Play size={26} fill="black" className="text-black ml-1" />
+                      )}
+                    </button>
+                  );
+                })()}
                 <span className="text-sm text-zinc-400">
                   {categorySongsView.loading
                     ? (language === 'sw' ? 'Inapakia…' : 'Loading…')
                     : (language === 'sw' ? 'Cheza Zote' : 'Play All')}
                 </span>
+                {/* Share button — Spotify-style: Web Share API on mobile, copy-link fallback on desktop */}
+                <button
+                  onClick={() => handleShare('category', {
+                    id: categorySongsView.id,
+                    name: categorySongsView.name,
+                    total_songs: categorySongsView.songs?.length || 0,
+                  })}
+                  className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                  data-testid="share-category-btn"
+                  title={language === 'sw' ? 'Shiriki' : 'Share'}
+                >
+                  <Share2 size={20} />
+                </button>
               </div>
 
               <div className="space-y-1">
@@ -6148,6 +6244,8 @@ export default function UserStreamingApp() {
                       onLike={handleLikeSong}
                       onAddToPlaylist={handleAddToPlaylist}
                       onDownload={handleDownloadSong}
+                      onShare={(s) => handleShare('song', s)}
+                    onShare={(s) => handleShare('song', s)}
                       isLiked={isFavorite(song.song_id)}
                     />
                   );
@@ -6246,6 +6344,9 @@ export default function UserStreamingApp() {
                         onLike={handleLikeSong}
                         onAddToPlaylist={handleAddToPlaylist}
                         onDownload={handleDownloadSong}
+                        onShare={(s) => handleShare('song', s)}
+                      onShare={(s) => handleShare('song', s)}
+                    onShare={(s) => handleShare('song', s)}
                         isLiked={true}
                       />
                     ))}
@@ -6351,6 +6452,9 @@ export default function UserStreamingApp() {
                         onLike={handleLikeSong}
                         onAddToPlaylist={handleAddToPlaylist}
                         onDownload={handleDownloadSong}
+                        onShare={(s) => handleShare('song', s)}
+                      onShare={(s) => handleShare('song', s)}
+                    onShare={(s) => handleShare('song', s)}
                         isLiked={isFavorite(song.song_id)}
                       />
                     ))}
