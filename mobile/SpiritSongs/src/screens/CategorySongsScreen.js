@@ -95,10 +95,28 @@ const CategorySongsScreen = ({ route, navigation }) => {
     Animated.spring(playScale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
 
   const load = useCallback(async (showSkeleton = true) => {
-    if (!categoryId) return;
+    // If categoryId is missing, try to resolve from categoryName as a last-
+    // ditch fallback. This can happen if the caller only had a name (e.g.
+    // legacy nav from a section header).
+    let effectiveId = categoryId;
+    if (!effectiveId && categoryName) {
+      try {
+        const listRes = await axios.get(`${API_BASE_URL}/song-categories`);
+        const cats = listRes.data?.categories || [];
+        const match = cats.find(c =>
+          (c.name_sw && c.name_sw.toLowerCase() === categoryName.toLowerCase()) ||
+          (c.name && c.name.toLowerCase() === categoryName.toLowerCase())
+        );
+        if (match) effectiveId = match.song_category_id || match.category_id;
+      } catch (_) {}
+    }
+    if (!effectiveId) {
+      setLoading(false);
+      return;
+    }
     if (showSkeleton && !cached) setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/category/${categoryId}/all-songs?limit=200`);
+      const res = await axios.get(`${API_BASE_URL}/category/${effectiveId}/all-songs?limit=200`);
       const d = res.data || {};
       const cat = d.category || {};
       const next = {
@@ -108,7 +126,7 @@ const CategorySongsScreen = ({ route, navigation }) => {
         total: d.total_songs ?? (d.songs?.length || 0),
       };
       setData(next);
-      cacheSet(categoryId, next);
+      cacheSet(effectiveId, next);
     } catch (e) {
       // Keep optimistic state on failure — don't blank the screen.
       console.log('[CategorySongs] load error:', e.message);

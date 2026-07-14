@@ -198,6 +198,164 @@ const DataUsageSection = ({ dataUsage, period }) => {
 };
 
 
+// ============================================================================
+// UserAnalyticsSection — daily trend of new registrations + unique visitors
+// with a configurable date filter (preset OR single day OR range). Powers the
+// "Users" tab on the Analytics page.
+// ============================================================================
+const UserAnalyticsSection = () => {
+  const [period, setPeriod] = useState('30d'); // '7d'|'30d'|'90d'|'365d'|'day'|'range'
+  const [singleDate, setSingleDate] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (period === 'day' && singleDate) {
+        params.set('date', singleDate);
+      } else if (period === 'range' && (dateFrom || dateTo)) {
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo) params.set('date_to', dateTo);
+      } else if (['7d', '30d', '90d', '365d'].includes(period)) {
+        params.set('period', period);
+      } else {
+        params.set('period', '30d');
+      }
+      const res = await axios.get(`${API}/analytics/user-trends?${params.toString()}`, {
+        withCredentials: true,
+      });
+      setData(res.data);
+    } catch (e) {
+      console.error('[UserAnalytics] fetch error', e);
+      setData({ series: [], total_users: 0, total_visitors: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [period, singleDate, dateFrom, dateTo]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const series = data?.series || [];
+  const totalUsers = data?.total_users || 0;
+  const totalVisitors = data?.total_visitors || 0;
+
+  const chipBase = 'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors';
+  const chipActive = 'bg-violet-600 border-violet-500 text-white';
+  const chipIdle = 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700';
+
+  return (
+    <div className="space-y-4">
+      {/* Filter chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {['7d', '30d', '90d', '365d'].map(p => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`${chipBase} ${period === p ? chipActive : chipIdle}`}
+            data-testid={`user-trends-period-${p}`}
+          >
+            {p === '365d' ? '1y' : p}
+          </button>
+        ))}
+        <button
+          onClick={() => setPeriod('day')}
+          className={`${chipBase} ${period === 'day' ? chipActive : chipIdle}`}
+          data-testid="user-trends-period-day"
+        >
+          Single Day
+        </button>
+        <button
+          onClick={() => setPeriod('range')}
+          className={`${chipBase} ${period === 'range' ? chipActive : chipIdle}`}
+          data-testid="user-trends-period-range"
+        >
+          Custom Range
+        </button>
+
+        {period === 'day' && (
+          <input
+            type="date"
+            value={singleDate}
+            onChange={(e) => setSingleDate(e.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
+            data-testid="user-trends-single-date"
+          />
+        )}
+        {period === 'range' && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
+              data-testid="user-trends-date-from"
+            />
+            <span className="text-zinc-500 text-xs">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
+              data-testid="user-trends-date-to"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
+          <p className="text-xs text-zinc-500 uppercase tracking-wider">New Users</p>
+          <p className="text-2xl font-bold text-white mt-1" data-testid="user-trends-total-users">{totalUsers.toLocaleString()}</p>
+        </div>
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
+          <p className="text-xs text-zinc-500 uppercase tracking-wider">Unique Visitors</p>
+          <p className="text-2xl font-bold text-white mt-1" data-testid="user-trends-total-visitors">{totalVisitors.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
+        <p className="text-white text-sm font-semibold mb-2">Users & Visitors Trend</p>
+        {loading ? (
+          <div className="h-64 flex items-center justify-center text-zinc-500 text-sm">Loading…</div>
+        ) : series.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-zinc-500 text-sm">No data in this period.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={series}>
+              <defs>
+                <linearGradient id="usersGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="visitorsGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis dataKey="date" stroke="#71717a" fontSize={10} interval="preserveStartEnd" />
+              <YAxis stroke="#71717a" fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46' }} labelStyle={{ color: '#a1a1aa' }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="users" name="New Users" stroke="#8b5cf6" strokeWidth={2} fill="url(#usersGradient)" />
+              <Area type="monotone" dataKey="visitors" name="Unique Visitors" stroke="#3b82f6" strokeWidth={2} fill="url(#visitorsGradient)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+
+
 export default function EnhancedAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [realtime, setRealtime] = useState(null);
@@ -455,6 +613,9 @@ export default function EnhancedAnalyticsPage() {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="bg-zinc-900 border border-zinc-800">
           <TabsTrigger value="overview" className="data-[state=active]:bg-violet-600">Overview</TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-violet-600" data-testid="analytics-tab-users">
+            <Activity size={14} className="mr-1" /> Users
+          </TabsTrigger>
           <TabsTrigger value="revenue" className="data-[state=active]:bg-violet-600">Revenue</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-violet-600">Content</TabsTrigger>
           <TabsTrigger value="replays" className="data-[state=active]:bg-orange-600">
@@ -588,6 +749,11 @@ export default function EnhancedAnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Users Tab — trend of new registrations + unique visitors */}
+        <TabsContent value="users" className="space-y-6" data-testid="analytics-tab-content-users">
+          <UserAnalyticsSection />
         </TabsContent>
 
         {/* Revenue Tab */}

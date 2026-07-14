@@ -334,12 +334,22 @@ async def get_admin_users(
     status: Optional[str] = None,
     search: Optional[str] = None,
     user_type: Optional[str] = None,  # 'admin', 'app', 'all'
+    # Filter by registration date (ISO YYYY-MM-DD). registered_from/to define a
+    # closed range. When only one is provided, we use it as a lower/upper bound.
+    registered_from: Optional[str] = None,
+    registered_to: Optional[str] = None,
+    # Filter by recent activity — mirrors the "Active now / this week /
+    # this month" chips in the admin UI.
+    #   • active_now  = last_seen_at within last 5 minutes
+    #   • active_week = last_seen_at within last 7 days
+    #   • active_month = last_seen_at within last 30 days
+    activity: Optional[str] = Query(None, regex="^(active_now|active_week|active_month)?$"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200)
 ):
     """Get all users for admin panel - includes both admin users and app users"""
     db = get_db()
-    
+
     query = {}
     if role:
         query["role"] = role
@@ -350,21 +360,55 @@ async def get_admin_users(
             {"email": {"$regex": search, "$options": "i"}},
             {"name": {"$regex": search, "$options": "i"}}
         ]
-    
+
+    # ============ Registered-date filter ============
+    # `created_at` on both collections is stored as ISO string, so lexicographic
+    # comparison with the ISO-8601 date/datetime is safe.
+    if registered_from or registered_to:
+        created_range = {}
+        if registered_from:
+            created_range["$gte"] = registered_from
+        if registered_to:
+            # Add a day boundary so "to" is inclusive of that day.
+            _to = registered_to
+            if len(_to) == 10:  # YYYY-MM-DD → cover entire day
+                _to = f"{_to}T23:59:59"
+            created_range["$lte"] = _to
+        query["created_at"] = created_range
+
+    # ============ Activity filter (app_users only) ============
+    # Uses `last_seen_at` which is a real datetime BSON value stamped by the
+    # heartbeat endpoint. Windows are computed once per request.
+    activity_query = None
+    if activity:
+        from datetime import timedelta
+        now = datetime.now(timezone.utc)
+        windows = {
+            "active_now": timedelta(minutes=5),
+            "active_week": timedelta(days=7),
+            "active_month": timedelta(days=30),
+        }
+        if activity in windows:
+            since = now - windows[activity]
+            activity_query = {"last_seen_at": {"$gte": since}}
+
     all_users = []
-    
-    # Get admin users (from 'users' collection)
-    if user_type != 'app':
+
+    # Get admin users (from 'users' collection). Activity filter doesn't apply
+    # to admin accounts — they don't have `last_seen_at` recorded the same way.
+    if user_type != 'app' and not activity:
         admin_users = await db.users.find(query, {"_id": 0})\
             .sort("created_at", -1)\
             .to_list(500)
         for u in admin_users:
             u["user_type"] = "admin"
         all_users.extend(admin_users)
-    
+
     # Get app users (from 'app_users' collection)
     if user_type != 'admin':
         app_query = {k: v for k, v in query.items() if k != 'role'}  # app_users don't have role field
+        if activity_query:
+            app_query = {**app_query, **activity_query}
         app_users = await db.app_users.find(app_query, {"_id": 0, "password_hash": 0})\
             .sort("created_at", -1)\
             .to_list(500)
@@ -372,14 +416,14 @@ async def get_admin_users(
             u["user_type"] = "app"
             u["role"] = "user"  # Default role for app users
         all_users.extend(app_users)
-    
+
     # Sort combined list by created_at
     all_users.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
+
     # Apply pagination
     total = len(all_users)
     paginated_users = all_users[skip:skip + limit]
-    
+
     return {"users": paginated_users, "total": total, "skip": skip, "limit": limit}
 
 

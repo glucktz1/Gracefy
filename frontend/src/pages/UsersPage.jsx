@@ -70,6 +70,12 @@ export default function UsersPage() {
   const [membershipFilter, setMembershipFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [registerByFilter, setRegisterByFilter] = useState("all");
+  // NEW: activity + registered-date filters.
+  //  - activityFilter: 'all' | 'active_now' | 'active_week' | 'active_month'
+  //  - registeredFrom / registeredTo: ISO YYYY-MM-DD (inclusive)
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [registeredFrom, setRegisteredFrom] = useState("");
+  const [registeredTo, setRegisteredTo] = useState("");
   
   // Pagination — itemsPerPage is now controlled state so the bottom-row
   // page-size Select (10/25/50/100) can actually change it. Previously this
@@ -179,6 +185,9 @@ export default function UsersPage() {
         membership_type: membershipFilter !== "all" ? membershipFilter : undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
         register_by: registerByFilter !== "all" ? registerByFilter : undefined,
+        activity: activityFilter !== "all" ? activityFilter : undefined,
+        registered_from: registeredFrom || undefined,
+        registered_to: registeredTo || undefined,
       };
       
       const response = await axios.get(`${API}/admin/all-users`, {
@@ -201,7 +210,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchQuery, membershipFilter, statusFilter, registerByFilter]);
+  }, [currentPage, itemsPerPage, searchQuery, membershipFilter, statusFilter, registerByFilter, activityFilter, registeredFrom, registeredTo]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -972,7 +981,50 @@ export default function UsersPage() {
                   <SelectItem value="suspended">Inactive</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* NEW: Activity filter — "Active now / this week / this month" */}
+              <Select value={activityFilter} onValueChange={setActivityFilter}>
+                <SelectTrigger className="w-[160px] bg-zinc-950 border-zinc-800 text-white" data-testid="users-activity-filter">
+                  <SelectValue placeholder="Activity" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="all">All Activity</SelectItem>
+                  <SelectItem value="active_now">Active Now (5m)</SelectItem>
+                  <SelectItem value="active_week">Active This Week</SelectItem>
+                  <SelectItem value="active_month">Active This Month</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          {/* NEW: Registered-date range filter — small inline row so it stays
+              tidy on smaller admin screens */}
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+            <span>Registered:</span>
+            <input
+              type="date"
+              value={registeredFrom}
+              onChange={(e) => { setRegisteredFrom(e.target.value); setCurrentPage(1); }}
+              className="bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-white"
+              data-testid="users-registered-from"
+            />
+            <span>→</span>
+            <input
+              type="date"
+              value={registeredTo}
+              onChange={(e) => { setRegisteredTo(e.target.value); setCurrentPage(1); }}
+              className="bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-white"
+              data-testid="users-registered-to"
+            />
+            {(registeredFrom || registeredTo) && (
+              <button
+                onClick={() => { setRegisteredFrom(""); setRegisteredTo(""); setCurrentPage(1); }}
+                className="text-zinc-500 hover:text-white underline"
+                data-testid="users-registered-clear"
+              >
+                clear
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>

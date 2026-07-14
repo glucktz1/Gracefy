@@ -15,6 +15,132 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["analytics"])
 
 
+# ============================================================================
+# DATE-RANGE HELPER used by the "filter by date / range" chips in the admin UI.
+# Accepts either a single `date=YYYY-MM-DD` (whole day window) or an explicit
+# `date_from` + `date_to` range. Also accepts a `period` presets shortcut
+# (7d, 30d, 90d) so the frontend can keep the network payload tiny.
+# ============================================================================
+def _resolve_date_range(date, date_from, date_to, period):
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+
+    if date:
+        # Single day → whole 24h window in UTC.
+        start = datetime.fromisoformat(f"{date}T00:00:00+00:00")
+        end = start + timedelta(days=1)
+        return start, end, "day"
+
+    if date_from or date_to:
+        start = datetime.fromisoformat(f"{(date_from or '1970-01-01')}T00:00:00+00:00")
+        # Inclusive of `date_to`: extend to end of that day.
+        if date_to:
+            end = datetime.fromisoformat(f"{date_to}T00:00:00+00:00") + timedelta(days=1)
+        else:
+            end = now
+        return start, end, "range"
+
+    preset_days = {"7d": 7, "30d": 30, "90d": 90, "365d": 365}.get(period, 30)
+    return now - timedelta(days=preset_days), now, "preset"
+
+
+@router.get("/analytics/user-trends")
+async def get_user_trends(
+    date: Optional[str] = Query(None, description="Single day (YYYY-MM-DD)"),
+    date_from: Optional[str] = Query(None, description="Range start (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="Range end (YYYY-MM-DD)"),
+    period: Optional[str] = Query("30d", regex="^(7d|30d|90d|365d)$"),
+):
+    """User + visitor trends over a configurable window.
+
+    Returns two parallel daily series:
+      - `users`: new registrations per day (from `app_users.created_at`).
+      - `visitors`: unique anonymous visitor IDs per day (from `page_views` /
+                    `listener_heartbeats`, whichever the app already emits).
+
+    Powers the "User Analytics" subsection on the admin analytics page.
+    """
+    db = get_db()
+    import asyncio
+
+    start, end, mode = _resolve_date_range(date, date_from, date_to, period)
+
+    cache_key = f"analytics:user_trends:{mode}:{start.date()}:{end.date()}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    # Build $substr'd date buckets so we can group by day cheaply.
+    # `created_at` is stored as ISO string on app_users → substr(0,10) = YYYY-MM-DD.
+    users_pipeline = [
+        {"$match": {
+            "created_at": {"$gte": start.isoformat(), "$lt": end.isoformat()}
+        }},
+        {"$addFields": {"day": {"$substr": ["$created_at", 0, 10]}}},
+        {"$group": {"_id": "$day", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]
+
+    # Visitors: use `page_views` if present (typical), otherwise fall back to
+    # `listener_heartbeats` distinct visitor_id per day. Both are optional
+    # collections; we treat missing ones as zero.
+    visitors_pipeline = [
+        {"$match": {
+            "timestamp": {"$gte": start, "$lt": end},
+            "visitor_id": {"$exists": True, "$ne": None}
+        }},
+        {"$group": {
+            "_id": {"day": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}}, "vid": "$visitor_id"}
+        }},
+        {"$group": {"_id": "$_id.day", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]
+
+    users_task = db.app_users.aggregate(users_pipeline).to_list(400)
+    visitors_task = db.page_views.aggregate(visitors_pipeline).to_list(400)
+    users_by_day, visitors_by_day = await asyncio.gather(
+        users_task,
+        visitors_task,
+        return_exceptions=True,
+    )
+    # Tolerate missing / errored collections without failing the whole endpoint.
+    if isinstance(users_by_day, Exception):
+        users_by_day = []
+    if isinstance(visitors_by_day, Exception):
+        visitors_by_day = []
+
+    users_map = {u["_id"]: u["count"] for u in users_by_day}
+    visitors_map = {v["_id"]: v["count"] for v in visitors_by_day}
+
+    # Emit a contiguous daily series so the chart has no gaps.
+    from datetime import timedelta
+    series = []
+    day = start
+    while day < end:
+        d = day.date().isoformat()
+        series.append({
+            "date": d,
+            "users": users_map.get(d, 0),
+            "visitors": visitors_map.get(d, 0),
+        })
+        day += timedelta(days=1)
+
+    result = {
+        "series": series,
+        "total_users": sum(p["users"] for p in series),
+        "total_visitors": sum(p["visitors"] for p in series),
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "mode": mode,
+    }
+    # 60s cache — analytics don't need to be real-time-fresh.
+    await cache.set(cache_key, result, 60)
+    return result
+
+
+
+
+
 @router.get("/analytics/overview")
 async def get_analytics_overview():
     """Get dashboard analytics overview.
