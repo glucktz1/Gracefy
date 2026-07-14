@@ -4028,22 +4028,53 @@ export default function UserStreamingApp() {
           ? `${API}/user/home/geo?country=${detectedCountry}&platform=web` 
           : `${API}/user/home?platform=web`;
         
-        const [homeRes, catRes, sectionsRes, tagsRes, radioRes, nenoRes, songCatRes] = await Promise.all([
+        // ============ TIERED FETCH FOR FAST FIRST PAINT ============
+        // Critical (blocks UI): home + categories. Fires immediately.
+        // Non-critical (background): tags, radio, sections, neno, song counts.
+        //   These land after the shell renders so the page feels < 1s to open.
+        const criticalPromises = [
           axios.get(homeEndpoint).catch((err) => {
             console.error('[Home] Failed to fetch home data:', err.message);
-            // Fallback to non-geo endpoint if geo fails
             if (useGeoFiltering) {
               return axios.get(`${API}/user/home?platform=web`).catch(() => ({ data: { sections: [], hero: null, burners: [] } }));
             }
             return { data: { sections: [], hero: null, burners: [] } };
           }),
           axios.get(`${API}/user/browse/categories`).catch(() => ({ data: { categories: [] } })),
+        ];
+        const nonCriticalPromises = [
           axios.get(`${API}/layout/sections?active_only=true`).catch(() => ({ data: { sections: [] } })),
           axios.get(`${API}/admin/tags`).catch(() => ({ data: { tags: [] } })),
           axios.get(`${API}/radio/stations`).catch(() => ({ data: { stations: [] } })),
           axios.get(`${API}/neno-la-leo/active`).catch(() => ({ data: { neno_list: [] } })),
           axios.get(`${API}/song-categories?with_counts=true`).catch(() => ({ data: { categories: [] } })),
-        ]);
+        ];
+
+        // Kick off non-critical work in parallel now.
+        const nonCriticalPromise = Promise.all(nonCriticalPromises);
+
+        const [homeRes, catRes] = await Promise.all(criticalPromises);
+
+        // ============ FAST FIRST PAINT ============
+        // As soon as home + categories are back, unblock the UI. The shell
+        // now renders with home sections and Quick Access placeholder counts;
+        // Neno/Radio/Tags land seconds later without users noticing.
+        if (homeRes.data?.sections?.length > 0) {
+          const partialHome = { ...homeRes.data, sections: shuffleHomeSections(homeRes.data.sections) };
+          setHomeData(partialHome);
+          cache.set('home_data', partialHome);
+        } else if (homeRes.data) {
+          setHomeData(homeRes.data);
+          cache.set('home_data', homeRes.data);
+        }
+        if (catRes.data?.categories) {
+          setCategories(catRes.data.categories);
+          cache.set('categories', catRes.data);
+        }
+        setLoading(false);
+
+        // Now await the non-critical batch to finish enriching the UI.
+        const [sectionsRes, tagsRes, radioRes, nenoRes, songCatRes] = await nonCriticalPromise;
         setNenoLaLeoList(nenoRes.data?.neno_list || []);
         
         // Cache the responses for faster next load
@@ -6050,7 +6081,15 @@ export default function UserStreamingApp() {
                       thumbnail: categorySongsView.cover,
                       artist_name: language === 'sw' ? 'Mchanganyiko' : 'Mixed',
                     };
-                    handlePlaySong(songs[0], virtualAlbum, songs.map(s => ({ song: s, album: virtualAlbum })), 0);
+                    // Bind queue to this category so autoplay stays inside it
+                    // (Play All Easter → only Easter songs).
+                    handlePlaySong(
+                      songs[0],
+                      virtualAlbum,
+                      songs.map(s => ({ song: s, album: virtualAlbum })),
+                      0,
+                      { sourceContext: { type: 'category', id: categorySongsView.id, name: categorySongsView.name } }
+                    );
                   }}
                   className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl disabled:opacity-50"
                   data-testid="play-category-all-btn"
@@ -6090,7 +6129,8 @@ export default function UserStreamingApp() {
                             artist_name: s.artist_name,
                           },
                         })),
-                        index
+                        index,
+                        { sourceContext: { type: 'category', id: categorySongsView.id, name: categorySongsView.name } }
                       )}
                       isActive={player.currentSong?.song_id === song.song_id}
                       isPlaying={player.isPlaying}

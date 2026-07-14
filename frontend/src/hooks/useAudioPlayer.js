@@ -31,6 +31,12 @@ const useAudioPlayer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [continuousPlay, setContinuousPlay] = useState(true); // Auto-recommendation enabled by default
+  // When the current queue is bounded to a specific source (e.g. user tapped
+  // "Play All" from a category or album), we DISABLE cross-source recommendation
+  // top-ups. Playback stays inside that source and simply stops (or repeats
+  // if repeat=all) when the last song ends. Cleared whenever a new song is
+  // played from a different context.
+  const queueBoundToSourceRef = useRef(null); // null | { type: 'category'|'album', id }
   const [streamingQuality, setStreamingQuality] = useState('auto'); // 'auto', 'low', 'medium', 'high'
   
   // Radio state
@@ -714,7 +720,10 @@ const useAudioPlayer = () => {
       }
       
       // CONTINUOUS PLAY MODE (mirrors native app) - fetch recommendations
-      if (currentContinuousPlay && currentQueue.length > 0) {
+      // BUT: if this queue is bound to a specific source (Play All from a
+      // category/album), we must NOT pull in cross-source recommendations.
+      // The user asked for "only Easter songs" — respect that.
+      if (currentContinuousPlay && currentQueue.length > 0 && !queueBoundToSourceRef.current) {
         const lastItem = currentQueue[currentQueue.length - 1];
         const lastSong = lastItem.song || lastItem;
         
@@ -1078,7 +1087,15 @@ const useAudioPlayer = () => {
     }
   }, []);
 
-  const playSong = useCallback(async (song, album, songQueue = [], index = 0) => {
+  const playSong = useCallback(async (song, album, songQueue = [], index = 0, options = {}) => {
+    // Optional `options.sourceContext` marks the queue as bound to a specific
+    // source (e.g. `{ type: 'category', id: 'songcat_...' }`). When set, the
+    // player stops fetching cross-source recommendations on queue end so the
+    // user hears ONLY songs from that source (Play All Easter = only Easter).
+    queueBoundToSourceRef.current = options.sourceContext || null;
+    if (options.sourceContext) {
+      console.log('[Player] Queue bound to source:', options.sourceContext);
+    }
     // IMPORTANT: Stop any currently playing audio first to prevent multiple songs playing
     try {
       audioRef.current.pause();
@@ -1170,8 +1187,9 @@ const useAudioPlayer = () => {
       
       // Pre-fetch recommendations when 2 songs from queue end (like native app)
       // We now pre-fetch even in shuffle mode — the newly added songs simply
-      // widen the pool the shuffler can pick from.
-      if (continuousPlay && queue.length - nextIndex <= 2) {
+      // widen the pool the shuffler can pick from. Bound-source queues are
+      // excluded so Play-All-Easter never gets Christmas songs appended.
+      if (continuousPlay && !queueBoundToSourceRef.current && queue.length - nextIndex <= 2) {
         const currentItem = queue[nextIndex];
         const song = currentItem.song || currentItem;
         if (song?.song_id) {
@@ -1193,7 +1211,8 @@ const useAudioPlayer = () => {
     }
     
     // CONTINUOUS PLAY - fetch recommendations and play
-    if (continuousPlay) {
+    // Respect bound-source queues so "Play All Easter" only plays Easter.
+    if (continuousPlay && !queueBoundToSourceRef.current) {
       const currentItem = queue[queueIndex];
       const song = currentItem?.song || currentItem;
       
