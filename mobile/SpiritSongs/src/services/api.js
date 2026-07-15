@@ -36,10 +36,13 @@ const setCache = (key, data) => {
   cache.set(key, { data, timestamp: Date.now() });
 };
 
-// Create axios instance with optimized timeout
+// Create axios instance with optimized timeout.
+// 45s so slow 3G/5G-fringe connections still complete large payloads like
+// /home/app (6s+ cold on production). Was 15s which was timing out for users
+// on real-world networks, causing the "Hakuna Maudhui" no-content screen.
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000, // Reduced to 15 seconds for faster feedback
+  timeout: 45000,
   headers: {
     'Content-Type': 'application/json',
   },
