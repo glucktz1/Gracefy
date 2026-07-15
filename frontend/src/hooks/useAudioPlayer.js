@@ -116,9 +116,30 @@ const useAudioPlayer = () => {
     
     // Cleanup any existing HLS instance
     cleanupHls();
+
+    // ============ LOCK-SCREEN / BACKGROUND AUTOPLAY GUARD ============
+    // Mobile browsers (iOS Safari, Chrome Android) only allow chained
+    // autoplay across `ended` -> next-track IF the .play() call fires
+    // SYNCHRONOUSLY in the same task as the 'ended' event.
+    //
+    // HLS.js's manifest parse is async (needs a network fetch), which
+    // pushes the .play() into a later microtask and BREAKS the autoplay
+    // gesture chain — the next song silently fails to start once the
+    // screen locks.
+    //
+    // Workaround: when the page is hidden/locked, skip HLS entirely and
+    // set audio.src to the MP3 directly. onReady() then fires synchronously
+    // so .play() runs in the same tick as 'ended' → autoplay grant survives.
+    // =================================================================
+    const pageHidden = typeof document !== 'undefined' && document.hidden;
+    const hasUsableMp3ForBg = mp3Url && mp3Url !== SAMPLE_AUDIO_URL;
+    const preferDirectMp3ForLock = pageHidden && hasUsableMp3ForBg;
+    if (preferDirectMp3ForLock) {
+      console.log('[Player] Page hidden — using MP3 direct to preserve lock-screen autoplay grant');
+    }
     
     // Check if song has HLS and browser supports it (skip if we already know HLS fails this session)
-    if (hlsUrl && Hls.isSupported() && !hlsKnownBroken) {
+    if (hlsUrl && Hls.isSupported() && !hlsKnownBroken && !preferDirectMp3ForLock) {
       console.log('[Player] Using HLS adaptive streaming:', hlsUrl);
       
       const hls = new Hls({
@@ -213,7 +234,7 @@ const useAudioPlayer = () => {
         }
       });
       
-    } else if (hlsUrl && audio.canPlayType('application/vnd.apple.mpegurl') && !hlsKnownBroken) {
+    } else if (hlsUrl && audio.canPlayType('application/vnd.apple.mpegurl') && !hlsKnownBroken && !preferDirectMp3ForLock) {
       // Native HLS support (Safari)
       console.log('[Player] Using native HLS (Safari):', hlsUrl);
       audio.src = hlsUrl;
@@ -546,6 +567,9 @@ const useAudioPlayer = () => {
           { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }
         ] : []
       });
+      // Re-signal 'playing' immediately so the OS/browser keeps the media
+      // session alive across track transitions on a locked screen.
+      try { navigator.mediaSession.playbackState = 'playing'; } catch (_) {}
     }
 
     // Validate audio URL before attempting to play.
@@ -1073,6 +1097,77 @@ const useAudioPlayer = () => {
     }
   }, [currentTime, duration]);
 
+  // ============ SCREEN WAKE LOCK + VISIBILITY RE-ARM ============
+  // Two-part shield against locked-screen playback drops:
+  //
+  //  1) Screen Wake Lock: while music is playing, request a wake lock so
+  //     the browser doesn't aggressively throttle background timers on
+  //     desktop / Android Chrome. Re-acquired automatically when the
+  //     document becomes visible again (Wake Lock is released on hide).
+  //     Best-effort — silently no-op on unsupported browsers (iOS Safari).
+  //
+  //  2) visibilitychange re-arm: when the user unlocks the phone and the
+  //     tab becomes visible, if we THINK we're playing but the <audio>
+  //     element is actually paused (browser silently paused it during
+  //     background suspension), immediately call .play() to resume.
+  //     This is the recovery path when the ended->next chain failed
+  //     while locked.
+  // ================================================================
+  const wakeLockRef = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator && !wakeLockRef.current && isPlaying && !document.hidden) {
+          const lock = await navigator.wakeLock.request('screen');
+          if (cancelled) { try { lock.release(); } catch (_) {} return; }
+          wakeLockRef.current = lock;
+          lock.addEventListener('release', () => {
+            wakeLockRef.current = null;
+          });
+        }
+      } catch (_) { /* unsupported or denied */ }
+    };
+    const releaseWakeLock = () => {
+      const lock = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (lock) { try { lock.release(); } catch (_) {} }
+    };
+    if (isPlaying) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+    return () => { cancelled = true; };
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (document.hidden) {
+        // Tab going background — nothing to do; playbackState is already set.
+        return;
+      }
+      // Tab is visible again. If we think we're playing but the element
+      // actually paused itself while locked, resume immediately.
+      const thinkPlaying = isPlaying || (('mediaSession' in navigator) && navigator.mediaSession.playbackState === 'playing');
+      if (thinkPlaying && audio.paused && !audio.ended && audio.src) {
+        console.log('[Player] Tab visible — resuming paused audio after unlock');
+        audio.play().catch(() => {});
+      }
+      // Re-acquire wake lock if we lost it in background.
+      if ('wakeLock' in navigator && !wakeLockRef.current && isPlaying) {
+        navigator.wakeLock.request('screen').then(lock => {
+          wakeLockRef.current = lock;
+          lock.addEventListener('release', () => { wakeLockRef.current = null; });
+        }).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [isPlaying]);
+
   const playFromQueue = useCallback((index) => {
     playFromQueueInternal(index, queue);
   }, [playFromQueueInternal, queue]);
@@ -1257,24 +1352,12 @@ const useAudioPlayer = () => {
     playFromQueue(queueIndex - 1);
   }, [queue, queueIndex, currentTime, playFromQueue]);
 
-  // Setup MediaSession action handlers for background playback controls
-  useEffect(() => {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => {
-        audioRef.current.play();
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        audioRef.current.pause();
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', prevSong);
-      navigator.mediaSession.setActionHandler('nexttrack', nextSong);
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined) {
-          audioRef.current.currentTime = details.seekTime;
-        }
-      });
-    }
-  }, [nextSong, prevSong]);
+  // NOTE: MediaSession action handlers are registered in the mount-time
+  // useEffect above (lines ~978). We intentionally do NOT re-register them
+  // here on every nextSong/prevSong ref change — that would install stale
+  // closures and cause "next" from the lock screen to jump to the wrong
+  // track once queueSource/repeat state changed. The mount-time handlers
+  // read latest state via refs (queueRef, queueIndexRef, repeatRef).
 
   const seekTo = useCallback((value) => {
     audioRef.current.currentTime = value;

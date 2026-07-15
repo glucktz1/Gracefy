@@ -14,6 +14,16 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Lock-Screen Autoplay Fix
+- ✅ **Web lock-screen autoplay fix** (`useAudioPlayer.js`):
+  - **Root cause**: Mobile browsers (iOS Safari, Chrome Android) only preserve the autoplay-after-`ended` gesture chain when the next `.play()` fires SYNCHRONOUSLY in the same task. HLS.js's async manifest parse was pushing `.play()` into a later microtask → autoplay grant lost → next song silently blocked on locked screen.
+  - **Fix 1**: `setupAudioSource` now checks `document.hidden` — when the page is hidden/locked, HLS is bypassed and MP3 direct is used so `onReady()` (and thus `.play()`) fires synchronously with the `ended` event.
+  - **Fix 2**: Removed a DUPLICATE `mediaSession.setActionHandler` `useEffect` (lines 1260-1277) that installed stale-closure `nextSong`/`prevSong` on top of the mount-time handlers — was causing "next" from lock screen to jump to wrong track after context changes.
+  - **Fix 3**: `mediaSession.playbackState = 'playing'` is now re-signaled immediately when a new track's metadata is set in `playFromQueueInternal` — keeps the OS media session alive across track transitions.
+  - **Fix 4**: **Screen Wake Lock** requested while `isPlaying=true` (best-effort, no-op on unsupported browsers) — prevents aggressive timer throttling on desktop / Chrome Android.
+  - **Fix 5**: `visibilitychange` listener — when the tab becomes visible after unlock, if we think we're playing but `<audio>` is paused (browser silently paused during suspension), resume immediately + re-acquire wake lock.
+  - **Testing**: Requires real device with locked screen — automated E2E can't reproduce lock. Verified frontend compiles cleanly, MediaSession/WakeLock APIs detected, no console errors.
+
 ### Session: Feb 22, 2026 — Data Usage Analytics + Guest HARD BLOCK + Campaign Preview UI Fix
 - ✅ **Data Usage Analytics** (`/api/analytics/data-usage` + new "Data Usage" tab in admin analytics):
   - Backend formula: streaming @ 160 kbps, downloads @ 320 kbps. `MB = (kbps × seconds) / 8 / 1024`.
