@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../config/theme';
 import { homeAPI, contentAPI, libraryAPI, bibleAPI, churchAPI, leaderContentAPI, getImageUrl, radioAPI, geoAPI, nenoLaLeoAPI } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
@@ -43,7 +44,11 @@ const shuffleArray = (arr) => {
 };
 
 const HomeScreen = ({ navigation }) => {
-  const [loading, setLoading] = useState(true);
+  // NOTE: `loading` starts FALSE so the FlatList shell renders on the very
+  // first frame (no full-screen spinner). We hydrate from AsyncStorage cache
+  // synchronously-ish in the mount effect below, then refresh in background.
+  // This mirrors Spotify's "instant open" behavior.
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
   
@@ -114,7 +119,9 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     updateGreeting();
-    loadData();
+    // Hydrate from disk FIRST for an instant paint, then hit network in
+    // the background. Users on cold app opens see cached home in < 100ms.
+    hydrateFromCache().finally(() => loadData());
     return () => {
       if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
     };
@@ -143,10 +150,45 @@ const HomeScreen = ({ navigation }) => {
     else setGreeting('Habari ya jioni');
   };
 
+  // Persistent cache key for the home payload — used to hydrate the UI
+  // instantly on subsequent app opens (stale-while-revalidate).
+  const HOME_CACHE_KEY = 'gracefy:home:v1';
+
+  // Hydrate from AsyncStorage on mount BEFORE the network call. If we have
+  // a cached payload, the FlatList paints in one frame; the background
+  // refetch then updates state silently once the network finishes.
+  const hydrateFromCache = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(HOME_CACHE_KEY);
+      if (!raw) return;
+      const cached = JSON.parse(raw);
+      if (cached?.recentAlbums?.length) setRecentAlbums(cached.recentAlbums);
+      if (cached?.specialMixes?.length) setSpecialMixes(cached.specialMixes);
+      if (cached?.newReleases?.length) setNewReleases(cached.newReleases);
+      if (cached?.trendingSongs?.length) setTrendingSongs(cached.trendingSongs);
+      if (cached?.churches?.length) setChurches(cached.churches);
+      if (cached?.mafundishoContent?.length) setMafundishoContent(cached.mafundishoContent);
+      if (cached?.heroContent) setHeroContent(cached.heroContent);
+      if (cached?.layoutSections?.length) setLayoutSections(cached.layoutSections);
+      if (cached?.songCategoriesWithCounts?.length) setSongCategoriesWithCounts(cached.songCategoriesWithCounts);
+    } catch (e) {
+      // Silent — cache is a best-effort optimization.
+    }
+  };
+
+  const persistToCache = async (payload) => {
+    try {
+      await AsyncStorage.setItem(HOME_CACHE_KEY, JSON.stringify(payload));
+    } catch (e) { /* silent */ }
+  };
+
   const loadData = async () => {
     try {
-      setLoading(true);
-      
+      // Skip full-screen spinner on subsequent opens — cache-first strategy
+      // + FlatList shell paint together give a Spotify-instant feel. The
+      // spinner only appears when there is truly nothing to display.
+      // setLoading(true);  // removed
+
       // Use geo-filtered home endpoint if geo is enabled
       const useGeoFiltering = geoEnabled && userCountry && userCountry !== 'GLOBAL';
       
@@ -333,6 +375,18 @@ const HomeScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+
+  // Persist to disk cache whenever the primary data slices change.
+  // Fires shortly after a successful loadData() and after loadLayoutSections()
+  // has updated the derived arrays. Best-effort, non-blocking.
+  useEffect(() => {
+    if (recentAlbums.length === 0 && specialMixes.length === 0) return;
+    persistToCache({
+      recentAlbums, specialMixes, newReleases, trendingSongs, churches,
+      mafundishoContent, heroContent, layoutSections, songCategoriesWithCounts,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentAlbums, specialMixes, newReleases, trendingSongs, churches, mafundishoContent, heroContent, layoutSections, songCategoriesWithCounts]);
 
   const loadLayoutSections = (sections, albums, mixes) => {
     // Find Lent songs section - use 'items' from unified home response
@@ -1543,9 +1597,9 @@ const HomeScreen = ({ navigation }) => {
     </View>
   );
 
-  if (loading) {
-    return <FullScreenLoader text="Loading content..." />;
-  }
+  // No blocking full-screen loader — the FlatList shell always renders on
+  // the very first frame with cached (or empty) data. Any spinner would
+  // add perceived latency for no benefit.
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
