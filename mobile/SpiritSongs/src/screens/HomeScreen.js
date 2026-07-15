@@ -175,7 +175,7 @@ const HomeScreen = ({ navigation }) => {
           : Promise.resolve({ data: { albums: [] } }),
         nenoLaLeoAPI.getActive().catch(() => ({ data: { neno_list: [] } })),
         // Spotify-style Quick Access tiles with song-count badges (matches web)
-        contentAPI.getSongCategoriesWithCounts().catch(() => ({ data: { categories: [] } })),
+        homeAPI.getSongCategoriesWithCounts().catch(() => ({ data: { categories: [] } })),
       ]);
 
       setNenoLaLeo(nenoRes.data?.neno_list || []);
