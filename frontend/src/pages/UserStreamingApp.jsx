@@ -3448,7 +3448,10 @@ export default function UserStreamingApp() {
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [selectedAlbumSongs, setSelectedAlbumSongs] = useState([]);
   const [library, setLibrary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Starts FALSE now — the app shell renders immediately without a blocking
+  // loading screen. Data still fetches in the background; individual sections
+  // handle their own empty/loading states.
+  const [loading, setLoading] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [categoryAlbums, setCategoryAlbums] = useState([]);
@@ -5206,45 +5209,10 @@ export default function UserStreamingApp() {
   const handleNextWithBilling = () => handleSkipWithBillingCheck(player.nextSong);
   const handlePrevWithBilling = () => handleSkipWithBillingCheck(player.prevSong);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative w-24 h-24">
-            {/* Sound Wave Rings */}
-            {[1, 2, 3, 4].map((ring) => (
-              <div
-                key={ring}
-                className="absolute rounded-full border-2 border-blue-500/60"
-                style={{
-                  animation: 'gracefyWave 2s ease-out infinite',
-                  animationDelay: `${(ring - 1) * 0.4}s`,
-                  width: '30%',
-                  height: '30%',
-                  left: '35%',
-                  top: '35%',
-                }}
-              />
-            ))}
-            {/* Cross at center */}
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="relative">
-                <div className="w-1 h-7 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
-                <div className="absolute w-5 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" style={{ top: '7px', left: '-8px' }} />
-              </div>
-            </div>
-          </div>
-          <p className="text-blue-400/80 text-sm font-medium animate-pulse">Loading...</p>
-        </div>
-        <style>{`
-          @keyframes gracefyWave {
-            0% { width: 30%; height: 30%; left: 35%; top: 35%; opacity: 0.8; }
-            100% { width: 100%; height: 100%; left: 0%; top: 0%; opacity: 0; }
-          }
-        `}</style>
-      </div>
-    );
-  }
+  // No blocking loading screen — the shell (sidebar, mini-player, home area)
+  // renders on first frame. Sections populate as data arrives. Skeleton /
+  // empty states inside each section handle "waiting for data" gracefully.
+  // if (loading) { ... } // removed on request
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-900 to-black text-white" data-testid="user-streaming-app">

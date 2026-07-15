@@ -50,11 +50,13 @@ export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export const cache = {
   get: (key) => {
     try {
-      const item = sessionStorage.getItem(`gracefy_cache_${key}`);
+      // localStorage persists across tabs and reloads → instant paint on
+      // subsequent visits (sessionStorage was tab-scoped, defeated by refresh).
+      const item = localStorage.getItem(`gracefy_cache_${key}`);
       if (!item) return null;
       const { data, timestamp } = JSON.parse(item);
       if (Date.now() - timestamp > CACHE_DURATION) {
-        sessionStorage.removeItem(`gracefy_cache_${key}`);
+        localStorage.removeItem(`gracefy_cache_${key}`);
         return null;
       }
       return data;
@@ -64,12 +66,12 @@ export const cache = {
   },
   set: (key, data) => {
     try {
-      sessionStorage.setItem(`gracefy_cache_${key}`, JSON.stringify({
+      localStorage.setItem(`gracefy_cache_${key}`, JSON.stringify({
         data,
         timestamp: Date.now()
       }));
     } catch (e) {
-      // Ignore storage errors
+      // Ignore storage errors (quota exceeded, private-browsing, etc.)
     }
   }
 };
