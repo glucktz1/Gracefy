@@ -14,6 +14,24 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Mobile Data Loading Fix + Spotify Preload + Bad-Network Resilience
+- ✅ **HomeScreen data-loading crash fix** (`/app/mobile/SpiritSongs/src/screens/HomeScreen.js`):
+  - **Root cause**: `hydrateFromCache()` + `persistToCache` useEffect referenced undefined `newReleases`, `trendingSongs`, `setNewReleases`, `setTrendingSongs` state vars. The useEffect dep array (line ~389) threw `ReferenceError` at render → entire HomeScreen crashed silently → user saw "Hakuna maudhui" empty state.
+  - **Fix**: Deleted the 4 orphaned identifiers from both hydrate and persist paths. `HomeScreen.js` now renders cleanly on cold app open.
+- ✅ **Bad-network guard** (`HomeScreen.loadData`):
+  - Added `fetchHomeWithRetry()` — one automatic retry after 1.5s if the primary `/home/app` fails, then returns `null` on total failure.
+  - When `homeRes === null` AND we have hydrated AsyncStorage cache, `loadData` **early-returns without wiping state** — user keeps seeing last-known-good UI instead of empty screen.
+  - Previously the `.catch(() => empty)` was silently clobbering the hydrated cache with empty payload on transient network fails.
+- ✅ **Spotify-style next-track preload** (`/app/mobile/SpiritSongs/src/context/PlayerContext.js`):
+  - New `preloadNextTracks(fromIndex)` callback — fires `fetch(url, { headers: { Range: 'bytes=0-262143' } })` for the next 2 tracks in the queue.
+  - Warms CDN edge cache + establishes TCP/TLS + primes RN's HTTP layer BEFORE `TrackPlayer` actually needs the URL → eliminates the 1-3s silent gap between songs on poor networks.
+  - `AbortController` cancels in-flight preloads on rapid skip. `preloadedUrlsRef` Set dedupes so each URL is warmed only once per session (capped at 40 entries).
+  - Hooked into BOTH `Event.PlaybackActiveTrackChanged` (fires on every track change) AND at the end of `playTrack()` (first-play warmup).
+- ✅ **Axios auto-retry** (`/app/mobile/SpiritSongs/src/services/api.js`):
+  - Response interceptor now retries GET requests once after 1.2s on `ECONNABORTED` / `ERR_NETWORK` / 502 / 503 / 504.
+  - `__retried` flag prevents infinite loops; POST requests never auto-retry (idempotency safety).
+- ✅ **Testing**: iteration_53 PASS — 5/5 backend endpoints (home/app, song-categories, home-filters, recommendations/next-songs, album detail), 6/6 mobile static code checks. Verified undefined refs are gone, retry logic in place, preloadNextTracks wired correctly.
+
 ### Session: Feb 15, 2026 — Lock-Screen Autoplay Fix
 - ✅ **Web lock-screen autoplay fix** (`useAudioPlayer.js`):
   - **Root cause**: Mobile browsers (iOS Safari, Chrome Android) only preserve the autoplay-after-`ended` gesture chain when the next `.play()` fires SYNCHRONOUSLY in the same task. HLS.js's async manifest parse was pushing `.play()` into a later microtask → autoplay grant lost → next song silently blocked on locked screen.
