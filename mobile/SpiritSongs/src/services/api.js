@@ -69,19 +69,39 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor with automatic single-retry on transient network
+// failures (ECONNABORTED / Network Error / 502 / 503 / 504). One retry after
+// 1.2s covers most 2G/3G/roaming hiccups without doubling latency on the
+// happy path. Never retries client errors (4xx) or POSTs (idempotency).
 api.interceptors.response.use(
   (response) => {
     console.log('[API] Response OK:', response.config?.url);
     return response;
   },
   async (error) => {
-    // Log detailed error info for debugging
+    const config = error.config || {};
+    const status = error.response?.status;
+    const code = error.code;
+    const isNetworkGlitch = !error.response || code === 'ECONNABORTED' || code === 'ERR_NETWORK' || status === 502 || status === 503 || status === 504;
+    const isGet = (config.method || 'get').toLowerCase() === 'get';
+    const alreadyRetried = config.__retried;
+
+    if (isNetworkGlitch && isGet && !alreadyRetried) {
+      config.__retried = true;
+      console.log(`[API] Retrying ${config.url} after 1.2s (network glitch: ${code || status})`);
+      await new Promise(r => setTimeout(r, 1200));
+      try {
+        return await api.request(config);
+      } catch (retryErr) {
+        console.error('[API] Retry also failed:', retryErr.message);
+      }
+    }
+
     console.error('[API] Request failed:', {
-      url: error.config?.url,
-      status: error.response?.status,
+      url: config.url,
+      status,
       message: error.message,
-      code: error.code,
+      code,
     });
     return Promise.reject(error);
   }

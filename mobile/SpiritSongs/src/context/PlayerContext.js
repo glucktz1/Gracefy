@@ -171,6 +171,84 @@ export const PlayerProvider = ({
     } catch (_) { /* noop */ }
   }, []);
 
+  // ============ SPOTIFY-STYLE NEXT-TRACK PRELOAD ============
+  // Warms the CDN edge cache AND primes RN's HTTP layer for the next N
+  // queued tracks. On poor networks this is the difference between "1s
+  // silent gap between songs" and "instant seamless transition" like
+  // Spotify.
+  //
+  // Strategy: fire a small Range: bytes=0-262143 GET (~256 KB) on the
+  // next 2 tracks. Effects:
+  //   • DNS + TCP + TLS handshake with the CDN happen NOW (not when the
+  //     song actually starts playing).
+  //   • CDN edge cache gets warmed if the object was cold.
+  //   • First audio frames are already buffered by the OS network stack.
+  //
+  // Runs at MOST once per track_id (dedupe via preloadedUrlsRef). AbortController
+  // aborts if a new track change fires before we finish, so we never
+  // waste bandwidth on tracks the user already skipped past.
+  const preloadedUrlsRef = useRef(new Set());
+  const activePreloadCtrlsRef = useRef([]);
+  const preloadNextTracks = useCallback(async (fromIndex) => {
+    try {
+      const q = queueRef.current || [];
+      if (!q.length || fromIndex == null || fromIndex < 0) return;
+
+      // Cancel any in-flight preloads from a previous track change
+      activePreloadCtrlsRef.current.forEach(c => { try { c.abort(); } catch (_) {} });
+      activePreloadCtrlsRef.current = [];
+
+      // Preload the NEXT 2 tracks after the current one
+      const candidates = [q[fromIndex + 1], q[fromIndex + 2]].filter(Boolean);
+      for (const track of candidates) {
+        // Pick the URL we'd actually stream (MP3 direct when HLS is broken,
+        // matching toTrackPlayerFormat). We only warm MP3 URLs — HLS
+        // manifests are tiny and the segments are variable, so warming
+        // the manifest alone gives little benefit vs the added complexity.
+        const url = (track.hls_url && !hlsBrokenRef.current)
+          ? null // skip HLS warmup — segments are picked adaptively
+          : getAudioUrl(track.audio_url || track.file_path);
+        if (!url || preloadedUrlsRef.current.has(url)) continue;
+
+        const ctrl = new AbortController();
+        activePreloadCtrlsRef.current.push(ctrl);
+        preloadedUrlsRef.current.add(url);
+
+        // Fire-and-forget. We just want the bytes to hit the OS cache;
+        // we discard the response body via ctrl.abort() after headers +
+        // a bit of the first chunk have flown across the wire.
+        fetch(url, {
+          method: 'GET',
+          headers: { Range: 'bytes=0-262143' }, // first 256 KB is enough
+          signal: ctrl.signal,
+        }).then(async (r) => {
+          // Drain a small chunk to force the CDN to actually send bytes,
+          // then abort. Without draining, some CDNs open the TCP session
+          // but don't push data until the client reads.
+          try {
+            const reader = r.body?.getReader?.();
+            if (reader) {
+              let received = 0;
+              while (received < 262144) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                received += value?.byteLength || 0;
+              }
+              try { reader.cancel(); } catch (_) {}
+            }
+          } catch (_) { /* stream not readable in RN — HEAD still warmed conn */ }
+        }).catch(() => { /* aborted or network error — silent */ });
+
+        // Cap the memoized set so it doesn't grow unbounded across a long session
+        if (preloadedUrlsRef.current.size > 40) {
+          preloadedUrlsRef.current = new Set();
+        }
+      }
+    } catch (e) {
+      // Silent — preload is best-effort
+    }
+  }, []);
+
   // ============ DERIVED STATE ============
   const isPlaying = playbackState.state === State.Playing;
   const position = (progress.position || 0) * 1000; // Convert to milliseconds
@@ -612,6 +690,14 @@ export const PlayerProvider = ({
           thumbnail: trackFromQueue.thumbnail || trackFromQueue.album_thumbnail || trackFromQueue.cover_url || event.track?.artwork,
           album_thumbnail: trackFromQueue.album_thumbnail || trackFromQueue.thumbnail || event.track?.artwork,
         });
+      }
+
+      // Spotify-style: warm the CDN + prime the OS network cache for the
+      // NEXT 2 tracks in the queue as soon as the current one starts.
+      // On poor networks this eliminates the 1-3s "silent gap" between
+      // songs when TrackPlayer transitions.
+      if (trackIndex !== null) {
+        preloadNextTracks(trackIndex);
       }
       
       // When we're near the end of the queue, pre-fetch more recommendations
@@ -1108,6 +1194,10 @@ export const PlayerProvider = ({
 
       // Check liked status
       checkLikedStatus(track.song_id);
+
+      // Spotify-style preload for the next 2 tracks — kicks off in parallel
+      // with the current track's own buffer so upcoming transitions are seamless.
+      preloadNextTracks(playIndex);
 
       console.log('[Player] Playing successfully');
     } catch (error) {

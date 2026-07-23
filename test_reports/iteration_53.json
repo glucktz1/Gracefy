@@ -1,0 +1,32 @@
+{
+  "summary": "Backend smoke + mobile static verification for HomeScreen data-loading fix. All 5 backend endpoints (home/app, song-categories, layout/home-filters, recommendations/next-songs, albums/{id}) return valid non-empty data. All 4 mobile static code checks pass (undefined refs removed, retry logic in place, preloadNextTracks wired to both playTrack and PlaybackActiveTrackChanged, api.js interceptor with __retried guard).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "mobile_static_checks": {
+    "HomeScreen.js undefined refs (newReleases/setNewReleases/trendingSongs/setTrendingSongs)": "ZERO MATCHES - PASS",
+    "HomeScreen.js fetchHomeWithRetry with 1500ms retry": "PASS (line 198, retry delay at line 207)",
+    "PlayerContext.js preloadNextTracks with AbortController + Range bytes=0-262143 + preloadedUrlsRef dedupe": "PASS (line 192-244)",
+    "PlayerContext.js invocation in PlaybackActiveTrackChanged": "PASS (line 700)",
+    "PlayerContext.js invocation at end of playTrack": "PASS (line 1200)",
+    "api.js response interceptor __retried guard with 1200ms delay on ECONNABORTED/ERR_NETWORK/502/503/504": "PASS (lines 85-92)"
+  },
+  "backend_endpoint_results": {
+    "GET /api/home/app": "200 - 12 sections, hero.items present, multiple sections with items",
+    "GET /api/song-categories?with_counts=true": "200 - categories array with total_songs field",
+    "GET /api/layout/home-filters": "200 - filters returned",
+    "GET /api/recommendations/next-songs?current_song_id=song_e4a1ca4615ec&limit=12": "200 - 12 songs, audio_url present",
+    "GET /api/albums/alb_c85524155726": "200 - album+songs with valid https audio_url"
+  },
+  "test_report_links": ["/app/backend/tests/test_mobile_home_smoke.py", "/app/test_reports/pytest/mobile_home_smoke.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note: /api/home/app hero section (sections[0]) itself has items:0 but hero object at root has populated items - mobile likely reads root hero. Not a bug, just structure to be aware of.",
+    "next-songs required extracting a song_id from an album (home/app returns album entities only). Mobile should fetch a real song_id from album or now-playing state before calling next-songs - already the pattern per fixture logic."
+  ],
+  "updated_files": ["/app/backend/tests/test_mobile_home_smoke.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "N/A (skipped per request)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend is on local dev mongo (mongodb://localhost:27017/gracefy_db) with prod clone (~121 songs, 49 albums). /api/home/app returns albums (entity_type) not raw songs — to get a song_id fetch an album detail first. All mobile bad-network/preload/undefined-ref fixes verified in source."
+}

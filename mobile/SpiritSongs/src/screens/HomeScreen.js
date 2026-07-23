@@ -164,8 +164,6 @@ const HomeScreen = ({ navigation }) => {
       const cached = JSON.parse(raw);
       if (cached?.recentAlbums?.length) setRecentAlbums(cached.recentAlbums);
       if (cached?.specialMixes?.length) setSpecialMixes(cached.specialMixes);
-      if (cached?.newReleases?.length) setNewReleases(cached.newReleases);
-      if (cached?.trendingSongs?.length) setTrendingSongs(cached.trendingSongs);
       if (cached?.churches?.length) setChurches(cached.churches);
       if (cached?.mafundishoContent?.length) setMafundishoContent(cached.mafundishoContent);
       if (cached?.heroContent) setHeroContent(cached.heroContent);
@@ -191,7 +189,26 @@ const HomeScreen = ({ navigation }) => {
 
       // Use geo-filtered home endpoint if geo is enabled
       const useGeoFiltering = geoEnabled && userCountry && userCountry !== 'GLOBAL';
-      
+
+      // Retry-with-backoff wrapper for the CRITICAL home endpoint. On bad
+      // networks (2G/edge/roaming) a single request may time out — one quick
+      // retry after 1.5s catches transient DNS/TLS blips without adding
+      // perceptible latency to the happy path. Returns null on total failure
+      // so we can DETECT failure downstream and preserve hydrated cache.
+      const fetchHomeWithRetry = async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const r = await homeAPI.getAppHome();
+            if (r?.data?.sections?.length || r?.data?.hero?.items?.length) return r;
+            // Empty payload — treat as failure so we don't clobber cache
+          } catch (e) {
+            console.log(`[HomeScreen] getAppHome attempt ${attempt + 1} failed:`, e.message);
+          }
+          if (attempt === 0) await new Promise(r => setTimeout(r, 1500));
+        }
+        return null;
+      };
+
       const [
         // Use unified home endpoint that returns sections with content in correct order
         homeRes,
@@ -204,8 +221,9 @@ const HomeScreen = ({ navigation }) => {
         nenoRes,
         songCategoriesRes,
       ] = await Promise.all([
-        // Get home data with sections, hero, and burners in correct layout order
-        homeAPI.getAppHome().catch(() => ({ data: { sections: [], hero: { items: [] }, burners: [] } })),
+        // Get home data with sections, hero, and burners in correct layout order.
+        // null = network failure after retries → keep hydrated cache.
+        fetchHomeWithRetry(),
         libraryAPI.getPlaylists().catch(() => ({ data: [] })),
         libraryAPI.getLikedSongs().catch(() => ({ data: [] })),
         homeAPI.getHomeFilters().catch(() => ({ data: { filters: [] } })),
@@ -219,6 +237,20 @@ const HomeScreen = ({ navigation }) => {
         // Spotify-style Quick Access tiles with song-count badges (matches web)
         homeAPI.getSongCategoriesWithCounts().catch(() => ({ data: { categories: [] } })),
       ]);
+
+      // BAD-NETWORK GUARD: if home endpoint failed AND we have hydrated
+      // state from AsyncStorage, DO NOT overwrite the UI with an empty
+      // payload. The user keeps seeing their last-known-good home while
+      // the next refresh (pull-to-refresh or reopen) tries again.
+      if (!homeRes) {
+        console.warn('[HomeScreen] Home endpoint failed after retries — keeping cached UI');
+        // Still update the smaller side data that we DID fetch successfully
+        setNenoLaLeo(nenoRes.data?.neno_list || []);
+        if (songCategoriesRes.data?.categories?.length) {
+          setSongCategoriesWithCounts(songCategoriesRes.data.categories);
+        }
+        return;
+      }
 
       setNenoLaLeo(nenoRes.data?.neno_list || []);
       setSongCategoriesWithCounts(songCategoriesRes.data?.categories || []);
@@ -382,11 +414,11 @@ const HomeScreen = ({ navigation }) => {
   useEffect(() => {
     if (recentAlbums.length === 0 && specialMixes.length === 0) return;
     persistToCache({
-      recentAlbums, specialMixes, newReleases, trendingSongs, churches,
+      recentAlbums, specialMixes, churches,
       mafundishoContent, heroContent, layoutSections, songCategoriesWithCounts,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentAlbums, specialMixes, newReleases, trendingSongs, churches, mafundishoContent, heroContent, layoutSections, songCategoriesWithCounts]);
+  }, [recentAlbums, specialMixes, churches, mafundishoContent, heroContent, layoutSections, songCategoriesWithCounts]);
 
   const loadLayoutSections = (sections, albums, mixes) => {
     // Find Lent songs section - use 'items' from unified home response
