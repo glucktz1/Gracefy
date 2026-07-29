@@ -194,8 +194,18 @@ async def get_monetization_settings_alias():
 
 
 @router.post("/monetization-settings")
+@router.put("/monetization/settings")
 async def save_monetization_settings(data: dict):
-    """Save monetization settings"""
+    """Save monetization settings.
+
+    Exposed under two paths for legacy frontend compatibility:
+      • POST /monetization-settings  (original)
+      • PUT  /monetization/settings  (used by MonetizationSettingsPage — was 405 before)
+
+    Uses upsert on a single canonical document (setting_id='monetization')
+    instead of inserting a new doc each time, which was bloating the
+    collection and forcing the read to sort() every request.
+    """
     db = get_db()
     
     settings = {
@@ -221,10 +231,25 @@ async def save_monetization_settings(data: dict):
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
-    # Insert new settings document (keeps history)
+    # Upsert canonical monetization document (single source of truth)
+    settings["setting_id"] = "monetization"
     settings["created_at"] = datetime.now(timezone.utc).isoformat()
-    await db.monetization_settings.insert_one(settings)
+    await db.monetization_settings.update_one(
+        {"setting_id": "monetization"},
+        {"$set": settings},
+        upsert=True
+    )
     settings.pop("_id", None)
+
+    # CRITICAL: Invalidate billing cache so /billing-status returns fresh
+    # data immediately on next call from mobile/web. Without this, the app
+    # keeps serving stale billing status for up to 10 seconds after save.
+    try:
+        from services.redis_service import invalidate_billing_cache
+        await invalidate_billing_cache()
+        logger.info("[Monetization] Billing cache invalidated after settings save")
+    except Exception as e:
+        logger.warning(f"[Monetization] Failed to invalidate billing cache: {e}")
     
     return settings
 
@@ -262,12 +287,27 @@ async def get_billing_status(response: Response):
     logger.info(f"[BillingStatus] master_billing_enabled: {master_billing_enabled}")
     
     # CRITICAL: Default billing to FALSE (disabled) if not explicitly set
-    # This ensures users are never blocked by default
+    # This ensures users are never blocked by default.
+    #
+    # ALSO CRITICAL: When the master toggle is ON but no monetization doc
+    # exists, the platform sub-flags default to ON so admin doesn't have to
+    # go configure two separate pages. Previously they defaulted to FALSE →
+    # master toggle appeared to do nothing on user apps.
+    has_monetization_doc = bool(monetization)
     result = {
         "billing_enabled": master_billing_enabled,
-        "billing_mode": monetization.get("billing_mode", "disabled") if master_billing_enabled else "disabled",
-        "app_billing_enabled": monetization.get("app_billing_enabled", False) if master_billing_enabled else False,
-        "web_billing_enabled": monetization.get("web_billing_enabled", False) if master_billing_enabled else False,
+        "billing_mode": (
+            monetization.get("billing_mode", "full" if not has_monetization_doc else "disabled")
+            if master_billing_enabled else "disabled"
+        ),
+        "app_billing_enabled": (
+            monetization.get("app_billing_enabled", True if not has_monetization_doc else False)
+            if master_billing_enabled else False
+        ),
+        "web_billing_enabled": (
+            monetization.get("web_billing_enabled", True if not has_monetization_doc else False)
+            if master_billing_enabled else False
+        ),
         "web_redirect_url": monetization.get("web_redirect_url", "https://www.gracefy.net"),
         "free_trial_enabled": monetization.get("free_trial_enabled", False) if master_billing_enabled else False,
         "free_trial_days": monetization.get("free_trial_days", 7),

@@ -1,0 +1,33 @@
+{
+  "summary": "Backend E2E tests for billing/payment toggle propagation. All 7 test scenarios covering the 3 recently-fixed bugs pass 100%: (1) PUT /api/monetization/settings returns 200 (was 405); (2) sub-flags default to True when master ON and no monetization doc exists; (3) Redis billing cache is invalidated on save (no stale reads). Additionally verified upsert pattern (1 doc only), legacy POST compatibility, cache-control headers, and admin/settings regression.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_billing_toggle_e2e.py",
+    "/app/test_reports/pytest/billing_toggle_e2e_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "monetization.py is 1800+ lines — should be split (subscriptions, bundles, revenue, billing-status all in one file).",
+    "get_monetization_settings still sorts by created_at desc — since we now upsert to setting_id='monetization', reading by {'setting_id':'monetization'} would be cheaper and more deterministic.",
+    "save_monetization_settings sets created_at on every update (upsert) which resets the field — should use $setOnInsert for created_at.",
+    "billing-status default logic uses inline conditional expressions that are hard to read; consider a helper."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_billing_toggle_e2e.py (new)"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "not tested (per request)"},
+  "test_credentials": "admin@gracefy.life / Mwanga@82!3",
+  "seed_data_creation": "None — test fixtures clean monetization_settings between scenarios via direct MongoDB access (mongodb://localhost:27017/gracefy_db).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test file at /app/backend/tests/test_billing_toggle_e2e.py is idempotent and re-runnable. It leaves admin_settings.billing_enabled=false at the end (scenario 7). Uses direct pymongo access to gracefy_db. All 3 originally-reported bugs are confirmed fixed.",
+  "rca of the issue": "Original bugs: (a) MonetizationSettingsPage.jsx used PUT /monetization/settings but only POST /monetization-settings existed → 405; fix added dual-decorator @router.post('/monetization-settings') @router.put('/monetization/settings'). (b) /billing-status defaulted sub-flags to False when monetization_settings was empty → master toggle appeared ineffective; fix: when has_monetization_doc is False, sub-flag defaults are True. (c) save_monetization_settings never called invalidate_billing_cache → 10s stale window; fix added invalidate_billing_cache() call. All three verified via automated tests."
+}
