@@ -14,6 +14,21 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Billing/Payment Toggle E2E Fix
+- ✅ **PUT /api/monetization/settings** now exists (`/app/backend/routes/monetization.py`):
+  - Previously the admin **Monetization Settings Page** hit `PUT /api/monetization/settings` but only `POST /api/monetization-settings` was exposed → **405 Method Not Allowed** → save toast said "success" but nothing persisted → sub-flags (`app_billing_enabled`, `web_billing_enabled`) never made it to Mongo.
+  - Fix: dual decorator `@router.post("/monetization-settings")` + `@router.put("/monetization/settings")` on the same handler.
+- ✅ **Sub-flag defaults corrected** in `/billing-status`:
+  - When master `admin_settings.billing_enabled=True` AND `monetization_settings` collection is empty (fresh install), sub-flags now default to **True** (`app_billing_enabled=True`, `web_billing_enabled=True`, `billing_mode='full'`).
+  - Previously they defaulted to False → admin toggled master ON, but users saw no billing prompts because sub-flags overrode master.
+- ✅ **Cache invalidation** on save:
+  - `save_monetization_settings` now calls `invalidate_billing_cache()` after every write → mobile/web get fresh billing status on the next call (was up to 10s stale).
+  - `PUT /api/admin/settings` already did this.
+- ✅ **Upsert instead of insert** for `monetization_settings`:
+  - Single canonical doc (`setting_id='monetization'`) instead of a new doc every save.
+  - `created_at` in `$setOnInsert` so it survives repeated saves; `updated_at` in `$set`.
+- ✅ **Testing**: iteration_54 PASS — 7/7 scenarios covering master toggle propagation, sub-flag defaults, PUT endpoint 200, cache invalidation, upsert pattern (1 doc), legacy POST compatibility, cache-control headers, and admin/settings regression. New pytest test file at `/app/backend/tests/test_billing_toggle_e2e.py`.
+
 ### Session: Feb 15, 2026 — Image Loading Speedup (Web + Mobile)
 - ✅ **Bunny CDN Optimizer auto-injection** in `getImageUrl` and `getThumbnail` on both platforms (`/app/frontend/src/utils/streamingHelpers.js`, `/app/mobile/SpiritSongs/src/services/api.js`):
   - Bunny CDN URLs (`.b-cdn.net`) automatically get `?width=600&quality=85&format=auto` (mobile default: 500px) → serves resized WebP to modern clients.

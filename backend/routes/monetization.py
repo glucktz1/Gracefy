@@ -231,12 +231,16 @@ async def save_monetization_settings(data: dict):
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
-    # Upsert canonical monetization document (single source of truth)
+    # Upsert canonical monetization document (single source of truth).
+    # NOTE: created_at goes in $setOnInsert so it survives repeated saves
+    # (previously we were resetting created_at on every update).
     settings["setting_id"] = "monetization"
-    settings["created_at"] = datetime.now(timezone.utc).isoformat()
     await db.monetization_settings.update_one(
         {"setting_id": "monetization"},
-        {"$set": settings},
+        {
+            "$set": settings,
+            "$setOnInsert": {"created_at": datetime.now(timezone.utc).isoformat()},
+        },
         upsert=True
     )
     settings.pop("_id", None)
