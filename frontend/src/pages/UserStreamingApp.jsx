@@ -75,7 +75,7 @@ const QuickAccessCard = ({ item, onClick, language = 'sw', compact = false }) =>
     >
       <div className={`${compact ? 'w-11 h-11' : 'w-14 h-14'} bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
         {thumbUrl ? (
-          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+          <img src={thumbUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           <IconComponent size={compact ? 18 : 22} className="text-white" fill={item.type === 'liked_songs' ? 'currentColor' : 'none'} />
         )}
@@ -109,7 +109,7 @@ const AlbumCard = ({ album, onPlay, onOpen, size = 'md', availableTags = [] }) =
     >
       <div className="aspect-square rounded-md bg-zinc-800 mb-3 overflow-hidden relative shadow-lg">
         {thumbUrl ? (
-          <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover" />
+          <img src={thumbUrl} alt={album.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-800 to-blue-700">
             <Music2 size={size === 'lg' ? 48 : 36} className="text-white/40" />
@@ -155,7 +155,7 @@ const WideAlbumCard = ({ album, onOpen, availableTags = [] }) => {
       data-testid={`wide-${album.album_id}`}
     >
       {thumbUrl ? (
-        <img src={thumbUrl} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img src={thumbUrl} alt={album.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-violet-800 to-blue-700 flex items-center justify-center">
           <Music2 size={56} className="text-white/30" />
@@ -199,7 +199,7 @@ const ListItem = ({ item, index, onPlay, isActive, isPlaying, onLike, onAddToPla
       >
         <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 relative">
           {thumbUrl ? (
-            <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+            <img src={thumbUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
               <Music2 size={16} className="text-zinc-500" />

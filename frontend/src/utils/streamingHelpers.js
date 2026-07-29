@@ -106,18 +106,53 @@ export const getAudioUrl = (audioUrl) => {
   return audioUrl;
 };
 
+// ============ BUNNY CDN OPTIMIZER ============
+// Bunny CDN supports on-the-fly image resize + format conversion via URL
+// params. Passing `?width=X&quality=85&format=auto` on any `.b-cdn.net` URL
+// returns a WebP variant sized to X px wide — typically 5-10x smaller than
+// the original JPEG. Massive win for grid thumbnails on 3G/4G.
+//
+// - `?width=` picks a resized rendition (aspect ratio preserved)
+// - `?quality=` 1-100 (85 is near-lossless, ~40% smaller than 100)
+// - `?format=auto` returns webp/avif to modern browsers, falls back to jpg
+//
+// Non-Bunny URLs (data:, other CDNs, Firebase, etc.) pass through unchanged
+// so we don't accidentally break their contracts.
+const isBunnyCdnUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('.b-cdn.net');
+};
+
+const withBunnyOptimizer = (url, opts = {}) => {
+  if (!isBunnyCdnUrl(url)) return url;
+  // If the URL already has optimizer params, leave it alone.
+  if (/[?&](width|quality|format|aspect_ratio)=/.test(url)) return url;
+  const {
+    width = 600,     // default for grid thumbnails — matches @2x on ~300px cards
+    quality = 85,
+    format = 'auto', // webp for modern browsers, jpg fallback
+  } = opts;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}width=${width}&quality=${quality}&format=${format}`;
+};
+
 // Helper function to get proper image/thumbnail URL - handles CDN URLs
-export const getImageUrl = (imageUrl) => {
+// The optional `sizeOpts` argument controls Bunny Optimizer params for
+// Bunny CDN URLs (no-op for other hosts). Common presets:
+//   • Mini-player art:  { width: 200 }
+//   • Grid thumbnail:   {}  (default width=600)
+//   • Hero banner:      { width: 1400 }
+export const getImageUrl = (imageUrl, sizeOpts) => {
   if (!imageUrl) return null;
-  
-  // If it's already a full URL (https://), return as is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
   
   // If it starts with data:, it's a base64 image
   if (imageUrl.startsWith('data:')) {
     return imageUrl;
+  }
+  
+  // If it's already a full URL (https://), just apply Bunny Optimizer if applicable
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return withBunnyOptimizer(imageUrl, sizeOpts);
   }
   
   // Handle /api/files/{file_id} format - add /stream suffix for proper streaming
@@ -154,12 +189,15 @@ export const formatTime = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Get thumbnail URL helper - handles both thumbnail and thumbnail_url fields
-export const getThumbnail = (item) => {
+// Get thumbnail URL helper - handles both thumbnail and thumbnail_url fields.
+// Auto-optimizes Bunny CDN URLs (WebP + resize). Pass `sizeOpts` to override
+// the default 600px width — e.g. `getThumbnail(album, { width: 200 })` for
+// the mini-player art, or `{ width: 1400 }` for the hero banner.
+export const getThumbnail = (item, sizeOpts) => {
   if (!item) return null;
   // Prefer direct thumbnail URL, then thumbnail_url field, then thumbnail field
   const url = item.thumbnail_url || item.thumbnail;
-  return getImageUrl(url);
+  return getImageUrl(url, sizeOpts);
 };
 
 

@@ -123,13 +123,35 @@ export const getAudioUrl = (path) => {
   return `${baseUrl}/api${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
-// Helper to get full image URL
-export const getImageUrl = (path) => {
+// ============ BUNNY CDN OPTIMIZER ============
+// Bunny CDN supports on-the-fly image resize + format conversion. Appending
+// `?width=X&quality=85&format=auto` to any `.b-cdn.net` URL returns a WebP
+// variant sized to X px wide — typically 5-10x smaller than the original
+// JPEG. Massive win for thumbnails on 3G/4G / low-end devices.
+//
+// Non-Bunny URLs pass through unchanged so we don't break other CDNs.
+const isBunnyCdnUrl = (url) => typeof url === 'string' && url.includes('.b-cdn.net');
+
+const withBunnyOptimizer = (url, opts = {}) => {
+  if (!isBunnyCdnUrl(url)) return url;
+  if (/[?&](width|quality|format|aspect_ratio)=/.test(url)) return url;
+  const { width = 500, quality = 85, format = 'auto' } = opts;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}width=${width}&quality=${quality}&format=${format}`;
+};
+
+// Helper to get full image URL. Optional `sizeOpts` sets Bunny Optimizer
+// params for Bunny CDN URLs (no-op for other hosts).
+// Presets:
+//   • Mini-player art:  { width: 200 }
+//   • Grid thumbnail:   {} (default width=500 — matches @2x on ~250px cards)
+//   • Full-screen art:  { width: 1200 }
+export const getImageUrl = (path, sizeOpts) => {
   if (!path) return null;
   // Handle data URLs (base64)
   if (path.startsWith('data:')) return path;
-  // Handle full URLs
-  if (path.startsWith('http')) return path;
+  // Handle full URLs — apply Bunny Optimizer if applicable
+  if (path.startsWith('http')) return withBunnyOptimizer(path, sizeOpts);
   // Handle relative paths
   return `${API_BASE_URL.replace('/api', '')}${path}`;
 };
