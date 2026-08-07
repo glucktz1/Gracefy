@@ -300,23 +300,6 @@ const NowPlayingScreen = ({ navigation }) => {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {showContributeGlow && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => promptSubscription && promptSubscription('skip')}
-            style={localStyles.contributeBanner}
-          >
-            <View style={localStyles.contributeLeft}>
-              <Ionicons name="star" size={16} color="#FFFFFF" />
-              <Text style={localStyles.contributeText} numberOfLines={1}>
-                Changia kidogo kusikiliza kwa uhuru
-              </Text>
-            </View>
-            <View style={localStyles.contributeCTA}>
-              <Text style={localStyles.contributeCTAText}>Changia</Text>
-            </View>
-          </TouchableOpacity>
-        )}
         <ScrollView 
           style={styles.scrollView} 
           showsVerticalScrollIndicator={false}
@@ -349,8 +332,7 @@ const NowPlayingScreen = ({ navigation }) => {
             />
           </View>
 
-          {/* Track Info + Progress + Main Controls — wrapped in gold glow when monetization triggers */}
-          <View style={showContributeGlow ? localStyles.glowControlsWrap : null}>
+          {/* Track Info + Progress + Main Controls */}
           {/* Track Info with Actions */}
           <View style={styles.trackInfo}>
             <View style={styles.trackTitleRow}>
@@ -404,8 +386,27 @@ const NowPlayingScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Progress Bar — locked when monetization preview mode is active */}
-          <View style={styles.progressContainer}>
+          {/* Progress Bar + Contribution Prompt — wrapped in gold glow when monetization triggers.
+              The "Changia..." banner sits INSIDE the glow, directly above the progress bar,
+              so the prompt and its highlight both anchor near the seek control. */}
+          <View style={showContributeGlow ? localStyles.glowProgressWrap : styles.progressContainer}>
+            {showContributeGlow && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => promptSubscription && promptSubscription('skip')}
+                style={localStyles.contributeBannerInline}
+              >
+                <View style={localStyles.contributeLeft}>
+                  <Ionicons name="star" size={14} color="#FFFFFF" />
+                  <Text style={localStyles.contributeText} numberOfLines={1}>
+                    Changia kidogo kusikiliza kwa uhuru
+                  </Text>
+                </View>
+                <View style={localStyles.contributeCTA}>
+                  <Text style={localStyles.contributeCTAText}>Changia</Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <Slider
               style={styles.slider}
               minimumValue={0}
@@ -477,7 +478,7 @@ const NowPlayingScreen = ({ navigation }) => {
               </View>
             </TouchableOpacity>
           </View>
-          </View>{/* End gold-glow wrap */}
+          {/* End controls section */}
 
           {/* Bottom Actions Row */}
           <View style={styles.bottomActionsRow}>
@@ -919,55 +920,60 @@ const styles = StyleSheet.create({
 });
 
 const localStyles = StyleSheet.create({
-  // Gold double-border glow that wraps only the controls section (track info + progress + buttons)
-  glowControlsWrap: {
+  // Gold double-border glow wrapping ONLY the contribute banner + progress bar
+  // + time readouts. Compact highlight that draws the eye to the seek control
+  // area where the monetization prompt lives (was previously wrapping the
+  // whole player card which looked bloated and made the CTA hard to notice).
+  glowProgressWrap: {
     borderWidth: 2,
     borderColor: '#fbbf24',
     borderRadius: 14,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 6,
     marginHorizontal: 4,
-    marginTop: 8,
+    marginBottom: SPACING.md,
     shadowColor: '#fbbf24',
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.55,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
     elevation: 14,
+    backgroundColor: 'rgba(251, 191, 36, 0.05)', // subtle amber wash for readability
   },
-  contributeBanner: {
+  // Inline contribution banner sitting INSIDE the glow, right above the slider.
+  contributeBannerInline: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#3b82f6', // Gracefy logo blue
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     gap: 8,
+    marginBottom: 8,
   },
   contributeLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flex: 1,
     minWidth: 0,
   },
   contributeText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     flex: 1,
   },
   contributeCTA: {
     backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 999,
   },
   contributeCTAText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
 });
