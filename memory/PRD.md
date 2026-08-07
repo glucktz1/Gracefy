@@ -14,6 +14,19 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Mobile Skip-Limit Persistence + Daily Reset (bug fix)
+- ✅ **Mobile `skipCount` now persists across app restarts** (`/app/mobile/SpiritSongs/src/context/BillingContext.js`):
+  - Previously `skipCount` was in-memory React state only → closing and reopening the app reset it to 0 → users could bypass skip limits by force-quitting.
+  - Now written to AsyncStorage under `gracefy_monetization` with a `date` field. On mount, only applied if `parsed.date === todayKey()` — otherwise counters reset to 0 (daily rollover).
+  - Persists both `skipCount` and `previewModeActive` so preview-mode state survives too.
+- ✅ **Midnight rollover watcher**:
+  - `setInterval(60_000)` checks if the local date changed while the app is open — if it did, zero out counters and clear preview mode.
+  - Also runs on `AppState.change → active` so a device that slept overnight sees the reset immediately on unlock.
+  - Old `global.lastSkipReset` (RAM-only, didn't survive kill) removed.
+- ✅ **Premium clears persisted store**: when user becomes premium, `AsyncStorage.removeItem(MONETIZATION_STORE_KEY)` runs so subscription lapse doesn't inherit stale count.
+- ✅ **Default sync between admin GET vs public GET** on `/app_control.py` — both endpoints now return the same defaults (soft=6, hard=9, preview=45) when no monetization doc exists, so admin panel displays what users actually see.
+- ✅ **Testing**: iteration_55 PASS — 5/5 backend tests (admin monetization save, guest-limits save, cache invalidation on second save, billing ON, billing OFF), 100% mobile static verification (imports, hydrate gate, persist gate, midnight rollover, premium clear, global.lastSkipReset removed). New pytest test at `/app/backend/tests/test_monetization_settings.py`.
+
 ### Session: Feb 15, 2026 — Billing/Payment Toggle E2E Fix
 - ✅ **PUT /api/monetization/settings** now exists (`/app/backend/routes/monetization.py`):
   - Previously the admin **Monetization Settings Page** hit `PUT /api/monetization/settings` but only `POST /api/monetization-settings` was exposed → **405 Method Not Allowed** → save toast said "success" but nothing persisted → sub-flags (`app_billing_enabled`, `web_billing_enabled`) never made it to Mongo.

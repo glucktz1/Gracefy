@@ -199,10 +199,15 @@ async def get_app_settings():
             "appstore_url": "",
             "app_download_message": ""
         },
+        # Keep defaults in sync with /app-settings public defaults (line ~136)
+        # so admin UI shows what unpaid users would actually see when no
+        # monetization doc exists yet.
         "monetization": monetization.get("config") if monetization else {
-            "soft_skip_limit": 5,
-            "hard_skip_limit": 8,
-            "preview_duration_seconds": 30,
+            "daily_play_limit": 9,
+            "soft_skip_limit": 6,
+            "hard_skip_limit": 9,
+            "preview_duration_seconds": 45,
+            "full_play_every_n_previews": 4,
             "prompt_message_sw": "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.",
             "prompt_message_en": "This content is free but the technology has costs. Contribute a little to help reach more people."
         }
