@@ -1,0 +1,59 @@
+{
+  "summary": "Backend-only verification of admin monetization + guest-limits pipeline, cache invalidation on /api/app-settings, and billing ON/OFF gating. Also performed static verification of mobile BillingContext.js (AsyncStorage persistence, midnight rollover, premium clear) and web regression check on UserStreamingApp.jsx. All backend tests pass (5/5). All mobile static requirements met.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "static_verification": {
+    "mobile_BillingContext_js": {
+      "imports_async_storage": true,
+      "MONETIZATION_STORE_KEY_defined": "line 17",
+      "todayKey_helper_defined": "line 18",
+      "hydrate_useEffect_gated_by_date": "lines 214-231 (only applies if parsed.date === todayKey())",
+      "persist_useEffect_gated_by_hydration_ref": "lines 235-242 (monetizationHydratedRef)",
+      "midnight_rollover_setInterval_60s": "line 259",
+      "midnight_rollover_AppState_active": "lines 261-263",
+      "rollover_resets_skipCount_and_previewMode": "lines 255-256 (setSkipCount(0) + setPreviewModeActive(false))",
+      "premium_clears_asyncstorage": "lines 271-277 (AsyncStorage.removeItem(MONETIZATION_STORE_KEY))",
+      "global_lastSkipReset_removed": true
+    },
+    "web_UserStreamingApp_jsx_regression": {
+      "loadMonetizationState_present": "line 3493",
+      "returns_null_when_date_mismatch": "line 3498",
+      "persists_via_localStorage": "line 3528",
+      "previewModeActive_state_present": "line 3505"
+    }
+  },
+  "backend_tests_executed": {
+    "test_save_monetization_reflects_in_public": "PASS - {soft:2,hard:4,preview:20} reflected immediately",
+    "test_cache_invalidation_on_second_save": "PASS - hard=4 -> hard=7 reflected immediately (cache flushed)",
+    "test_save_guest_limits_reflects_in_public": "PASS - {2,2,5} reflected in guest_play_limit/guest_skip_limit/guest_listen_minutes",
+    "test_billing_enabled_true_reflects": "PASS - /billing-status returns billing_enabled=true and monetization still exposed",
+    "test_billing_enabled_false_still_exposes_monetization": "PASS - monetization contract stable when billing off"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_monetization_settings.py",
+    "/app/test_reports/pytest/monetization_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Admin endpoints /api/admin/app-settings/monetization, /guest-limits and /admin/settings currently have NO auth dependency - anyone with the public URL can modify billing thresholds and toggle billing_enabled. This is a HIGH severity security issue outside the scope of this task but should be flagged.",
+    "Public /api/app-settings cache TTL is 120s (comment says 30s on line 106 - stale comment). Not a bug but comment/code mismatch.",
+    "GET /api/admin/app-settings default in the response (lines 202-208) still uses soft=5,hard=8,preview=30 while GET /api/app-settings public defaults (lines 136-144) use soft=6,hard=9,preview=45. Two different default sources - keep in sync to avoid drift when monetization doc doesn't exist yet."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_monetization_settings.py (new)"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "admin@gracefy.life / Mwanga@82!3 (not required - admin endpoints unauthenticated)",
+  "seed_data_creation": "None. Fixture restores defaults (soft=6,hard=9,preview=45, guest 3/3/10, billing_enabled=true).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pipeline for monetization thresholds & guest limits works end-to-end with proper cache invalidation. Mobile persistence changes verified statically (cannot exercise AsyncStorage without device). If retest needed, run: pytest /app/backend/tests/test_monetization_settings.py -v. Fixture restores billing_enabled=true at teardown.",
+  "rca of the issue": "N/A - no bugs found. Fix applied by main agent (AsyncStorage-based persistence with date-keyed rollover replacing broken global.lastSkipReset) is correctly implemented in mobile code and backend contract remains stable."
+}

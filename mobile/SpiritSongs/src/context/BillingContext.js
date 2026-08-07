@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Linking, Alert, AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { billingAPI, API_BASE_URL } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -8,6 +9,13 @@ const BillingContext = createContext(null);
 
 // Refresh interval in milliseconds (5 seconds for real-time billing changes)
 const BILLING_REFRESH_INTERVAL = 5000;
+
+// ============ MONETIZATION PERSISTENCE ============
+// Skip / preview counters persist across app restarts and auto-reset at
+// midnight local time. Mirrors the web app's `gracefy_monetization`
+// localStorage pattern so both platforms enforce identical limits.
+const MONETIZATION_STORE_KEY = 'gracefy_monetization';
+const todayKey = () => new Date().toDateString();
 
 export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
@@ -198,25 +206,73 @@ export const BillingProvider = ({ children }) => {
     };
   }, [checkBillingStatus]);
 
-  // Reset skip count daily
+  // ============ HYDRATE + PERSIST SKIP/PREVIEW COUNTERS ============
+  // Load persisted counters ONCE on mount. If the stored `date` doesn't
+  // match today's local-date-string, the counters reset to 0 automatically
+  // (daily rollover). Runs before any UI can trigger a skip.
+  const monetizationHydratedRef = useRef(false);
   useEffect(() => {
-    const resetSkipCount = () => {
-      const today = new Date().toDateString();
-      const lastReset = global.lastSkipReset || '';
-      if (lastReset !== today) {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(MONETIZATION_STORE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.date === todayKey()) {
+            if (typeof parsed.skipCount === 'number') setSkipCount(parsed.skipCount);
+            if (typeof parsed.previewModeActive === 'boolean') setPreviewModeActive(parsed.previewModeActive);
+          }
+        }
+      } catch (e) {
+        // AsyncStorage read error — start fresh (safe default)
+      } finally {
+        monetizationHydratedRef.current = true;
+      }
+    })();
+  }, []);
+
+  // Persist counters on any change (only after hydration so we don't
+  // overwrite the store with the initial default 0 before load completes).
+  useEffect(() => {
+    if (!monetizationHydratedRef.current) return;
+    AsyncStorage.setItem(MONETIZATION_STORE_KEY, JSON.stringify({
+      date: todayKey(),
+      skipCount,
+      previewModeActive,
+    })).catch(() => { /* quota / disk error — best-effort */ });
+  }, [skipCount, previewModeActive]);
+
+  // Midnight rollover watcher: while the app stays open, re-check every
+  // 60s whether the local date has changed. If it has, zero the counters.
+  // Fires alongside the AppState listener below so freshly-foregrounded
+  // apps also see the reset.
+  useEffect(() => {
+    const lastDateRef = { current: todayKey() };
+    const checkRollover = () => {
+      const now = todayKey();
+      if (now !== lastDateRef.current) {
+        console.log('[BillingContext] Date rollover detected — resetting skip counters');
+        lastDateRef.current = now;
         setSkipCount(0);
         setPreviewModeActive(false);
-        global.lastSkipReset = today;
       }
     };
-    resetSkipCount();
+    const timer = setInterval(checkRollover, 60_000);
+    // Also check when app returns to foreground (device may have slept overnight)
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') checkRollover();
+    });
+    return () => {
+      clearInterval(timer);
+      sub?.remove?.();
+    };
   }, []);
   
-  // When user becomes premium, clear enforcement
+  // When user becomes premium, clear enforcement (and wipe persisted counters).
   useEffect(() => {
     if (isPremium) {
       setPreviewModeActive(false);
       setSkipCount(0);
+      AsyncStorage.removeItem(MONETIZATION_STORE_KEY).catch(() => {});
     }
   }, [isPremium]);
 
