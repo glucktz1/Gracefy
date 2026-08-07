@@ -55,7 +55,7 @@ export const BillingProvider = ({ children }) => {
   const [monetization, setMonetization] = useState({
     soft_skip_limit: 5,
     hard_skip_limit: 8,
-    preview_duration_seconds: 30,
+    preview_duration_seconds: 35,
     prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
   });

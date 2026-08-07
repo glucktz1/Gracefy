@@ -3516,7 +3516,7 @@ export default function UserStreamingApp() {
     daily_play_limit: 6,                 // unified threshold: 6 (plays + skips combined)
     soft_skip_limit: 6,                  // legacy alias — same value
     hard_skip_limit: 6,                  // unified: trigger preview mode at 6
-    preview_duration_seconds: 45,        // each preview lasts 45s
+    preview_duration_seconds: 35,        // each preview lasts 35s (aligned with mobile)
     full_play_every_n_previews: 4,       // every 4th preview, allow a full play
     prompt_message_sw: 'Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.',
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
@@ -3828,7 +3828,7 @@ export default function UserStreamingApp() {
       return;
     }
     
-    const previewMs = (monetizationSettings.preview_duration_seconds || 45) * 1000;
+    const previewMs = (monetizationSettings.preview_duration_seconds || 35) * 1000;
     console.log(`[Monetization] Preview - song will auto-advance in ${previewMs}ms`);
     
     previewTimerRef.current = setTimeout(() => {

@@ -14,6 +14,18 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Preview Duration Aligned at 35s (Web + Mobile)
+- ✅ **Preview duration set to 35 seconds** on both platforms and in DB:
+  - Web default in `UserStreamingApp.jsx` `monetizationSettings` state: 45 → 35
+  - Web preview-timer fallback in the enforcement useEffect: 45 → 35
+  - Mobile default in `BillingContext.js` `monetization` state: 30 → 35
+  - Backend `/app-settings` public defaults: 45 → 35
+  - Backend `/admin/app-settings` defaults: kept in sync at 35
+  - Backend POST `/admin/app-settings/monetization` default fallback: 30 → 35
+  - **Saved 35 to Mongo** via admin API so live users see the change immediately (no code deploy needed for the value itself; defaults are for fresh installs).
+- ✅ **Web skip enforcement**: reviewed and confirmed already wired correctly — `bumpUsage()` fires on every skip via `handleSkipWithBillingCheck` on both mini-player and full player. Once `hard_skip_limit` is hit, `previewModeActive=true` triggers the 35s auto-advance timer.
+- ✅ **Verified**: browser fetch of `/api/app-settings` returns `preview_duration_seconds: 35`; smoke-tested home renders cleanly.
+
 ### Session: Feb 15, 2026 — Mobile Skip-Limit Persistence + Daily Reset (bug fix)
 - ✅ **Mobile `skipCount` now persists across app restarts** (`/app/mobile/SpiritSongs/src/context/BillingContext.js`):
   - Previously `skipCount` was in-memory React state only → closing and reopening the app reset it to 0 → users could bypass skip limits by force-quitting.

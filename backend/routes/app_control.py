@@ -137,7 +137,7 @@ async def get_public_app_settings():
         "daily_play_limit": 9,
         "soft_skip_limit": 6,
         "hard_skip_limit": 9,
-        "preview_duration_seconds": 45,
+        "preview_duration_seconds": 35,
         "full_play_every_n_previews": 4,
         "prompt_message_sw": "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.",
         "prompt_message_en": "This content is free but the technology has costs. Contribute a little to help reach more people."
@@ -206,7 +206,7 @@ async def get_app_settings():
             "daily_play_limit": 9,
             "soft_skip_limit": 6,
             "hard_skip_limit": 9,
-            "preview_duration_seconds": 45,
+            "preview_duration_seconds": 35,
             "full_play_every_n_previews": 4,
             "prompt_message_sw": "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi.",
             "prompt_message_en": "This content is free but the technology has costs. Contribute a little to help reach more people."
@@ -295,7 +295,7 @@ async def save_monetization_settings(data: dict):
             "config": {
                 "soft_skip_limit": int(data.get("soft_skip_limit", 5)),
                 "hard_skip_limit": int(data.get("hard_skip_limit", 8)),
-                "preview_duration_seconds": int(data.get("preview_duration_seconds", 30)),
+                "preview_duration_seconds": int(data.get("preview_duration_seconds", 35)),
                 "prompt_message_sw": data.get(
                     "prompt_message_sw",
                     "Maudhui haya ni bure lakini teknolojia hii ina gharama. Changia kidogo kuwezesha iwafikie watu wengi zaidi."
