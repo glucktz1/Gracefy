@@ -98,8 +98,9 @@ export const PlayerProvider = ({
   isPremium = false,
   isAuthenticated = false,
   previewModeActive = false,
-  previewDurationSeconds = 30,
+  previewDurationSeconds = 35,
   onPreviewEnded = null,
+  recordSkip = null,
 }) => {
   // ============ AUTH CONTEXT ============
   // NOTE: isAuthenticated is passed as a prop from App.js to avoid duplicate variable
@@ -679,6 +680,37 @@ export const PlayerProvider = ({
     // Listen for track change to pre-fetch recommendations
     const trackChangedSub = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
       if (!event?.track) return;
+
+      // ============ LOCK-SCREEN SKIP ACCOUNTING ============
+      // Detect a MANUAL skip vs a natural track-end auto-advance. On a
+      // manual skip (UI button OR lock-screen RemoteNext / RemotePrevious),
+      // the previous track's lastPosition is well below its duration.
+      // Bump the billing skip counter so lock-screen skips can no longer
+      // bypass the paywall. This runs regardless of where the skip came
+      // from — the RemoteNext handler in service.js still calls
+      // TrackPlayer.skipToNext(), which then fires this event, so ALL
+      // skip sources funnel through this one accounting point.
+      try {
+        const prev = event.lastTrack;
+        const prevPos = typeof event.lastPosition === 'number' ? event.lastPosition : null;
+        const prevDur = prev?.duration || 0;
+        const isManualSkip = prev && prevPos != null && prevDur > 0 && prevPos < (prevDur - 5);
+        if (
+          isManualSkip &&
+          billingEnabledRef.current &&
+          !isPremiumRef.current &&
+          isAuthenticatedRef.current &&
+          typeof recordSkipRef.current === 'function'
+        ) {
+          const result = recordSkipRef.current();
+          // If this skip crossed the hard threshold, prompt now — the
+          // preview-cap enforcement below will still limit playback to
+          // previewDurationSeconds on the newly-active track.
+          if (result?.promptHard && typeof onPreviewEnded === 'function') {
+            try { onPreviewEnded(); } catch (_) {}
+          }
+        }
+      } catch (_) { /* accounting best-effort */ }
       
       // Update current track state with the new track info
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
@@ -766,11 +798,18 @@ export const PlayerProvider = ({
   const billingEnabledRef = useRef(billingEnabled);
   const isPremiumRef = useRef(isPremium);
   const isAuthenticatedRef = useRef(isAuthenticated);
+  // recordSkipRef lets the TrackPlayer 'PlaybackActiveTrackChanged' handler
+  // (which fires for BOTH UI skips AND lock-screen RemoteNext/Prev) call the
+  // latest billing.recordSkip without re-registering the listener whenever
+  // the callback identity changes. Without this, users could tap next on
+  // the lock screen indefinitely without incrementing the skip counter.
+  const recordSkipRef = useRef(recordSkip);
   
   // Keep refs in sync with props
   useEffect(() => { billingEnabledRef.current = billingEnabled; }, [billingEnabled]);
   useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
   useEffect(() => { isAuthenticatedRef.current = isAuthenticated; }, [isAuthenticated]);
+  useEffect(() => { recordSkipRef.current = recordSkip; }, [recordSkip]);
   
   // ============ PREVIEW MODE ENFORCEMENT (Spotify-style) ============
   // When a non-premium logged-in user has crossed the hard skip threshold, every song

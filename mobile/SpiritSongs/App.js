@@ -448,8 +448,12 @@ const PlayerProviderWithBilling = ({ children }) => {
   // Spotify-style tiered monetization config (from BillingContext)
   const previewModeActive = billingContext?.previewModeActive ?? false;
   const monetization = billingContext?.monetization || {};
-  const previewDurationSeconds = monetization.preview_duration_seconds || 30;
+  const previewDurationSeconds = monetization.preview_duration_seconds || 35;
   const promptSubscription = billingContext?.promptSubscription;
+  // Passed to PlayerContext so lock-screen (RemoteNext/Prev) skips also count
+  // toward the paywall threshold — without this, users could bypass the limit
+  // by only ever skipping from the lock screen.
+  const recordSkip = billingContext?.recordSkip;
   const onPreviewEnded = React.useCallback(() => {
     if (typeof promptSubscription === 'function') {
       try { promptSubscription('skip'); } catch (e) { /* noop */ }
@@ -464,6 +468,7 @@ const PlayerProviderWithBilling = ({ children }) => {
       previewModeActive={previewModeActive}
       previewDurationSeconds={previewDurationSeconds}
       onPreviewEnded={onPreviewEnded}
+      recordSkip={recordSkip}
     >
       {children}
     </PlayerProvider>

@@ -3487,16 +3487,16 @@ export default function UserStreamingApp() {
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [guestStatsLoaded, setGuestStatsLoaded] = useState(false);
   
-  // ==================== MONETIZATION STATE (persisted per day) ====================
+  // ==================== MONETIZATION STATE (persisted, no reset until paid) ====================
   // Unified counter: every PLAY and every SKIP both increment usageCount.
-  // After threshold (default 6), preview mode locks ON until user pays.
+  // After threshold (default 6), preview mode locks ON PERMANENTLY until
+  // the user upgrades to premium. There is NO daily/weekly reset — this
+  // is intentional (hard-paywall model matching mobile).
   const loadMonetizationState = () => {
     try {
       const raw = localStorage.getItem('gracefy_monetization');
       if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed.date !== new Date().toDateString()) return null;
-      return parsed;
+      return JSON.parse(raw);
     } catch { return null; }
   };
   const _persisted = loadMonetizationState();
@@ -3522,11 +3522,11 @@ export default function UserStreamingApp() {
     prompt_message_en: 'This content is free but the technology has costs. Contribute a little to help reach more people.',
   });
   
-  // Persist counters on change
+  // Persist counters on change. Store no `date` field — this is a hard-paywall
+  // model where preview lock persists until premium upgrade.
   useEffect(() => {
     try {
       localStorage.setItem('gracefy_monetization', JSON.stringify({
-        date: new Date().toDateString(),
         usageCount,
         previewModeActive,
         previewClipCount,
@@ -5173,6 +5173,17 @@ export default function UserStreamingApp() {
       return next;
     });
   };
+
+  // Register bumpUsage as the MediaSession (lock-screen / bluetooth remote)
+  // skip callback. Without this, users could tap next/prev from the lock
+  // screen indefinitely to bypass the paywall — since we're a hard-paywall
+  // model now, all skip surfaces (UI, lock, remote) must count uniformly.
+  useEffect(() => {
+    if (player?.setMediaSessionSkipHandler) {
+      player.setMediaSessionSkipHandler(bumpUsage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billingEnabled, isPremium, monetizationSettings.hard_skip_limit]);
   
   // Skip wrapper — billing-aware. Rules (in priority order):
   //   1. GUEST hit 5-action cap → block & force login (the only true halt).

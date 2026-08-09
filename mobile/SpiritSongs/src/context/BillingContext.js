@@ -11,11 +11,12 @@ const BillingContext = createContext(null);
 const BILLING_REFRESH_INTERVAL = 5000;
 
 // ============ MONETIZATION PERSISTENCE ============
-// Skip / preview counters persist across app restarts and auto-reset at
-// midnight local time. Mirrors the web app's `gracefy_monetization`
-// localStorage pattern so both platforms enforce identical limits.
+// Skip / preview counters persist across app restarts and across days.
+// This is a HARD PAYWALL model: once the user hits `hard_skip_limit`,
+// preview mode locks in permanently until they upgrade to premium.
+// Only `isPremium=true` clears the persisted state. There is NO daily
+// or monthly reset — this is intentional and matches the web behavior.
 const MONETIZATION_STORE_KEY = 'gracefy_monetization';
-const todayKey = () => new Date().toDateString();
 
 export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
@@ -207,9 +208,9 @@ export const BillingProvider = ({ children }) => {
   }, [checkBillingStatus]);
 
   // ============ HYDRATE + PERSIST SKIP/PREVIEW COUNTERS ============
-  // Load persisted counters ONCE on mount. If the stored `date` doesn't
-  // match today's local-date-string, the counters reset to 0 automatically
-  // (daily rollover). Runs before any UI can trigger a skip.
+  // Load persisted counters ONCE on mount. Values are ALWAYS restored
+  // (no daily reset) — this is a hard-paywall model where preview mode
+  // locks in until the user pays. Only isPremium=true clears the store.
   const monetizationHydratedRef = useRef(false);
   useEffect(() => {
     (async () => {
@@ -217,13 +218,11 @@ export const BillingProvider = ({ children }) => {
         const raw = await AsyncStorage.getItem(MONETIZATION_STORE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed?.date === todayKey()) {
-            if (typeof parsed.skipCount === 'number') setSkipCount(parsed.skipCount);
-            if (typeof parsed.previewModeActive === 'boolean') setPreviewModeActive(parsed.previewModeActive);
-          }
+          if (typeof parsed?.skipCount === 'number') setSkipCount(parsed.skipCount);
+          if (typeof parsed?.previewModeActive === 'boolean') setPreviewModeActive(parsed.previewModeActive);
         }
       } catch (e) {
-        // AsyncStorage read error — start fresh (safe default)
+        // AsyncStorage read error — start fresh (safe default: no preview lock)
       } finally {
         monetizationHydratedRef.current = true;
       }
@@ -235,39 +234,12 @@ export const BillingProvider = ({ children }) => {
   useEffect(() => {
     if (!monetizationHydratedRef.current) return;
     AsyncStorage.setItem(MONETIZATION_STORE_KEY, JSON.stringify({
-      date: todayKey(),
       skipCount,
       previewModeActive,
     })).catch(() => { /* quota / disk error — best-effort */ });
   }, [skipCount, previewModeActive]);
-
-  // Midnight rollover watcher: while the app stays open, re-check every
-  // 60s whether the local date has changed. If it has, zero the counters.
-  // Fires alongside the AppState listener below so freshly-foregrounded
-  // apps also see the reset.
-  useEffect(() => {
-    const lastDateRef = { current: todayKey() };
-    const checkRollover = () => {
-      const now = todayKey();
-      if (now !== lastDateRef.current) {
-        console.log('[BillingContext] Date rollover detected — resetting skip counters');
-        lastDateRef.current = now;
-        setSkipCount(0);
-        setPreviewModeActive(false);
-      }
-    };
-    const timer = setInterval(checkRollover, 60_000);
-    // Also check when app returns to foreground (device may have slept overnight)
-    const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'active') checkRollover();
-    });
-    return () => {
-      clearInterval(timer);
-      sub?.remove?.();
-    };
-  }, []);
   
-  // When user becomes premium, clear enforcement (and wipe persisted counters).
+  // When user becomes premium, clear enforcement (and wipe persisted counters). (and wipe persisted counters).
   useEffect(() => {
     if (isPremium) {
       setPreviewModeActive(false);

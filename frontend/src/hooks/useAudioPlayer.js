@@ -53,6 +53,14 @@ const useAudioPlayer = () => {
   const blockAutoPlayNextRef = useRef(false); // For screen lock billing feature
   const guestLimitReachedRef = useRef(false); // For guest play limit - stop autoplay when reached
   const consecutiveErrorsRef = useRef(0); // Safeguard against infinite skip loop on errors
+  // Lock-screen (MediaSession) next/prev skips route through this callback
+  // so the UserStreamingApp's bumpUsage() runs — otherwise users could
+  // bypass the hard-paywall skip limit by only ever tapping next from the
+  // lock screen / bluetooth remote.
+  const mediaSessionSkipRef = useRef(null);
+  const setMediaSessionSkipHandler = useCallback((fn) => {
+    mediaSessionSkipRef.current = fn;
+  }, []);
   
   // Use refs to track latest values for event handlers (avoids stale closures)
   const queueRef = useRef(queue);
@@ -1016,6 +1024,8 @@ const useAudioPlayer = () => {
       // Previous track
       navigator.mediaSession.setActionHandler('previoustrack', () => {
         console.log('[MediaSession] Previous track action triggered');
+        // Count this as a manual skip toward the paywall — matches UI skip behavior.
+        try { mediaSessionSkipRef.current?.(); } catch (_) {}
         const currentQueue = queueRef.current;
         const currentIndex = queueIndexRef.current;
         if (currentIndex > 0) {
@@ -1029,6 +1039,8 @@ const useAudioPlayer = () => {
       // Next track
       navigator.mediaSession.setActionHandler('nexttrack', () => {
         console.log('[MediaSession] Next track action triggered');
+        // Count this as a manual skip toward the paywall — matches UI skip behavior.
+        try { mediaSessionSkipRef.current?.(); } catch (_) {}
         const currentQueue = queueRef.current;
         const currentIndex = queueIndexRef.current;
         if (currentIndex < currentQueue.length - 1) {
@@ -1468,6 +1480,8 @@ const useAudioPlayer = () => {
     volume, isMuted, shuffle, repeat, isLoading, showFullPlayer, playSong, togglePlay, 
     nextSong, prevSong, seekTo, setVolume, setIsMuted, setShuffle, cycleRepeat, setShowFullPlayer,
     restorePlaybackState, savePlaybackState, setBlockAutoPlayNext, setGuestLimitReached,
+    // Lock-screen / MediaSession skip accounting — parent registers bumpUsage()
+    setMediaSessionSkipHandler,
     // Continuous play (auto-recommendations) - mirrors native app
     continuousPlay, toggleContinuousPlay,
     // Source context of the current queue (e.g. { type:'category', name:'Easter' })
