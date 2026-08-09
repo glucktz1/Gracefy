@@ -550,29 +550,30 @@ export default function ChoirDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-zinc-900/50 border-zinc-800">
+              <Card className="bg-zinc-900/50 border-zinc-800" data-testid="choir-paid-plays-tile">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-pink-600/20 flex items-center justify-center">
-                      <PlayCircle size={20} className="text-pink-400" />
+                    <div className="w-10 h-10 rounded-lg bg-emerald-600/20 flex items-center justify-center">
+                      <PlayCircle size={20} className="text-emerald-400" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-white">{summary.unique_streams_count || 0}</p>
-                      <p className="text-xs text-zinc-500">Unique Streams (&gt;45s)</p>
+                      <p className="text-xl font-bold text-white">{(summary.total_plays || 0).toLocaleString()}</p>
+                      <p className="text-xs text-zinc-500">Paid Plays</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-zinc-900/50 border-zinc-800">
+              <Card className="bg-zinc-900/50 border-amber-900/50" data-testid="choir-free-plays-tile">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-amber-600/20 flex items-center justify-center">
                       <Music2 size={20} className="text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-white">{summary.all_streams_count || 0}</p>
-                      <p className="text-xs text-zinc-500">Total Plays</p>
+                      <p className="text-xl font-bold text-white">{(summary.free_plays || 0).toLocaleString()}</p>
+                      <p className="text-xs text-amber-400">Free Listens</p>
+                      <p className="text-[10px] text-zinc-500 leading-tight mt-0.5">Reach only — not in revenue</p>
                     </div>
                   </div>
                 </CardContent>

@@ -1,0 +1,44 @@
+{
+  "summary": "Iter 58 — Free-listen tracking + approaching-paywall analytics. 9/9 pytest cases PASS against the preview URL. Verified: (1) start-session stamps is_free_listen correctly for anonymous, non-premium-user, premium-user, and billing-globally-off paths; (2) /api/admin/play-stats overview returns paid_plays + free_plays + total_plays with total_plays == paid+free, and revenue delta from a 2-paid/3-free seed (revenue_earned=100 each) is exactly 200 (not 500) — free listens are correctly excluded from revenue; (3) /api/choir/revenue/{id} summary returns total_plays=2 (paid), free_plays=3, all_plays=5; (4) /api/admin/choir-revenue/{id} (actual registered path; NOT /admin/choirs/{id}/revenue-detail as spec claims) returns period_plays=5, period_paid_plays=2, period_free_plays=3, period_paid_listen_hours, period_free_listen_hours, and period_revenue=140 (paid choir_revenue only); (5) /api/monetization/admin/approaching-paywall returns threshold, approaching_floor=threshold-2, count, users — seeded 3 non-premium users at threshold-2/-1/0 all appear sorted desc by skip_count, and a seeded premium user at threshold+5 is correctly filtered out; (6) /api/analytics/enhanced?period=30d streams_by_day trend revenue is not inflated by 3 seeded free listens (delta = 0.00).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/choir-revenue/{choir_id}", "issue": "Review request refers to this endpoint as /api/admin/choirs/{choir_id}/revenue-detail — the actual registered path is /api/admin/choir-revenue/{choir_id}. Behavior is spec-compliant; only the doc/spec path name is inconsistent."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "backend_tests_executed": {
+    "TestStartSessionFreeListenFlag::test_anonymous_is_free": "PASS — session doc.is_free_listen=true, user_id null",
+    "TestStartSessionFreeListenFlag::test_non_premium_user_is_free": "PASS — is_free_listen=true for is_premium=false user",
+    "TestStartSessionFreeListenFlag::test_premium_user_is_paid": "PASS — is_free_listen=false for is_premium=true user",
+    "TestStartSessionFreeListenFlag::test_billing_globally_off_forces_free": "PASS — with admin_settings.billing_enabled=false, even premium user gets is_free_listen=true",
+    "TestAdminPlayStatsRevenueFilter::test_paid_free_split_and_revenue_excludes_free": "PASS — seed 2 paid + 3 free (revenue_earned=100 each), delta paid=+2, free=+3, revenue delta=+200 (not 500)",
+    "TestChoirRevenueEndpoints::test_choir_revenue_summary_has_free_and_all_plays": "PASS — summary.total_plays=2, free_plays=3, all_plays=5",
+    "TestChoirRevenueEndpoints::test_admin_choir_revenue_detail_paid_free_split": "PASS — period_plays=5, period_paid_plays=2, period_free_plays=3, period_revenue=140 (paid choir_revenue only)",
+    "TestApproachingPaywall::test_approaching_paywall_returns_top_users": "PASS — 3 seeded non-premium users at threshold-2/-1/0 appear sorted desc; premium user filtered out; approaching_floor=threshold-2",
+    "TestEnhancedAnalyticsExcludesFree::test_streams_by_day_excludes_free_from_revenue": "PASS — 3 free listens with revenue_earned=100 don't inflate trend revenue (delta=0.00)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_free_listen_iter58.py",
+    "/app/test_reports/pytest/iter58.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "core/play_analytics.py line 39: billing_enabled defaults to False when app_settings.billing doc is missing — so summary.net_revenue is 0 for choirs in the current dev env regardless of paid plays. That is intentional (rates short-circuit when billing off) but means the /api/choir/revenue/ summary shows net_revenue=0 even when paid_plays>0. Consider surfacing 'billing_disabled' as a boolean the UI can render (already returned in summary — good).",
+    "routes/analytics.py start_listening_session (line ~797): is_free_listen is stamped at session start based on user's premium status at that moment. If a user upgrades mid-session, the play remains a free listen. This is a correct design tradeoff for accounting simplicity (documented in the docstring) — worth calling out in ops runbook.",
+    "routes/admin.py /admin/choir-revenue/{id} (line 2048): stats.period_plays is total (paid+free) but the field name is ambiguous. summary.total_plays in /choir/revenue means PAID only. Two adjacent endpoints use 'total_plays' with opposite semantics — recommend renaming stats.period_plays → stats.period_all_plays for consistency.",
+    "routes/monetization_usage.py /admin/approaching-paywall (line 265): still no auth guard (P0 flagged in prior iterations — NOT re-flagged per agent note). Tests exploit this.",
+    "routes/analytics.py line 793: reads admin_settings.billing_enabled from a *different* collection than core/play_analytics.py which reads app_settings.setting_type='billing'.enabled (line 32). Two different sources of truth for the same 'billing globally off' concept — high risk of drift. Recommend consolidating to one collection.",
+    "routes/admin.py line 1856 all_time_plays does NOT filter is_free_listen, so it inflates the historic reach vs the period paid_plays. If UI displays them side-by-side it may confuse the operator. Consider splitting into all_time_paid_plays + all_time_free_plays too."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_free_listen_iter58.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Admin creds not required — /api/admin/* endpoints unauthenticated in dev (known P0, out of scope per agent note). All seeded users are ephemeral with TEST_iter58_* prefix.",
+  "seed_data_creation": "Per-run ephemeral prefix TEST_iter58_<uuid6>. Seeded across: app_users, user_billing_stats, singers, choir_accounts, albums, songs, listening_sessions. Post-run mongosh verification confirmed 0 residual docs across all 7 collections. admin_settings.billing_enabled restored to true.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 58 free-listen accounting is fully wired and correct. Regression: pytest /app/backend/tests/test_free_listen_iter58.py -v. Two sources of truth for global billing flag exist: (a) db.admin_settings.billing_enabled (analytics.py) and (b) db.app_settings{setting_type:'billing'}.enabled (play_analytics.py) — flagged but not blocking. Actual registered choir admin revenue path is /api/admin/choir-revenue/{id}, NOT the /api/admin/choirs/{id}/revenue-detail name used in the spec. Threshold source: db.app_settings.setting_type='monetization'.config.hard_skip_limit (currently 9, preview 35). Approaching-paywall floor = threshold-2.",
+  "rca of the issue": "N/A — feature verification pass, no bugs surfaced. Only a naming inconsistency in the review-request spec vs actual endpoint path."
+}

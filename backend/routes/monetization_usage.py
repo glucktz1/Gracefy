@@ -260,3 +260,71 @@ async def reset_on_premium(request: Request):
         upsert=True,
     )
     return {"cleared": True}
+
+
+@router.get("/admin/approaching-paywall")
+async def admin_users_approaching_paywall(limit: int = 20):
+    """Admin analytics: users close to (or already at) the paywall.
+
+    Returns the top N unpaid users sorted by skip_count desc. Great signal
+    for a targeted contribution nudge — email/push these people with a
+    'you've been enjoying Gracefy — consider chipping in' message.
+
+    NOTE: Not auth-gated here yet — all /admin/* endpoints need the auth
+    dependency added in a follow-up (flagged as P0 in prior reviews).
+    """
+    db = get_db()
+
+    # Read current threshold to compute "distance to lock"
+    threshold, _preview_duration = await _get_threshold_and_duration(db)
+    # "Approaching" = skip_count >= threshold - 2 (i.e. 2 skips away from lock,
+    # or already at/past the lock). This is where the conversion nudge is most
+    # effective.
+    approaching_floor = max(0, threshold - 2)
+
+    limit = max(1, min(int(limit), 100))
+
+    cursor = db.user_billing_stats.find(
+        {"skip_count": {"$gte": approaching_floor}},
+        {"_id": 0},
+    ).sort("skip_count", -1).limit(limit)
+    rows = await cursor.to_list(limit)
+
+    # Enrich with user details (email, name) so admin sees who to contact.
+    user_ids = [r["user_id"] for r in rows]
+    users_map = {}
+    if user_ids:
+        async for u in db.app_users.find(
+            {"user_id": {"$in": user_ids}},
+            {"_id": 0, "user_id": 1, "email": 1, "name": 1, "phone": 1,
+             "is_premium": 1, "subscription_status": 1, "last_login": 1}
+        ):
+            users_map[u["user_id"]] = u
+
+    enriched = []
+    for r in rows:
+        u = users_map.get(r["user_id"], {})
+        is_prem = bool(u.get("is_premium")) or u.get("subscription_status") in ("active", "trialing")
+        # Skip already-premium users — they aren't a conversion target
+        if is_prem:
+            continue
+        enriched.append({
+            "user_id": r["user_id"],
+            "email": u.get("email"),
+            "name": u.get("name"),
+            "phone": u.get("phone"),
+            "skip_count": r.get("skip_count", 0),
+            "total_lifetime_skips": r.get("total_lifetime_skips", 0),
+            "preview_mode_active": bool(r.get("preview_mode_active", False)),
+            "first_hit_at": r.get("first_hit_at"),
+            "last_skip_at": r.get("last_skip_at"),
+            "last_login": u.get("last_login"),
+            "distance_to_lock": max(0, threshold - r.get("skip_count", 0)),
+        })
+
+    return {
+        "threshold": threshold,
+        "approaching_floor": approaching_floor,
+        "count": len(enriched),
+        "users": enriched,
+    }

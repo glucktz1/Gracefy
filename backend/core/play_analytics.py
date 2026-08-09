@@ -83,12 +83,20 @@ async def get_choir_play_analytics(
 
     plays_by_song: Dict[str, int] = {}
     plays_by_album: Dict[str, int] = {}
-    total_plays = 0
+    total_plays = 0        # PAID plays only (revenue-eligible)
     total_minutes = 0
+    free_plays = 0         # Free listens — counted for reach, excluded from revenue
+    free_minutes = 0
 
     if song_ids:
+        # Paid plays — the ones that generate revenue for the choir.
+        # `is_free_listen != True` excludes guest + non-premium + billing-off sessions.
         pipeline = [
-            {"$match": {"counted_as_play": True, "song_id": {"$in": song_ids}}},
+            {"$match": {
+                "counted_as_play": True,
+                "song_id": {"$in": song_ids},
+                "is_free_listen": {"$ne": True},
+            }},
             {"$group": {
                 "_id": "$song_id",
                 "plays": {"$sum": 1},
@@ -103,6 +111,23 @@ async def get_choir_play_analytics(
             aid = song_to_album.get(sid)
             if aid:
                 plays_by_album[aid] = plays_by_album.get(aid, 0) + row["plays"]
+
+        # Free-listen totals — separate query, no per-song breakdown needed here
+        free_pipeline = [
+            {"$match": {
+                "counted_as_play": True,
+                "song_id": {"$in": song_ids},
+                "is_free_listen": True,
+            }},
+            {"$group": {
+                "_id": None,
+                "plays": {"$sum": 1},
+                "minutes": {"$sum": {"$divide": [{"$ifNull": ["$duration_seconds", 0]}, 60]}},
+            }},
+        ]
+        async for row in db.listening_sessions.aggregate(free_pipeline):
+            free_plays = int(row.get("plays") or 0)
+            free_minutes = int(row.get("minutes") or 0)
 
     # If listening_sessions has nothing recorded for this choir, fall back to
     # the stale counters stored directly on albums.total_plays + songs.plays so
@@ -187,8 +212,11 @@ async def get_choir_play_analytics(
         pass
 
     summary = {
-        "total_plays": total_plays,
+        "total_plays": total_plays,           # PAID plays only (revenue-eligible)
         "total_minutes_streamed": total_minutes,
+        "free_plays": free_plays,             # free listens — reach only, NOT in revenue
+        "free_minutes_streamed": free_minutes,
+        "all_plays": total_plays + free_plays,  # combined reach (paid + free)
         "gross_revenue": gross,
         "platform_fee": platform_fee,
         "net_revenue": net,

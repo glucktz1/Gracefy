@@ -364,6 +364,8 @@ export default function EnhancedAnalyticsPage() {
   const [replayStats, setReplayStats] = useState(null);
   const [deviceDistribution, setDeviceDistribution] = useState(null);
   const [dataUsage, setDataUsage] = useState(null);
+  const [playStats, setPlayStats] = useState(null);
+  const [approachingPaywall, setApproachingPaywall] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30d");
   const [replayPeriod, setReplayPeriod] = useState("day");
@@ -375,13 +377,17 @@ export default function EnhancedAnalyticsPage() {
       // Each request is independently catch-wrapped so a single endpoint
       // failure (e.g. validation error on `days=365`) cannot break the whole
       // dashboard. The period toggles must always work.
-      const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes, dataUsageRes] = await Promise.all([
+      const [analyticsRes, realtimeRes, bibleRes, navRes, deviceRes, dataUsageRes, playStatsRes, approachRes] = await Promise.all([
         axios.get(`${API}/analytics/enhanced?period=${period}`, { withCredentials: true }).catch((e) => { console.warn('enhanced failed', e?.response?.status); return { data: null }; }),
         axios.get(`${API}/analytics/realtime`, { withCredentials: true }).catch((e) => { console.warn('realtime failed', e?.response?.status); return { data: null }; }),
         axios.get(`${API}/admin/bible/analytics?days=${Math.min(periodDays, 365)}`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/admin/analytics/navigation?days=${periodDays}`, { withCredentials: true }).catch((e) => { console.warn('navigation failed', e?.response?.status); return { data: null }; }),
         axios.get(`${API}/analytics/device-distribution`, { withCredentials: true }).catch(() => ({ data: null })),
         axios.get(`${API}/analytics/data-usage?days=${periodDays}`, { withCredentials: true }).catch(() => ({ data: null })),
+        // Paid vs free play split — surfaces "monetized volume" alongside total reach
+        axios.get(`${API}/admin/play-stats?period=${period}`, { withCredentials: true }).catch(() => ({ data: null })),
+        // Users close to (or already at) the paywall — conversion nudge targets
+        axios.get(`${API}/monetization/admin/approaching-paywall?limit=20`, { withCredentials: true }).catch(() => ({ data: null })),
       ]);
       setAnalytics(analyticsRes.data);
       setRealtime(realtimeRes.data);
@@ -389,6 +395,8 @@ export default function EnhancedAnalyticsPage() {
       setNavigationAnalytics(navRes.data);
       setDeviceDistribution(deviceRes.data);
       setDataUsage(dataUsageRes.data);
+      setPlayStats(playStatsRes.data);
+      setApproachingPaywall(approachRes.data);
     } catch (error) {
       console.error("Error fetching analytics:", error);
       toast.error("Failed to load analytics");
@@ -569,6 +577,96 @@ export default function EnhancedAnalyticsPage() {
           value={overview.unique_songs_played?.toLocaleString() || 0}
         />
       </div>
+
+      {/* Free vs Paid Listens — surfaces reach vs monetized volume so admins
+          can see the funnel at a glance. Free listens are EXCLUDED from all
+          revenue calculations above. */}
+      {playStats?.overview && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6" data-testid="free-vs-paid-tiles">
+          <Card className="bg-emerald-950/30 border-emerald-800/50" data-testid="paid-plays-tile">
+            <CardContent className="p-4">
+              <p className="text-xs text-emerald-400 uppercase tracking-wide">Paid Plays ({period})</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                {(playStats.overview.paid_plays || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">Revenue-eligible — from premium subscribers</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-amber-950/30 border-amber-800/50" data-testid="free-plays-tile">
+            <CardContent className="p-4">
+              <p className="text-xs text-amber-400 uppercase tracking-wide">Free Listens ({period})</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                {(playStats.overview.free_plays || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">Guests + non-premium — NOT counted in revenue</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-blue-950/30 border-blue-800/50" data-testid="conversion-ratio-tile">
+            <CardContent className="p-4">
+              <p className="text-xs text-blue-400 uppercase tracking-wide">Conversion Rate</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                {(() => {
+                  const paid = playStats.overview.paid_plays || 0;
+                  const total = playStats.overview.total_plays || 0;
+                  return total > 0 ? `${((paid / total) * 100).toFixed(1)}%` : '0%';
+                })()}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">Paid plays / total plays this period</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Users Approaching Paywall — conversion nudge targets */}
+      {approachingPaywall?.users?.length > 0 && (
+        <Card className="bg-zinc-900/30 border-zinc-800 mb-6" data-testid="approaching-paywall-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white">Users Approaching Paywall</h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Top {approachingPaywall.users.length} unpaid users at skip ≥ {approachingPaywall.approaching_floor} of {approachingPaywall.threshold} — high-intent nudge candidates
+                </p>
+              </div>
+              <TrendingUp size={22} className="text-amber-400" />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-zinc-400 text-xs uppercase border-b border-zinc-800">
+                    <th className="text-left py-2">User</th>
+                    <th className="text-left py-2">Email</th>
+                    <th className="text-right py-2">Skips</th>
+                    <th className="text-right py-2">Distance</th>
+                    <th className="text-right py-2">Locked</th>
+                    <th className="text-right py-2">Last Skip</th>
+                  </tr>
+                </thead>
+                <tbody data-testid="approaching-paywall-tbody">
+                  {approachingPaywall.users.map((u) => (
+                    <tr key={u.user_id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      <td className="py-2 text-white">{u.name || '—'}</td>
+                      <td className="py-2 text-zinc-400">{u.email || '—'}</td>
+                      <td className="py-2 text-right font-semibold text-amber-400">{u.skip_count}</td>
+                      <td className="py-2 text-right text-zinc-400">{u.distance_to_lock === 0 ? '—' : u.distance_to_lock}</td>
+                      <td className="py-2 text-right">
+                        {u.preview_mode_active ? (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400">YES</span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs bg-zinc-700 text-zinc-400">no</span>
+                        )}
+                      </td>
+                      <td className="py-2 text-right text-zinc-500 text-xs">
+                        {u.last_skip_at ? new Date(u.last_skip_at).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Platform Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

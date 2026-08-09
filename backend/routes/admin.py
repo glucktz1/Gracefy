@@ -1854,6 +1854,15 @@ async def get_play_statistics(
     
     # Total plays all time
     all_time_plays = await db.listening_sessions.count_documents({"counted_as_play": True})
+
+    # Free-listen counts for this period — surfaced as a separate metric so
+    # admins can see reach vs monetized volume at a glance.
+    free_plays_period = await db.listening_sessions.count_documents({
+        **query,
+        "counted_as_play": True,
+        "is_free_listen": True,
+    })
+    paid_plays_period = max(0, total_plays - free_plays_period)
     
     # Total listening time
     duration_pipeline = [
@@ -1864,9 +1873,10 @@ async def get_play_statistics(
     total_listen_seconds = duration_result[0]["total"] if duration_result else 0
     total_listen_hours = round(total_listen_seconds / 3600, 1)
     
-    # Revenue from plays
+    # Revenue from plays — EXCLUDE free listens (guest/non-premium/billing-off).
+    # A free listen doesn't earn revenue for the platform OR the choir.
     revenue_pipeline = [
-        {"$match": {**query, "counted_as_play": True}},
+        {"$match": {**query, "counted_as_play": True, "is_free_listen": {"$ne": True}}},
         {"$group": {
             "_id": None, 
             "total_revenue": {"$sum": {"$ifNull": ["$revenue_earned", 0]}},
@@ -1946,6 +1956,8 @@ async def get_play_statistics(
         "period": period,
         "overview": {
             "total_plays": total_plays,
+            "paid_plays": paid_plays_period,           # revenue-eligible
+            "free_plays": free_plays_period,           # excluded from revenue
             "all_time_plays": all_time_plays,
             "total_listen_hours": total_listen_hours,
             "total_revenue": round(total_revenue, 2),
@@ -2004,15 +2016,18 @@ async def get_song_play_details(song_id: str, period: str = Query("30d")):
         "start_time": {"$gte": start_date}
     }, {"_id": 0}).to_list(10000)
     
-    # Calculate stats
+    # Calculate stats — separate free vs paid plays for accurate revenue.
     counted_plays = sum(1 for s in sessions if s.get("counted_as_play"))
     total_duration = sum(s.get("duration_seconds", 0) for s in sessions)
-    total_revenue = sum(s.get("revenue_earned", 0) for s in sessions if s.get("counted_as_play"))
+    # Revenue counts ONLY paid (non-free) plays. Free listens are shown as
+    # a separate metric so choirs can see reach without inflating earnings.
+    total_revenue = sum(s.get("revenue_earned", 0) for s in sessions
+                        if s.get("counted_as_play") and not s.get("is_free_listen"))
     unique_listeners = len(set(s.get("user_id") for s in sessions if s.get("user_id")))
     
-    # By subscription
-    premium_plays = sum(1 for s in sessions if s.get("counted_as_play") and s.get("subscription_type") == "premium")
-    free_plays = counted_plays - premium_plays
+    # Free vs paid split
+    free_plays = sum(1 for s in sessions if s.get("counted_as_play") and s.get("is_free_listen"))
+    premium_plays = counted_plays - free_plays
     
     return {
         "song": song,
@@ -2075,7 +2090,16 @@ async def get_choir_revenue_detail(choir_id: str, period: str = Query("30d")):
     
     total_plays = len(sessions)
     total_duration = sum(s.get("duration_seconds", 0) for s in sessions)
-    period_revenue = sum(s.get("choir_revenue", 0) for s in sessions)
+    # Split into paid vs free listens. Revenue is calculated ONLY from paid
+    # plays (a free listen has no economic value to the choir). Free listen
+    # count is exposed as a separate metric so choirs can see total reach.
+    paid_sessions = [s for s in sessions if not s.get("is_free_listen")]
+    free_sessions = [s for s in sessions if s.get("is_free_listen")]
+    period_revenue = sum(s.get("choir_revenue", 0) for s in paid_sessions)
+    period_paid_plays = len(paid_sessions)
+    period_free_plays = len(free_sessions)
+    period_paid_seconds = sum(s.get("duration_seconds", 0) for s in paid_sessions)
+    period_free_seconds = sum(s.get("duration_seconds", 0) for s in free_sessions)
     
     return {
         "choir": choir,
@@ -2084,8 +2108,12 @@ async def get_choir_revenue_detail(choir_id: str, period: str = Query("30d")):
         "stats": {
             "total_albums": len(albums),
             "total_songs": len(songs),
-            "period_plays": total_plays,
+            "period_plays": total_plays,             # all plays (paid + free) for reach
+            "period_paid_plays": period_paid_plays,  # billable plays
+            "period_free_plays": period_free_plays,  # free listens — NOT counted in revenue
             "period_listen_hours": round(total_duration / 3600, 1),
+            "period_paid_listen_hours": round(period_paid_seconds / 3600, 1),
+            "period_free_listen_hours": round(period_free_seconds / 3600, 1),
             "period_revenue": round(period_revenue, 2),
             "current_balance": account.get("current_balance", 0) if account else 0,
             "total_earned": account.get("total_earned", 0) if account else 0,

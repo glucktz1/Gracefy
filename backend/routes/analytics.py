@@ -754,33 +754,60 @@ async def start_listening_session(data: dict, request: Request = None):
     """
     Start a listening session (called when playback begins).
     Used to track active listeners.
+
+    IMPORTANT: We stamp `is_free_listen` at start based on the user's
+    premium status AT THIS MOMENT. Free listens (guests + non-premium users
+    + everyone while billing is globally off) MUST NOT count toward revenue.
+    This flag is the single filter that keeps admin/choir revenue numbers
+    honest.
     """
     db = get_db()
     
     # Get user's country for geo analytics
     country_code = data.get("country_code")
-    if not country_code and data.get("user_id"):
-        user = await db.app_users.find_one(
-            {"user_id": data["user_id"]},
-            {"_id": 0, "country_override": 1, "country_code": 1}
+    user_id = data.get("user_id")
+    user_doc = None
+    if user_id:
+        user_doc = await db.app_users.find_one(
+            {"user_id": user_id},
+            {"_id": 0, "country_override": 1, "country_code": 1, "is_premium": 1, "subscription_status": 1}
         )
-        if user:
-            country_code = user.get("country_override") or user.get("country_code")
+        if not country_code and user_doc:
+            country_code = user_doc.get("country_override") or user_doc.get("country_code")
     
     if not country_code:
         country_code = "GLOBAL"
+
+    # Determine if this session is a "free listen" (excluded from revenue).
+    # Free listen = one of:
+    #   - Anonymous / guest (no user_id)
+    #   - User is NOT premium at time of play
+    #   - Billing is globally disabled (any play during off-mode is free)
+    is_premium_now = False
+    if user_doc:
+        is_premium_now = bool(user_doc.get("is_premium")) or user_doc.get("subscription_status") in ("active", "trialing")
+
+    billing_globally_on = True
+    try:
+        admin_settings = await db.admin_settings.find_one({}) or {}
+        billing_globally_on = bool(admin_settings.get("billing_enabled", True))
+    except Exception:
+        pass
+
+    is_free_listen = (not user_id) or (not is_premium_now) or (not billing_globally_on)
     
     session_id = f"session_{__import__('uuid').uuid4().hex[:12]}"
     session = {
         "session_id": session_id,
         "content_type": data.get("content_type"),
         "content_id": data.get("content_id"),
-        "user_id": data.get("user_id"),
+        "user_id": user_id,
         "platform": data.get("platform", "web"),
         "country_code": country_code,
         "start_time": datetime.now(timezone.utc).isoformat(),
         "end_time": None,  # Will be set when session ends
-        "counted_as_play": False  # Will be updated if 45+ seconds played
+        "counted_as_play": False,  # Will be updated if 45+ seconds played
+        "is_free_listen": is_free_listen,  # Excluded from revenue if True
     }
     
     await db.listening_sessions.insert_one(session)
@@ -1022,7 +1049,13 @@ async def get_enhanced_analytics(
 
     trend_start_iso = (now - timedelta(days=days)).isoformat()
     streams_by_day_pipeline = [
-        {"$match": {"counted_as_play": True, "start_time": {"$gte": trend_start_iso}}},
+        # Revenue must EXCLUDE free listens — guest/non-premium/billing-off
+        # sessions are tracked but don't contribute to earnings numbers.
+        {"$match": {
+            "counted_as_play": True,
+            "start_time": {"$gte": trend_start_iso},
+            "is_free_listen": {"$ne": True},
+        }},
         {"$group": {
             "_id": {"$substr": ["$start_time", 0, 10]},
             "streams": {"$sum": 1},
