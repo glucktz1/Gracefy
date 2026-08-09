@@ -27,16 +27,22 @@ async def _get_rates(db) -> Dict[str, object]:
     Returns ``{tzs_per_play, platform_fee_percentage, minimum_payout,
     billing_enabled}``. When ``billing_enabled`` is False all revenue math
     short-circuits to zero so unpaid users never see revenue numbers.
+
+    IMPORTANT: `billing_enabled` reads from `admin_settings.billing_enabled`
+    — the canonical master toggle written by the Admin Settings page (see
+    `PUT /api/admin/settings`) and consumed by `/api/billing-status`.
+    Previously this read from `app_settings.setting_type='billing'.enabled`
+    which was a second, drifting source of truth.
     """
     settings = await db.monetization_settings.find_one({}, sort=[("created_at", -1)]) or {}
-    billing_doc = await db.app_settings.find_one({"setting_type": "billing"}) or {}
+    admin_settings = await db.admin_settings.find_one({}) or {}
     return {
         "tzs_per_play": int(settings.get("tzs_per_play", DEFAULTS["tzs_per_play"])),
         "platform_fee_percentage": int(
             settings.get("platform_fee_percentage", DEFAULTS["platform_fee_percentage"])
         ),
         "minimum_payout": int(settings.get("minimum_payout_threshold", DEFAULTS["minimum_payout"])),
-        "billing_enabled": bool(billing_doc.get("enabled", False)),
+        "billing_enabled": bool(admin_settings.get("billing_enabled", False)),
     }
 
 

@@ -14,6 +14,28 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Free-Listen Accounting + Admin/Choir Tiles + Approaching-Paywall Analytics
+- ✅ **is_free_listen flag** on every `listening_sessions` doc (`routes/analytics.py`):
+  - Stamped at session start based on: user's `is_premium` status AT PLAY TIME + global `admin_settings.billing_enabled`
+  - Free = anonymous / non-premium user / billing globally off
+  - Frozen at session start (upgrade mid-play doesn't retro-convert)
+- ✅ **Revenue queries exclude free listens** — filter `{"is_free_listen": {"$ne": True}}` added to:
+  - `routes/analytics.py` daily streams-by-day trend
+  - `routes/admin.py` platform revenue pipeline
+  - `routes/admin.py` choir revenue-detail endpoint (splits paid vs free)
+  - `core/play_analytics.py` choir aggregation (paid pipeline + separate free-only summary)
+- ✅ **Admin dashboard tiles** (`EnhancedAnalyticsPage.jsx`):
+  - Paid Plays / Free Listens / Conversion Rate tiles (data-testid `paid-plays-tile`, `free-plays-tile`, `conversion-ratio-tile`)
+  - **Users Approaching Paywall table** — top 20 unpaid users at `skip_count >= threshold - 2`, sorted desc, with email/name/skips/distance/locked/last-skip columns. Premium users excluded.
+- ✅ **Choir dashboard tile** (`ChoirDashboard.jsx`):
+  - Renamed 3rd overview card to "Paid Plays" (revenue-eligible only)
+  - New 4th "Free Listens" card in amber with "Reach only — not in revenue" caption
+- ✅ **New endpoint** `GET /api/monetization/admin/approaching-paywall?limit=N`:
+  - Returns `{threshold, approaching_floor, count, users:[{user_id, email, name, phone, skip_count, distance_to_lock, preview_mode_active, last_skip_at, ...}]}`
+  - Perfect for conversion nudge campaigns
+- ✅ **Source-of-truth drift fix**: `core/play_analytics.py` now reads `billing_enabled` from `admin_settings.billing_enabled` (canonical master) instead of the separate `app_settings.setting_type='billing'` doc — prevents choir revenue view from reading a stale mirror.
+- ✅ **Testing**: iteration_58 PASS — **9/9 backend pytest cases** covering (1) is_free_listen stamping for all 4 user scenarios, (2) admin/play-stats paid/free split with correct revenue exclusion (200 not 500 on 2-paid/3-free seed), (3) choir summary paid_plays vs free_plays vs all_plays, (4) admin choir-revenue paid_hours vs free_hours, (5) approaching-paywall correctness including premium-exclusion, (6) daily-trend excludes free from revenue. Test file: `/app/backend/tests/test_free_listen_iter58.py`.
+
 ### Session: Feb 15, 2026 — Server-Side Skip Counter (Uncircumventable Paywall)
 Moved the skip counter to Mongo as the source of truth. Reinstalling the app or clearing localStorage no longer resets the paywall.
 
