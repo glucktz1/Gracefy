@@ -7080,23 +7080,37 @@ export default function UserStreamingApp() {
                 <Star className="w-8 h-8 text-amber-400 fill-amber-400" />
               </div>
               <h3 className="text-xl font-bold text-white mb-3">
-                {language === 'sw' ? 'Umefikia kikomo' : 'Daily limit reached'}
+                {language === 'sw' ? 'Umefikia kikomo' : 'Free limit reached'}
               </h3>
               <p className="text-zinc-300 mb-6 leading-relaxed">
                 {language === 'sw'
-                  ? 'Umefikia kikomo cha kusikiliza bure leo. Changia kidogo kufurahia kwa uhuru.'
-                  : 'You\'ve reached the daily free listen limit. Contribute a little to enjoy freely.'}
+                  ? 'Umefikia kikomo cha kusikiliza bure. Changia kidogo kufurahia kwa uhuru.'
+                  : 'You\'ve reached the free listen limit. Contribute a little to enjoy freely.'}
               </p>
               <div className="space-y-3">
                 <button
-                  onClick={() => { setShowDailyLimitPopup(false); setView('profile'); }}
+                  onClick={() => {
+                    setShowDailyLimitPopup(false);
+                    setShowCheckoutModal(true);
+                  }}
                   data-testid="daily-limit-contribute-btn"
                   className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold rounded-full transition-colors"
                 >
                   {language === 'sw' ? 'Changia Sasa' : 'Contribute Now'}
                 </button>
                 <button
-                  onClick={() => setShowDailyLimitPopup(false)}
+                  onClick={() => {
+                    setShowDailyLimitPopup(false);
+                    // If a song is loaded but paused when the modal closes,
+                    // resume it so "Continue with previews" actually continues.
+                    // Without this, the modal dismisses but audio stays idle
+                    // and the user thinks the button doesn't work.
+                    try {
+                      if (player?.currentSong && !player?.isPlaying && typeof player?.togglePlay === 'function') {
+                        player.togglePlay();
+                      }
+                    } catch (_) { /* best-effort */ }
+                  }}
                   data-testid="daily-limit-close-btn"
                   className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-colors"
                 >
@@ -7105,8 +7119,8 @@ export default function UserStreamingApp() {
               </div>
               <p className="text-xs text-zinc-500 mt-4">
                 {language === 'sw'
-                  ? 'Nyimbo zitaendelea kucheza kwa preview ya sekunde 45. Kila ya 4 itacheza kamili.'
-                  : 'Songs will continue as 45-second previews. Every 4th song plays in full.'}
+                  ? `Nyimbo zitaendelea kucheza kwa preview ya sekunde ${monetizationSettings.preview_duration_seconds || 35}. Kila ya ${monetizationSettings.full_play_every_n_previews || 4} itacheza kamili.`
+                  : `Songs will continue as ${monetizationSettings.preview_duration_seconds || 35}-second previews. Every ${monetizationSettings.full_play_every_n_previews || 4}th song plays in full.`}
               </p>
             </div>
           </div>
