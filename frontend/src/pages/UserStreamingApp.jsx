@@ -3466,8 +3466,14 @@ export default function UserStreamingApp() {
   // Default to billing DISABLED - never block users before we confirm billing is ON
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [billingStatusChecked, setBillingStatusChecked] = useState(false);
-  // Default to premium TRUE - never block users before we confirm billing is ON
-  const [isPremium, setIsPremium] = useState(true);
+  // Default to premium FALSE - we're safe because `billingEnabled` also defaults
+  // false and `bumpUsage()` short-circuits on `!billingEnabled OR isPremium`.
+  // Previously this defaulted to `true` on the theory of "never block users
+  // before we know", but that created a silent-bypass: if the /user/subscription-status
+  // request failed, `isPremium` stayed `true` forever and the paywall was never
+  // enforced. `false` is the safe default — enforcement kicks in ONLY after
+  // billingEnabled flips to `true` post-check.
+  const [isPremium, setIsPremium] = useState(false);
   
   // Guest action limit — HARD BLOCK after 5 total interactions (plays + skips).
   // No preview mode for guests. They must sign in/register to continue.
@@ -3544,7 +3550,7 @@ export default function UserStreamingApp() {
   // Reconciliation rule: server wins if its counter is HIGHER or if it says
   // preview_mode_active. Otherwise we keep local state (avoids clobbering
   // freshly-bumped state before the fire-and-forget POST reaches Mongo).
-  const authTokenForServer = user?.token || localStorage.getItem('gracefy_app_token');
+  const authTokenForServer = user?.token || localStorage.getItem('user_token');
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -3892,10 +3898,15 @@ export default function UserStreamingApp() {
   }, [previewModeActive, player?.currentSong?.song_id, player?.isPlaying, isPremium, monetizationSettings.preview_duration_seconds, allowFullPlay]);
   
   // When user becomes premium (transition false→true), reset preview enforcement.
-  // CRITICAL: must use a ref to track the previous value, because `isPremium` defaults
-  // to `true` on first render (loading state) which would otherwise wipe persisted state.
+  // Guards:
+  //   - `wasPremiumRef` skips the first effect run so the initial `false`
+  //     default isn't misread as a "just became false" transition
+  //   - `billingStatusChecked` prevents the reset from firing during the
+  //     load-window before we actually know the user's subscription state
+  //     (protects against StrictMode double-invoke wiping localStorage)
   const wasPremiumRef = useRef(null);
   useEffect(() => {
+    if (!billingStatusChecked) return;
     // Skip the very first effect run (just record the value)
     if (wasPremiumRef.current === null) {
       wasPremiumRef.current = isPremium;
@@ -3914,14 +3925,14 @@ export default function UserStreamingApp() {
       try { localStorage.removeItem('gracefy_monetization'); } catch { /* noop */ }
       // Also wipe the server-side counter so the paywall stays cleared
       // across devices even if the subscription webhook hasn't fired yet.
-      const token = user?.token || localStorage.getItem('gracefy_app_token');
+      const token = user?.token || localStorage.getItem('user_token');
       const opts = token
         ? { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }
         : { method: 'POST', credentials: 'include' };
       fetch(`${API}/monetization/reset`, opts).catch(() => {});
     }
     wasPremiumRef.current = isPremium;
-  }, [isPremium]);
+  }, [isPremium, billingStatusChecked]);
   
   // When billing is disabled at the server level, clear ALL stale monetization state.
   // Without this, a user who hit preview mode while billing was on would still be in
@@ -5219,7 +5230,7 @@ export default function UserStreamingApp() {
 
     // Fire-and-forget server sync. Only for logged-in users — guests use
     // the client-only guest_skip counter which is tracked separately.
-    const token = user?.token || localStorage.getItem('gracefy_app_token');
+    const token = user?.token || localStorage.getItem('user_token');
     if (user && token) {
       fetch(`${API}/monetization/record-skip`, {
         method: 'POST',

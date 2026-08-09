@@ -14,6 +14,21 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Paywall Modal "Continue" Fix + Two Silent-Bypass Fixes
+- ✅ **Bug fix — "Endelea kusikiliza previews" button now resumes audio** (`UserStreamingApp.jsx`):
+  - Previously the button ONLY closed the modal; if playback had paused during modal display, users saw "nothing happen"
+  - Now calls `player.togglePlay()` iff `currentSong` is loaded but `!isPlaying`
+- ✅ **UX polish — "Changia Sasa" opens checkout directly**:
+  - Previously redirected to Profile view; now opens `setShowCheckoutModal(true)` for a smoother upgrade path
+- ✅ **Dynamic modal copy** — hint text reads `monetizationSettings.preview_duration_seconds` (35s) + `full_play_every_n_previews` (4) instead of hardcoded "45 sekunde / kila ya 4"
+- ✅ **Modal title de-daily-ified**: "Umefikia kikomo" (was "Umefikia kikomo cha kusikiliza bure leo") to match the hard-paywall model
+- ✅ **CRITICAL FIX — Token key mismatch**: 3 places in `UserStreamingApp.jsx` read `localStorage.getItem('gracefy_app_token')` but login writes to `user_token`. Server-side skip counter was never hydrating on web reload → iter57's "uncircumventable paywall" promise was broken on web. Now reads `user_token` consistently.
+- ✅ **CRITICAL FIX — `isPremium` silent-bypass**:
+  - Default was `true` (with theory "don't block during load"), but if `/user/subscription-status` request failed (observed on preview), `isPremium` stayed `true` forever → `bumpUsage()` short-circuited → paywall silently disabled.
+  - Now defaults to `false`. Safe because `bumpUsage()` also requires `billingEnabled=true` which independently defaults to `false`.
+  - Also gated the `wasPremiumRef` reset effect on `billingStatusChecked=true` to prevent spurious wipes during initial load.
+- ✅ **Testing**: iteration_59 PASS 12/12 backend + all 3 iter59 fixes verified by code review. Reviewer flagged the two silent-bypass bugs (pre-existing, orthogonal to iter59 scope) which are addressed in this same session.
+
 ### Session: Feb 15, 2026 — Free-Listen Accounting + Admin/Choir Tiles + Approaching-Paywall Analytics
 - ✅ **is_free_listen flag** on every `listening_sessions` doc (`routes/analytics.py`):
   - Stamped at session start based on: user's `is_premium` status AT PLAY TIME + global `admin_settings.billing_enabled`
