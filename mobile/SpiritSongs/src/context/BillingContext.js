@@ -239,7 +239,7 @@ export const BillingProvider = ({ children }) => {
     })).catch(() => { /* quota / disk error — best-effort */ });
   }, [skipCount, previewModeActive]);
   
-  // When user becomes premium, clear enforcement (and wipe persisted counters). (and wipe persisted counters).
+  // When user becomes premium, clear enforcement (and wipe persisted counters).
   useEffect(() => {
     if (isPremium) {
       setPreviewModeActive(false);

@@ -14,6 +14,26 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Hard Paywall (Skip Counter Persists Until Payment)
+**Policy change**: Removed daily reset. Once the user hits `hard_skip_limit`, preview mode locks in **permanently** until they upgrade to premium — matches Spotify's free-tier behavior on unpaid accounts.
+- ✅ **Web** (`UserStreamingApp.jsx`):
+  - `loadMonetizationState()` no longer discards data when `parsed.date !== today` — the `date` field is completely removed
+  - Persist useEffect writes only `{usageCount, previewModeActive, previewClipCount}` (no date)
+  - Premium transition (`isPremium` false→true) still wipes `localStorage.gracefy_monetization` — the ONLY reset path
+- ✅ **Web lock-screen coverage** (`useAudioPlayer.js`):
+  - Added `mediaSessionSkipRef` + `setMediaSessionSkipHandler()` — parent registers `bumpUsage()` as the callback
+  - Both `navigator.mediaSession.setActionHandler('nexttrack')` and `('previoustrack')` now invoke `mediaSessionSkipRef.current?.()` BEFORE executing the skip → lock-screen / bluetooth remote skips count toward the paywall (previously bypassed)
+- ✅ **Mobile** (`BillingContext.js`):
+  - Removed `todayKey()` helper, date field, and the midnight rollover watcher (`setInterval(60000)` + AppState listener) entirely
+  - Hydrate useEffect applies `parsed.skipCount` and `parsed.previewModeActive` unconditionally when a stored value exists — no date check
+  - `isPremium=true` still calls `AsyncStorage.removeItem(MONETIZATION_STORE_KEY)` — the ONLY reset path
+- ✅ **Mobile lock-screen coverage** (`App.js` + `PlayerContext.js`):
+  - `PlayerProviderWithBilling` now passes `recordSkip` prop to `PlayerProvider`
+  - `PlayerProvider` accepts `recordSkip` prop + keeps latest in `recordSkipRef`
+  - Inside `Event.PlaybackActiveTrackChanged` handler, detect manual skip via `lastPosition < lastTrack.duration - 5` and call `recordSkipRef.current()` → routes lock-screen `RemoteNext`/`RemotePrevious` events through the paywall counter (previously bypassed)
+  - `previewDurationSeconds` default aligned at 35 (was 30)
+- ✅ **Testing**: iteration_56 PASS — backend 5/5 (regression checks on /app-settings, /billing-status, monetization save + cache invalidation, guest-limits) + 16/16 static code verifications (web + mobile). Live `/api/app-settings` returns `preview_duration_seconds: 35` after restoring the user's saved value post-fixture-reset.
+
 ### Session: Feb 15, 2026 — Preview Duration Aligned at 35s (Web + Mobile)
 - ✅ **Preview duration set to 35 seconds** on both platforms and in DB:
   - Web default in `UserStreamingApp.jsx` `monetizationSettings` state: 45 → 35
