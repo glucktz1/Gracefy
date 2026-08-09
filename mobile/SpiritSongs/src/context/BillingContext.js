@@ -238,6 +238,37 @@ export const BillingProvider = ({ children }) => {
       previewModeActive,
     })).catch(() => { /* quota / disk error — best-effort */ });
   }, [skipCount, previewModeActive]);
+
+  // ============ SERVER-SIDE PAYWALL RECONCILIATION ============
+  // On mount, and whenever auth changes, fetch the canonical skip counter
+  // from /api/monetization/usage. The server is the source of truth — this
+  // makes the paywall UNCIRCUMVENTABLE (uninstall / clear-data can't reset
+  // the counter).
+  //
+  // Reconciliation rule: server wins if its counter is HIGHER, or if it
+  // says preview_mode_active. Otherwise we keep the local state (avoids
+  // clobbering a freshly-bumped counter before its fire-and-forget POST
+  // reaches Mongo).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!monetizationHydratedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await billingAPI.getUsage();
+        const d = res?.data || {};
+        if (cancelled) return;
+        if (!d.authenticated) return;
+        if (typeof d.usage_count === 'number' && d.usage_count > 0) {
+          setSkipCount((prev) => (d.usage_count > prev ? d.usage_count : prev));
+        }
+        if (d.preview_mode_active) setPreviewModeActive(true);
+      } catch {
+        // Offline — client state stays as-is
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
   
   // When user becomes premium, clear enforcement (and wipe persisted counters).
   useEffect(() => {
@@ -245,6 +276,9 @@ export const BillingProvider = ({ children }) => {
       setPreviewModeActive(false);
       setSkipCount(0);
       AsyncStorage.removeItem(MONETIZATION_STORE_KEY).catch(() => {});
+      // Also wipe the server-side counter so the paywall stays cleared
+      // across devices even if the subscription webhook hasn't fired yet.
+      billingAPI.resetOnPremium().catch(() => { /* best-effort */ });
     }
   }, [isPremium]);
 
@@ -284,6 +318,9 @@ export const BillingProvider = ({ children }) => {
    * Record a skip attempt. Returns:
    *   { allowed: true, promptSoft: bool, promptHard: bool }
    * The caller decides whether to show the contribution modal based on the flags.
+   * Also fires a fire-and-forget POST to /api/monetization/record-skip so the
+   * server-side counter (source of truth) stays in sync — makes the paywall
+   * uncircumventable across reinstalls.
    */
   const recordSkip = useCallback(() => {
     if (!billingStatusChecked || !billingEnabled || isPremium) {
@@ -305,9 +342,15 @@ export const BillingProvider = ({ children }) => {
       promptHard = true;
       setPreviewModeActive(true);
     }
+
+    // Fire-and-forget server sync. Only for logged-in users — guests are
+    // tracked separately via the guest_skip counter.
+    if (isAuthenticated) {
+      billingAPI.recordSkip().catch(() => { /* offline — local counter still advanced */ });
+    }
     
     return { allowed: true, promptSoft, promptHard };
-  }, [billingStatusChecked, billingEnabled, isPremium, skipCount, monetization.soft_skip_limit, monetization.hard_skip_limit]);
+  }, [billingStatusChecked, billingEnabled, isPremium, isAuthenticated, skipCount, monetization.soft_skip_limit, monetization.hard_skip_limit]);
 
   /**
    * Get remaining skips before hard preview-mode kicks in

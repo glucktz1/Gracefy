@@ -3534,6 +3534,38 @@ export default function UserStreamingApp() {
     } catch { /* ignore quota */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usageCount, previewModeActive, previewClipCount]);
+
+  // ============ SERVER-SIDE PAYWALL RECONCILIATION ============
+  // On mount and whenever the user's auth status changes, fetch the
+  // canonical skip counter from /api/monetization/usage. The server is the
+  // source of truth — this makes the paywall UNCIRCUMVENTABLE (users can't
+  // bypass it by clearing localStorage or reinstalling).
+  //
+  // Reconciliation rule: server wins if its counter is HIGHER or if it says
+  // preview_mode_active. Otherwise we keep local state (avoids clobbering
+  // freshly-bumped state before the fire-and-forget POST reaches Mongo).
+  const authTokenForServer = user?.token || localStorage.getItem('gracefy_app_token');
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = {};
+        if (authTokenForServer) headers['Authorization'] = `Bearer ${authTokenForServer}`;
+        const res = await fetch(`${API}/monetization/usage`, { headers, credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (!data?.authenticated) return; // guests use client counter only
+        // Server outranks local when it shows a HIGHER usage or already-locked preview.
+        setUsageCount((prev) => (data.usage_count > prev ? data.usage_count : prev));
+        if (data.preview_mode_active) setPreviewModeActive(true);
+      } catch {
+        // network error — client state stays as-is (offline-resilient)
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authTokenForServer]);
   
   // Whether the current preview clip is the "full play" reward (every Nth)
   // This is now derived from previewClipCount, not state, so it stays accurate.
@@ -3880,6 +3912,13 @@ export default function UserStreamingApp() {
         previewTimerRef.current = null;
       }
       try { localStorage.removeItem('gracefy_monetization'); } catch { /* noop */ }
+      // Also wipe the server-side counter so the paywall stays cleared
+      // across devices even if the subscription webhook hasn't fired yet.
+      const token = user?.token || localStorage.getItem('gracefy_app_token');
+      const opts = token
+        ? { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }
+        : { method: 'POST', credentials: 'include' };
+      fetch(`${API}/monetization/reset`, opts).catch(() => {});
     }
     wasPremiumRef.current = isPremium;
   }, [isPremium]);
@@ -5159,6 +5198,11 @@ export default function UserStreamingApp() {
   // ============ UNIFIED USAGE TRACKER ============
   // Bumps usage only when billing is ON and user isn't premium.
   // When billing is OFF, this is a NO-OP — everything is free.
+  //
+  // Also fires-and-forgets a POST to /api/monetization/record-skip so the
+  // server-side counter (source of truth) stays in sync. Even if the
+  // network call fails, local state advances so the user experience is
+  // instant — the next mount will reconcile with the server.
   const bumpUsage = () => {
     if (!billingEnabled || isPremium) return;
     const threshold = monetizationSettings.hard_skip_limit || 6;
@@ -5172,6 +5216,21 @@ export default function UserStreamingApp() {
       }
       return next;
     });
+
+    // Fire-and-forget server sync. Only for logged-in users — guests use
+    // the client-only guest_skip counter which is tracked separately.
+    const token = user?.token || localStorage.getItem('gracefy_app_token');
+    if (user && token) {
+      fetch(`${API}/monetization/record-skip`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      }).catch(() => { /* offline — local counter still advanced */ });
+    } else if (user) {
+      // Web session-cookie path (no explicit token)
+      fetch(`${API}/monetization/record-skip`, { method: 'POST', credentials: 'include' })
+        .catch(() => {});
+    }
   };
 
   // Register bumpUsage as the MediaSession (lock-screen / bluetooth remote)

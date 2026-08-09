@@ -1,0 +1,58 @@
+{
+  "summary": "Iter 57 — Server-side skip counter (uncircumventable paywall) full backend verification. 12/12 pytest cases PASS against /api/monetization/usage, /record-skip, /reset covering: anonymous defaults, threshold source from db.app_settings (not monetization_settings), atomic increment 1..9 with prompt_hard=true ONLY on crossing skip, post-threshold no-reprompt, cross-device persistence, premium bypass via db.app_users.is_premium=true, premium /reset clears skip_count + preview_mode_active + sets cleared_at while preserving total_lifetime_skips, non-premium reset→403, anon reset→401. Static verification of all 6 web/mobile client wirings (reconciliation useEffect, bumpUsage/recordSkip fire-and-forget, premium reset call) confirms spec compliance. All test data cleaned up; app_settings.monetization restored to {soft:6, hard:9, preview:35}.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "static_verification": {
+    "web_UserStreamingApp_jsx": {
+      "server_reconciliation_useEffect": "PASS — lines 3548-3568: fetches ${API}/monetization/usage on mount + auth-token change; setUsageCount only if data.usage_count > prev; unconditionally setPreviewModeActive(true) when server says so; guests early-return on !data.authenticated",
+      "bumpUsage_fire_and_forget": "PASS — lines 5206-5234: POST ${API}/monetization/record-skip only when user logged-in (token or session cookie); guests bypass server call",
+      "premium_transition_reset": "PASS — lines 3898-3924: wasPremiumRef guarded false→true triggers localStorage.removeItem('gracefy_monetization') AND POST ${API}/monetization/reset with Bearer or cookie auth"
+    },
+    "mobile_api_js_billingAPI": {
+      "getUsage_exported": "PASS — line 480: billingAPI.getUsage → GET /monetization/usage",
+      "recordSkip_exported": "PASS — line 481: billingAPI.recordSkip → POST /monetization/record-skip",
+      "resetOnPremium_exported": "PASS — line 482: billingAPI.resetOnPremium → POST /monetization/reset"
+    },
+    "mobile_BillingContext_js": {
+      "server_reconciliation_useEffect": "PASS — lines 252-271: gated by isAuthenticated + monetizationHydratedRef; calls billingAPI.getUsage(); setSkipCount only if d.usage_count > prev; unconditionally setPreviewModeActive(true) when server says so",
+      "recordSkip_server_sync": "PASS — lines 325-353: increments local, then fire-and-forget billingAPI.recordSkip() ONLY when isAuthenticated; guests use client-only counter",
+      "premium_reset_asyncstorage_and_server": "PASS — lines 274-283: isPremium=true → AsyncStorage.removeItem(MONETIZATION_STORE_KEY) + billingAPI.resetOnPremium().catch"
+    }
+  },
+  "backend_tests_executed": {
+    "TestAnonymous::test_usage_no_auth_returns_defaults": "PASS — {authenticated:false, usage_count:0, preview_mode_active:false, threshold:9, preview_duration_seconds:35, is_premium:false}",
+    "TestAnonymous::test_record_skip_no_auth_returns_defaults": "PASS — anonymous shape with prompt_hard:false, no server increment",
+    "TestAnonymous::test_reset_no_auth_returns_401": "PASS",
+    "TestThresholdSource::test_threshold_from_app_settings": "PASS — POST /admin/app-settings/monetization {hard_skip_limit:5} → next /usage returns threshold:5; restored to 9",
+    "TestAuthenticatedIncrement::test_bootstrap_usage_zero": "PASS — Bearer token → {authenticated:true, usage_count:0, threshold:9}",
+    "TestAuthenticatedIncrement::test_record_skip_9_times_atomic_increment": "PASS — usage_count 1..9 strictly monotonic; prompt_hard=false for 1..8; prompt_hard=true AND preview_mode_active=true only on 9 (crossing skip)",
+    "TestAuthenticatedIncrement::test_post_threshold_no_reprompt": "PASS — 10th call: usage_count=10, preview_mode_active=true, prompt_hard=false",
+    "TestAuthenticatedIncrement::test_cross_device_state_persists": "PASS — fresh Session with same Bearer returns usage_count=10, preview_mode_active=true",
+    "TestAuthenticatedIncrement::test_reset_rejected_for_non_premium": "PASS — HTTP 403",
+    "TestPremiumBypassAndReset::test_promote_to_premium_bypasses_paywall": "PASS — after db.app_users.update_one($set:is_premium:true), /usage returns is_premium:true, preview_mode_active:false, usage_count:0 regardless of stored skip_count",
+    "TestPremiumBypassAndReset::test_record_skip_premium_bypasses": "PASS — premium /record-skip returns preview_mode_active:false, prompt_hard:false, is_premium:true (no increment)",
+    "TestPremiumBypassAndReset::test_reset_clears_counters_preserves_lifetime": "PASS — {cleared:true}; Mongo user_billing_stats: skip_count=0, preview_mode_active=false, cleared_at set; total_lifetime_skips unchanged (analytics preserved)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_monetization_usage_iter57.py",
+    "/app/test_reports/pytest/monetization_iter57.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "monetization_usage.py _get_threshold_and_duration default fallback is hard_skip_limit=6 (line 108) but the actual seeded app_settings value is 9. Not a bug — default only used if the collection is entirely empty. Minor: consider aligning default with the seeded baseline for consistency.",
+    "monetization_usage.py _resolve_user (lines 73-81) treats a Bearer token as a possible session_token fallback for the web path. This is defensive but means a leaked mobile Bearer could potentially match a session record if IDs ever collide — currently safe since Bearer tokens are 'tok_<uuid>' and session tokens are distinct, but worth a note.",
+    "monetization_usage.py POST /reset (line 238) is idempotent + upserts. It will create a billing_stats doc even for a premium user who never skipped, which is harmless but adds a row per premium upgrade. Acceptable.",
+    "The record-skip 'prompt_hard' fires only on the EXACT crossing skip (usage == threshold). This matches the spec but means if the crossing response is lost in transit the client won't be re-prompted server-side. Client's local counter still triggers the modal, so acceptable.",
+    "Pre-existing (out of scope for iter 57, flagged iter 55+56): POST /api/admin/app-settings/monetization still has no auth dependency. Iter57 tests continue to leverage this — main agent should add admin auth guard in a future iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_monetization_usage_iter57.py (new)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "static_checks": "100% (9/9)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Used self-registered ephemeral users via /api/user/register (TEST_iter57_* prefix). Admin creds not needed — monetization admin endpoint currently unauthenticated.",
+  "seed_data_creation": "Two ephemeral users created + fully cleaned up post-test (app_users, user_tokens, user_billing_stats). Verified via mongosh: 0 residual docs. app_settings.monetization restored to baseline {soft:6, hard:9, preview:35}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 57 SERVER-SIDE skip counter is fully wired and behaves per spec. Endpoints live at /api/monetization/{usage,record-skip,reset} in routes/monetization_usage.py, registered at server.py line 143. Threshold read from db.app_settings.setting_type='monetization'.config.hard_skip_limit. Regression: pytest /app/backend/tests/test_monetization_usage_iter57.py -v. Mongo access from container: mongodb://localhost:27017/gracefy_db. Note the pre-existing unauthenticated /api/admin/app-settings/monetization endpoint — tests exploit this; main agent should gate with admin dep in a future iteration.",
+  "rca of the issue": "N/A — feature verification pass, no bugs surfaced."
+}

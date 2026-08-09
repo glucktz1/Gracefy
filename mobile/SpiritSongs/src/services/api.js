@@ -475,6 +475,11 @@ export const billingAPI = {
   testConfirmPayment: (transactionId, action = 'confirm') => 
     api.post(`/payment/azampay/test-confirm/${transactionId}`, { action }),
   getUserTransactions: () => api.get('/user/transactions'),
+  // ============ SERVER-SIDE PAYWALL (uncircumventable skip counter) ============
+  // Auth is auto-attached by the axios interceptor from SecureStore.
+  getUsage: () => api.get('/monetization/usage'),
+  recordSkip: () => api.post('/monetization/record-skip'),
+  resetOnPremium: () => api.post('/monetization/reset'),
 };
 
 // ============ DEVICE FINGERPRINTING API ============

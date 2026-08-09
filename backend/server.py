@@ -82,6 +82,7 @@ from routes.firebase_auth import router as firebase_router
 from routes.hls_admin import router as hls_admin_router
 from routes.neno_la_leo import router as neno_la_leo_router
 from routes.admin_cdn_browser import router as admin_cdn_browser_router
+from routes.monetization_usage import router as monetization_usage_router
 
 # Legacy cache service for backward compatibility
 from cache_service import cache as legacy_cache
@@ -139,6 +140,7 @@ def create_app() -> FastAPI:
     app.include_router(user_library_router)   # /api/library/*, /api/user/*
     app.include_router(content_router)        # /api/content-*, /api/religious-leaders/*
     app.include_router(monetization_router)   # /api/subscription-*, /api/monetization-*
+    app.include_router(monetization_usage_router)  # /api/monetization/usage, /record-skip, /reset
     app.include_router(categories_router)     # /api/categories/*, /api/song-categories/*
     app.include_router(browse_router)         # /api/user/browse/*, /api/user/search
     app.include_router(teachings_router)      # /api/teachings/*
