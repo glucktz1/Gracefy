@@ -1985,7 +1985,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute, previewModeActive, previewSeconds }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute, previewModeActive, previewSeconds, language, onUnlock }) => {
   // ============ HOOKS (declared BEFORE any early return so order stays stable) ============
   // Swipe gesture state (Spotify-style): swipe LEFT = next, swipe RIGHT = prev.
   const touchRef = useRef({ startX: 0, startY: 0, dx: 0, dy: 0, t: 0 });
@@ -2093,13 +2093,23 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
           </div>
         );
       })()}
-      {/* Preview chip — small pill above the mini-player when preview mode active
-          (hidden when the wider Contribute banner is showing to avoid duplication). */}
+      {/* Preview chip — small pill above the mini-player when preview mode active.
+          Tapping it opens the checkout modal so users go straight from the visual
+          cue to payment. Hidden when the wider Contribute banner is showing to
+          avoid duplication. */}
       {previewModeActive && !isRadio && !showContributeBanner && (
-        <div className="absolute -top-2 left-3 flex items-center gap-1 px-2 py-0.5 bg-amber-500 text-zinc-900 text-[10px] font-bold rounded-full shadow-md" data-testid="preview-chip">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); if (onUnlock) onUnlock(); }}
+          data-testid="preview-chip"
+          className="absolute -top-2 left-3 flex items-center gap-1 px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-[10px] font-bold rounded-full shadow-md transition-colors"
+        >
           <Sparkles size={10} />
-          <span>0:{String(previewSeconds || 35).padStart(2, '0')} preview</span>
-        </div>
+          <span>0:{String(previewSeconds || 35).padStart(2, '0')}</span>
+          <span className="opacity-70">·</span>
+          <span>{language === 'sw' ? 'Pata wimbo wote' : 'Unlock full song'}</span>
+          <span aria-hidden="true">→</span>
+        </button>
       )}
       {/* Radio indicator line */}
       {isRadio && (
@@ -7007,6 +7017,8 @@ export default function UserStreamingApp() {
         onPrev={handlePrevWithBilling}
         previewModeActive={billingEnabled && !isPremium && previewModeActive}
         previewSeconds={monetizationSettings.preview_duration_seconds || 35}
+        language={language}
+        onUnlock={() => setShowCheckoutModal(true)}
         onDownload={() => {
           // Always show download app popup for web
           setShowDownloadPopup(true);

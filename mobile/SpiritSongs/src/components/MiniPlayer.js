@@ -214,12 +214,25 @@ const MiniPlayer = ({ onPress, navigation }) => {
             colors={[COLORS.card, COLORS.surface]}
             style={styles.gradient}
           >
-            {/* Preview chip — appears above the progress bar in preview mode.
-                Signals free-tier cap without pushing another modal. */}
+            {/* Preview chip — tap opens the subscription checkout so users go
+                straight from the visual cue to payment. Signals free-tier cap
+                without pushing another modal. */}
             {isPreview && (
-              <View style={styles.previewChip} testID="preview-chip">
-                <Text style={styles.previewChipText}>0:{String(previewSeconds).padStart(2, '0')} preview</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.previewChip}
+                testID="preview-chip"
+                activeOpacity={0.85}
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  if (typeof billingContext?.promptSubscription === 'function') {
+                    billingContext.promptSubscription('skip');
+                  }
+                }}
+              >
+                <Text style={styles.previewChipText}>
+                  0:{String(previewSeconds).padStart(2, '0')} · Pata wimbo wote →
+                </Text>
+              </TouchableOpacity>
             )}
             {/* Progress bar — amber when in preview mode, blue otherwise */}
             <View style={[styles.progressContainer, isPreview && styles.progressContainerPreview]}>
