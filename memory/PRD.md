@@ -14,6 +14,28 @@ Mobile and web app overhaul with Firebase integration, production payments (Azam
 
 ## What's Been Implemented
 
+### Session: Feb 15, 2026 — Server-Side Skip Counter (Uncircumventable Paywall)
+Moved the skip counter to Mongo as the source of truth. Reinstalling the app or clearing localStorage no longer resets the paywall.
+
+- ✅ **New route** `/app/backend/routes/monetization_usage.py`:
+  - `GET /api/monetization/usage` — hydrate: returns `{authenticated, usage_count, preview_mode_active, threshold, preview_duration_seconds, is_premium}`. Anonymous callers get sensible defaults so guests still work.
+  - `POST /api/monetization/record-skip` — atomic `$inc` on `skip_count` + `total_lifetime_skips`; flips `preview_mode_active=true` and returns `prompt_hard=true` only on the EXACT crossing skip.
+  - `POST /api/monetization/reset` — 401 anon, 403 non-premium, 200 for premium; wipes `skip_count` + `preview_mode_active` but preserves `total_lifetime_skips` for analytics.
+  - `_resolve_user()` supports BOTH mobile `Bearer <token>` (via `user_tokens`) AND web `session_token` cookie (via `user_sessions`).
+  - Threshold sourced from `db.app_settings` where `setting_type='monetization'` (same place admin panel saves via `POST /admin/app-settings/monetization`).
+  - Registered in `server.py` at line 143 as `monetization_usage_router`.
+- ✅ **New collection** `user_billing_stats` — one doc per user with `{user_id, skip_count, total_lifetime_skips, preview_mode_active, first_hit_at, last_skip_at, cleared_at, created_at, updated_at}`.
+- ✅ **Web client** (`UserStreamingApp.jsx`):
+  - Mount useEffect hits `/api/monetization/usage` — reconciliation rule: server wins if `usage_count > local` OR if `preview_mode_active=true`. Guests early-return.
+  - `bumpUsage()` fires-and-forgets `POST /record-skip` for logged-in users (guests use client-only counter).
+  - Premium false→true transition also calls `POST /reset` alongside localStorage wipe.
+- ✅ **Mobile client** (`BillingContext.js` + `api.js`):
+  - `billingAPI` exports `getUsage`, `recordSkip`, `resetOnPremium`.
+  - `BillingContext` mounts server reconciliation useEffect gated by `isAuthenticated` and `monetizationHydratedRef`.
+  - `recordSkip()` fires-and-forgets `billingAPI.recordSkip()` for logged-in users only.
+  - Premium transition calls `billingAPI.resetOnPremium()` alongside AsyncStorage wipe.
+- ✅ **Testing**: iteration_57 PASS — **12/12 backend pytest cases** (anonymous defaults, atomic increment, crossing-skip prompt logic, cross-device persistence, premium bypass, premium reset preserves lifetime stats, 401/403 auth rejection, threshold source) + **9/9 client static verifications**. Test file: `/app/backend/tests/test_monetization_usage_iter57.py`. Ephemeral test users cleaned up post-run.
+
 ### Session: Feb 15, 2026 — Hard Paywall (Skip Counter Persists Until Payment)
 **Policy change**: Removed daily reset. Once the user hits `hard_skip_limit`, preview mode locks in **permanently** until they upgrade to premium — matches Spotify's free-tier behavior on unpaid accounts.
 - ✅ **Web** (`UserStreamingApp.jsx`):
