@@ -5,7 +5,7 @@ import {
   Heart, MoreHorizontal, ChevronLeft, ChevronRight, Home, Search, Library,
   Plus, Minus, Clock, Music2, Mic2, ListMusic, X, Share2, Download, Maximize2,
   BookOpen, Cross, Church, Star, Sun, Flame, List, Radio, Settings, Disc, Phone, Mail, Loader2,
-  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music, ListPlus, Shield, FileText
+  Globe, Headphones, Users, MapPin, Navigation, User, Bell, Lock, Music, ListPlus, Shield, FileText, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1985,7 +1985,7 @@ const FullPlayer = ({ player, onClose, onFavorite, isFavorite, onNext, onPrev, o
 };
 
 // Mini Player Bar
-const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute }) => {
+const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, onDownload, onAddToPlaylist, showContributeBanner, contributeMessage, onContribute, previewModeActive, previewSeconds }) => {
   // ============ HOOKS (declared BEFORE any early return so order stays stable) ============
   // Swipe gesture state (Spotify-style): swipe LEFT = next, swipe RIGHT = prev.
   const touchRef = useRef({ startX: 0, startY: 0, dx: 0, dy: 0, t: 0 });
@@ -2074,12 +2074,31 @@ const MiniPlayer = ({ player, onExpand, onFavorite, isFavorite, onNext, onPrev, 
       )}
       
       {/* Progress line - only for music, not radio (live streams) */}
-      {!isRadio && (
-        <div className="h-1 bg-zinc-800">
-          <div 
-            className="h-full bg-blue-500"
-            style={{ width: `${(player.currentTime / (player.duration || 1)) * 100}%` }}
-          />
+      {!isRadio && (() => {
+        // In preview mode, the progress bar caps at the preview window
+        // (35s by default) and colors amber to signal "this is a preview".
+        // Non-preview: normal full-track progress in blue.
+        const isPreview = !!previewModeActive;
+        const cap = isPreview ? (previewSeconds || 35) : (player.duration || 1);
+        const denom = isPreview ? cap : (player.duration || 1);
+        const pos = Math.min(player.currentTime || 0, cap);
+        const pct = Math.max(0, Math.min(100, (pos / denom) * 100));
+        return (
+          <div className={`h-1 ${isPreview ? 'bg-amber-950/40' : 'bg-zinc-800'}`}>
+            <div
+              className={`h-full ${isPreview ? 'bg-amber-400' : 'bg-blue-500'}`}
+              style={{ width: `${pct}%` }}
+              data-testid="mini-player-progress"
+            />
+          </div>
+        );
+      })()}
+      {/* Preview chip — small pill above the mini-player when preview mode active
+          (hidden when the wider Contribute banner is showing to avoid duplication). */}
+      {previewModeActive && !isRadio && !showContributeBanner && (
+        <div className="absolute -top-2 left-3 flex items-center gap-1 px-2 py-0.5 bg-amber-500 text-zinc-900 text-[10px] font-bold rounded-full shadow-md" data-testid="preview-chip">
+          <Sparkles size={10} />
+          <span>0:{String(previewSeconds || 35).padStart(2, '0')} preview</span>
         </div>
       )}
       {/* Radio indicator line */}
@@ -6986,6 +7005,8 @@ export default function UserStreamingApp() {
         isFavorite={player.currentSong && isFavorite(player.currentSong.song_id)}
         onNext={handleNextWithBilling}
         onPrev={handlePrevWithBilling}
+        previewModeActive={billingEnabled && !isPremium && previewModeActive}
+        previewSeconds={monetizationSettings.preview_duration_seconds || 35}
         onDownload={() => {
           // Always show download app popup for web
           setShowDownloadPopup(true);

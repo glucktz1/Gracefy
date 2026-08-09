@@ -116,7 +116,13 @@ const MiniPlayer = ({ onPress, navigation }) => {
 
   if (!currentTrack) return null;
 
-  const progress = duration > 0 ? (position / duration) * 100 : 0;
+  // In preview mode, cap the progress bar at the preview window (default 35s).
+  // This visually communicates the free-tier limit — matches the web mini-player.
+  const previewSeconds = billingContext?.monetization?.preview_duration_seconds || 35;
+  const isPreview = billingContext?.billingEnabled && !billingContext?.isPremium && previewModeActive;
+  const progressCap = isPreview ? previewSeconds : (duration || 1);
+  const clampedPos = Math.min(position || 0, progressCap);
+  const progress = progressCap > 0 ? (clampedPos / progressCap) * 100 : 0;
   
   // Show "More like this" or queue info
   const getSubtitle = () => {
@@ -208,9 +214,20 @@ const MiniPlayer = ({ onPress, navigation }) => {
             colors={[COLORS.card, COLORS.surface]}
             style={styles.gradient}
           >
-            {/* Progress bar */}
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${progress}%` }]} />
+            {/* Preview chip — appears above the progress bar in preview mode.
+                Signals free-tier cap without pushing another modal. */}
+            {isPreview && (
+              <View style={styles.previewChip} testID="preview-chip">
+                <Text style={styles.previewChipText}>0:{String(previewSeconds).padStart(2, '0')} preview</Text>
+              </View>
+            )}
+            {/* Progress bar — amber when in preview mode, blue otherwise */}
+            <View style={[styles.progressContainer, isPreview && styles.progressContainerPreview]}>
+              <View style={[
+                styles.progressBar,
+                { width: `${progress}%` },
+                isPreview && styles.progressBarPreview,
+              ]} />
             </View>
 
             <View style={styles.content}>
@@ -397,9 +414,36 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: COLORS.progressBar,
   },
+  progressContainerPreview: {
+    // Slightly darker amber trough so the filled amber bar reads clearly
+    backgroundColor: 'rgba(120, 53, 15, 0.35)',
+  },
   progressBar: {
     height: '100%',
     backgroundColor: COLORS.primary,
+  },
+  progressBarPreview: {
+    backgroundColor: '#fbbf24',  // amber-400 — matches the "Endelea previews" chip
+  },
+  previewChip: {
+    position: 'absolute',
+    top: -10,
+    left: 12,
+    backgroundColor: '#fbbf24',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  previewChipText: {
+    color: '#18181b',
+    fontSize: 10,
+    fontWeight: '700',
   },
   content: {
     flexDirection: 'row',
