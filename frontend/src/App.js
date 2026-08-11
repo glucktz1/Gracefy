@@ -9,11 +9,20 @@ import AdminNotifications from "@/components/AdminNotifications";
 // Loading component for lazy-loaded pages
 import { PageLoader } from "@/components/GracefyLoader";
 
-// Critical pages - loaded immediately
-import Dashboard from "@/pages/Dashboard";
+// Critical pages
+// LoginPage stays eager — it's tiny and the entry point for admin/choir sign-in.
+// UserStreamingApp + Dashboard are LARGE (UserStreamingApp is ~7k lines) so they
+// were previously killing the initial bundle: hitting /admin/login was
+// downloading the entire user streaming app JS, and hitting / was downloading
+// the admin Dashboard. Lazy-loading them slims the initial bundle so both
+// routes paint their entry point (login form / marketing hero) sooner.
+// The webpackPrefetch magic comment tells the browser to fetch the chunk
+// during idle time, so users clicking through to the app after login don't
+// pay a second hit.
 import LoginPage from "@/pages/LoginPage";
-import UserStreamingApp from "@/pages/UserStreamingApp";
 import { LanguageProvider } from "@/context/LanguageContext";
+const UserStreamingApp = lazy(() => import(/* webpackPrefetch: true */ "@/pages/UserStreamingApp"));
+const Dashboard = lazy(() => import(/* webpackPrefetch: true */ "@/pages/Dashboard"));
 
 // Lazy-loaded pages - loaded on demand
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
@@ -557,7 +566,7 @@ function AppRouter() {
         {/* User Streaming App - Landing Page (Default) */}
         <Route path="/" element={<UserStreamingApp />} />
         <Route path="/app" element={<UserStreamingApp />} />
-        <Route path="/app/see-all/:sectionId" element={<Suspense fallback={<PageLoader />}><SeeAllPage /></Suspense>} />
+        <Route path="/app/see-all/:sectionId" element={<SeeAllPage />} />
         
         {/* Public Choir Registration */}
         <Route path="/choir-register" element={<ChoirRegistrationPage />} />
